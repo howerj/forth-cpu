@@ -7,7 +7,9 @@ Copyright:
     * Copyright 2013 Richard James Howe.
 License:        
     * LGPL
-Email:          
+
+Email:
+          
     * howe.rj.89@googlemail.com
 
 All works are copyright of Richard James Howe unless stated elsewhere, all
