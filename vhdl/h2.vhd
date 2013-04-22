@@ -63,8 +63,8 @@ architecture rtl of h2 is
     signal rtos_c    :   std_logic_vector(15 downto 0):= (others => '0');
 
     -- Multiplier register
-    signal mul_ans_c:  std_logic_vector(31 downto 0)   := (others => '0');
-    signal mul_ans_n:  std_logic_vector(31 downto 0)   := (others => '0');
+--    signal mul_ans_c:  std_logic_vector(31 downto 0)   := (others => '0');
+--    signal mul_ans_n:  std_logic_vector(31 downto 0)   := (others => '0');
 
     -- aluop is what is fed into the alu.
     signal aluop: std_logic_vector(4 downto 0)      := (others => '0');
@@ -136,13 +136,13 @@ begin
     end process;
 
     -- multiplier, not in original core
-    alu_mul: process(mul_ans_c, aluop, tos_c, nos, is_alu)
-    begin
-        mul_ans_n   <=  mul_ans_c;
-        if is_alu = '1' and aluop = "10010" then
-            mul_ans_n   <= std_logic_vector(unsigned(tos_c)*unsigned(nos));
-        end if;
-    end process;
+--    alu_mul: process(mul_ans_c, aluop, tos_c, nos, is_alu)
+--    begin
+--        mul_ans_n   <=  mul_ans_c;
+--        if is_alu = '1' and aluop = "10010" then
+--            mul_ans_n   <= std_logic_vector(unsigned(tos_c)*unsigned(nos));
+--        end if;
+--    end process;
 
     -- ALU
     alu: process(
@@ -151,7 +151,7 @@ begin
         din, insn, aluop, 
         io_din,
         vstkp_c, rstkp_c,
-        mul_ans_c
+        -- mul_ans_c
     )
     begin
         io_wr       <=  '0';
@@ -204,8 +204,8 @@ begin
                 -- Additional instructions ---
                   when "10000" => tos_n   <=  std_logic_vector(unsigned(tos_c)-unsigned(nos));
                   when "10001" => tos_n   <=  tos_c xnor nos;
-                  when "10010" => tos_n   <=  mul_ans_c(15 downto 0);
-                  when "10011" => tos_n   <=  mul_ans_c(31 downto 16);
+--                  when "10010" => tos_n   <=  mul_ans_c(15 downto 0);
+--                  when "10011" => tos_n   <=  mul_ans_c(31 downto 16);
                   when "10100" => tos_n   <=  io_din;
                   when "10101" => io_wr   <=  '1';
                   when "10110" => 
