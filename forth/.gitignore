@@ -1,0 +1,7 @@
+*.swp
+*.swo
+*.o
+*.ascii
+*.log
+forth
+memory.txt

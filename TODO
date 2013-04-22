@@ -1,0 +1,15 @@
+assm/
+    * Improve assembler.
+    * It is possible that I could implement the
+        Virtual machine here as well.   
+vhdl/
+    * Work on input/output more.
+    * Implement simple bootloader as firmware.
+vm/
+    * Implement virtual machine?
+latex/
+    * Poster.
+    * Thesis.
+
+ALL:
+    * Documentation.

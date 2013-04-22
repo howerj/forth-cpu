@@ -1,0 +1,6 @@
+j1
+*.o
+*.swp
+*.swo
+output.txt
+valgrind.txt
