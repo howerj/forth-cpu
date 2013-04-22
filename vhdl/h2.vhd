@@ -150,7 +150,8 @@ begin
         tos_c, nos, rtos_c, 
         din, insn, aluop, 
         io_din,
-        vstkp_c, rstkp_c,
+        vstkp_c, rstkp_c 
+        --,
         -- mul_ans_c
     )
     begin
@@ -231,13 +232,13 @@ begin
         if rst='1' then
             vstkp_c     <=  (others => '0');
             rstkp_c     <=  (others => '0');
-            mul_ans_c   <=  (others => '0');
+--            mul_ans_c   <=  (others => '0');
             pc_c        <=  (others => '0');
             tos_c       <=  (others => '0');
         elsif rising_edge(clk) then
             vstkp_c     <=  vstkp_n;
             rstkp_c     <=  rstkp_n;
-            mul_ans_c   <=  mul_ans_n;
+--            mul_ans_c   <=  mul_ans_n;
             pc_c        <=  pc_n;
             tos_c       <=  tos_n;
         end if;
