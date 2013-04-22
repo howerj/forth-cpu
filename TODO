@@ -5,11 +5,12 @@ assm/
 vhdl/
     * Work on input/output more.
     * Implement simple bootloader as firmware.
+    * top_level.vhd
+        > Move out the I/O section into it's own module.
 vm/
     * Implement virtual machine?
 latex/
     * Poster.
     * Thesis.
-
 ALL:
     * Documentation.

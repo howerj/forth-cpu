@@ -384,18 +384,23 @@ str @reg dup 32 + str !reg constant filename
     cr
     2drop
 ;
+.( Howe Forth. ) cr
+.( Base system loaded ) cr
+.( Dictionary pointer: ) here . 
+
 \ ==============================================================================
 \ ASSEMBLER
 \ ==============================================================================
 
-: _.h 16 swap printnum ;
-: F 15 ;
-: .h 
-    dup F 12 lshift and 12 rshift _.h 
-    dup F 8 lshift and 8 rshift _.h 
-    dup F 4 lshift and 4 rshift _.h 
-    F and _.h 
-;
+
+\ : _.h 16 swap printnum ;
+\ : F 15 ;
+\ : .h 
+\     dup F 12 lshift and 12 rshift _.h 
+\     dup F 8 lshift and 8 rshift _.h 
+\     dup F 4 lshift and 4 rshift _.h 
+\     F and _.h 
+\ ;
 : _.b 2 swap printnum ;
 : .b 
     dup 1 15 lshift and 15 rshift _.b
@@ -416,6 +421,17 @@ str @reg dup 32 + str !reg constant filename
     1 0 lshift and 0 rshift _.b
 ;
 
+8192 array mem
+8191 constant mmax 
+
+: pmem
+    0 begin
+        dup mem @dic .b cr
+        dup mmax = swap 1+ swap
+    until
+    drop 
+;
+
 \ Stack instructions
 : mDStk ;
 : mRStk 2 lshift ;
@@ -431,34 +447,29 @@ str @reg dup 32 + str !reg constant filename
 2 mRStk constant r-2
 
 \ ALU instructions
-: mALU 8 lshift ;
-0 mALU  constant T
-1 mALU  constant N
-2 mALU  constant T+N
-3 mALU  constant T&N
-4 mALU  constant T|N
-5 mALU  constant T^N
-6 mALU  constant ~T
-7 mALU  constant N=T
-8 mALU  constant N<T
-9 mALU  constant N<<T
-10 mALU constant T-1
-11 mALU constant R
-12 mALU constant [T]
-13 mALU constant N<<T
-14 mALU constant depth
-15 mALU constant Nu<T
-16 mALU constant T-N
-17 mALU constant ~(T^N)
-18 mALU constant L(T*N)   \ Low bits of multiplication
-19 mALU constant H(T*N)   \ High bit of multiplication
-20 mALU constant [T<-IO]  \ Get input
-21 mALU constant N->IO(T) \ Set output
-
-\ Using additional instruction.
-\ 16 mALU constant T-N
-\ 17 mALU constant ~(T^N)
-\ 18 mALU constant T*N
+:  mALU 8 lshift ;
+0  mALU  constant T
+1  mALU  constant N
+2  mALU  constant T+N
+3  mALU  constant T&N
+4  mALU  constant T|N
+5  mALU  constant T^N
+6  mALU  constant ~T
+7  mALU  constant N=T
+8  mALU  constant N<T
+9  mALU  constant N<<T
+10 mALU  constant T-1
+11 mALU  constant R
+12 mALU  constant [T]
+13 mALU  constant N<<T
+14 mALU  constant depth
+15 mALU  constant Nu<T
+16 mALU  constant T-N
+17 mALU  constant ~(T^N)
+\ 18 mALU constant L(T*N)   \ Low bits of multiplication
+\ 19 mALU constant H(T*N)   \ High bit of multiplication
+20 mALU  constant [T<-IO]  \ Get input
+21 mALU  constant N->IO(T) \ Set output
 
 : mLit 1 15 lshift ;
 : T->N     1 7 lshift ;
@@ -471,25 +482,26 @@ str @reg dup 32 + str !reg constant filename
 : !pc pc !dic ;
 : pc++ @pc 1+ !pc ;
 
+
 : lit  \ ( x -- )
-    pc++ 32767 and mLit or .b cr
+    32767 and mLit or @pc mem !dic pc++ 
 ;
 
 : jmp
-    pc++ 8191 and .b cr
+    8191 and @pc mem !dic pc++
 ;
 
 : cjmp
-    pc++ 8191 and 1 13 lshift or .b cr
+    8191 and 1 13 lshift or @pc mem !dic pc++ 
 ;
 
 : call
-    pc++ 8191 and 1 14 lshift or .b cr 
+    8191 and 1 14 lshift or @pc mem !dic pc++ 
 ;
 
 : alu[ ;
 : ]alu
-    pc++ 8191 and 1 13 lshift or 1 14 lshift or .b cr
+    8191 and 1 13 lshift or 1 14 lshift or @pc mem !dic pc++ 
 ;
 
 : _dup      alu[ T T->N d+1 or or ]alu ;
@@ -509,7 +521,7 @@ str @reg dup 32 + str !reg constant filename
 : _r@       alu[ R T->N T->R d+1 or or or ]alu ;
 : _@        alu[ [T] ]alu ;
 : _!        alu[ N d-1 N->[T] or or ]alu ;
-: _*        alu[ L(T*N) d-1 or ]alu ;
+\ : _*        alu[ L(T*N) d-1 or ]alu ;
 : _input    alu[ [T<-IO] ]alu ;
 : _output   alu[ N d-2 N->IO(T) or or ]alu ;
 
@@ -524,9 +536,12 @@ str @reg dup 32 + str !reg constant filename
 ;
 
 : stop
+    pmem
     halt
 ;
-
+.( Printing stack: ) cr
+.s
+.( "Forth H2 Assembler" loaded, assembling source now. ) cr
 foutput ../vhdl/mem_h2.binary
 finput h2.fs
 

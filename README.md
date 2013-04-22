@@ -75,7 +75,7 @@ it includes a test bench.
 vm/
 ---   
 
-Contains virtual machine, simulation of the H2 CPU.
+Contains virtual machine, simulation of the H2 CPU. [TODO]
 
 
 EOF
