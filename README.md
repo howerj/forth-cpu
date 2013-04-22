@@ -1,16 +1,10 @@
 Simple VHDL Computing System
 ============================
 
-Author:         
-    * Richard James Howe.
-Copyright:      
-    * Copyright 2013 Richard James Howe.
-License:        
-    * LGPL
-
-Email:
-          
-    * howe.rj.89@googlemail.com
+Author:             Richard James Howe.
+Copyright:          Copyright 2013 Richard James Howe.
+License:            LGPL
+Email:              howe.rj.89@googlemail.com
 
 All works are copyright of Richard James Howe unless stated elsewhere, all
 works not written by me have also been released under the LGPL license.
