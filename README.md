@@ -13,9 +13,11 @@ License:
 
 * LGPL
 
-Email:              
+Email(s):              
 
-* howe.rj.89@googlemail.com
+* howe.r.j.89@googlemail.com
+
+* howerj@aston.ac.uk
 
 All works are copyright of Richard James Howe unless stated elsewhere, all
 works not written by me have also been released under the LGPL license.
@@ -35,21 +37,30 @@ the J1.
 Software needed
 ===============
 
-    * Make
-    * GCC
-    * Bash
-    * GHDL
-    * Gtkwave
-    * Xilinx Webpack 14.X
+* Make
+
+* GCC
+
+* Bash
+
+* GHDL
+
+* Gtkwave
+
+* Xilinx Webpack 14.X
 
 Hardware needed
 ===============
 
-    * Digilent\`s Nexys3 FPGA development board.
-    * 2 x Micro USB cables.
-    * Home computer.
-    * VGA Cable.
-    * VGA compatible monitor.
+* Digilent\`s Nexys3 FPGA development board.
+
+* 2 x Micro USB cables.
+
+* Home computer.
+
+* VGA Cable.
+
+* VGA compatible monitor.
 
 Directory structure.
 ====================

@@ -9,6 +9,8 @@ halt kernel
 \ @copyright      Copyright 2013 Richard James Howe.
 \ @license        LGPL      
 \ @email          howe.rj.89@googlemail.com
+\ This notice cannot go at the top of the file, comments
+\  will not work until the comment symbol is read in.
 
 : true 1 exit
 : false 0 exit
@@ -482,26 +484,28 @@ str @reg dup 32 + str !reg constant filename
 : !pc pc !dic ;
 : pc++ @pc 1+ !pc ;
 
-
+: !mem(pc++)
+    @pc mem !dic pc++
+;
 : lit  \ ( x -- )
-    32767 and mLit or @pc mem !dic pc++ 
+    32767 and mLit or !mem(pc++)
 ;
 
 : jmp
-    8191 and @pc mem !dic pc++
+    8191 and !mem(pc++)
 ;
 
 : cjmp
-    8191 and 1 13 lshift or @pc mem !dic pc++ 
+    8191 and 1 13 lshift or !mem(pc++)
 ;
 
 : call
-    8191 and 1 14 lshift or @pc mem !dic pc++ 
+    8191 and 1 14 lshift or !mem(pc++)
 ;
 
 : alu[ ;
 : ]alu
-    8191 and 1 13 lshift or 1 14 lshift or @pc mem !dic pc++ 
+    8191 and 1 13 lshift or 1 14 lshift or !mem(pc++)
 ;
 
 : _dup      alu[ T T->N d+1 or or ]alu ;
@@ -521,7 +525,7 @@ str @reg dup 32 + str !reg constant filename
 : _r@       alu[ R T->N T->R d+1 or or or ]alu ;
 : _@        alu[ [T] ]alu ;
 : _!        alu[ N d-1 N->[T] or or ]alu ;
-\ : _*        alu[ L(T*N) d-1 or ]alu ;
+\ : _*      alu[ L(T*N) d-1 or ]alu ;
 : _input    alu[ [T<-IO] ]alu ;
 : _output   alu[ N d-2 N->IO(T) or or ]alu ;
 
@@ -539,6 +543,7 @@ str @reg dup 32 + str !reg constant filename
     pmem
     halt
 ;
+.( Dictionary pointer: ) here . 
 .( Printing stack: ) cr
 .s
 .( "Forth H2 Assembler" loaded, assembling source now. ) cr
