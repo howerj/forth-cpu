@@ -8,7 +8,7 @@
 -- @author         Richard James Howe.
 -- @copyright      Copyright 2013 Richard James Howe.
 -- @license        LGPL      
--- @email          howe.rj.89@googlemail.com
+-- @email          howe.r.j.89@gmail.com
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -46,10 +46,6 @@ begin
 ---- Units under test ----------------------------------------------------------
 
     top_level_uut: entity work.top_level
-    generic map
-    (
-        clk_freq => clk_freq
-    )
     port map(
         clk => tb_clk,
         btnu => tb_btnu,

@@ -8,7 +8,7 @@ halt kernel
 \ @author         Richard James Howe.
 \ @copyright      Copyright 2013 Richard James Howe.
 \ @license        LGPL      
-\ @email          howe.rj.89@googlemail.com
+\ @email          howe.r.j.89@gmail.com
 \ This notice cannot go at the top of the file, comments
 \  will not work until the comment symbol is read in.
 

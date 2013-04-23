@@ -7,6 +7,9 @@ vhdl/
     * Implement simple bootloader as firmware.
     * top_level.vhd
         > Move out the I/O section into it's own module.
+        > What might be interesting is using some spare
+        dual port RAM as a UART buffer, and reading from
+        the buffers instead of handling the UART directly.
 vm/
     * Implement virtual machine?
 latex/
@@ -14,3 +17,5 @@ latex/
     * Thesis.
 ALL:
     * Documentation.
+    * Edit all modules so they have a uniform naming
+    convention and style.

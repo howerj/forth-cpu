@@ -3,7 +3,7 @@
 \ @author         Richard James Howe.
 \ @copyright      Copyright 2013 Richard James Howe.
 \ @license        LGPL      
-\ @email          howe.rj.89@googlemail.com
+\ @email          howe.r.j.89@gmail.com
 \ ==============================================================================
 
 \ ==============================================================================
@@ -24,6 +24,7 @@
 3 constant o_vgaCtrl
 4 constant o_vgaTxtAddr
 5 constant o_vgaTxtDin
+6 constant o_vgaWrite
 
 \ Inputs
 0 constant i_buttons

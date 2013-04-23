@@ -13,7 +13,7 @@
  * @author         Richard James Howe.
  * @copyright      Copyright 2013 Richard James Howe.
  * @license        LGPL      
- * @email          howe.rj.89@googlemail.com
+ * @email          howe.r.j.89@gmail.com
  *
  * TODO:
  *  > Replace strtol() with my own implementation.
