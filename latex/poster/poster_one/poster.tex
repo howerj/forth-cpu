@@ -1,3 +1,9 @@
+%%% Richard James Howe 1/2
+%% Final Year Project poster presentation.
+% This uses a package called 'baposter.cls' which can be
+% found here: http://www.brian-amberg.de/uni/poster/
+% This package has been written by Brian Amberg (baposter@brian-amberg.de)
+
 \documentclass[a1paper,portrait]{baposter}
 
 \usepackage{relsize}    % For \smaller
@@ -60,7 +66,7 @@
   Eye Catcher, empty if option eyecatcher=false - unused
 }
 {\sf\bf
-  A VHDL based educational computer.
+  A VHDL based educational computer (1/2).
 }
 {
   \vspace{1em} Richard James Howe : 082060589\\
@@ -72,9 +78,6 @@
   \fbox{
     \begin{minipage}{10em}
       \includegraphics[width=10em,height=4em]{aston.jpg}
-%      \includegraphics[width=4em,height=4em]{elte_logo} \\
-%      \includegraphics[width=10em,height=4em]{dynanets_logo}
-%      \includegraphics[width=4em,height=4em]{aitia_logo}
     \end{minipage}
   }
 }
@@ -93,29 +96,10 @@
     \item Make Bootloader.
     \item Make test programs.
 \end{itemize}
-%% Tasks
-% VHDL
-%  - CPU core.
-%  - Memory.
-%  - Clock management.
-%  - Peripherals.
-%    > VGA (Optional)
-%    > UART
-%    > LEDs/Switches.
-% Firmware
-%  - Assembler.
-%  - Bootloader.
 }
 
-\headerbox{Basic Concepts}{name=concepts,column=0,below=task}{
-% Extensible computer
-% Reusable CPU core.
-% Educational.
-% Of further use to students and myself
-%% Continue work after university.
-}
 
-\headerbox{Github}{name=github,column=0,below=concepts}{
+\headerbox{Github}{name=github,column=0,below=task}{
 \smaller
 
 The code for this project (Makefiles, VHDL, C, Forth, etc.) are
@@ -199,10 +183,16 @@ that have also been used by the design.
 
 \headerbox{Firmware}
 {name=firmware,span=2,column=1,below=vhdl,above=bottom}{
+\smaller
 
 The firmware is a simple bootloader, instead of compiling the program in as you would
 once the development is over, I have made a simple program that resides on the device
 that allows you to load an arbitrary program onto the core. 
+
+In order to both help me out with the build (converting file formats) I had to make
+an assembler and decided to go with a language I had written (FORTH) that is particularly
+well suited to the task, the assembler requires just a few hundred more lines of code
+to define what is necessary and the original language can be called from it.
 
 % Made with my own Forth interpreter.
 % Bootloader.

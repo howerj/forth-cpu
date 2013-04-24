@@ -1,0 +1,121 @@
+%%% Richard James Howe 2/2
+%% Final Year Project poster presentation.
+% This uses a package called 'baposter.cls' which can be
+% found here: http://www.brian-amberg.de/uni/poster/
+% This package has been written by Brian Amberg (baposter@brian-amberg.de)
+
+\documentclass[a1paper,portrait]{baposter}
+
+\usepackage{relsize}    % For \smaller
+\usepackage{url}      % For \url
+\usepackage{epstopdf}  % Included EPS files automatically converted to PDF to include with pdflatex
+
+%%% Global Settings %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\graphicspath{{pix/}}  % Root directory of the pictures 
+\tracingstats=2      % Enabled LaTeX logging with conditionals
+
+%%% Color Definitions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\definecolor{bordercol}{RGB}{40,40,40}
+\definecolor{headercol1}{RGB}{186,215,230}
+\definecolor{headercol2}{RGB}{80,80,80}
+\definecolor{headerfontcol}{RGB}{0,0,0}
+\definecolor{boxcolor}{RGB}{186,215,230}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Utility functions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Save space in lists. Use this after the opening of the list %%%%%%%%%%%%%%%%
+\newcommand{\compresslist}{
+  \setlength{\itemsep}{1pt}
+  \setlength{\parskip}{0pt}
+  \setlength{\parsep}{0pt}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Document Start %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+\typeout{Poster rendering started}
+
+%%% Setting Background Image %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\background{
+  \begin{tikzpicture}[remember picture,overlay]%
+  \draw (current page.north west)+(-2em,2em) node[anchor=north west]
+  {\includegraphics[height=1.1\textheight]{background}};
+  \end{tikzpicture}
+}
+
+\begin{poster}{
+  grid=false,
+  borderColor=bordercol,
+  headerColorOne=headercol1,
+  headerColorTwo=headercol2,
+  headerFontColor=headerfontcol,
+  boxColorOne=boxcolor,
+  headershape=roundedright,
+  headerfont=\Large\sf\bf,
+  textborder=rectangle,
+  background=user,
+  headerborder=open,
+  boxshade=plain
+}
+{
+  Eye Catcher, empty if option eyecatcher=false - unused
+}
+{\sf\bf
+  A VHDL based educational computer (2/2).
+}
+{
+  \vspace{1em} Richard James Howe : 082060589\\
+  {\smaller howe.r.j.89@gmail.com}
+}
+{
+\setlength\fboxsep{0pt}
+\setlength\fboxrule{0.5pt}
+  \fbox{
+    \begin{minipage}{10em}
+      \includegraphics[width=10em,height=4em]{aston.jpg}
+    \end{minipage}
+  }
+}
+
+\headerbox{Abstract}{name=abstract,column=0,row=0}{
+\smaller                          % Make the whole text smaller
+}
+
+
+\headerbox{Github}{name=github,column=0,below=abstract}{
+\smaller                          % Make the whole text smaller
+}
+
+\headerbox{Future plans}{name=futureplans,column=0,below=github, above=bottom}{
+\smaller                          % Make the whole text smaller
+} 
+
+\headerbox{How it works}{name=howitworks,span=2,column=1,row=0}{
+\smaller
+
+The diagram bellow shows how data moves through the H2 (The name of this
+CPU), the processor can execute one instruction per clock cycle and has room for
+further customization.
+
+\begin{center}
+    \includegraphics[scale=0.12]{h2.png}
+\end{center}
+}
+
+\headerbox{Extensibility}
+{name=firmware,span=2,column=1,below=howitworks,above=bottom}{
+\smaller
+
+Both the CPU core and the system itself are extensible, you can modify both. The CPU by adding
+more instructions, the system as a whole by adding new devices to the interface list. I have
+added VGA support by including a VGA core available on \url{opencore.org}.
+
+}
+
+\end{poster}
+\end{document}

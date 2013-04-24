@@ -1,0 +1,17 @@
+Release 14.2 ngdbuild P.28xd (lin)
+Copyright (c) 1995-2012 Xilinx, Inc.  All rights reserved.
+
+Command Line: /opt/Xilinx/14.2/ISE_DS/ISE/bin/lin/unwrapped/ngdbuild -intstyle
+silent -quiet -dd tmp -uc top_level.ucf -p xc6slx16-csg324-3 top_level.ngc
+top_level.ngd
+
+WARNING:NgdBuild:257 - Launcher: Could not find the file
+   "/home/work/documents/fyp/git/vhdl/top_level" with extension "ngc" in the
+   search path.
+ERROR:NgdBuild:1364 - Top-level input design file "top_level.ngc" cannot be
+   found or created. Please make sure the source file exists and is of a
+   recognized netlist format (e.g., ngo, ngc, edif, edn, or edf).
+Total REAL time to NGDBUILD completion:  9 sec
+Total CPU time to NGDBUILD completion:   8 sec
+
+Writing NGDBUILD log file "top_level.bld"...
