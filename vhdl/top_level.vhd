@@ -319,7 +319,12 @@ begin
     end if;
   end process;
 
-  u_uart: entity work.uart port map(
+  u_uart: entity work.uart 
+  generic map(
+    BAUD_RATE => baud_rate,
+    CLOCK_FREQUENCY => clock_frequency
+  )
+  port map(
    clock => clk,
    reset => rst,
    data_stream_in => uart_din,

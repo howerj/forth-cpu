@@ -82,22 +82,50 @@
   }
 }
 
-\headerbox{Abstract}{name=abstract,column=0,row=0}{
+\headerbox{Problems Faced}{name=problemsfaced,column=0,row=0}{
 \smaller                          % Make the whole text smaller
+The main problems I faced were; slow development time due to the time it
+takes to synthesize code, there is no way apart from using faster computers
+to reduce this time, however the addition of a bootloader means that
+you no longer have to keep synthesizing code. Secondly there was the problem
+of developing adequate methods for testing the toolchain, if there is a
+bug it could be in one of the following; The build process, the forth
+interpreter, the assembler, the VHDL simulation or the actual hardware
+synthesis of the VHDL.
 }
 
-
-\headerbox{Github}{name=github,column=0,below=abstract}{
+\headerbox{Future plans}{name=futureplans,column=0,below=problemsfaced, above=bottom}{
 \smaller                          % Make the whole text smaller
-}
+I plan on continuing the project beyond the original scope, there is still plenty
+of room on the device and would like to add units that are useful to me and fellow
+engineers, more specifically engineering students.
 
-\headerbox{Future plans}{name=futureplans,column=0,below=github, above=bottom}{
-\smaller                          % Make the whole text smaller
+These modules would include signal generators, Ethernet interface, on board memory
+interfaces, data loggers and much more. I would also like to continue on and expand
+the firmware on board to create a more standalone system. Some of these would however
+mean the creation of external plug-in boards as well. One peripheral which the
+FPGA is quite suited to would be the addition of a logic analyser, this would not
+be too difficult to add and would be of great benefit. Of great use would be a
+USB keyboard to act as input as well.
+
+I did add a multiplier to the instruction set, however it delayed the logic too
+much which would have reduced the overall speed of the CPU, adding the multiplier
+back in as a peripheral or optimizing the CPU would both be options.
+
+
+In summary:
+\begin{itemize}
+  \item Optimize CPU.
+  \item Improve firmware, including a full blown interpreter.
+  \item Add analogue interface peripherals and electronics.
+  \item Either add multiplier to optimized CPU or add multiplier
+  as a two clock cycle to execute peripheral.
+\end{itemize}
 } 
 
 \headerbox{How it works}{name=howitworks,span=2,column=1,row=0}{
 \smaller
-
+\subsection{CPU Core}
 The diagram bellow shows how data moves through the H2 (The name of this
 CPU), the processor can execute one instruction per clock cycle and has room for
 further customization.
@@ -105,15 +133,26 @@ further customization.
 \begin{center}
     \includegraphics[scale=0.12]{h2.png}
 \end{center}
-}
 
-\headerbox{Extensibility}
+\subsection{VGA Test Pattern}
+\begin{center}
+    \includegraphics[scale=0.1]{testVGA.jpg}
+\end{center}
+}
+\subsection{UART and other}
+
+Also included is a UART that can be used either as a human interface or to transfer
+data to and from the device. The other peripherals included use the devices switches,
+buttons and LEDs to provide simpler and more obvious input.
+
+\headerbox{Design Goals}
 {name=firmware,span=2,column=1,below=howitworks,above=bottom}{
 \smaller
-
+\subsection{Extensibility}
 Both the CPU core and the system itself are extensible, you can modify both. The CPU by adding
 more instructions, the system as a whole by adding new devices to the interface list. I have
 added VGA support by including a VGA core available on \url{opencore.org}.
+\subsection{}
 
 }
 
