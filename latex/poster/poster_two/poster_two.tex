@@ -56,7 +56,7 @@
   headerFontColor=headerfontcol,
   boxColorOne=boxcolor,
   headershape=roundedright,
-  headerfont=\Large\sf\bf,
+  headerfont=\large\sf\bf,
   textborder=rectangle,
   background=user,
   headerborder=open,
@@ -65,7 +65,7 @@
 {
   Eye Catcher, empty if option eyecatcher=false - unused
 }
-{\sf\bf
+{\Large\sf\bf
   A VHDL based educational computer (2/2).
 }
 {
@@ -83,7 +83,7 @@
 }
 
 \headerbox{Problems Faced}{name=problemsfaced,column=0,row=0}{
-\smaller                          % Make the whole text smaller
+\scriptsize
 The main problems I faced were; slow development time due to the time it
 takes to synthesize code, there is no way apart from using faster computers
 to reduce this time, however the addition of a bootloader means that
@@ -124,7 +124,7 @@ In summary:
 } 
 
 \headerbox{How it works}{name=howitworks,span=2,column=1,row=0}{
-\smaller
+\scriptsize
 \subsection{CPU Core}
 The diagram bellow shows how data moves through the H2 (The name of this
 CPU), the processor can execute one instruction per clock cycle and has room for
@@ -134,26 +134,37 @@ further customization.
     \includegraphics[scale=0.12]{h2.png}
 \end{center}
 
+For a detailed view consult the code hosted on Github.
+
 \subsection{VGA Test Pattern}
 \begin{center}
     \includegraphics[scale=0.1]{testVGA.jpg}
 \end{center}
-}
+
+You can see here the test pattern from the VGA output[2], this can be written changed
+given the right software running.
+
 \subsection{UART and other}
 
-Also included is a UART that can be used either as a human interface or to transfer
+Also included is a UART[3] that can be used either as a human interface or to transfer
 data to and from the device. The other peripherals included use the devices switches,
 buttons and LEDs to provide simpler and more obvious input.
-
+}
 \headerbox{Design Goals}
 {name=firmware,span=2,column=1,below=howitworks,above=bottom}{
-\smaller
+\scriptsize
 \subsection{Extensibility}
 Both the CPU core and the system itself are extensible, you can modify both. The CPU by adding
 more instructions, the system as a whole by adding new devices to the interface list. I have
-added VGA support by including a VGA core available on \url{opencore.org}.
-\subsection{}
-
+added VGA support by including a VGA core available on \url{opencore.org}[4].
+\subsection{Modularity and Code reuse}
+I want to be able to reuse the code I have written for this project in future projects, and
+this is possible due to the way the project has been designed, from the FORTH interpreter
+written in C to each of the cores, they can easily be reused.
+\subsection{Small}
+One of the goals of this project was to create a \emph{small} system so it could sit
+comfortably alongside other designs while still providing a customizable System On (a)
+Chip (SoC).
 }
 
 \end{poster}
