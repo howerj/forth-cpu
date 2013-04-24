@@ -254,7 +254,6 @@ begin
     cpu_io_din <= (others => '0');
     vga_ram_a_dwe <= '0';
 
-
     if cpu_io_wr = '1' then
       -- Write output.
       case cpu_io_daddr(3 downto 0) is
@@ -300,11 +299,11 @@ begin
               -- VGA, Read VGA text buffer.
               cpu_io_din <= X"00" & vga_ram_a_dout;
         when "0011" => 
-              cpu_io_din <= X"00" & uart_dout;
+              cpu_io_din <= X"00" & uart_dout_c;
         when "0100" => cpu_io_din <= (others => '0');
-                cpu_io_din <= (0 => ack_din, others => '0');
+                cpu_io_din <= (0 => ack_din_c, others => '0');
         when "0101" =>
-                cpu_io_din <= (0 => stb_dout, others => '0');
+                cpu_io_din <= (0 => stb_dout_c, others => '0');
         when "0110" => cpu_io_din <= (others => '0');
         when "0111" => cpu_io_din <= (others => '0');
         when "1000" => cpu_io_din <= (others => '0');
