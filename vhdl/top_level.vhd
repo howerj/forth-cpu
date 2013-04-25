@@ -90,14 +90,11 @@ architecture behav of top_level is
   ---- UART
   signal  uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
   signal  ack_din_c, ack_din_n:     std_logic:= '0';
-  signal  stb_din_c, stb_din_n:     std_logic:= '0';
   signal  uart_dout_c, uart_dout_n: std_logic_vector(7 downto 0):= (others => '0');
-  signal  ack_dout_c, ack_dout_n:   std_logic:= '0';
   signal  stb_dout_c, stb_dout_n:   std_logic:= '0';
   signal  uart_din, uart_dout:      std_logic_vector(7 downto 0):= (others => '0');
   signal  stb_din, stb_dout:        std_logic:= '0';
   signal  ack_din, ack_dout:        std_logic:= '0';
-  signal  auto_c, auto_n:           std_logic:= '1'; -- Auto stb/ack handling.
 begin
 ------- Output assignments (Not in a process) ---------------------------------
   rst   <=  '0';
@@ -174,11 +171,7 @@ begin
        -- UART
        uart_din_c  <=  (others => '0');
        ack_din_c   <=  '0';
-       stb_din_c   <=  '0';
-       uart_dout_c <=  (others => '0');
-       ack_dout_c  <=  '0';
        stb_dout_c  <=  '0';
-       auto_c      <=  '0';
      elsif rising_edge(clk) then
        -- LEDs/Switches
        an_c        <=  an_n;
@@ -193,11 +186,8 @@ begin
        -- UART
        uart_din_c  <=  uart_din_n; 
        ack_din_c   <=  ack_din_n;
-       stb_din_c   <=  stb_din_n;
        uart_dout_c <=  uart_dout_n;
-       ack_dout_c  <=  ack_dout_n;
        stb_dout_c  <=  stb_dout_n;
-       auto_c      <=  auto_n;
      end if;
    end process;
 
@@ -209,9 +199,8 @@ begin
     txt_addr_c,txt_din_c,
     sw,rx,btnu,btnd,btnl,btnr,btnc,
     vga_ram_a_dout,
-    uart_din_c, ack_din_c, stb_din_c,
-    uart_dout_c, ack_din_c, stb_din_c,
-    auto_c,
+    uart_din_c, ack_din_c,
+    uart_dout_c, 
     uart_dout, stb_dout, ack_din
   )
   begin
@@ -227,8 +216,8 @@ begin
     vga_ram_a_din  <= txt_din_c;
 
     uart_din    <= uart_din_c;
-    stb_din     <= stb_din_c;
-    ack_dout    <= ack_dout_c;
+    stb_din     <= '0';
+    ack_dout    <= '0';
 
     -- Register defaults
     an_n <= an_c;
@@ -244,12 +233,9 @@ begin
 
     uart_din_n  <=  uart_din_c; 
     ack_din_n   <=  ack_din_c;
-    stb_din_n   <=  stb_din_c;
     uart_dout_n <=  uart_dout_c;
-    ack_dout_n  <=  ack_dout_c;
     stb_dout_n  <=  stb_dout_c;
 
-    auto_n      <=  auto_c;
 
     cpu_io_din <= (others => '0');
     vga_ram_a_dwe <= '0';
@@ -276,11 +262,10 @@ begin
         when "0111" =>
           uart_din_n <= cpu_io_dout(7 downto 0);
         when "1000" =>
-          stb_din_n <= '1';
+--          stb_din_n <= '1';
         when "1001" =>
-          ack_dout_n <= '1';
+--          ack_dout_n <= '1';
         when "1010" =>
-          auto_n    <= cpu_io_dout(1);
         when "1011" =>
         when "1100" =>
         when "1101" =>
@@ -302,8 +287,10 @@ begin
               cpu_io_din <= X"00" & uart_dout_c;
         when "0100" => cpu_io_din <= (others => '0');
                 cpu_io_din <= (0 => ack_din_c, others => '0');
+                ack_din_n <= '0';
         when "0101" =>
                 cpu_io_din <= (0 => stb_dout_c, others => '0');
+                stb_dout_n <= '0';
         when "0110" => cpu_io_din <= (others => '0');
         when "0111" => cpu_io_din <= (others => '0');
         when "1000" => cpu_io_din <= (others => '0');
@@ -337,13 +324,6 @@ begin
    tx => tx
   );
 
---  uart_loop: entity work.uart_top port map(
---    clock_y3 => clk,
---    user_reset => rst,
---    usb_rs232_rxd => rx,
---    usb_rs232_txd => tx
---  );
-  
   U_VGA : entity work.vga80x40 port map (
   reset     => rst,
   clk25MHz  => clk25MHz,

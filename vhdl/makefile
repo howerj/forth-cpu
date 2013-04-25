@@ -10,8 +10,6 @@ SOURCES = \
 	mem_font.vhd \
 	mem_text.vhd \
 	uart.vhd \
-	loopback.vhd \
-	uart_top.vhd \
 	ctrm.vhd \
 	losr.vhd \
 	vga80x40.vhd \

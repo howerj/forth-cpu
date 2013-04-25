@@ -7,7 +7,7 @@
 # @email          howe.rj.89@googlemail.com
 
 TARGET="test_bench"
-FILES="h2.vhd mem_h2.vhd mem_font.vhd mem_text.vhd uart.vhd loopback.vhd uart_top.vhd ctrm.vhd losr.vhd vga80x40.vhd top_level.vhd test_bench.vhd"
+FILES="h2.vhd mem_h2.vhd mem_font.vhd mem_text.vhd uart.vhd ctrm.vhd losr.vhd vga80x40.vhd top_level.vhd test_bench.vhd"
 
 
 if
