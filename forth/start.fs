@@ -525,7 +525,7 @@ str @reg dup 32 + str !reg constant filename
 : _r>       alu[ R T->N T->R d+1 r-1 or or or or ]alu ;
 : _r@       alu[ R T->N T->R d+1 or or or ]alu ;
 : _@        alu[ [T] ]alu ;
-: _!        alu[ N d-1 N->[T] or or ]alu ;
+: _!        alu[ N d-2 N->[T] or or ]alu ;
 \ : _*      alu[ L(T*N) d-1 or ]alu ;
 : _input    alu[ [T<-IO] ]alu ;
 : _output   alu[ N d-2 N->IO(T) or or ]alu ;
