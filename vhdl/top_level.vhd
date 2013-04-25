@@ -216,6 +216,7 @@ begin
     vga_ram_a_din  <= txt_din_c;
 
     uart_din    <= uart_din_c;
+    uart_dout   <= uart_dout_c;
     stb_din     <= '0';
     ack_dout    <= '0';
 
@@ -232,10 +233,20 @@ begin
     txt_din_n  <= txt_din_c;
 
     uart_din_n  <=  uart_din_c; 
-    ack_din_n   <=  ack_din_c;
-    uart_dout_n <=  uart_dout_c;
-    stb_dout_n  <=  stb_dout_c;
 
+    if ack_din = '1' then
+        ack_din_n <= '1';
+    else
+        ack_din_n <= ack_din_c;
+    end if;
+
+    if stb_dout = '1' then
+        stb_dout_n <= '1';
+        uart_dout_n <= uart_dout;
+    else
+        uart_dout_n <=  uart_dout_c;
+        stb_dout_n <= stb_dout_c;
+    end if;
 
     cpu_io_din <= (others => '0');
     vga_ram_a_dwe <= '0';
@@ -259,12 +270,12 @@ begin
           txt_din_n  <= cpu_io_dout(7 downto 0);
         when "0110" => -- VGA write, could be put into the previous statement.
           vga_ram_a_dwe <= '1';
-        when "0111" =>
+        when "0111" => -- UART write output.
           uart_din_n <= cpu_io_dout(7 downto 0);
-        when "1000" =>
---          stb_din_n <= '1';
-        when "1001" =>
---          ack_dout_n <= '1';
+        when "1000" => -- UART strobe input.
+          stb_din <= '1';
+        when "1001" => -- UART acknowledge output.
+          ack_dout <= '1';
         when "1010" =>
         when "1011" =>
         when "1100" =>
@@ -276,19 +287,18 @@ begin
     else
       -- Get input.
       case cpu_io_daddr(3 downto 0) is
-        when "0000" => cpu_io_din <=
-              "0000000000" & rx & btnu & btnd & btnl & btnr & btnc;
-        when "0001" => cpu_io_din <=
-              "00000000" & sw;
-        when "0010" => 
-              -- VGA, Read VGA text buffer.
-              cpu_io_din <= X"00" & vga_ram_a_dout;
-        when "0011" => 
-              cpu_io_din <= X"00" & uart_dout_c;
-        when "0100" => cpu_io_din <= (others => '0');
+        when "0000" => -- Switches, plus direct access to UART bit.
+                cpu_io_din <= "0000000000" & rx & btnu & btnd & btnl & btnr & btnc;
+        when "0001" => 
+                cpu_io_din <= X"00" & sw;
+        when "0010" => -- VGA, Read VGA text buffer.
+                cpu_io_din <= X"00" & vga_ram_a_dout;
+        when "0011" => -- UART get input.
+                cpu_io_din <= X"00" & uart_dout_c;
+        when "0100" => -- UART acknowledged input.
                 cpu_io_din <= (0 => ack_din_c, others => '0');
                 ack_din_n <= '0';
-        when "0101" =>
+        when "0101" => -- UART strobe output (write output).
                 cpu_io_din <= (0 => stb_dout_c, others => '0');
                 stb_dout_n <= '0';
         when "0110" => cpu_io_din <= (others => '0');

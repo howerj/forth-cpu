@@ -1,37 +1,37 @@
 v 3
-file . "test_bench.vhd" "20130422152946.000" "20130425033845.390":
-  entity test_bench at 12( 375) + 0 on 241;
-  architecture behavior of test_bench at 19( 488) + 0 on 242;
-file . "vga80x40.vhd" "20130421234457.000" "20130425033843.384":
-  entity vga80x40 at 25( 1205) + 0 on 237;
-  architecture rtl of vga80x40 at 53( 1992) + 0 on 238;
-file . "ctrm.vhd" "20130411143829.000" "20130425033843.161":
-  entity ctrm at 23( 1179) + 0 on 233;
-  architecture arch of ctrm at 42( 1764) + 0 on 234;
+file . "test_bench.vhd" "20130422152946.000" "20130425034544.034":
+  entity test_bench at 12( 375) + 0 on 261;
+  architecture behavior of test_bench at 19( 488) + 0 on 262;
+file . "vga80x40.vhd" "20130421234457.000" "20130425034542.044":
+  entity vga80x40 at 25( 1205) + 0 on 257;
+  architecture rtl of vga80x40 at 53( 1992) + 0 on 258;
+file . "ctrm.vhd" "20130411143829.000" "20130425034541.815":
+  entity ctrm at 23( 1179) + 0 on 253;
+  architecture arch of ctrm at 42( 1764) + 0 on 254;
 file . "loopback.vhd" "20130418050644.000" "20130425033755.866":
   entity loopback at 13( 393) + 0 on 209;
   architecture rtl of loopback at 28( 764) + 0 on 210;
-file . "mem_text.vhd" "20130419232655.000" "20130425033842.468":
-  entity mem_text at 5( 152) + 0 on 229;
-  architecture rtl of mem_text at 26( 777) + 0 on 230;
-file . "mem_h2.vhd" "20130422152854.000" "20130425033842.132":
-  entity mem_h2 at 7( 232) + 0 on 225;
-  architecture rtl of mem_h2 at 28( 819) + 0 on 226;
-file . "h2.vhd" "20130422152754.000" "20130425033840.886":
-  entity h2 at 8( 314) + 0 on 223;
-  architecture rtl of h2 at 32( 1103) + 0 on 224;
-file . "mem_font.vhd" "20130422152828.000" "20130425033842.327":
-  entity mem_font at 7( 204) + 0 on 227;
-  architecture rtl of mem_font at 20( 533) + 0 on 228;
-file . "uart.vhd" "20130422013200.000" "20130425033842.669":
-  entity uart at 15( 548) + 0 on 231;
-  architecture rtl of uart at 38( 1389) + 0 on 232;
+file . "mem_text.vhd" "20130419232655.000" "20130425034541.113":
+  entity mem_text at 5( 152) + 0 on 249;
+  architecture rtl of mem_text at 26( 777) + 0 on 250;
+file . "mem_h2.vhd" "20130422152854.000" "20130425034540.769":
+  entity mem_h2 at 7( 232) + 0 on 245;
+  architecture rtl of mem_h2 at 28( 819) + 0 on 246;
+file . "h2.vhd" "20130422152754.000" "20130425034539.517":
+  entity h2 at 8( 314) + 0 on 243;
+  architecture rtl of h2 at 32( 1103) + 0 on 244;
+file . "mem_font.vhd" "20130422152828.000" "20130425034540.961":
+  entity mem_font at 7( 204) + 0 on 247;
+  architecture rtl of mem_font at 20( 533) + 0 on 248;
+file . "uart.vhd" "20130422013200.000" "20130425034541.306":
+  entity uart at 15( 548) + 0 on 251;
+  architecture rtl of uart at 38( 1389) + 0 on 252;
 file . "uart_top.vhd" "20130418050749.000" "20130425033755.994":
   entity uart_top at 2( 1) + 0 on 211;
   architecture rtl of uart_top at 17( 372) + 0 on 212;
-file . "losr.vhd" "20130411143922.000" "20130425033843.264":
-  entity losr at 25( 1176) + 0 on 235;
-  architecture arch of losr at 45( 1576) + 0 on 236;
-file . "top_level.vhd" "20130425023750.000" "20130425033844.246":
-  entity top_level at 10( 301) + 0 on 239;
-  architecture behav of top_level at 42( 1739) + 0 on 240;
+file . "losr.vhd" "20130411143922.000" "20130425034541.929":
+  entity losr at 25( 1176) + 0 on 255;
+  architecture arch of losr at 45( 1576) + 0 on 256;
+file . "top_level.vhd" "20130425024518.000" "20130425034542.864":
+  entity top_level at 10( 301) + 0 on 259;
+  architecture behav of top_level at 42( 1739) + 0 on 260;

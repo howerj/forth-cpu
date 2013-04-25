@@ -89,9 +89,9 @@ takes to synthesize code, there is no way apart from using faster computers
 to reduce this time, however the addition of a bootloader means that
 you no longer have to keep synthesizing code. Secondly there was the problem
 of developing adequate methods for testing the toolchain, if there is a
-bug it could be in one of the following; The build process, the forth
+bug it could be in one of the following; The build process, the FORTH
 interpreter, the assembler, the VHDL simulation or the actual hardware
-synthesis of the VHDL.
+implementation of the VHDL.
 }
 
 \headerbox{Future plans}{name=futureplans,column=0,below=problemsfaced, above=bottom}{
@@ -111,7 +111,6 @@ USB keyboard to act as input as well.
 I did add a multiplier to the instruction set, however it delayed the logic too
 much which would have reduced the overall speed of the CPU, adding the multiplier
 back in as a peripheral or optimizing the CPU would both be options.
-
 
 In summary:
 \begin{itemize}
@@ -141,8 +140,9 @@ For a detailed view consult the code hosted on Github.
     \includegraphics[scale=0.1]{testVGA.jpg}
 \end{center}
 
-You can see here the test pattern from the VGA output[2], this can be written changed
-given the right software running.
+You can see here the test pattern from the VGA output[2], this can be changed
+given the right software running. It is controlled by the CPU via a block of
+shared dual port RAM.
 
 \subsection{UART and other}
 
@@ -156,7 +156,7 @@ buttons and LEDs to provide simpler and more obvious input.
 \subsection{Extensibility}
 Both the CPU core and the system itself are extensible, you can modify both. The CPU by adding
 more instructions, the system as a whole by adding new devices to the interface list. I have
-added VGA support by including a VGA core available on \url{opencore.org}[4].
+added VGA support by including a VGA core available on \url{opencores.org}[4].
 \subsection{Modularity and Code reuse}
 I want to be able to reuse the code I have written for this project in future projects, and
 this is possible due to the way the project has been designed, from the FORTH interpreter

@@ -139,19 +139,19 @@ hosted on Github and can be found here:
 
 Using a Nexys 3 Development board\cite{nexysDigilent}, as shown above,
 I have created a portable computing system in VHDL intended for students
-like myself. The project is extensible and module, and as I have said
-it is also portable using no resources specific to Xilinx which would
+like myself. The project is extensible and modular, and as I have said
+it is also portable using no resources specific to Xilinx, this would
 allow the system to be moved to smaller, cheaper devices.
 
 The CPU core is based around a processor originally written in Verilog
 called the J1\cite{j1core}. This has been rewritten in VHDL and modified
-due to it being less constrained in the projects scope like the original
-was. The processor is stack based which allows for a system which uses
+due and improved on to include new instructions and allow for greater
+flexibility . The processor is stack based which allows for a system which uses
 less space and can execute many FORTH instructions natively.
 
 \subsection{Resource Utilization}
 The entire system takes up very little room on the device (6slx16csg324-3)
-on a Nexys 3 Development board. This would allow for further expansion of
+on the development board. This would allow for further expansion of
 the system and even multiple processor cores running simultaneously. Alternatively
 it could mean porting to a cheaper system while not reducing any functionality.
 \begin{center}
@@ -166,31 +166,20 @@ it could mean porting to a cheaper system while not reducing any functionality.
     \end{itemize}
 \end{center}
 
-In addition to these, also not listed is adders, comparators, subtracters, etcetera 
+In addition to these, also not listed is adders, comparators, multiplexers, etcetera,
 that have also been used by the design.
-
-% Hardware.
-% Nexys 3 Development board.
-% UART -> Terminal
-% 
-
-% CPU core (H2)
-%  - Description and improvements.
-% VGA interface.
-% UART.
-% I/O manager.
 }
 
 \headerbox{Firmware}
 {name=firmware,span=2,column=1,below=vhdl,above=bottom}{
 \smaller
 
-The firmware is a simple bootloader, instead of compiling the program in as you would
+The firmware is a simple bootloader, instead of compiling the program in, as you would
 once the development is over, I have made a simple program that resides on the device
 that allows you to load an arbitrary program onto the core. 
 
-In order to both help me out with the build (converting file formats) I had to make
-an assembler and decided to go with a language I had written (FORTH) that is particularly
+In order to both help me out with the build (converting file formats) and to fill the
+role of an assembler and decided to go with a language I had written (FORTH) that is particularly
 well suited to the task, the assembler requires just a few hundred more lines of code
 to define what is necessary and the original language can be called from it.
 

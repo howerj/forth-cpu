@@ -25,11 +25,17 @@
 4 constant o_vgaTxtAddr
 5 constant o_vgaTxtDin
 6 constant o_vgaWrite
+7 constant o_uartWrite
+8 constant o_uartStbWrite
+9 constant o_uartAckDout
 
 \ Inputs
 0 constant i_buttons
 1 constant i_switches
 2 constant i_vgaTxtDout
+3 constant i_uartRead
+4 constant i_uartAckRead
+5 constant i_uartStbDout
 
 \ ==============================================================================
 \ Word definitions.
@@ -48,6 +54,7 @@
 : [SWITCH]
     i_switches lit _input
 ;
+
 
 \ ==============================================================================
 \ Begin program loop.
