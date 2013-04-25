@@ -34,7 +34,7 @@
 1 constant i_switches
 2 constant i_vgaTxtDout
 3 constant i_uartRead
-4 constant i_uartAckRead
+4 constant i_uartAckWrite
 5 constant i_uartStbDout
 
 \ ==============================================================================
@@ -60,9 +60,18 @@
 \ Begin program loop.
 \ ==============================================================================
 start
-[SETUP]
-label begin
-    [SWITCH]
-    [LED]
-begin jmp
+    [SETUP]
+    label main
+        [SWITCH]
+        [LED]
+        label writeLoop
+            i_uartStbDout lit _input
+            1 lit _=
+        writeLoop cjmp
+        4096 lit _@ 
+        1 lit _+ 4096 lit _! 
+        4096 lit _@ o_vgaTxtAddr lit _output
+        i_uartRead lit _input o_vgaTxtDin lit _output
+        0 lit o_vgaWrite lit _output
+    main jmp
 stop

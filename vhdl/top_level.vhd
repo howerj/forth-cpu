@@ -95,6 +95,7 @@ architecture behav of top_level is
   signal  uart_din, uart_dout:      std_logic_vector(7 downto 0):= (others => '0');
   signal  stb_din, stb_dout:        std_logic:= '0';
   signal  ack_din, ack_dout:        std_logic:= '0';
+  signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
 begin
 ------- Output assignments (Not in a process) ---------------------------------
   rst   <=  '0';
@@ -155,6 +156,16 @@ begin
         not clk25MHz when rising_edge(clk50MHz);
    ---- End note.
 
+
+    uart_deglitch: process (clk)
+    begin
+        if rising_edge(clk) then
+            rx_sync <= rx;
+            rx_uart <= rx_sync;
+            tx <= tx_uart;
+        end if;
+    end process;
+
    io_nextState: process(clk,rst)
    begin
      if rst='1' then
@@ -201,7 +212,8 @@ begin
     vga_ram_a_dout,
     uart_din_c, ack_din_c,
     uart_dout_c, 
-    uart_dout, stb_dout, ack_din
+    uart_dout, stb_dout, ack_din,
+    stb_dout, stb_dout_c
   )
   begin
     -- Outputs
@@ -216,7 +228,6 @@ begin
     vga_ram_a_din  <= txt_din_c;
 
     uart_din    <= uart_din_c;
-    uart_dout   <= uart_dout_c;
     stb_din     <= '0';
     ack_dout    <= '0';
 
@@ -243,6 +254,7 @@ begin
     if stb_dout = '1' then
         stb_dout_n <= '1';
         uart_dout_n <= uart_dout;
+        ack_dout <= '1';
     else
         uart_dout_n <=  uart_dout_c;
         stb_dout_n <= stb_dout_c;
@@ -330,8 +342,8 @@ begin
    data_stream_out => uart_dout,
    data_stream_out_stb => stb_dout,
    data_stream_out_ack => ack_dout,
-   rx => rx,
-   tx => tx
+   rx => rx_uart,
+   tx => tx_uart
   );
 
   U_VGA : entity work.vga80x40 port map (

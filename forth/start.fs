@@ -512,6 +512,7 @@ str @reg dup 32 + str !reg constant filename
 : _over     alu[ N T->N d+1 or or ]alu ;
 : _invert   alu[ ~T ]alu ;
 : _+        alu[ T+N d-1 or ]alu ;
+: _1-       alu[ T-1 ]alu ;
 : _=        alu[ N=T d-1 or ]alu ;
 : _and      alu[ T&N d-1 or ]alu ;
 : _or       alu[ T|N d-1 or ]alu ;
