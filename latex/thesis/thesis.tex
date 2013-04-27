@@ -2,15 +2,29 @@
 % LaTeX Final Year Project, final report.
 % Fri Apr 19 23:17:27 BST 2013
 \documentclass	[a4paper, 10pt]	{article}
-\usepackage	[T1]		{fontenc}
-\usepackage	[utf8]		{inputenc}
-\usepackage			{lmodern}
+\usepackage	    [T1]		        {fontenc}
+\usepackage	    [utf8]		      {inputenc}
+\usepackage			                {lmodern}
+\usepackage			                {url}
+\usepackage                     {color}
+\usepackage                     {hyperref}
 
 % page layout settings
 % \evensidemargin	= 0pt		%default 54pt
 % \textwidth	= 444pt		%default 380pt
 % \hoffset	= -54pt		%default 0pt
 % \topmargin	= -54pt		%default 18pt
+
+
+\newcommand{\findcite}[1]{
+  \par
+  \begin{center}
+  \framebox[\textwidth]{
+    \textcolor{red}{\emph{Find Citation on:} \textsc{#1}}
+  }
+  \end{center}
+  \par
+}
 
 \title		{Final Year Project: A Computing System in VHDL.}
 \author		{Richard James Howe}
@@ -37,6 +51,21 @@
   engineers who are studying VHDL that can be eventually developed into something 
   more useful, and still have those engineers in mind. 
 
+  This is meant to be an entire system, which is why the project spans multiple
+  languages and includes different sub-projects, which can be put into roughly
+  three different fields: The C/FORTH assembler program (which also finds other
+  uses), the Assembler that is to run on the device and finally the VHDL that implements
+  the device itself.
+
+  I have used other peoples modules in this project and that will be clearly labelled,
+  the intention was to use them and then swap them out, but some have increased
+  functionality above the original goals and there were time constraints as well.
+
+  The project is available on Github here: \url{https://github.com/howerj/fyp.git} .
+
+  I intend to continue working on the project after university improving functionality,
+  rewriting sections and porting to different devices.
+
   \section{Project Goals}
   % Ease of use, modularity, code portability.
 
@@ -46,36 +75,158 @@
   I have chosen, that will be included in this section as well as why I have used
   these tools.
 
+    \subsection{Tools list}
+
+    As of the $27^{th}$ of April, 2013, I have used the following to run and develop
+    my project:
+
+    \begin{itemize}
+      \item Debian 6.0 (This includes a lot of the software used, eg. Gcc)
+      \item Xilinx Webpack ISE 14.2 (Free for students).
+      \item Git, A distributed version control system.
+      \item GHDL, Digital simulation for VHDL.
+      \item GTKWave, Waveform viewer.
+      \item Make, For the VHDL build process.
+      \item Gcc, The GNU C compiler.
+      \item Bash, command interpreter.
+      \item Digilent's programmer for the Nexys 3 device.
+    \end{itemize}
+
+
+  \section{The Hardware}
+  % Nexys 3 Development board.
+
+  \subsection{Basic system overview}
+  % Stack based machines.
+  % I/O System.
+
   \section{VHDL}
+
+  The main thrust of this project lies in the VHDL, all of this project revolves around
+  the architecture defined here. Although most of the assembler was created separately
+  as a fully blown language, the definitions for the instructions are dependant on what 
+  is going on in the CPU core naturally.
+
     \subsection{J1}
+  
+    The project is built around a translation and improvement of the J1 core \findcite{J1},
+    a small stack processor built in Verilog and optimized to efficiently execute FORTH
+    instructions, most of which can be executed in one clock cycle. It was perfectly suited
+    for my project although it was not written in my language of choice.
+
     \subsection{H2}
     \subsection{VGA}
     \subsection{USART}
     \subsection{RAM and other inferred modules}
       % Read from a file.
     \subsection{Top level}
+    \subsection{Optimizations}
   \section{Build system}
     \subsection{Test benches}
     \subsection{FORTH}
     \subsection{Miscellaneous}
       % Git, make, shell.
-  \section{Future plans}
-    \subsection{Firmware}
+
+  \section{Problems}
+    \subsection{Build time}
+    \subsection{Debugging}
+
   \section{Documentation}
 
   In this section I will provide a terse (terse in the sense that this should
   be its own paper) about the system.
 
     \subsection{FORTH interpreter}
+
+    Instead of being a stand alone program with only one use I decided to create
+    a full blown and reusable programming language in C, the reason for the extra
+    complexity is because of its utility, I have used this program not only as an
+    assembler but as part of the build process in ways that are not shown in the
+    code (for example for converting between file formats).
+
+    The interpreter can trace its lineage back to an entry to the IOCCC \footnote{
+    The IOCCC is the International Obfuscated C Coding Competition, the entry can
+    be found here: \url{http://www.ioccc.org/all/all.tar.bz2} in the folder '1992'
+    for 'buzzard.2'.}. The interpreter is drastically different from the original,
+    being a complete rewrite although there are still similarities. 
+
+    The program interprets threaded code \findcite{Threaded code} for a stack machine,
+    the C program does the initial heavy lifting allowing users to interpret commands
+    but it is severely lacking in capabilities initially. The trick is to write most
+    of the language \emph{in itself}. This maybe odd to people coming from a background
+    in a 'normal' compiled language such as C/C++ or Java. You do not modify or extend
+    the language itself but instead provide new functionality via libraries you have
+    written.
+
+    Initially the language does not even have basic elements such as the "if ... else ... then"
+    statements or even loops, they are written in the language itself. FORTH, and my
+    dialect of it, has the ability that its syntax can be changed arbitrarily. Lets say
+    you want to make an interpreter for a different language, lets say lisp, you could
+    do that and start executing lisp, while at the same time it would be a valid FORTH
+    program as well.
+
       \subsubsection{The C Program}
-      %   IOCCC
+
+      The C program itself is design to be portable being written entirely in ANSI C \findcite{
+      ANSI C}, I have had this program running on my phone, and plan with some minor adjustments
+      to have this running on a few embedded systems.
+
       \subsubsection{Basic commands and ideas}
       % References to other tutorials.
+      % READ, CREATE, making IF...ELSE...THEN, recursion.
     \subsection{H2 CPU}
       \subsubsection{Assembly}
-  
+
+   \section{Future plans}
+    % More generic CPU core
+
+    I intend to keep working on this project after I have finished university, it offers the
+    potential to provide a nearly complete work bench for home use and by this you will see
+    what I mean.
+
+    There are some general improvements that could be made; making the code more uniform
+    through out, adding variable stack sizes and word sizes, improving the instruction set,
+    much more thorough testing (and proofs there of).
+
+    The potential improvements here are outside the scope of the project, they were never
+    intended to be included in it as I would not have had time to do so, however when I
+    started the project I did have these as an eventual end goal. The platform has a lot of
+    potential.
+
+    \subsection{Hardware}
+
+      The hardware section is the one that offers the most potential when it comes to
+      what can be improved with the device, although it is the section that will move
+      most slowly as HDLs can be difficult to debug, more so than normal programs.
+
+      \subsubsection{Different platforms}
+        % Papilo one
+      One of the goals of this project was portable of code and not just to different
+      Xilinx devices either. I would like to port this system to cheaper hardware
+      such as the "Papilio One". \findcite{http://papilio.cc/} This system while less
+      functional costs a fraction of the Nexys 3. While the project would be more
+      constrained, it should still be able to fit on the device with ease.
+
+      I would like to get my code running on as many platforms as possible, while it
+      \emph{should} be portable you can never truly find out until you have tested
+      it on the real thing.
+
+      \subsubsection{More generic code}
+        % Give examples
+      \subsubsection{PS/2 or USB keyboard}
+      \subsubsection{Signal Generator}
+      \subsubsection{Data logger}
+      \subsubsection{Logic Analyser}
+      \subsubsection{Multiple cores}
+        % Not vital.
+    \subsection{Firmware}
+    \subsection{Build system}
+        % More FORTH! As a show case for my language.
+
   \section{Contact details and licenses}
   \section{Conclusion}
+    \subsection{What I would have done differently}
+    \subsection{Project achievements}
   \section{References}
   \section{Appendix}
 \end 	{document}
