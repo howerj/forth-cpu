@@ -192,8 +192,8 @@ begin
                   when "10001" => tos_n   <=  tos_c xnor nos;
                   when "10010" => -- Reserved for multiplier low bits
                   when "10011" => -- Reserved for multilpier high bits
-                  when "10100" => tos_n   <=  io_din;
-                  when "10101" => io_wr   <=  '1';
+                  when "10100" => tos_n   <=  io_din; -- Should be integrated din instruction
+                  when "10101" => io_wr   <=  '1';    -- Should be integrated to other write instruction
                   when "10110" => 
                     tos_n   <=  std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
                   when "10111" =>

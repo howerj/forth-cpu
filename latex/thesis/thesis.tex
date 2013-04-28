@@ -115,11 +115,71 @@
     for my project although it was not written in my language of choice.
 
     \subsection{H2}
+
+    The original core was written in Verilog, a language that lends itself to more
+    compact code and where things are not as explicit, for example the exact size of
+    variables.
+
+    Getting the translation to work was fairly challenging and I also experimented with
+    the core more, I moved some instructions around to allow for more ALU operations
+    and added a few more instructions.
+
+    I renamed this core the \textbf{"H2"} and it will be referred to by either this name
+    or as \textbf{"CPU"} unless I say it refers to another one.
+
+    \subsubsection{Why a stack machine?}
+    \findcite{stack machines, the new wave}
+
+    Stack machines have several advantages when it comes to embedded development compared
+    to the more mainstream register machines, naturally they have disadvantages also which
+    will be addressed, but they do not really apply here.
+
+    % Why stack machines?
+      % Small.
+      % Dense code.
+      % Minimal internal state -> Fast interrupts.
+      % Simpler interpreters/compilers.
+
+    % Simple optimization Flip flops to distributed RAM.
+      %% Slowed things down.
+    % Multiplier.
+    % Core description
+
+    \subsubsection{The H2 Core}
+
+    % Jump indirection.
+
     \subsection{VGA}
-    \subsection{USART}
+    \subsection{UART}
+
+      The UART is the primary method of talking to the device, it is customizable at
+      compile time.
+
     \subsection{RAM and other inferred modules}
+
+      Instead of using Xilinx specific components you can use VHDL to create code that
+      fits a certain template, this template is picked up by the synthesizer and you  
+      can then verify if this is what you intended. Using this instead of instantiating
+      proprietary blocks and loading the RAM with proprietary tools is a much better
+      way of doing things that allows me more flexibility in how I go about things.
+
+      The VGA unit and the CPU both have their own RAM blocks, two for the former and
+      one for the latter. They are initialized from an ASCII encoded binary format,
+      which while not efficient is certainly easy to process with the given tools.
+
+      For a given file describing the RAM, for example \textbf{"h2\_mem.vhd"}, 
+      the initial contents will be described in a file called \textbf{"h2\_mem.binary"}.
+
+      All the RAM used is dual port this greatly simplifies the design, if I had to single
+      port RAM I would have to worry about moving data in and out of the devices and the
+      timing of it in much greater detail, it would also slow a lot of things down. For example
+      the CPU would either have to adopt a Harvard architecture instead of a Von Neumann 
+      or suffer a slow down.
+
       % Read from a file.
     \subsection{Top level}
+    \subsection{Test benches and waveforms}
+      % Given X show Y. Show the assembly program and the wave form that results from it.
     \subsection{Optimizations}
   \section{Build system}
     \subsection{Test benches}
@@ -215,10 +275,52 @@
         % Give examples
       \subsubsection{PS/2 or USB keyboard}
       \subsubsection{Signal Generator}
+
+      A signal generator should be fairly easy to design, at least internally, the
+      main problem would be designing the external analogue components to work from
+      ~1Hz to 100MHz (or a fraction thereof).
+
+      The VHDL would consist of a block RAM holding the data, for example a sine wave
+      or another arbitrary signal, a counter, a pointer into the memory and a few
+      registers to control the device. As the RAM being used is dual port, it is
+      possible to run two signals from the same RAM at a sacrifice or precision.
+
+      This would be output in parallel over some of the boards standard I/O pins
+      to a digital to analogue converter.
+
       \subsubsection{Data logger}
       \subsubsection{Logic Analyser}
+
+      With very minimal additions a logic analyser running at the speed of the device
+      ($\frac{1 Sample}{Clock Cycle}$) should be attainable, the unit does not have
+      to be directly controlled by the CPU core, perhaps only by setting a few registers
+      to tell it how fast to sample and how much, when to begin and end and where to
+      send the data.
+
+      I can see the main problems being in where to store the data and how to get it
+      off the board, I would need a faster method of communications than the UART
+      unless I only intend to capture roughly 16 Kilobytes of data at a time.
+
+      The external hardware would be quite simple, just a way to buffer and electrically
+      isolate the signal from the input pins of the device.
+
+      Instead of displaying the data on the device, it should be done instead on a
+      normal desktop, at least initially.
+
       \subsubsection{Multiple cores}
-        % Not vital.
+
+      Due to the tiny amount of resources that are taken up by the CPU it should be
+      possible to have more than on CPU core running on the platform at the same
+      time, perhaps a dedicated CPU for each peripheral with one master? It would
+      be a relatively easy way of increasing the power of the system.
+
+      This is however not a priority, first increasing functionality of the base
+      system by adding the aforementioned peripherals would be of greater initial
+      utility, then adding more cores would be considered.
+
+      \subsubsection{Miscellaneous}
+      % Timers, PWM, I2C, interrupts, multiplier! 
+
     \subsection{Firmware}
     \subsection{Build system}
         % More FORTH! As a show case for my language.
