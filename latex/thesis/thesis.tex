@@ -8,13 +8,48 @@
 \usepackage			                {url}
 \usepackage                     {color}
 \usepackage                     {hyperref}
-
 % page layout settings
 % \evensidemargin	= 0pt		%default 54pt
 % \textwidth	= 444pt		%default 380pt
 % \hoffset	= -54pt		%default 0pt
 % \topmargin	= -54pt		%default 18pt
 
+% ===================== Settings for listings package =========================
+\usepackage{listings}
+
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+
+\lstset{ %
+  backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}
+  basicstyle=\footnotesize,        % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{mygreen},    % comment style
+  deletekeywords={...},            % if you want to delete keywords from the given language
+  escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  frame=single,                    % adds a frame around the code
+  keywordstyle=\color{blue},       % keyword style
+  language=Octave,                 % the language of the code
+  morekeywords={*,...},            % if you want to add more keywords to the set
+  numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+  numbersep=5pt,                   % how far the line-numbers are from the code
+  numberstyle=\tiny\color{mygray}, % the style that is used for the line-numbers
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  stepnumber=2,                    % the step between two line-numbers. If it's 1, each line will be numbered
+  stringstyle=\color{mymauve},     % string literal style
+  tabsize=2,                       % sets default tabsize to 2 spaces
+  title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
+}
+% ===================== Settings for listings package =========================
+
+\newcommand*{\ditto}{---\textquotedbl---}
 
 \newcommand{\findcite}[1]{
   \par
@@ -231,6 +266,91 @@
       ANSI C}, I have had this program running on my phone, and plan with some minor adjustments
       to have this running on a few embedded systems.
 
+      The C program is a threaded code interpreter and executes something which looks
+      kind of like FORTH, although there are differences. It provides methods for
+      extending the language, arithmetic and logic operations, conditional jumps,
+      stack manipulations, writing to/from memory and input and output functions. It
+      only supplies a basic set of primitives which are:
+
+      \begin{itemize}
+        \item \textbf{":"}: Read in a word and compile a header for it in the
+        dictionary, switch to \emph{compile} mode.
+        \item \textbf{"immediate"}: immediate is an \emph{immediate} word which
+        makes the current word under going compilation \emph{immediate}.
+        \item \textbf{"read"}: Read in a space delimited word, if it is in the
+        dictionary and we are in compile mode, compile a pointer in the dictionary
+        to the found word, else execute it, else if it is a number push it onto
+        the variable stack, else there is an error.
+        \item \textbf{"$\backslash$"}: Ignore input stream until end of line 
+        (ie. A comment).
+        \item \textbf{"exit"}:
+        \item \textbf{"br"}: Branch unconditionally to address held in address
+        after this instruction.
+        \item \textbf{"?br"}: 
+        \item \textbf{"+"}: Pop two numbers off the variable stack, add them
+        and push the result.
+        \item \textbf{"-"}: \ditto Subtract them \ditto 
+        \item \textbf{"*"}: \ditto Multiply them \ditto
+        \item \textbf{"\%"}: Pop two numbers off the variable stack, perform
+        and work out the remainder when the second item off is divided by
+        the first, push the result.
+        \item \textbf{"/"}: \ditto, divide the second item off by the first
+        off, push the result.
+        \item \textbf{"lshift"}: logical shift left the next on stack by
+        first on stack places. Push the result.
+        \item \textbf{"rshift"}: \ldots same but with right shift.
+        \item \textbf{"and"}: Pop two numbers, compute logical conjunction of them,
+        push the result.
+        \item \textbf{"or"}: \ldots same but with logical disjunction.
+        \item \textbf{"xor"}: \ldots same but with exclusive disjunction.
+        \item \textbf{"*~*"}: Bitwise inversion of top of stack.
+        \item \textbf{"1+"}: Add one to top of stack.
+        \item \textbf{"1-"}: Subtract one from top of stack.
+        \item \textbf{"clear"}: Clear top of stack.
+        \item \textbf{"0>"}: Test if top of stack is less than zero, push result.
+        \item \textbf{"="}: Pop two numbers off variable stack, test for equality,
+        push result.
+        \item \textbf{"<"}:
+        \item \textbf{">"}:
+        \item \textbf{"@reg"}: Use top of stack as index into the array of
+        registers, push what is in there on to the variable stack.
+        \item \textbf{"@dic"}: Use top of stack as index into the dictionary,
+        push what is in there on to the variable stack.
+        \item \textbf{"@var"}: Same but with the variable stack itself.
+        \item \textbf{"@ret"}: Same but with the return stack.
+        \item \textbf{"@str"}: \ldots with string storage.
+        \item \textbf{"!reg"}: Store next on stack into the address pointed
+        to by the first on the stack into the register file.
+        \item \textbf{"!dic"}: \ldots into the dictionary.
+        \item \textbf{"!var"}: \ldots into the variable stack.
+        \item \textbf{"!ret"}: \ldots into the return stack.
+        \item \textbf{"!str"}: \ldots into string storage.
+        \item \textbf{"key"}: Push one changed from the input to the
+        variable stack.
+        \item \textbf{"emit"}: Pop one character from the variable stack,
+        and output it.
+        \item \textbf{"dup"}: Duplicate top of variable stack.
+        \item \textbf{"drop"}: Drop top of variable stack.
+        \item \textbf{"swap"}: Swap top two items of variable stack.
+        \item \textbf{"over"}: 
+        \item \textbf{">r"}:
+        \item \textbf{"r>"}:
+        \item \textbf{"tail"}:
+        \item \textbf{"'"}:
+        \item \textbf{","}:
+        \item \textbf{"printnum"}:
+        \item \textbf{"get\_word"}:
+        \item \textbf{"strlen"}:
+        \item \textbf{"isnumber"}:
+        \item \textbf{"strnequ"}:
+        \item \textbf{"\_find"}: Find a word in the dictionary if it
+        exists and push a pointer to the beginning of the word header if
+        it does.
+        \item \textbf{"halt"}: Halt the system.
+        \item \textbf{"kernel"}:
+      \end{itemize}
+      
+
       \subsubsection{Basic commands and ideas}
       % References to other tutorials.
       % READ, CREATE, making IF...ELSE...THEN, recursion.
@@ -253,6 +373,10 @@
     started the project I did have these as an eventual end goal. The platform has a lot of
     potential.
 
+    This section fairly big despite not actually documenting the project due to the fact
+    that it in part \emph{justifies} the project, this section actually more or less provides
+    the reasoning for me starting the project.
+
     \subsection{Hardware}
 
       The hardware section is the one that offers the most potential when it comes to
@@ -272,7 +396,24 @@
       it on the real thing.
 
       \subsubsection{More generic code}
-        % Give examples
+
+        If possible I would make my code as generic as I could. What I mean by this
+        is being able to specify most of the parameters such as instruction size
+        width and RAM size just by editing a few variables. Some of this might be
+        easier than others. An example of a difficult-to-make-generic piece of code
+        would be in the H2 CPU core:
+
+        \lstset{language=VHDL,caption={Stack Depth Instruction},label=stackDepthVHDL} 
+        
+\begin{lstlisting}
+when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c; 
+\end{lstlisting}
+
+        This instruction takes two stack pointers and put them on to the stack so
+        you can analyse them. However if I wanted to increase the size of the
+        stack the pointers would also increase in size, taking up more room and
+        rendering this instruction incorrect.
+
       \subsubsection{PS/2 or USB keyboard}
       \subsubsection{Signal Generator}
 
@@ -289,6 +430,15 @@
       to a digital to analogue converter.
 
       \subsubsection{Data logger}
+
+      By hooking up an external Analogue to Digital Converter (ADC) and a few other
+      circuits it would be possible to have a fairly high speed data logger where
+      plotting could be handled in real time on a normal computer (depending on how
+      fast I manage to sample things).
+
+      This would be the most difficult to add section and it would also be the one
+      that would provide most in the way of utility.
+
       \subsubsection{Logic Analyser}
 
       With very minimal additions a logic analyser running at the speed of the device
@@ -319,7 +469,9 @@
       utility, then adding more cores would be considered.
 
       \subsubsection{Miscellaneous}
-      % Timers, PWM, I2C, interrupts, multiplier! 
+      
+      The addition of timers, the reintroduction of the multiplier and adding 
+      interrupts to the new CPU core would all improve the system as a whole.
 
     \subsection{Firmware}
     \subsection{Build system}
