@@ -96,6 +96,11 @@
   the intention was to use them and then swap them out, but some have increased
   functionality above the original goals and there were time constraints as well.
 
+  \subsection{Contact details and licenses}
+
+  All code, including this thesis, has been released under an open-source
+  license (LGLP).
+
   The project is available on Github here: \url{https://github.com/howerj/fyp.git} .
 
   I intend to continue working on the project after university improving functionality,
@@ -223,7 +228,31 @@
       % Git, make, shell.
 
   \section{Problems}
+
+    There were two main problems in this project, the build time for the hardware
+    implementation and the multitude of problems faced when debugging the system,
+    both of which slow the project down.
+
     \subsection{Build time}
+
+    Some languages like C compile fairly quickly, others provide and interactive
+    environment that you can test quickly like python. Any HDL however takes
+    a fairly long time to simulate and a very long time to turn this design into
+    a working 'bitfile' to be uploaded to the integrated circuit. This acts as
+    a friction and a drag on the development process as going from a simple change
+    in a single line of code to the hardware can take upwards of fifteen minutes
+    (on my computer). Simulation takes up less of that time, but it is still
+    impractical to simulated even a second of real time. 
+
+    There are a few ways
+    to mitigate this, the best one is to be right the first time when you commit
+    to hardware, although this can be difficult, I didn't have the time to create
+    an adequate test bench to simulate incoming UART data for example, which made
+    debugging the UART a slow process.
+
+    The other simpler way is to use ever faster hardware, although that is an
+    expensive option.
+
     \subsection{Debugging}
 
   \section{Documentation}
@@ -260,6 +289,9 @@
     do that and start executing lisp, while at the same time it would be a valid FORTH
     program as well.
 
+    Of note is the fact that in FORTH terminology a 'Word' does not refer to a machine
+    word but instead to a defined function, so when I refer to a 'Word' I mean function.
+
       \subsubsection{The C Program}
 
       The C program itself is design to be portable being written entirely in ANSI C \findcite{
@@ -283,10 +315,11 @@
         the variable stack, else there is an error.
         \item \textbf{"$\backslash$"}: Ignore input stream until end of line 
         (ie. A comment).
-        \item \textbf{"exit"}:
+        \item \textbf{"exit"}: Return from a function call.
         \item \textbf{"br"}: Branch unconditionally to address held in address
         after this instruction.
-        \item \textbf{"?br"}: 
+        \item \textbf{"?br"}: Same as "br" except branch conditionally when
+        the top of the stack is zero.
         \item \textbf{"+"}: Pop two numbers off the variable stack, add them
         and push the result.
         \item \textbf{"-"}: \ditto Subtract them \ditto 
@@ -337,11 +370,15 @@
         \item \textbf{">r"}: Move an item from the top of the variable
         stack to the return stack.
         \item \textbf{"r>"}: \ldots the other way around.
-        \item \textbf{"tail"}:
-        \item \textbf{"'"}:
-        \item \textbf{","}:
-        \item \textbf{"printnum"}:
-        \item \textbf{"get\_word"}:
+        \item \textbf{"tail"}: 
+        \item \textbf{"'"}: Push the next compiled word onto the stack at
+        run time.
+        \item \textbf{","}: Advance dictionary pointer, pop the top of stack
+        and write in into the dictionary.
+        \item \textbf{"printnum"}: Use the top of the stack as an index into
+        a string in string storage, treat this as a number and print it.
+        \item \textbf{"get\_word"}: Use the top of the stack as an index into
+        string storage, store a space delimited string there.
         \item \textbf{"strlen"}:
         \item \textbf{"isnumber"}:
         \item \textbf{"strnequ"}:
@@ -349,11 +386,89 @@
         exists and push a pointer to the beginning of the word header if
         it does.
         \item \textbf{"halt"}: Halt the system.
-        \item \textbf{"kernel"}:
+        \item \textbf{"kernel"}: Use the top of the stack to perform an
+        external call. All calls have access to all the memory.
       \end{itemize}
-      
 
+      Also defined but not present here are three 'hidden' words, that is
+      words with no name which are:
+
+      \begin{itemize}
+        \item \textbf{"Push integer"}: Pushes the next instruction onto the
+        data stack, advances program counter over instruction.
+        \item \textbf{"Compile"}: Compile a pointer to the execution token
+        'Run' of a word.
+        \item \textbf{"Run"}: Run a word, saving the return address onto the
+        return stack.
+      \end{itemize}
+
+      The word ";" has not been defined here, it instead defined later like
+      more of the standard words such as "rot" (rotate first three stack
+      items). 
+
+      The best documentation is the code itself, it is not too long, but
+      I will give a quick overview of what happens.
+
+      The memory is initialized, a function that is created that calls
+      read then calls itself (read also handles this so the stack does
+      not blow up), this forms the basic command interpreter.
+
+      Before this is run a list of symbols is read in which forms the
+      names of the initial dictionary. Then the function it has created
+      is executed.
+
+      There are two states the interpreter can be in, compile or command
+      mode, in compile mode (which is what we start out in) if a word is
+      found a pointer to that word is compiled into the dictionary, in
+      command mode it is executed instead. There is a certain class of
+      words that are always executed and they are called \emph{immediate}
+      words.
+
+      Each word compiling has the following structure:
+
+      \begin{center}
+        \begin{tabular}{l | c | c | c | r }
+          \hline
+          prev & str & \textbf{compile} & run & data field \ldots \\
+          \hline
+        \end{tabular}
+      \end{center}
+
+      Each immediate word has this structure:
+      
+      \begin{center}
+        \begin{tabular}{l | c | c | r }
+          \hline
+          prev & str & \textbf{run} & data field \ldots \\
+          \hline
+        \end{tabular}
+      \end{center}
+
+      Where "prev" is a pointer to the previous word, "str" a pointer to the words
+      name, "compile" is the instruction compile if present and "run" is the instruction
+      "run". The text in bold is what is run when the word is found by "read", what makes
+      the difference between an immediate and a compiling word is what is pointed to.
+
+      The data field is of a variable length and in a normal word consists entirely or
+      either pointers to other words execution field (either run or compile), numbers
+      to push onto the stack or places to jump to (after either "push" or one of the
+      branch instructions respectively).
+
+      The dictionary consists of a linked list of words, and each words data field
+      consists of pointers to other words making for very compact code.
+
+      While this description is lacking, I do have a limited space I have to write about
+      each of the components so for brevities sake I will have to refer you to the
+      actual code itself.
+       
       \subsubsection{Basic commands and ideas}
+
+      After the basic word list has been defined we then define more FORTH words and
+      bring the interpreter/compile into a working state, loops and conditional
+      statements as well as words for debugging and file operations are introduced
+      here. After this the constants and system necessary for the assembler are made,
+      because the assembler is still executing in the FORTH environment you can still
+      call any previously defined word there.
       % References to other tutorials.
       % READ, CREATE, making IF...ELSE...THEN, recursion.
     \subsection{H2 CPU}
@@ -479,10 +594,24 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
     \subsection{Build system}
         % More FORTH! As a show case for my language.
 
-  \section{Contact details and licenses}
   \section{Conclusion}
     \subsection{What I would have done differently}
     \subsection{Project achievements}
   \section{References}
+
+    \bibliographystyle{plain}              % Use plain style
+%    \renewcommand{\section}[2]{\vskip 0.05em}    % Omit "References" title
+    \begin{thebibliography}{1}              % Simple bibliography with widest label of 1
+%    \itemsep=-0.01em                    % Save space between the separation
+%    \setlength{\baselineskip}{0.4em}          % Save space with longer lines
+    \bibitem{j1core} James Bowman, Willow Garage: \emph{J1: A small Forth CPU for FPGAs},  EuroForth 2010, \url{http://www.excamera.com/files/j1.pdf} (2010)
+    \bibitem{vgacore} Javier Valcarce: \emph{VHDL Macro: VGA80x40}, VHDL Monochrome VGA display adapter ,\url{http://www.javiervalcarce.eu/wiki/VHDL_Macro:_VGA80x40} (2009)
+    \bibitem{uartcore} Peter Bennett: \emph{RS232 UART (VHDL)}, A UART core, \url{http://bytebash.com/2011/10/rs232-uart-vhdl/} (2012)
+    \bibitem{opencore} Opencores: \emph{Open source HDL cores and code}, \url{http://opencores.org/projects} (2013)
+    \bibitem{nexysDigilent} $Nexys^{TM}$3: \emph{A FPGA Spartan-6 development board}, \url{http://www.digilentinc.com/Products/Detail.cfm?NavPath=2,400,897\&Prod=NEXYS3}, (2013)
+    \end{thebibliography}
+
+
+
   \section{Appendix}
 \end 	{document}
