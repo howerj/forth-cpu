@@ -310,8 +310,9 @@
         \item \textbf{"0>"}: Test if top of stack is less than zero, push result.
         \item \textbf{"="}: Pop two numbers off variable stack, test for equality,
         push result.
-        \item \textbf{"<"}:
-        \item \textbf{">"}:
+        \item \textbf{"<"}: Pop two items off the variable, test if the first if
+        greater than the second, push the result.
+        \item \textbf{">"}: \ldots same but the inverse.
         \item \textbf{"@reg"}: Use top of stack as index into the array of
         registers, push what is in there on to the variable stack.
         \item \textbf{"@dic"}: Use top of stack as index into the dictionary,
@@ -329,12 +330,13 @@
         variable stack.
         \item \textbf{"emit"}: Pop one character from the variable stack,
         and output it.
-        \item \textbf{"dup"}: Duplicate top of variable stack.
+        \item \textbf{"dup"}: Duplicate top off the variable stack.
         \item \textbf{"drop"}: Drop top of variable stack.
         \item \textbf{"swap"}: Swap top two items of variable stack.
-        \item \textbf{"over"}: 
-        \item \textbf{">r"}:
-        \item \textbf{"r>"}:
+        \item \textbf{"over"}: Duplicate the second item on the variable stack. 
+        \item \textbf{">r"}: Move an item from the top of the variable
+        stack to the return stack.
+        \item \textbf{"r>"}: \ldots the other way around.
         \item \textbf{"tail"}:
         \item \textbf{"'"}:
         \item \textbf{","}:
