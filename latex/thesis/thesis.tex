@@ -8,6 +8,8 @@
 \usepackage			                {url}
 \usepackage                     {color}
 \usepackage                     {hyperref}
+\usepackage                     {graphicx}
+\usepackage                     {placeins}
 % page layout settings
 % \evensidemargin	= 0pt		%default 54pt
 % \textwidth	= 444pt		%default 380pt
@@ -75,6 +77,11 @@
     ground up in order to make a product that is useful for both teaching and
     eventually much more. This project includes the firmware and the toolchain
     that is to target the device.
+
+      \smallskip
+      \begin{center}
+      \noindent \textbf{Keywords}: \emph{VHDL, FORTH, SoC, CPU, Assembly.}
+      \end{center}
 	\end{abstract}
 
 	\tableofcontents
@@ -107,7 +114,21 @@
   rewriting sections and porting to different devices.
 
   \section{Project Goals}
+
+  The goal of this project was to create an educational computer, it was as much as
+  for the education of other people as it was for me, I do not expect it to be used
+  as a prototype for a real system.
+
+  \subsection{What makes this an educational computer?}
+
+  Nothing by itself makes this system educational, a course would have to be
+  arranged around the device. 
+
   % Ease of use, modularity, code portability.
+  % Educational computer
+  %% Write assembly for the CPU
+  %% Extend the system / cpu, VHDL lessons.
+  %% Remove module
 
   \section{Tools used}
   
@@ -136,9 +157,44 @@
   \section{The Hardware}
   % Nexys 3 Development board.
 
+  The only pieces of hardware need are; a laptop, a VGA capable monitor, two micro USB cables,
+  a VGA cable and Nexys 3 development board available from Digilent \cite{nexysDigilent}.
+
+  The Nexys 3 board forms the core of this project, it is the device that I will be targeting.
+  Seeing as this is an external block that is provided as is there is no real need to go into
+  too many details. It provides an FPGA that has plenty of room for my project (in terms of
+  Look Up Tables, Configurable Logic Blocks, Block RAMs, etcetera) as well as nice interfaces
+  for external hardware (USB UART, The device can be programmed over USB, a VGA port, LEDs,
+  Switches).
+
+  The FPGA I will be using is called the XC6LX16-CS324, part of the Spartan-6 family from
+  Xilinx\cite{xilinxDataSheet}. While the datasheet provides all the relevant details a
+  quick overview would not go amiss. The device provides for; $12*18kB$ Block RAM (dual
+  port), 32 Digital Signal Processing "slices"\footnote{A term used by Xilinx to denote
+  a physical on chip device} (which includes an adder and a multiplier) and roughly
+  2300 Configurable Logic Blocks (CLBs). CLBs are the bread and butter of the FPGAs,
+  they are not a canonical device\footnote{Some vendors call CLBs by a different name
+  but they have \emph{roughly} the same function} such as an adder or an 'OR' gate, but each FPGA is
+  comprised of a version of this. An FPGA consists of an array of these devices; CLBS and
+  miscellaneous other pieces of hardware such as the DSPs and BRAMs mentioned, each
+  CLB has a Look Up Table (or multiple ones) which must be configured, this describes
+  how the logic behaves and some flip flops for holding the internal state. These
+  blocks must then be routed into something useful, the places and routing of these
+  resources is a difficult problem computationally and takes up a long time.
+
+  \findcite{CLBs, You can find out more about how they work here...}
+  
   \subsection{Basic system overview}
   % Stack based machines.
   % I/O System.
+
+      \begin{figure}[p]
+        \centering
+        \includegraphics[width=1.1\textwidth]{pic/h2.png}
+        \caption{The H2 CPU Core}
+        \label{fig:H2 CPU Core}
+      \end{figure}
+      \FloatBarrier
 
   \section{VHDL}
 
@@ -149,7 +205,7 @@
 
     \subsection{J1}
   
-    The project is built around a translation and improvement of the J1 core \findcite{J1},
+    The project is built around a translation and improvement of the J1 core \cite{j1core},
     a small stack processor built in Verilog and optimized to efficiently execute FORTH
     instructions, most of which can be executed in one clock cycle. It was perfectly suited
     for my project although it was not written in my language of choice.
@@ -171,8 +227,11 @@
     \findcite{stack machines, the new wave}
 
     Stack machines have several advantages when it comes to embedded development compared
-    to the more mainstream register machines, naturally they have disadvantages also which
+    to the more mainstream register machines, naturally they have disadvantages which also
     will be addressed, but they do not really apply here.
+
+    This architecture tends to produce denser code, this is because the operands tend to
+    be implicit.
 
     % Why stack machines?
       % Small.
@@ -457,6 +516,16 @@
       The dictionary consists of a linked list of words, and each words data field
       consists of pointers to other words making for very compact code.
 
+      There are two stacks, a variable stack where computations are generally performed
+      and a return stack for return from functions and as temporary storage. The other
+      chunks of memory include a register file which contains pointers to the next
+      word and instruction to execute, a pointer to the previously defined word, stack
+      pointers, a pointer into the next available dictionary address as well as some
+      information about the virtual machine itself. Then there is the dictionary which
+      contains all the defined words as well as being used as a general storage facility.
+      Finally there is a string storage space, used to store the names of words and
+      other strings.
+
       While this description is lacking, I do have a limited space I have to write about
       each of the components so for brevities sake I will have to refer you to the
       actual code itself.
@@ -469,6 +538,26 @@
       here. After this the constants and system necessary for the assembler are made,
       because the assembler is still executing in the FORTH environment you can still
       call any previously defined word there.
+
+      To interpreter is currently set up to read a start-up file, \emph{start.fs}
+      which then reads the assembly file \emph{h2.fs} and outputs that to the right
+      directory.
+
+      To run the interpreter only, you would need to edit the file \emph{start.fs}
+      to not run \emph{h2.fs}, which is a trivial change at the end of the file,
+      just delete the lines:
+
+      \begin{verbatim}
+foutput ../vhdl/mem_h2.binary
+finput h2.fs
+      \end{verbatim}     
+       
+      You can then run the interpreter (./forth) and type 'words' to get a list of
+      defined commands.
+
+      To get a better understanding of how this interpreter works consult the
+      IOCCC submission 'buzzard.2' from 1992 \cite{ioccc}
+
       % References to other tutorials.
       % READ, CREATE, making IF...ELSE...THEN, recursion.
     \subsection{H2 CPU}
@@ -532,6 +621,11 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
         rendering this instruction incorrect.
 
       \subsubsection{PS/2 or USB keyboard}
+
+      A PS/2 Keyboard could be added to the board, the Nexys 3 provides a USB
+      to PS/2 interface, this could be used to interact with the system instead
+      of the computer.
+
       \subsubsection{Signal Generator}
 
       A signal generator should be fairly easy to design, at least internally, the
@@ -590,9 +684,28 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
       The addition of timers, the reintroduction of the multiplier and adding 
       interrupts to the new CPU core would all improve the system as a whole.
 
+      There are also several different types of memory on the Nexys 3 board
+      which could be interfaced with which would allow me to overcome the
+      limitations of the H2's memory restrictions, instructions could be swapped
+      in and out.
+
     \subsection{Firmware}
+
+    The firmware is what could receive the most drastic improvement, getting a small
+    interpreter up and running on this device is a priority. This would allow it
+    to be used as a standalone system, one which I believe would be fairly useful
+    to multiple people. 
+
+    This is where the real complexity in the device would lay, eventually.
+
     \subsection{Build system}
-        % More FORTH! As a show case for my language.
+
+    I would like to replace most of the build system with my FORTH interpreter as I
+    think it would be a good show case of the language I designed, it would need
+    a way for it to deal with multiple files at the same time which it currently does
+    not, along with a few trivial improvements, but once that has been done I could
+    use it as a replacement for all the miscellaneous shell scripts and makefiles
+    that I have.
 
   \section{Conclusion}
     \subsection{What I would have done differently}
@@ -600,15 +713,14 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
   \section{References}
 
     \bibliographystyle{plain}              % Use plain style
-%    \renewcommand{\section}[2]{\vskip 0.05em}    % Omit "References" title
     \begin{thebibliography}{1}              % Simple bibliography with widest label of 1
-%    \itemsep=-0.01em                    % Save space between the separation
-%    \setlength{\baselineskip}{0.4em}          % Save space with longer lines
     \bibitem{j1core} James Bowman, Willow Garage: \emph{J1: A small Forth CPU for FPGAs},  EuroForth 2010, \url{http://www.excamera.com/files/j1.pdf} (2010)
     \bibitem{vgacore} Javier Valcarce: \emph{VHDL Macro: VGA80x40}, VHDL Monochrome VGA display adapter ,\url{http://www.javiervalcarce.eu/wiki/VHDL_Macro:_VGA80x40} (2009)
     \bibitem{uartcore} Peter Bennett: \emph{RS232 UART (VHDL)}, A UART core, \url{http://bytebash.com/2011/10/rs232-uart-vhdl/} (2012)
     \bibitem{opencore} Opencores: \emph{Open source HDL cores and code}, \url{http://opencores.org/projects} (2013)
     \bibitem{nexysDigilent} $Nexys^{TM}$3: \emph{A FPGA Spartan-6 development board}, \url{http://www.digilentinc.com/Products/Detail.cfm?NavPath=2,400,897\&Prod=NEXYS3}, (2013)
+    \bibitem{ioccc} IOCCC winner Buzzard: \emph{An obfuscated FORTH interpreter}, \url{http://www.ioccc.org/1992/buzzard.2.design}, (1992)
+    \bibitem{xilinxDataSheet} XC6LX16 Family Overview: \emph{Spartan-6 Family Overview}, \url{http://www.xilinx.com/support/documentation/data_sheets/ds160.pdf}, (2011)
     \end{thebibliography}
 
 
