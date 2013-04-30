@@ -108,7 +108,9 @@
   All code, including this thesis, has been released under an open-source
   license (LGLP).
 
-  The project is available on Github here: \url{https://github.com/howerj/fyp.git} .
+  The project is available on Github here: \url{https://github.com/howerj/fyp.git}. Please
+  note that as I am working on this project continually to see the version that this
+  thesis relates to please check out tag \emph{v0.7}.
 
   I intend to continue working on the project after university improving functionality,
   rewriting sections and porting to different devices.
@@ -119,16 +121,23 @@
   for the education of other people as it was for me, I do not expect it to be used
   as a prototype for a real system.
 
-  \subsection{What makes this an educational computer?}
+    \subsection{What makes this an educational computer?}
 
-  Nothing by itself makes this system educational, a course would have to be
-  arranged around the device. 
+    Nothing by itself makes this system educational, a course would have to be
+    arranged around the device. Perhaps lessons could be given to create a new module
+    for the system, as in the section \ref{sec:futurePlans} (Future plans). Alternatively
+    they could be given the task to write software for the computer, or even a compiler
+    for the system which is more of a computer science project. A C compiler for a
+    subset of C would be potentially very useful and possibly within the scope of
+    a final year computer science student.
 
-  % Ease of use, modularity, code portability.
-  % Educational computer
-  %% Write assembly for the CPU
-  %% Extend the system / cpu, VHDL lessons.
-  %% Remove module
+    A module could be removed from the project which the student would then have to
+    implement for a more gentler introduction to VHDL. 
+
+    But the real use would be when the additional modules module are complete, again
+    described in \ref{sec:futurePlans}. This would provide an engineering student
+    with a working piece of lab equipment that they could either use in class, or for
+    the more ambitious at home.
 
   \section{Tools used}
   
@@ -224,14 +233,17 @@
     or as \textbf{"CPU"} unless I say it refers to another one.
 
     \subsubsection{Why a stack machine?}
-    \findcite{stack machines, the new wave}
 
     Stack machines have several advantages when it comes to embedded development compared
     to the more mainstream register machines, naturally they have disadvantages which also
     will be addressed, but they do not really apply here.
 
-    This architecture tends to produce denser code, this is because the operands tend to
-    be implicit.
+    This architecture tends to produce denser code\cite{newwave}, this is because the operands 
+    tend to
+    be implicit due to the fact that most operations happen on the stack. You do not need
+    to specify where each instruction is to get it's operands as in a register based
+    computer. This code is further reduced in size (potentially) by the execution model
+    espoused by FORTH systems which execute threaded code.
 
     % Why stack machines?
       % Small.
@@ -314,6 +326,22 @@
 
     \subsection{Debugging}
 
+    Debugging can be awkward at best as there are many different places in which
+    an error could occur and multiple errors could be conspiring to cause any
+    given problem at hand. Why this is can be given by the list of places where
+    a mistake could occur: The FORTH interpreter, the assembler, the assembly, the
+    VHDL, the VHDL test-benches, the build system and finally the hardware implementation
+    of what I have done could be different from the simulation. 
+
+    The debugging process involves first pining down where the error is as
+    per usual, it is just made more unusually difficult by the fact that the error
+    could be in so many different places. This is why an adequate test bench is
+    a must.
+
+    Eventually however as the system becomes more mature (for example I worked out
+    many of the bugs in the assembler fairly quickly) the tools used also become
+    more stable and reliable so you do not have to worry about them as much.
+
   \section{Documentation}
 
   In this section I will provide a terse (terse in the sense that this should
@@ -333,7 +361,7 @@
     for 'buzzard.2'.}. The interpreter is drastically different from the original,
     being a complete rewrite although there are still similarities. 
 
-    The program interprets threaded code \findcite{Threaded code} for a stack machine,
+    The program interprets threaded code \cite{threadedCode} for a stack machine,
     the C program does the initial heavy lifting allowing users to interpret commands
     but it is severely lacking in capabilities initially. The trick is to write most
     of the language \emph{in itself}. This maybe odd to people coming from a background
@@ -353,8 +381,8 @@
 
       \subsubsection{The C Program}
 
-      The C program itself is design to be portable being written entirely in ANSI C \findcite{
-      ANSI C}, I have had this program running on my phone, and plan with some minor adjustments
+      The C program itself is design to be portable being written entirely in ANSI C \cite{ANSIC}, 
+      I have had this program running on my phone, and plan with some minor adjustments
       to have this running on a few embedded systems.
 
       The C program is a threaded code interpreter and executes something which looks
@@ -558,13 +586,129 @@ finput h2.fs
       To get a better understanding of how this interpreter works consult the
       IOCCC submission 'buzzard.2' from 1992 \cite{ioccc}
 
-      % References to other tutorials.
-      % READ, CREATE, making IF...ELSE...THEN, recursion.
+      A more up to date, better documented and more standalone version also
+      written by myself is available at: \url{https://github.com/howerj/c-forth}.
+      This is the main branch from which this I used in this project is
+      based.
+
     \subsection{H2 CPU}
+
       \subsubsection{Assembly}
 
+    The assembler is written in a few hundred lines of FORTH, it is mostly
+    several constants and a few helping functions specific to the H2 processor
+    near the end of the file \textbf{start.fs}.
+
+    Bellow is a very simple test program:
+
+\begin{verbatim}
+242 constant o_vgaCtrlDefault \ 11110010, VGA control register set to this.
+
+\ Outputs
+0 constant o_7seg
+1 constant o_ledS
+2 constant o_vgaCursor
+3 constant o_vgaCtrl
+4 constant o_vgaTxtAddr
+5 constant o_vgaTxtDin
+6 constant o_vgaWrite
+7 constant o_uartWrite
+8 constant o_uartStbWrite
+9 constant o_uartAckDout
+
+\ Inputs
+0 constant i_buttons
+1 constant i_switches
+2 constant i_vgaTxtDout
+3 constant i_uartRead
+4 constant i_uartAckWrite
+5 constant i_uartStbDout
+
+\ ============================
+\ Word definitions.
+\ ============================
+
+: [SETUP]
+    o_vgaCtrlDefault lit
+    o_vgaCtrl lit 
+    _output
+;
+
+: [LED]
+    o_ledS lit _output
+;
+
+: [SWITCH]
+    i_switches lit _input
+;
+
+
+\ ============================
+\ Begin program loop.
+\ ============================
+start
+    [SETUP]
+    label main
+        [SWITCH]
+        [LED]
+    main jmp
+stop
+\end{verbatim}
+
+    The actual program that is running on the FPGA begins at the word \emph{start}
+    and ends quite naturally at the word \emph{stop}. It simply sets up the VGA
+    to display the test pattern and after it has done that it loops around
+    constantly read the input switches and displaying them on the output LEDs. It
+    was the first program run on the FPGA, one which is just a simple test that
+    everything is working.
+
+    As you can see you can call functions defined in the FORTH interpreter. In the
+    example several words are called: \emph{'constant',':','$\backslash$'} and \emph{';'}. We can
+    define new words in the assembler to help us out with ':', simple macros in
+    this case \emph{[SETUP],[LED]} and \emph{[SWITCH]} that expand into the machine
+    instructions they contain.
+
+    The program is only written out when \emph{'stop'} is reached so messages
+    about the program assembly progress can be written out to the standard terminal
+    output.
+
+    Let us look at how an instruction works and how it is assembled. We can start
+    with the simple addition instruction called \emph{\_+} in the assembler to
+    avoid confusion with the FORTH instruction by a similar name, +. 
+
+    The definition of this is as follows:    
+
+\begin{verbatim}
+: _+ alu[ T+N d-1 or ]alu ;
+\end{verbatim}
+
+    Analysing this word by word:
+
+    \begin{itemize}
+      \item \textbf{':'}: Begin the compilation of a new word in the dictionary.
+      \item \textbf{'\_+'}: The name of the new word.
+      \item \textbf{'alu['}: This is simply some syntactic sugar, it does not
+      do anything but looks better with a corresponding ']alu'.
+      \item \textbf{'T+N'}: This pushes the value of whatever the ALU instruction
+      is to the variable stack.
+      \item \textbf{'d-1'}: This pushes the value of a variable stack decrement
+      for out CPU.
+      \item \textbf{'or'}: As a stack decrement and an ALU instruction (amongst
+      other things) can occur within the same instruction we merge these into
+      one.
+      \item \textbf{']alu'}: This merges the instruction we want with a header
+      ('011' in the high bits of the instruction) that signifies that this is
+      an ALU operation and not for example, a conditional jump. It then writes
+      this out into a memory model of our CPU and increments a pointer to the
+      next available memory location in it.
+      \item \textbf{';'}: This of course ends the current word definition.
+    \end{itemize}
+
+    This allows us to create an assembler along with definitions along with labels
+    which allow us to name a memory location for out program to jump to.
+
    \section{Future plans}
-    % More generic CPU core
+    \label{sec:futurePlans}
 
     I intend to keep working on this project after I have finished university, it offers the
     potential to provide a nearly complete work bench for home use and by this you will see
@@ -718,9 +862,12 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
     \bibitem{vgacore} Javier Valcarce: \emph{VHDL Macro: VGA80x40}, VHDL Monochrome VGA display adapter ,\url{http://www.javiervalcarce.eu/wiki/VHDL_Macro:_VGA80x40} (2009)
     \bibitem{uartcore} Peter Bennett: \emph{RS232 UART (VHDL)}, A UART core, \url{http://bytebash.com/2011/10/rs232-uart-vhdl/} (2012)
     \bibitem{opencore} Opencores: \emph{Open source HDL cores and code}, \url{http://opencores.org/projects} (2013)
+    \bibitem{ANSIC} ANSI/ISO C: \emph{ISO C Standards Website for the C Standard}, \url{http://www.open-std.org/jtc1/sc22/wg14/www/standards} (1990)
     \bibitem{nexysDigilent} $Nexys^{TM}$3: \emph{A FPGA Spartan-6 development board}, \url{http://www.digilentinc.com/Products/Detail.cfm?NavPath=2,400,897\&Prod=NEXYS3}, (2013)
     \bibitem{ioccc} IOCCC winner Buzzard: \emph{An obfuscated FORTH interpreter}, \url{http://www.ioccc.org/1992/buzzard.2.design}, (1992)
     \bibitem{xilinxDataSheet} XC6LX16 Family Overview: \emph{Spartan-6 Family Overview}, \url{http://www.xilinx.com/support/documentation/data_sheets/ds160.pdf}, (2011)
+    \bibitem{newwave} Philip J. Koopman, Jr: \emph{Stack Computers: the new wave}, \url{http://www.ece.cmu.edu/~koopman/stack_computers/sec6_2.html}, chapter 6, section 2 (1989)
+    \bibitem{threadedCode} Anton Ertl: \emph{Threaded Code}, \url{http://www.complang.tuwien.ac.at/forth/threaded-code.html}, (2013)
     \end{thebibliography}
 
 
