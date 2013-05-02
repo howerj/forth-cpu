@@ -287,34 +287,131 @@
     is not actually dependant on the CPU itself but how it is wired up to the RAM. 
 
     A list of instructions is given bellow:
+\begin{figure}[ht]
+\hspace*{-1.5cm}
+  \begin{minipage}[t]{0.45\linewidth}
+    \centering
 
-\begin{table}[htbp]
-\begin{center}
-\begin{tabular}{|l|r|r|r|l|l|l|l|l|l|l|l|l|l|l|l|l|}
-\hline
-Instruction & 0 & 1 & 2 & \multicolumn{1}{r|}{3} & \multicolumn{1}{r|}{4} & \multicolumn{1}{r|}{5} & \multicolumn{1}{r|}{6} & \multicolumn{1}{r|}{7} & \multicolumn{1}{r|}{8} & \multicolumn{1}{r|}{9} & \multicolumn{1}{r|}{10} & \multicolumn{1}{r|}{11} & \multicolumn{1}{r|}{12} & \multicolumn{1}{r|}{13} & \multicolumn{1}{r|}{14} & \multicolumn{1}{r|}{15} \\ \hline
-Literal & 1 & \multicolumn{ 15}{l|}{Literal Value} \\ \hline
-Jump & 0 & 0 & 0 & \multicolumn{ 13}{c|}{Address} \\ \hline
-Conditional Jump & 0 & 0 & 1 & \multicolumn{ 13}{c|}{Address} \\ \hline
-Call & 0 & 1 & 0 & \multicolumn{ 13}{c|}{Address} \\ \hline
-ALU  & 0 & 1 & 1 & \multicolumn{ 5}{l|}{T'} & \begin{turn}{90}T - N\end{turn} & \begin{turn}{90}T - R \end{turn}& \begin{turn}{90}N - [T] \end{turn}& \begin{turn}{90}R – PC\end{turn} & \multicolumn{ 2}{l|}{\begin{turn}{90}dstack\end{turn} +/-} & \multicolumn{ 2}{l|}{dstack +/-} \\ \hline
-\end{tabular}
-\end{center}
-\caption{Instruction set}
-\label{instrSet}
-\end{table}
+    \begin{tabular}{|c|c|}
+      \hline
+      \textbf{Number} & \textbf{Instruction}\\
+      \hline
+      0 & T\\
+      \hline
+      1 & N\\
+      \hline
+      2 & $T+N$\\
+      \hline
+      3 & T and N\\
+      \hline
+      4 & T or N\\
+      \hline
+      5 & T $\oplus$ N\\
+      \hline
+      6 & not T\\
+      \hline
+      7 & T = N\\
+      \hline
+      8 & N < T (signed)\\
+      \hline
+      9 & N logical right shift T\\
+      \hline
+      10 & $T-1$\\
+      \hline
+      11 & R\\
+      \hline
+      12 & [T]\\
+      \hline
+      13 & N logical left shift T\\
+      \hline
+      14 & depth\\
+      \hline
+      15 & N < T (unsigned)\\
+      \hline
+      16 & $T-N$\\
+      \hline
+      17 & not (T $\oplus$ N)\\
+      \hline
+      18 & (reserved for multiplication)\\
+      \hline
+      19 & (reserved for multiplication)\\
+      \hline
+      20 & T $\gets$ Input\\
+      \hline
+      21 & Write output\\
+      \hline
+      22 & N rotated right by T\\
+      \hline
+      23 & N rotated left by T\\
+      \hline
+      24 & Clear T\\
+      \hline
+      25 & Reserved\\
+      \ldots & \ldots\\
+      31 & Reserved\\
+      \hline
+    \end{tabular}
+    \caption{ALU Operation(\textbf{T Next})}
+    \label{fig:ALU instructions}
+  \end{minipage}
+  \hspace{1.0cm}
+  \begin{minipage}[t]{0.45\linewidth}
 
+    \centering
 
-%      \begin{center}
-%        \begin{tabular}{l | c | c | c | c | c | c | c | c | c | c | c | c | c | c | c | r}
-%          \hline
-%          \vline bit & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 \vline\\
-%          \hline
-%          literal & 1 & literal \\
-%          \hline
-%        \end{tabular}
-%      \end{center}
-%
+    \begin{tabular}{|c|c|c|}
+    \hline
+    Field & Width & Action\\
+    \hline
+    T Next & 5 & ALU Operation (may replace T)\\
+    \hline
+    T $\to$ N & 1 & Copy T to N. \\
+    \hline
+    T $\to$ R & 1 & Copy T to R. \\
+    \hline
+    N $\to$ [T] & 1 & RAM write. \\
+    \hline
+    R $\to$ PC & 1 & Copy R to PC \\
+    \hline
+    dstack $\pm$ & 2 & \textbf{Signed} increment of data stack.\\
+    \hline
+    rstack $\pm$ & 2 & \textbf{Signed} increment of return stack.\\
+    \hline
+
+    \end{tabular}
+    \caption{ALU Other}
+    \label{fig:ALU instructions}
+
+    \vspace{1cm}
+\begin{verbatim}
+    The H2 Instruction set is very densely packed, 
+    it is described in these three tables. ALU
+    operations can happen in conjunction with
+    RAM and input/output read/writes.
+\end{verbatim}
+
+  \end{minipage}
+\end{figure}
+\FloatBarrier
+
+\begin{centering}
+  \begin{figure}[bp]
+\hspace*{-1cm}
+    \begin{tabular}{|l|r|r|r|l|l|l|l|l|l|l|l|l|l|l|l|l|}
+      \hline
+      \textbf{Instruction} & 0 & 1 & 2 & \multicolumn{1}{r|}{3} & \multicolumn{1}{r|}{4} & \multicolumn{1}{r|}{5} & \multicolumn{1}{r|}{6} & \multicolumn{1}{r|}{7} & \multicolumn{1}{r|}{8} & \multicolumn{1}{r|}{9} & \multicolumn{1}{r|}{10} & \multicolumn{1}{r|}{11} & \multicolumn{1}{r|}{12} & \multicolumn{1}{r|}{13} & \multicolumn{1}{r|}{14} & \multicolumn{1}{r|}{15} \\ \hline
+      \textbf{Literal} & 1 & \multicolumn{ 15}{c|}{Literal Value} \\ \hline
+      \textbf{Jump} & 0 & 0 & 0 & \multicolumn{ 13}{c|}{Address} \\ \hline
+      \textbf{Conditional Jump} & 0 & 0 & 1 & \multicolumn{ 13}{c|}{Address} \\ \hline
+      \textbf{Call} & 0 & 1 & 0 & \multicolumn{ 13}{c|}{Address} \\ \hline
+      \textbf{ALU}  & 0 & 1 & 1 & \multicolumn{ 5}{l|}{\hspace{1.2cm}\begin{sideways}T Next\end{sideways}} & \begin{sideways}T $\to$ N\end{sideways} & \begin{sideways}T $\to$ R \end{sideways}& \begin{sideways}N $\to$ [T] \end{sideways}& \begin{sideways}R $\to$ PC\end{sideways} & \multicolumn{ 2}{l|}{\hspace{0.3cm}\begin{sideways}rstack\end{sideways} \begin{sideways}$\pm$\end{sideways}} & \multicolumn{ 2}{l|}{\hspace{0.3cm}\begin{sideways}dstack\end{sideways}\begin{sideways}$\pm$\end{sideways}} \\ \hline
+    \end{tabular}
+    \caption{Instruction set encoding.}
+    \label{fig:Instruction set encoding.}
+  \end{figure}
+\end{centering}
+\FloatBarrier
+
 
       \begin{figure}[p]
         \centering
