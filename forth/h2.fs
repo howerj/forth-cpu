@@ -59,19 +59,31 @@
 \ ==============================================================================
 \ Begin program loop.
 \ ==============================================================================
+
 start
-    [SETUP]
-    label main
-        [SWITCH]
-        [LED]
-        label writeLoop
-            i_uartStbDout lit _input
-            0 lit _=
-        writeLoop cjmp
-        4000 lit _@ 
-        1 lit _+ 4000 lit _! 
-        4000 lit _@ o_vgaTxtAddr lit _output
-        i_uartRead lit _input o_vgaTxtDin lit _output
-        0 lit o_vgaWrite lit _output
-    main jmp
-stop
+  [SETUP]
+  0 lit
+  label main
+      2 lit
+      _+
+\    [SWITCH]
+\    [LED]
+  main jmp
+stop 
+
+\ start
+\     [SETUP]
+\     label main
+\         [SWITCH]
+\         [LED]
+\         label writeLoop
+\             i_uartStbDout lit _input
+\             0 lit _=
+\         writeLoop cjmp
+\         4000 lit _@ 
+\         1 lit _+ 4000 lit _! 
+\         4000 lit _@ o_vgaTxtAddr lit _output
+\         i_uartRead lit _input o_vgaTxtDin lit _output
+\         0 lit o_vgaWrite lit _output
+\     main jmp
+\ stop

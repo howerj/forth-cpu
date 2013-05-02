@@ -412,8 +412,14 @@
 \end{centering}
 \FloatBarrier
 
+      The above figures completely describe the instruction set for the H2 CPU, every single bit is occupied
+      and if an ALU instruction happens then there are many multiple options as to what can be done, read and
+      writes can be done simultaneously with arithmetic and stack operations speeding certain tasks up.
 
-      \begin{figure}[p]
+      A diagram of the flows of data is shown bellow, the BRAM on the left can be seen as the current stack
+      and the one on the right as the next state:
+
+      \begin{figure}[ht]
         \centering
         \includegraphics[width=1.1\textwidth]{pic/h2.png}
         \caption{The H2 CPU Core}
@@ -421,15 +427,46 @@
       \end{figure}
       \FloatBarrier
 
+      Most FORTH instructions can be executed in a single clock cycle, for example to add two numbers
+      three separate instructions have to be run simultaneously for it to happen; an ALU T+N, N$\to$T and
+      a data stack delta of $-1$.
 
-
-    % Jump indirection.
+      Jump indirection can be performed, however it would take multiple clock cycles to do so; First any
+      calculations and fetching of data for the address have to be done which would take an indeterminate
+      amount of time depending on what you want to do, then the data would have to be moved to the return
+      stack (T$\to$R) and then after this R$\to$PC along with the relevant stack deltas. This takes a
+      minimum of three cycles making it more expensive to do.
 
     \subsection{VGA}
+
+    The VGA module acquired online at \cite{vgacore} provides an 80 column by 40 row text buffer with
+    a resolution of 640 by 480. It is simple to interface with and required only minor modification
+    to get up and running.
+
+    A picture of the output can be seen here with a test pattern loaded into the text buffer RAM:
+
+      \begin{figure}[ht]
+        \centering
+        \includegraphics[width=0.8\textwidth]{pic/vga.png}
+        \caption{VGA test pattern}
+        \label{fig:VGA test pattern}
+      \end{figure}
+      \FloatBarrier
+
+    To interface with this two BRAMs are initialized, one with the test pattern, the other with
+    a font (the font BRAM actually acts as a ROM, but internally they are the same device). To
+    use the unit there are only a few controls, a single control register (on/off, colour output,
+    etcetera), two cursor positioning registers and the BRAM text buffer, simply write what you
+    want to that buffer and it will be displayed on the screen.
+
+
     \subsection{UART}
 
       The UART is the primary method of talking to the device, it is customizable at
-      compile time.
+      compile time where the baud rate can be set. This module was acquired online
+      and is in the reference\cite{uartcore}. It is a standard UART core that is
+      interfaced to the H2 in the top level. It is capable of both transmission and
+      reception.
 
     \subsection{RAM and other inferred modules}
 
@@ -453,8 +490,53 @@
       or suffer a slow down.
 
     \subsection{Top level}
+
+    The top level (\textbf{top\_level.vhd}) is an important piece of the project, it brings all of
+    the modules together and handles input and output (this should be moved into a module
+    of it's own). It also provides an interface between the outside world and the FPGA internals
+    (ie. What the User Constraints File maps to).
+
+    Stimulus is provided for simulation purposes by \textbf{test\_bench.vhd}, technically the
+    highest up module, but only for simulation. The 
+
     \subsection{Test benches and waveforms}
-      % Given X show Y. Show the assembly program and the wave form that results from it.
+
+      Below is a wave form for a simple program along with said simple program further down:
+
+      \begin{figure}[ht]
+        \hspace*{-3.5cm}
+        \centering
+        \includegraphics[width=1.6\textwidth]{pic/wav_adder.png}
+        \caption{Adder waveform}
+        \label{fig:Adder waveform}
+      \end{figure}
+      \FloatBarrier
+
+      This program sets up the VGA control register then loops around adding two to the top
+      of the stack.
+
+\begin{verbatim}
+242 constant o_vgaCtrlDefault 
+3 constant o_vgaCtrl
+: [SETUP]
+    o_vgaCtrlDefault lit
+    o_vgaCtrl lit 
+    _output
+;
+start
+  [SETUP]
+  0 lit
+  label main
+      2 lit
+      _+
+  main jmp
+stop 
+
+
+\end{verbatim}
+
+
+
     \subsection{Optimizations}
   \section{Build system}
     \subsection{Test benches}
