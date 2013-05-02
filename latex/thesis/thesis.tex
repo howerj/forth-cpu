@@ -10,6 +10,8 @@
 \usepackage                     {hyperref}
 \usepackage                     {graphicx}
 \usepackage                     {placeins}
+\usepackage                     {verbatim}
+\usepackage                     {rotating}
 % page layout settings
 % \evensidemargin	= 0pt		%default 54pt
 % \textwidth	= 444pt		%default 380pt
@@ -87,6 +89,16 @@
 	\tableofcontents
   \listoffigures
 
+  \section{Synopsis}
+
+    Here is a brief synopsis on the project, while containing redundant information
+    will give a brief overview of the project for those not interested in reading
+    the entire report.
+
+    \subsection{The Project}
+
+    \subsection{Structure of this report}
+
   \section{Introduction}
 
   The idea of this project is to create an educational system for electrical
@@ -117,9 +129,9 @@
 
   \section{Project Goals}
 
-  The goal of this project was to create an educational computer, it was as much as
+  The goal of this project is to create an educational computer, it is as much as
   for the education of other people as it was for me, I do not expect it to be used
-  as a prototype for a real system.
+  as a prototype for a real system until a few years of continual development.
 
     \subsection{What makes this an educational computer?}
 
@@ -164,7 +176,6 @@
 
 
   \section{The Hardware}
-  % Nexys 3 Development board.
 
   The only pieces of hardware need are; a laptop, a VGA capable monitor, two micro USB cables,
   a VGA cable and Nexys 3 development board available from Digilent \cite{nexysDigilent}.
@@ -176,35 +187,34 @@
   for external hardware (USB UART, The device can be programmed over USB, a VGA port, LEDs,
   Switches).
 
-  The FPGA I will be using is called the XC6LX16-CS324, part of the Spartan-6 family from
-  Xilinx\cite{xilinxDataSheet}. While the datasheet provides all the relevant details a
-  quick overview would not go amiss. The device provides for; $12*18kB$ Block RAM (dual
-  port), 32 Digital Signal Processing "slices"\footnote{A term used by Xilinx to denote
-  a physical on chip device} (which includes an adder and a multiplier) and roughly
-  2300 Configurable Logic Blocks (CLBs). CLBs are the bread and butter of the FPGAs,
-  they are not a canonical device\footnote{Some vendors call CLBs by a different name
-  but they have \emph{roughly} the same function} such as an adder or an 'OR' gate, but each FPGA is
-  comprised of a version of this. An FPGA consists of an array of these devices; CLBS and
-  miscellaneous other pieces of hardware such as the DSPs and BRAMs mentioned, each
-  CLB has a Look Up Table (or multiple ones) which must be configured, this describes
-  how the logic behaves and some flip flops for holding the internal state. These
-  blocks must then be routed into something useful, the places and routing of these
-  resources is a difficult problem computationally and takes up a long time.
+  The FPGA I will be using is called the XC6LX16-CS324, part of
+  the Spartan-6 family from Xilinx\cite{xilinxDataSheet}. While the
+  datasheet provides all the relevant details a quick overview would
+  not go amiss. The device provides for; $12*18kB$ Block RAM (dual
+  port), 32 Digital Signal Processing "slices"\footnote{A term used
+  by Xilinx to denote a physical on chip device} (which includes an
+  adder and a multiplier) and roughly 2300 Configurable Logic Blocks
+  (CLBs). CLBs are the bread and butter of the FPGAs, they are not a
+  canonical device\footnote{Some vendors call CLBs by a different name
+  but they have \emph{roughly} the same function} such as an adder or an
+  'OR' gate, but each FPGA is comprised of a version of this.
 
-  \findcite{CLBs, You can find out more about how they work here...}
+  An FPGA consists of an array of these devices; CLBS and miscellaneous
+  other pieces of hardware such as the DSPs and BRAMs mentioned, each
+  CLB has a Look Up Table (or multiple ones) which must be configured,
+  this describes how the logic behaves and some flip flops for holding
+  the internal state. These blocks must then be routed into something
+  useful, the places and routing of these resources is a difficult
+  problem computationally and takes up a long time.
+
+  These internals are connected to the outside world by a set of IOBs
+  (Input/Output Blocks) which provide a configurable interface for each
+  physical pin on the IC package.
+
+  More information on CLBs and IOBs for Xilinx devices can be found in
+  the references\cite{CLB1}.
+
   
-  \subsection{Basic system overview}
-  % Stack based machines.
-  % I/O System.
-
-      \begin{figure}[p]
-        \centering
-        \includegraphics[width=1.1\textwidth]{pic/h2.png}
-        \caption{The H2 CPU Core}
-        \label{fig:H2 CPU Core}
-      \end{figure}
-      \FloatBarrier
-
   \section{VHDL}
 
   The main thrust of this project lies in the VHDL, all of this project revolves around
@@ -218,6 +228,10 @@
     a small stack processor built in Verilog and optimized to efficiently execute FORTH
     instructions, most of which can be executed in one clock cycle. It was perfectly suited
     for my project although it was not written in my language of choice.
+
+    \subsection{Basic system overview}
+
+    A basic overview of the system is as follows. First we write an assembly program
 
     \subsection{H2}
 
@@ -243,20 +257,74 @@
     be implicit due to the fact that most operations happen on the stack. You do not need
     to specify where each instruction is to get it's operands as in a register based
     computer. This code is further reduced in size (potentially) by the execution model
-    espoused by FORTH systems which execute threaded code.
+    espoused by FORTH systems which execute threaded code \cite{threadedCode}. 
 
-    % Why stack machines?
-      % Small.
-      % Dense code.
-      % Minimal internal state -> Fast interrupts.
-      % Simpler interpreters/compilers.
+    Other advantages stack machines have include minimal processor state, the H2 only has
+    a program counter and two stacks and fast interrupt response time\footnote{Interrupts
+    have not been implemented as of yet}.
+
+    
 
     % Simple optimization Flip flops to distributed RAM.
       %% Slowed things down.
     % Multiplier.
     % Core description
 
-    \subsubsection{The H2 Core}
+    \subsubsection{The H2 CPU}
+
+    The stack based H2 CPU is the core of this project around which all else is built, it
+    is a stack machine as said, it has a fairly simple architecture which I will describe.
+
+    As this core is so central to the project I am including it in the appendix for the
+    records.
+
+    The H2 has two stacks, a return and a data stack which are 32 and 33 machine words deep
+    respectively. It operates on 16-bit values, but with minor modifications could be made
+    to work on greater (but not smaller) bit widths. The instruction set encoding is fairly
+    dense and uses the full sixteen bits although there is still some room for extra ALU
+    instructions. To speed the system up dual port RAM is used, one instruction can be
+    issued and completed in one clock cycle. A Von Neumann architecture is used, however that
+    is not actually dependant on the CPU itself but how it is wired up to the RAM. 
+
+    A list of instructions is given bellow:
+
+\begin{table}[htbp]
+\begin{center}
+\begin{tabular}{|l|r|r|r|l|l|l|l|l|l|l|l|l|l|l|l|l|}
+\hline
+Instruction & 0 & 1 & 2 & \multicolumn{1}{r|}{3} & \multicolumn{1}{r|}{4} & \multicolumn{1}{r|}{5} & \multicolumn{1}{r|}{6} & \multicolumn{1}{r|}{7} & \multicolumn{1}{r|}{8} & \multicolumn{1}{r|}{9} & \multicolumn{1}{r|}{10} & \multicolumn{1}{r|}{11} & \multicolumn{1}{r|}{12} & \multicolumn{1}{r|}{13} & \multicolumn{1}{r|}{14} & \multicolumn{1}{r|}{15} \\ \hline
+Literal & 1 & \multicolumn{ 15}{l|}{Literal Value} \\ \hline
+Jump & 0 & 0 & 0 & \multicolumn{ 13}{c|}{Address} \\ \hline
+Conditional Jump & 0 & 0 & 1 & \multicolumn{ 13}{c|}{Address} \\ \hline
+Call & 0 & 1 & 0 & \multicolumn{ 13}{c|}{Address} \\ \hline
+ALU  & 0 & 1 & 1 & \multicolumn{ 5}{l|}{T'} & \begin{turn}{90}T - N\end{turn} & \begin{turn}{90}T - R \end{turn}& \begin{turn}{90}N - [T] \end{turn}& \begin{turn}{90}R – PC\end{turn} & \multicolumn{ 2}{l|}{\begin{turn}{90}dstack\end{turn} +/-} & \multicolumn{ 2}{l|}{dstack +/-} \\ \hline
+\end{tabular}
+\end{center}
+\caption{Instruction set}
+\label{instrSet}
+\end{table}
+
+
+%      \begin{center}
+%        \begin{tabular}{l | c | c | c | c | c | c | c | c | c | c | c | c | c | c | c | r}
+%          \hline
+%          \vline bit & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 \vline\\
+%          \hline
+%          literal & 1 & literal \\
+%          \hline
+%        \end{tabular}
+%      \end{center}
+%
+
+      \begin{figure}[p]
+        \centering
+        \includegraphics[width=1.1\textwidth]{pic/h2.png}
+        \caption{The H2 CPU Core}
+        \label{fig:H2 CPU Core}
+      \end{figure}
+      \FloatBarrier
+
+
 
     % Jump indirection.
 
@@ -287,7 +355,6 @@
       the CPU would either have to adopt a Harvard architecture instead of a Von Neumann 
       or suffer a slow down.
 
-      % Read from a file.
     \subsection{Top level}
     \subsection{Test benches and waveforms}
       % Given X show Y. Show the assembly program and the wave form that results from it.
@@ -457,7 +524,8 @@
         \item \textbf{">r"}: Move an item from the top of the variable
         stack to the return stack.
         \item \textbf{"r>"}: \ldots the other way around.
-        \item \textbf{"tail"}: 
+        \item \textbf{"tail"}: Word used for recursion, call this primitive
+        then the word you want to use recursively.
         \item \textbf{"'"}: Push the next compiled word onto the stack at
         run time.
         \item \textbf{","}: Advance dictionary pointer, pop the top of stack
@@ -466,9 +534,15 @@
         a string in string storage, treat this as a number and print it.
         \item \textbf{"get\_word"}: Use the top of the stack as an index into
         string storage, store a space delimited string there.
-        \item \textbf{"strlen"}:
-        \item \textbf{"isnumber"}:
-        \item \textbf{"strnequ"}:
+        \item \textbf{"strlen"}: Pop the top of the stack and use it as an index
+        into string storage, compute the string length and push the result.
+        \item \textbf{"isnumber"}: Pop the top of the stack and use it as an index
+        into string storage, test if the string is a number or not and push the
+        result.
+        \item \textbf{"strnequ"}: Pop two numbers off the stack and use both
+        as indices into string storage, computer whether or not the strings are
+        equal; zero is pushed if they are, one if they are not, two if the strings
+        are too long ('too long' is determined in the source).
         \item \textbf{"\_find"}: Find a word in the dictionary if it
         exists and push a pointer to the beginning of the word header if
         it does.
@@ -592,6 +666,12 @@ finput h2.fs
       based.
 
     \subsection{H2 CPU}
+
+    The H2 CPU has already been described, it is not too big and the VHDL in the
+    appendix can be read and understood by someone with minimal understanding of
+    the language.
+
+    I will instead document the assembly used.
 
       \subsubsection{Assembly}
 
@@ -868,9 +948,27 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
     \bibitem{xilinxDataSheet} XC6LX16 Family Overview: \emph{Spartan-6 Family Overview}, \url{http://www.xilinx.com/support/documentation/data_sheets/ds160.pdf}, (2011)
     \bibitem{newwave} Philip J. Koopman, Jr: \emph{Stack Computers: the new wave}, \url{http://www.ece.cmu.edu/~koopman/stack_computers/sec6_2.html}, chapter 6, section 2 (1989)
     \bibitem{threadedCode} Anton Ertl: \emph{Threaded Code}, \url{http://www.complang.tuwien.ac.at/forth/threaded-code.html}, (2013)
+    \bibitem{CLB1} Mark Oskin : \emph{Advanced Digital Design: CSE 467 - Winter 2003}, \url{http://www.cs.washington.edu/education/courses/cse467/03wi/FPGA.pdf}, (2003)
     \end{thebibliography}
 
 
 
   \section{Appendix}
+
+    \subsection{Code}
+      \subsubsection{FORTH Interpreter}
+
+%      \lstinputlisting[language=C]{../../forth/forth.c}
+%      \lstinputlisting[language=C]{../../forth/forth.h}
+%      \lstinputlisting[language=C]{../../forth/main.c}
+
+      \subsubsection{Assembly}
+
+%      \verbatiminput{../../forth/start.fs}
+
+      \subsubsection{VHDL}
+
+%      \lstinputlisting[language=VHDL]{../../vhdl/h2.vhd}
+
+      \subsubsection{Miscellaneous code}
 \end 	{document}

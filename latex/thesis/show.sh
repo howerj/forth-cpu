@@ -8,7 +8,7 @@ if
 then
 	$PDF_READER $FILE_NAME.pdf &> /dev/null;
   echo "For $FILE_NAME.tex:";
-  ./wc.tex.sh $FILE_NAME;
+  ./wc.tex.sh $FILE_NAME.tex;
 	echo "Cleaning up!";
 else
 	echo "Failure!"
