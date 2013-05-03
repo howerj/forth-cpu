@@ -97,7 +97,40 @@
 
     \subsection{The Project}
 
+    The idea of this project is to create an educational computer for electrical engineering
+    students being taught VHDL and to eventually extend this project so that they could
+    use this project as a piece of lab equipment which is outside of the scope of this project.
+
+    The goals of this project are as follows:
+
+    \begin{itemize}
+      \item Develop a tool chain for a CPU core.
+      \item Create a CPU in VHDL that is designed to execute FORTH code efficiently.
+      \item Make peripherals to go around this device and interface them with it.
+      \item Develop simple firmware to reside on this device.
+    \end{itemize}
+
+    All of those goals have been largely met and I will continue to work on this project after
+    university.
+
+    The project also has several \emph{design} goals:
+
+    \begin{itemize}
+      \item \textbf{Code Portability}: \emph{All} code should be written as to be portable.
+      \item \textbf{Resource Efficient}: The project should not use up a lot of resources on the device.
+      \item \textbf{Extensibility}: The code should be extensible and modular.
+    \end{itemize}
+
+    This project will target a development board called the \textbf{Nexys 3}, an FPGA development
+    board from Digilent. 
+
     \subsection{Structure of this report}
+
+    The report will detail the workings of the project, document how to run it and recreate the
+    system, talk about design decisions and then outline my future plans, that is where I would
+    like to take this system in the future.
+
+    Documentation is going to be a big feature of this 
 
   \section{Introduction}
 
@@ -531,18 +564,34 @@ start
       _+
   main jmp
 stop 
-
-
 \end{verbatim}
 
+    Now given the waveform how can we show that this processor is running that code? It turns
+    out that unless you want to do some more in depth debugging of a problem you do not really
+    need to know what is going on in that many registers.
 
+    The following registers suffice for most needs; \textbf{tos\_c, vstkp\_c, pco} and \emph{insn}.
+    With these you can see what the current instruction being executed is each clock cycle as
+    well as its result and effects on the variable stack pointer. (tos\_c is the top of the stack,
+    vstkp\_c is the stack pointer, pco the address of the instruction to be executed and insn the
+    instruction. 
+
+    All this program does is set up the VGA control registers, push zero onto the stack and
+    repeatedly add two to that number, we can see the VGA signals (\textbf{tb\_vsync} and \textbf{tb\_hsync}
+    go high the clock cycle after the instruction "\_output" is executed in our code (Hex number
+    7502). After this a zero then a two are pushed to the stack, then the two added to zero,
+    accounting for the first long two which lasts for four clock cycles, after this is alternates
+    between two and the current number that is to be added to. A simple test program which
+    shows that this CPU works.
+
+    We can also see what type of instructions are being execute with \textbf{is\_call, is\_cjmp,
+    is\_lit} and \textbf{is\_alu}, each of which are pretty self explanatory given the instruction
+    set encoding.
+
+    Each time a new program is test, it must be first check with the test benches before going
+    through the long process of synthesizing everything.
 
     \subsection{Optimizations}
-  \section{Build system}
-    \subsection{Test benches}
-    \subsection{FORTH}
-    \subsection{Miscellaneous}
-      % Git, make, shell.
 
   \section{Problems}
 
@@ -1111,8 +1160,51 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
     that I have.
 
   \section{Conclusion}
-    \subsection{What I would have done differently}
+
+    In this final section I will summarize my project achievements as well as describe
+    what I would or could have done differently if I were to do this project again.
+
     \subsection{Project achievements}
+
+    From the section of "Future Plans" you can see that I have some grand ideas when
+    it comes to what will happen with this project next and given that I would of course
+    would like to achieve even more than I did regardless of how much I actually got done.
+
+    I did however achieve nearly all of my objectives when it came to this project and
+    met one of the optional ones which I believe makes this an overall win.
+
+    I would have liked to have tried different instructions out with the processor and
+    tried to optimize it for my needs, my primary concern was getting it working but
+    there are few instructions that could be merged into one and a few others that can
+    be replaced if for example a few of the bits were used for signed addition, bellow
+    is an example of what I mean.
+
+    As I did not end up using the full range of the CPUs ALU bits (there are 24 instructions
+    leaving space for further instructions, all of the bits are used, just not the full range)
+    I could add a simple instruction that would implement signed addition. A prefix of "111"
+    would signify that the remaining two bits should be added to the current top of the stack
+    allowing deltas of $+1,0,-1,-2$, as adding zero is not entirely useful this could used for
+    something else making the most efficient use of space possible.
+
+    \begin{center}
+      \begin{tabular}{l | c | c | c | r }
+        \hline
+        1 & 1 & 1 & Sign & Number \\
+        \hline
+      \end{tabular}
+    \end{center}
+
+    While this may not be the best method of doing things, I would have at least liked to
+    have tested this out and compared the results.
+
+    I believe that my project has gone well however and has achieved its primary goals.
+
+    \subsection{What I would have done differently}
+
+    If I could do this project again I would have tried to make even better test benches
+    and tried to automate even more than I did. It is possible to automatically test all
+    the major instructions instead of manually looking at waveforms.
+
   \section{References}
 
     \bibliographystyle{plain}              % Use plain style
