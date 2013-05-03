@@ -1203,7 +1203,38 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
 
     If I could do this project again I would have tried to make even better test benches
     and tried to automate even more than I did. It is possible to automatically test all
-    the major instructions instead of manually looking at waveforms.
+    the major instructions instead of manually looking at waveforms. The problem laid in
+    the fast paced changes that I implemented, there was no use in created tests for the
+    system if it was to change a few hours or minutes later as I was experimenting on 
+    everything.
+
+    As I have said, I would liked to have played more around with the CPU and that has
+    already been addressed.
+
+    One more things I should have done is integrate more of other people's cores into
+    my system, it increases functionality greatly and is not too difficult given one
+    conditional is satisfied; \emph{if you can find a good enough core}. Otherwise you
+    can spend a good deal of time debugging your code and how you interface to things
+    until you realize it is not your project that is the problem but some one else's
+    code.
+
+    I would have also worked on improving the FORTH interpreter, not the C program
+    section but the actual assembler itself, it is certain powerful enough for the
+    development of test programs and a bootloader but it's limitation become apparent
+    after more usage.
+
+    \subsection{Final words}
+
+    While giving the poster presentation a number of lecturers expressed an interest
+    in my project and its future, specifically the capability for it to act as a
+    signal generator or be part of some kind of DIY electronic laboratory, I am as well,
+    so rest assured that this project will continue and check in in perhaps a year or 
+    two to monitor the progress made.
+
+    I am pleased with how this project went and I think I have managed to accomplish
+    quite a lot; I would like to thank Marc Eberhard, my project supervisor and Kate
+    Sugden, my course director for their help. Also I would like to thank all those
+    people whose code has been incorporated in one form or another into this project.
 
   \section{References}
 
