@@ -188,7 +188,7 @@ begin
                                     tos_n <= (others => '0');
                                 end if;
                 -- Additional instructions ---
-                  when "10000" => tos_n   <=  std_logic_vector(unsigned(tos_c)-unsigned(nos));
+                  when "10000" => tos_n   <=  std_logic_vector(unsigned(nos)-unsigned(tos_c));
                   when "10001" => tos_n   <=  tos_c xnor nos;
                   when "10010" => -- Reserved for multiplier low bits
                   when "10011" => -- Reserved for multilpier high bits

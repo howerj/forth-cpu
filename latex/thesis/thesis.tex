@@ -66,8 +66,7 @@
 }
 
 \title		{Final Year Project: A Computing System in VHDL.}
-\author		{Richard James Howe}
-%date		{}
+\author		{Student: Richard James Howe}%date		{}
 
 \begin		{document}
 
@@ -84,11 +83,22 @@
       \begin{center}
       \noindent \textbf{Keywords}: \emph{VHDL, FORTH, SoC, CPU, Assembly.}
       \end{center}
+
+      \smallskip
+      \begin{center}
+      \noindent \textbf{Supervisor}: Marc Eberhard.\\
+      \noindent \textbf{Degree}: BSc, Electronic Engineering.\\
+      \noindent \textbf{Department}: School of Engineering and Applied Science.\\
+      \noindent \textbf{Institution}: Aston University.
+      \end{center}
+
 	\end{abstract}
 
+  \clearpage
 	\tableofcontents
+  \clearpage
   \listoffigures
-
+  \clearpage
   \section{Synopsis}
 
     Here is a brief synopsis on the project, while containing redundant information
@@ -130,7 +140,14 @@
     system, talk about design decisions and then outline my future plans, that is where I would
     like to take this system in the future.
 
-    Documentation is going to be a big feature of this 
+    Documentation is going to be a big feature of this report as it will also describe how I
+    implemented this project and provide others with a method of using my project for their
+    own purposes.
+
+    At the end in the appendix you can find the original project specification, the part which
+    relates to the FPGA option, as there were two possibilities for this project; Create a
+    similar computing system on a ARM based microcontroller development board or do it on
+    an FPGA, I went with the latter.
 
   \section{Introduction}
 
@@ -319,10 +336,14 @@
     issued and completed in one clock cycle. A Von Neumann architecture is used, however that
     is not actually dependant on the CPU itself but how it is wired up to the RAM. 
 
-    A list of instructions is given bellow:
+    A list of instructions is given bellow, on a separate page to act as a handy reference:
+\FloatBarrier
+\clearpage
 \begin{figure}[ht]
-\hspace*{-1.5cm}
+\vspace{-2cm}
+\hspace*{-2.5cm}
   \begin{minipage}[t]{0.45\linewidth}
+    \small
     \centering
 
     \begin{tabular}{|c|c|}
@@ -386,8 +407,7 @@
     \end{tabular}
     \caption{ALU Operation(\textbf{T Next})}
     \label{fig:ALU instructions}
-  \end{minipage}
-  \hspace{1.0cm}
+  \end{minipage}\hspace{0.5cm}
   \begin{minipage}[t]{0.45\linewidth}
 
     \centering
@@ -422,13 +442,11 @@
     operations can happen in conjunction with
     RAM and input/output read/writes.
 \end{verbatim}
+  \vspace{2cm}
 
   \end{minipage}
-\end{figure}
-\FloatBarrier
-
-\begin{centering}
-  \begin{figure}[bp]
+  \begin{minipage}[b]{\linewidth}
+    \small
 \hspace*{-1cm}
     \begin{tabular}{|l|r|r|r|l|l|l|l|l|l|l|l|l|l|l|l|l|}
       \hline
@@ -441,10 +459,10 @@
     \end{tabular}
     \caption{Instruction set encoding.}
     \label{fig:Instruction set encoding.}
-  \end{figure}
-\end{centering}
+  \end{minipage}
+\end{figure}
 \FloatBarrier
-
+\clearpage
       The above figures completely describe the instruction set for the H2 CPU, every single bit is occupied
       and if an ALU instruction happens then there are many multiple options as to what can be done, read and
       writes can be done simultaneously with arithmetic and stack operations speeding certain tasks up.
@@ -499,7 +517,9 @@
       compile time where the baud rate can be set. This module was acquired online
       and is in the reference\cite{uartcore}. It is a standard UART core that is
       interfaced to the H2 in the top level. It is capable of both transmission and
-      reception.
+      reception. I will want to rewrite this section in the future to bring it into
+      line with exactly what I would like, it currently gives many warnings when
+      synthesized, none of which cause any problems at the moment.
 
     \subsection{RAM and other inferred modules}
 
@@ -591,6 +611,31 @@ stop
     Each time a new program is test, it must be first check with the test benches before going
     through the long process of synthesizing everything.
 
+    This one shows the same code modified to subtract instead:
+
+      \begin{figure}[ht]
+        \hspace*{-3.5cm}
+        \centering
+        \includegraphics[width=1.6\textwidth]{pic/wav_sub.png}
+        \caption{Adder waveform}
+        \label{fig:Adder waveform}
+      \end{figure}
+      \FloatBarrier
+
+    With the minor modifications:
+\begin{verbatim}
+start
+  [SETUP]
+  256 lit
+  label main
+      2 lit
+      _-
+  main jmp
+stop 
+\end{verbatim}
+
+    And we can see it happily subtracting away!
+
     \subsection{Resource usage}
 
     To show you how little room the \emph{entire} design takes up (and hence how little the
@@ -664,13 +709,21 @@ Delay:               10.293ns (Levels of Logic = 19)
                                 Gate     Net
     Cell:in->out      fanout   Delay   Delay  Logical Name (Net Name)
     ----------------------------------------  ------------
-     RAMB16BWER:CLKA->DOA0  113   1.850   2.016  mem_h2_instance/Mram_ram8 (cpu_insn<14>)
-     LUT3:I1->O            1   0.203   0.924  h2_instance/Mmux_aluop<1>11_1 (h2_instance/Mmux_aluop<1>11)
+     RAMB16BWER:CLKA->DOA0  113   1.850   2.016  mem_h2_instance/Mram_ram8 
+                                                  (cpu_insn<14>)
+     LUT3:I1->O            1   0.203   0.924  h2_instance/Mmux_aluop<1>11_1 
+                                              (h2_instance/Mmux_aluop<1>11)
     ...                  ...     ...    ...           ...
 \end{verbatim}
 
   This goes on longer giving you the entire route that the path takes, minimize
   this and you minimize the delay in your design.
+
+  One fairly trivial optimization in the design which brought resource utilization
+  down from 23\% of the slice utilization down to its current value was to properly
+  use the distributed RAM construct, before the entire stack could be accessed all
+  at once which was not necessary, nor possible by the current set up, only the
+  next on stack is necessary to access, the top is held in its own separate register.
 
   \section{Problems}
 
@@ -1121,10 +1174,9 @@ stop
       most slowly as HDLs can be difficult to debug, more so than normal programs.
 
       \subsubsection{Different platforms}
-        % Papilo one
       One of the goals of this project was portable of code and not just to different
       Xilinx devices either. I would like to port this system to cheaper hardware
-      such as the "Papilio One". \findcite{http://papilio.cc/} This system while less
+      such as the "Papilio One". \cite{papilio} This system while less
       functional costs a fraction of the Nexys 3. While the project would be more
       constrained, it should still be able to fit on the device with ease.
 
@@ -1295,7 +1347,7 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
     conditional is satisfied; \emph{if you can find a good enough core}. Otherwise you
     can spend a good deal of time debugging your code and how you interface to things
     until you realize it is not your project that is the problem but some one else's
-    code.
+    code. More core can be found at opencores.org\cite{opencore}.
 
     I would have also worked on improving the FORTH interpreter, not the C program
     section but the actual assembler itself, it is certain powerful enough for the
@@ -1319,37 +1371,147 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
 
     \bibliographystyle{plain}              % Use plain style
     \begin{thebibliography}{1}              % Simple bibliography with widest label of 1
-    \bibitem{j1core} James Bowman, Willow Garage: \emph{J1: A small Forth CPU for FPGAs},  EuroForth 2010, \url{http://www.excamera.com/files/j1.pdf} (2010)
-    \bibitem{vgacore} Javier Valcarce: \emph{VHDL Macro: VGA80x40}, VHDL Monochrome VGA display adapter ,\url{http://www.javiervalcarce.eu/wiki/VHDL_Macro:_VGA80x40} (2009)
-    \bibitem{uartcore} Peter Bennett: \emph{RS232 UART (VHDL)}, A UART core, \url{http://bytebash.com/2011/10/rs232-uart-vhdl/} (2012)
-    \bibitem{opencore} Opencores: \emph{Open source HDL cores and code}, \url{http://opencores.org/projects} (2013)
-    \bibitem{ANSIC} ANSI/ISO C: \emph{ISO C Standards Website for the C Standard}, \url{http://www.open-std.org/jtc1/sc22/wg14/www/standards} (1990)
     \bibitem{nexysDigilent} $Nexys^{TM}$3: \emph{A FPGA Spartan-6 development board}, \url{http://www.digilentinc.com/Products/Detail.cfm?NavPath=2,400,897\&Prod=NEXYS3}, (2013)
-    \bibitem{ioccc} IOCCC winner Buzzard: \emph{An obfuscated FORTH interpreter}, \url{http://www.ioccc.org/1992/buzzard.2.design}, (1992)
     \bibitem{xilinxDataSheet} XC6LX16 Family Overview: \emph{Spartan-6 Family Overview}, \url{http://www.xilinx.com/support/documentation/data_sheets/ds160.pdf}, (2011)
+    \bibitem{CLB1} Mark Oskin : \emph{Advanced Digital Design: CSE 467 - Winter 2003}, \url{http://www.cs.washington.edu/education/courses/cse467/03wi/FPGA.pdf}, (2003)
+    \bibitem{j1core} James Bowman, Willow Garage: \emph{J1: A small Forth CPU for FPGAs},  EuroForth 2010, \url{http://www.excamera.com/files/j1.pdf} (2010)
     \bibitem{newwave} Philip J. Koopman, Jr: \emph{Stack Computers: the new wave}, \url{http://www.ece.cmu.edu/~koopman/stack_computers/sec6_2.html}, chapter 6, section 2 (1989)
     \bibitem{threadedCode} Anton Ertl: \emph{Threaded Code}, \url{http://www.complang.tuwien.ac.at/forth/threaded-code.html}, (2013)
-    \bibitem{CLB1} Mark Oskin : \emph{Advanced Digital Design: CSE 467 - Winter 2003}, \url{http://www.cs.washington.edu/education/courses/cse467/03wi/FPGA.pdf}, (2003)
+    \bibitem{vgacore} Javier Valcarce: \emph{VHDL Macro: VGA80x40}, VHDL Monochrome VGA display adapter ,\url{http://www.javiervalcarce.eu/wiki/VHDL_Macro:_VGA80x40} (2009)
+    \bibitem{uartcore} Peter Bennett: \emph{RS232 UART (VHDL)}, A UART core, \url{http://bytebash.com/2011/10/rs232-uart-vhdl/} (2012)
+    \bibitem{ANSIC} ANSI/ISO C: \emph{ISO C Standards Website for the C Standard}, \url{http://www.open-std.org/jtc1/sc22/wg14/www/standards} (1990)
+    \bibitem{papilio} Papilio One: \emph{A Cheap FPGA development board}, \url{http://papilio.cc/},2013
+    \bibitem{ioccc} IOCCC winner Buzzard: \emph{An obfuscated FORTH interpreter}, \url{http://www.ioccc.org/1992/buzzard.2.design}, (1992)
+
+    \bibitem{opencore} Opencores: \emph{Open source HDL cores and code}, \url{http://opencores.org/projects} (2013)
+
     \end{thebibliography}
 
 
 
   \section{Appendix}
 
-    \subsection{Code}
-      \subsubsection{FORTH Interpreter}
+  \subsection{H2.VHD}
+  I am going to include the code for the H2 code as this forms the core of the project, for
+  the other files go to the Github account. For instructions on how to run this consult the
+  file "README.md" in the repository. The contents of this repository should be made available
+  as a separate folder along with this report.
 
-%      \lstinputlisting[language=C]{../../forth/forth.c}
-%      \lstinputlisting[language=C]{../../forth/forth.h}
-%      \lstinputlisting[language=C]{../../forth/main.c}
+  Also of note, you can look through the repository to find out how the work flow went, it
+  does not include the beginning of the project, only about a month before the end, it does
+  show how certain things progressed however.
 
-      \subsubsection{Assembly}
+  \lstinputlisting[language=VHDL]{../../vhdl/h2.vhd}
 
-%      \verbatiminput{../../forth/start.fs}
+  \subsection{Original specification}
 
-      \subsubsection{VHDL}
+      Here is the original specification for the project which can be found in the repository
+  in full also under the name "spec.pdf".
 
-%      \lstinputlisting[language=VHDL]{../../vhdl/h2.vhd}
+      \subsubsection{FPGA: Main plan.}
 
-      \subsubsection{Miscellaneous code}
+      As I have said, this would be my main plan, to use an FPGA to make my own
+      computing system, this is not infeasible and has done before, my own design
+      will be unique and customized to the task I want it to do.
+
+          While it will not be useful as a general purpose computer, it could be used
+      for pedagogical purposes, both for me and for other people as well.
+
+          The hardware would be very simple, and at minimum would be a Nexys 3
+      development board, with a serial connector interface. The FGPA contained in
+      the device is a Xilinx Spartan-6 XC6SLX16 which is enough to fit my project
+      on along with enough internal RAM to run its program.
+
+      \noindent \textbf{Deliverables}
+
+      The following are a list of the projects deliverables.
+
+        \begin{itemize}
+        \item CPU and Waveforms.
+        \item Cross assembler.
+        \item Serial Interface.
+        \item FORTH language interpreter.
+        \item (Optional): Keyboard Interface.
+        \item (Optional): VGA Interface.
+      \end{itemize}
+      The last two being entirely optional, it all depends on how feasible it is to make
+      the last two.
+
+      \noindent \textbf{Languages to use}
+
+      The following is the languages I wish to use, for a variety of tasks, from hardware
+      description, to automation.
+
+      \begin{itemize}
+          \item  VHDL: Hardware description of CPU core and peripherals.
+          \item  VHDL: Test Benches for hardware.
+          \item  Python: Cross Assembler.
+          \item  Assembly: Used to write the FORTH interpreter in.
+          \item  FORTH: Ultimate goal of the project, a FORTH language interpreter.
+      \end{itemize}
+
+      Other miscellaneous languages used will be \LaTeX for writing up the report, GNU
+      Make files for the build system, and Bash shell scripts for automating simple
+      tasks. The Git version control system will be used to keep track of the latest
+      build and documentation.
+
+      \noindent \textbf{Industry and other standards}
+
+      As I have said I will be linking to other standards, which I will use in my project,
+      some of which will be part of optional modules such as the Keyboard and VGA
+      (video) output.
+
+      \begin{itemize}
+          \item  J1 Processor Core: Described in a paper 4 and written in Verilog, this will
+          be rewritten in VHDL and modified.
+          \item  Serial Port: This is a very well known standard, and will form the primary
+          interface between the outside world and my CPU core.
+          \item  VGA standard : A well known Video standard (optional)
+          \item  PS/2 Keyboard (Optional)
+      \end{itemize}
+
+      \noindent \textbf{Software to use}
+
+      I already have the software and build environment set up and ready to be used,
+      I will have to adapt some Makefiles for my purpose, but apart from this, the
+      software environment I will be working on is ready. The project will be developed
+      in a Linux environment (Debian 6.0), using Xilinx Webpack (Latest version),
+      and Digilents drivers. Other software that is relevant to the project is Git, for
+      versioning, GNU make, and finally, GHDL for simulation purposes only.
+
+      \noindent \textbf{J1 Processor}
+
+      Instead of specify my own instruction set, I am going to use on that is already
+      specified for me, as my device does not have to fit into such a small space, I
+      can utilize much more of the chip if I want to, the original processor had to fit
+      inside a cameras FPGA that had many other tasks to do.
+
+          I could experiment with optimizing the core for my specific needs, for example
+      , I could decide if I want to use unsigned or signed arithmetic, I could also
+      add more operations to the core (one bit is unused in the instruction set). I
+      am refraining to say as to what I may add, I would like to see would are the
+      bottlenecks in my design before I start to customize the core. A big boost would
+      probably be having a general purpose multiply instruction, however I may be
+      able to get away with a left shift for multiplication (by 2n only), and division
+      by 2n as well (right shift).
+
+          Depending on what I want to do, I could add instructions for cyclic shifts, or
+      even more complicated things instructions tailored to my task. This is optional.
+
+      \noindent \textbf{Error handling and multitasking (Optional)}.
+
+      I would like to create a robust system, and I would like to do that on many
+      levels, testing as much as possible and eliminating sources of error, in that
+      vein, there could be certain systems in place for checking whether certain things
+      make sense. Bounds checking could be enforced at the hardware level if needs
+      be, making sure certain instructions can not be executing if they operate on
+      data in off limits areas.
+
+          Another possibility is to aid multitasking, either with multiple cores, or with
+      banks of registers that can be switch to and from in a few instruction cycles.
+      Both of theses tasks would be entirely optional.
+
+        Again, the J1 Processor can be found here \url{http://www.excamera.com/sphinx/fpga-j1.html} 
+        and here \url{http://www.excamera.com/files/j1.pdf}.
+
 \end 	{document}

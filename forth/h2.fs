@@ -62,10 +62,10 @@
 
 start
   [SETUP]
-  0 lit
+  256 lit
   label main
       2 lit
-      _+
+      _-
 \    [SWITCH]
 \    [LED]
   main jmp

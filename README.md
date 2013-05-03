@@ -52,7 +52,7 @@ Software needed
 Hardware needed
 ===============
 
-* Digilent\`s Nexys3 FPGA development board.
+* Digilent\`s Nexys 3 FPGA development board.
 
 * 2 x Micro USB cables.
 
@@ -71,17 +71,37 @@ forth/
 Contains a Forth interpreter, this has been used in the build process
 and as an assembler.
 
+Edit the file **h2.fs** with the program you want to run on the device
 
 latex/  
 ------
 
 Contains the report and documentation.
 
+Each LaTeX document folder contains a script called **show.sh** execute this
+to compile the document and show it.
+
 vhdl/
 -----  
 
 Contains the actual code, written in what should be portable VHDL,
-it includes a test bench.
+it includes a test benches.
+
+To run the test bench, run the script **./testbenchRun.sh**, to show
+the output run **./testbenchShow.sh**.
+
+To implement the design type:
+
+~~~
+
+    make synthesis
+    make implementation
+    make bitfile
+    make upload
+
+~~~
+
+*make upload* requires the device (the Nexys 3) be plugged in.
 
 vm/
 ---   
