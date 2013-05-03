@@ -76,7 +76,7 @@
 	\begin{abstract}
     The goal of this project is to create a computing system in VHDL from the
     ground up in order to make a product that is useful for both teaching and
-    eventually much more. This project includes the firmware and the toolchain
+    eventually much more. This project includes the firmware and the tool chain
     that is to target the device.
 
       \smallskip
@@ -109,7 +109,7 @@
 
     The idea of this project is to create an educational computer for electrical engineering
     students being taught VHDL and to eventually extend this project so that they could
-    use this project as a piece of lab equipment which is outside of the scope of this project.
+    use this project as a piece of lab equipment, which is outside of the scope of this project.
 
     The goals of this project are as follows:
 
@@ -137,12 +137,12 @@
     \subsection{Structure of this report}
 
     The report will detail the workings of the project, document how to run it and recreate the
-    system, talk about design decisions and then outline my future plans, that is where I would
+    system, talk about design decisions and then outline my future plans, that is, where I would
     like to take this system in the future.
 
     Documentation is going to be a big feature of this report as it will also describe how I
     implemented this project and provide others with a method of using my project for their
-    own purposes.
+    own purposes at the same time.
 
     At the end in the appendix you can find the original project specification, the part which
     relates to the FPGA option, as there were two possibilities for this project; Create a
@@ -181,14 +181,14 @@
 
   The goal of this project is to create an educational computer, it is as much as
   for the education of other people as it was for me, I do not expect it to be used
-  as a prototype for a real system until a few years of continual development.
+  as a real system until a few years of continual development.
 
     \subsection{What makes this an educational computer?}
 
     Nothing by itself makes this system educational, a course would have to be
     arranged around the device. Perhaps lessons could be given to create a new module
     for the system, as in the section \ref{sec:futurePlans} (Future plans). Alternatively
-    they could be given the task to write software for the computer, or even a compiler
+    they could be given the task to write software for the CPU, or even a compiler
     for the system which is more of a computer science project. A C compiler for a
     subset of C would be potentially very useful and possibly within the scope of
     a final year computer science student.
@@ -214,12 +214,14 @@
 
     \begin{itemize}
       \item Debian 6.0 (This includes a lot of the software used, eg. Gcc)
-      \item Xilinx Webpack ISE 14.2 (Free for students).
+      \item Xilinx Webpack ISE 14.2 (Free for students). This turns the
+      VHDL into a bit file that can be uploaded on to the device.
       \item Git, A distributed version control system.
       \item GHDL, Digital simulation for VHDL.
       \item GTKWave, Waveform viewer.
       \item Make, For the VHDL build process.
-      \item Gcc, The GNU C compiler.
+      \item Gcc, The GNU C compiler, for compiling my interpreter and for
+      use with GHDL.
       \item Bash, command interpreter.
       \item Digilent's programmer for the Nexys 3 device.
     \end{itemize}
@@ -231,7 +233,7 @@
   a VGA cable and Nexys 3 development board available from Digilent \cite{nexysDigilent}.
 
   The Nexys 3 board forms the core of this project, it is the device that I will be targeting.
-  Seeing as this is an external block that is provided as is there is no real need to go into
+  Seeing as this is an external block that is provided as is, there is no real need to go into
   too many details. It provides an FPGA that has plenty of room for my project (in terms of
   Look Up Tables, Configurable Logic Blocks, Block RAMs, etcetera) as well as nice interfaces
   for external hardware (USB UART, The device can be programmed over USB, a VGA port, LEDs,
@@ -279,15 +281,11 @@
     instructions, most of which can be executed in one clock cycle. It was perfectly suited
     for my project although it was not written in my language of choice.
 
-    \subsection{Basic system overview}
-
-    A basic overview of the system is as follows. First we write an assembly program
-
     \subsection{H2}
 
     The original core was written in Verilog, a language that lends itself to more
     compact code and where things are not as explicit, for example the exact size of
-    variables.
+    some variables and the types of other variables.
 
     Getting the translation to work was fairly challenging and I also experimented with
     the core more, I moved some instructions around to allow for more ALU operations
@@ -299,8 +297,8 @@
     \subsubsection{Why a stack machine?}
 
     Stack machines have several advantages when it comes to embedded development compared
-    to the more mainstream register machines, naturally they have disadvantages which also
-    will be addressed, but they do not really apply here.
+    to the more mainstream register machines, naturally they have disadvantages which 
+    will not be addressed as they do not really apply here.
 
     This architecture tends to produce denser code\cite{newwave}, this is because the operands 
     tend to
@@ -310,15 +308,8 @@
     espoused by FORTH systems which execute threaded code \cite{threadedCode}. 
 
     Other advantages stack machines have include minimal processor state, the H2 only has
-    a program counter and two stacks and fast interrupt response time\footnote{Interrupts
+    a program counter and two stacks and potentially fast interrupt response time\footnote{Interrupts
     have not been implemented as of yet}.
-
-    
-
-    % Simple optimization Flip flops to distributed RAM.
-      %% Slowed things down.
-    % Multiplier.
-    % Core description
 
     \subsubsection{The H2 CPU}
 
@@ -465,9 +456,9 @@
 \clearpage
       The above figures completely describe the instruction set for the H2 CPU, every single bit is occupied
       and if an ALU instruction happens then there are many multiple options as to what can be done, read and
-      writes can be done simultaneously with arithmetic and stack operations speeding certain tasks up.
+      writes can be done simultaneously along with arithmetic and stack operations speeding certain tasks up.
 
-      A diagram of the flows of data is shown bellow, the BRAM on the left can be seen as the current stack
+      A diagram of the flows of data is shown below, the BRAM on the left can be seen as the current stack
       and the one on the right as the next state:
 
       \begin{figure}[ht]
@@ -479,7 +470,7 @@
       \FloatBarrier
 
       Most FORTH instructions can be executed in a single clock cycle, for example to add two numbers
-      three separate instructions have to be run simultaneously for it to happen; an ALU T+N, N$\to$T and
+      three separate instructions have to be run simultaneously for it to happen; a ALU T+N, N$\to$T and
       a data stack delta of $-1$.
 
       Jump indirection can be performed, however it would take multiple clock cycles to do so; First any
@@ -491,7 +482,7 @@
     \subsection{VGA}
 
     The VGA module acquired online at \cite{vgacore} provides an 80 column by 40 row text buffer with
-    a resolution of 640 by 480. It is simple to interface with and required only minor modification
+    a resolution of 640 by 480. It is simple to interface with and required only minor modifications
     to get up and running.
 
     A picture of the output can be seen here with a test pattern loaded into the text buffer RAM:
@@ -515,7 +506,7 @@
 
       The UART is the primary method of talking to the device, it is customizable at
       compile time where the baud rate can be set. This module was acquired online
-      and is in the reference\cite{uartcore}. It is a standard UART core that is
+      and is in the references\cite{uartcore}. It is a standard UART core that is
       interfaced to the H2 in the top level. It is capable of both transmission and
       reception. I will want to rewrite this section in the future to bring it into
       line with exactly what I would like, it currently gives many warnings when
@@ -526,7 +517,7 @@
       Instead of using Xilinx specific components you can use VHDL to create code that
       fits a certain template, this template is picked up by the synthesizer and you  
       can then verify if this is what you intended. Using this instead of instantiating
-      proprietary blocks and loading the RAM with proprietary tools is a much better
+      proprietary blocks and loading the RAM contents with proprietary tools is a much better
       way of doing things that allows me more flexibility in how I go about things.
 
       The VGA unit and the CPU both have their own RAM blocks, two for the former and
@@ -536,9 +527,9 @@
       For a given file describing the RAM, for example \textbf{"h2\_mem.vhd"}, 
       the initial contents will be described in a file called \textbf{"h2\_mem.binary"}.
 
-      All the RAM used is dual port this greatly simplifies the design, if I had to single
-      port RAM I would have to worry about moving data in and out of the devices and the
-      timing of it in much greater detail, it would also slow a lot of things down. For example
+      All the RAM used is dual port, this greatly simplifies the design. If I had to use single
+      port RAM I would have to worry about moving data in and out of each module and the
+      timing of the movements in much greater detail, it would also slow a lot of things down. For example
       the CPU would either have to adopt a Harvard architecture instead of a Von Neumann 
       or suffer a slow down.
 
@@ -550,11 +541,11 @@
     (ie. What the User Constraints File maps to).
 
     Stimulus is provided for simulation purposes by \textbf{test\_bench.vhd}, technically the
-    highest up module, but only for simulation. The 
+    highest up module, but only for simulation. 
 
     \subsection{Test benches and waveforms}
 
-      Below is a wave form for a simple program along with said simple program further down:
+      Below is a waveform for a simple program along with said simple program further down:
 
       \begin{figure}[ht]
         \hspace*{-3.5cm}
@@ -601,14 +592,14 @@ stop
     go high the clock cycle after the instruction "\_output" is executed in our code (Hex number
     7502). After this a zero then a two are pushed to the stack, then the two added to zero,
     accounting for the first long two which lasts for four clock cycles, after this is alternates
-    between two and the current number that is to be added to. A simple test program which
+    between two and the current number that is to being added to. A simple test program which
     shows that this CPU works.
 
     We can also see what type of instructions are being execute with \textbf{is\_call, is\_cjmp,
     is\_lit} and \textbf{is\_alu}, each of which are pretty self explanatory given the instruction
     set encoding.
 
-    Each time a new program is test, it must be first check with the test benches before going
+    Each time a new program is tested, it must be first checked with the test benches before going
     through the long process of synthesizing everything.
 
     This one shows the same code modified to subtract instead:
@@ -676,7 +667,7 @@ Specific Feature Utilization:
 
   Of note is how few LUTs and Slice Registers are used (8\% and 1\% respectively), and how
   many BRAMs are used (12), this shows that if we wanted to we could either fit more CPU cores
-  onto the device or substantial devices, the main limiting factor would be the BRAMs and
+  onto the device or create our own really big devices to interface to it, the main limiting factor would be the BRAMs and
   the Slice LUTs used.
 
   The timing, that is the longest delay path, is subject to a more frequent and sensitive
@@ -733,10 +724,10 @@ Delay:               10.293ns (Levels of Logic = 19)
 
     \subsection{Build time}
 
-    Some languages like C compile fairly quickly, others provide and interactive
+    Some languages like C compile fairly quickly, others provide an interactive
     environment that you can test quickly like python. Any HDL however takes
     a fairly long time to simulate and a very long time to turn this design into
-    a working 'bitfile' to be uploaded to the integrated circuit. This acts as
+    a working 'bit file' to be uploaded to the integrated circuit. This acts as
     a friction and a drag on the development process as going from a simple change
     in a single line of code to the hardware can take upwards of fifteen minutes
     (on my computer). Simulation takes up less of that time, but it is still
@@ -760,7 +751,7 @@ Delay:               10.293ns (Levels of Logic = 19)
     VHDL, the VHDL test-benches, the build system and finally the hardware implementation
     of what I have done could be different from the simulation. 
 
-    The debugging process involves first pining down where the error is as
+    The debugging process involves first pinning down where the error is as
     per usual, it is just made more unusually difficult by the fact that the error
     could be in so many different places. This is why an adequate test bench is
     a must.
@@ -772,7 +763,7 @@ Delay:               10.293ns (Levels of Logic = 19)
   \section{Documentation}
 
   In this section I will provide a terse (terse in the sense that this should
-  be its own paper) about the system.
+  be its own paper) description about the system.
 
     \subsection{FORTH interpreter}
 
@@ -786,15 +777,15 @@ Delay:               10.293ns (Levels of Logic = 19)
     The IOCCC is the International Obfuscated C Coding Competition, the entry can
     be found here: \url{http://www.ioccc.org/all/all.tar.bz2} in the folder '1992'
     for 'buzzard.2'.}. The interpreter is drastically different from the original,
-    being a complete rewrite although there are still similarities. 
+    being a complete rewrite, although there are still similarities. 
 
     The program interprets threaded code \cite{threadedCode} for a stack machine,
     the C program does the initial heavy lifting allowing users to interpret commands
     but it is severely lacking in capabilities initially. The trick is to write most
     of the language \emph{in itself}. This maybe odd to people coming from a background
-    in a 'normal' compiled language such as C/C++ or Java. You do not modify or extend
+    in a 'normal' compiled and static language such as C/C++ or Java. You do not modify or extend
     the language itself but instead provide new functionality via libraries you have
-    written.
+    written in those languages.
 
     Initially the language does not even have basic elements such as the "if ... else ... then"
     statements or even loops, they are written in the language itself. FORTH, and my
@@ -810,7 +801,7 @@ Delay:               10.293ns (Levels of Logic = 19)
 
       The C program itself is design to be portable being written entirely in ANSI C \cite{ANSIC}, 
       I have had this program running on my phone, and plan with some minor adjustments
-      to have this running on a few embedded systems.
+      to have this running on a few embedded systems as a testament to its portability.
 
       The C program is a threaded code interpreter and executes something which looks
       kind of like FORTH, although there are differences. It provides methods for
@@ -838,12 +829,12 @@ Delay:               10.293ns (Levels of Logic = 19)
         and push the result.
         \item \textbf{"-"}: \ditto Subtract them \ditto 
         \item \textbf{"*"}: \ditto Multiply them \ditto
-        \item \textbf{"\%"}: Pop two numbers off the variable stack, perform
+        \item \textbf{"\%"}: Pop two numbers off the variable stack, 
         and work out the remainder when the second item off is divided by
         the first, push the result.
         \item \textbf{"/"}: \ditto, divide the second item off by the first
         off, push the result.
-        \item \textbf{"lshift"}: logical shift left the next on stack by
+        \item \textbf{"lshift"}: Logical shift left the next on stack by
         first on stack places. Push the result.
         \item \textbf{"rshift"}: \ldots same but with right shift.
         \item \textbf{"and"}: Pop two numbers, compute logical conjunction of them,
@@ -900,7 +891,7 @@ Delay:               10.293ns (Levels of Logic = 19)
         into string storage, test if the string is a number or not and push the
         result.
         \item \textbf{"strnequ"}: Pop two numbers off the stack and use both
-        as indices into string storage, computer whether or not the strings are
+        as indices into string storage, compute whether or not the strings are
         equal; zero is pushed if they are, one if they are not, two if the strings
         are too long ('too long' is determined in the source).
         \item \textbf{"\_find"}: Find a word in the dictionary if it
@@ -931,11 +922,11 @@ Delay:               10.293ns (Levels of Logic = 19)
       I will give a quick overview of what happens.
 
       The memory is initialized, a function that is created that calls
-      read then calls itself (read also handles this so the stack does
+      'read' then calls itself (read also handles this so the return stack does
       not blow up), this forms the basic command interpreter.
 
       Before this is run a list of symbols is read in which forms the
-      names of the initial dictionary. Then the function it has created
+      names of the primitives in the dictionary. Then the function it has created
       is executed.
 
       There are two states the interpreter can be in, compile or command
@@ -971,7 +962,7 @@ Delay:               10.293ns (Levels of Logic = 19)
       the difference between an immediate and a compiling word is what is pointed to.
 
       The data field is of a variable length and in a normal word consists entirely or
-      either pointers to other words execution field (either run or compile), numbers
+      either pointers to other words execution field (run), numbers
       to push onto the stack or places to jump to (after either "push" or one of the
       branch instructions respectively).
 
@@ -1151,8 +1142,8 @@ stop
     \label{sec:futurePlans}
 
     I intend to keep working on this project after I have finished university, it offers the
-    potential to provide a nearly complete work bench for home use and by this you will see
-    what I mean.
+    potential to provide a nearly complete laboratory work bench for home use as I will talk
+    about.
 
     There are some general improvements that could be made; making the code more uniform
     through out, adding variable stack sizes and word sizes, improving the instruction set,
@@ -1163,7 +1154,7 @@ stop
     started the project I did have these as an eventual end goal. The platform has a lot of
     potential.
 
-    This section fairly big despite not actually documenting the project due to the fact
+    This section is fairly big despite not actually documenting the project due to the fact
     that it in part \emph{justifies} the project, this section actually more or less provides
     the reasoning for me starting the project.
 
@@ -1189,7 +1180,7 @@ stop
         If possible I would make my code as generic as I could. What I mean by this
         is being able to specify most of the parameters such as instruction size
         width and RAM size just by editing a few variables. Some of this might be
-        easier than others. An example of a difficult-to-make-generic piece of code
+        easier than other parts to do so. An example of a difficult-to-make-generic piece of code
         would be in the H2 CPU core:
 
         \lstset{language=VHDL,caption={Stack Depth Instruction},label=stackDepthVHDL} 
@@ -1198,7 +1189,7 @@ stop
 when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c; 
 \end{lstlisting}
 
-        This instruction takes two stack pointers and put them on to the stack so
+        This instruction takes two stack pointers and puts them on to the stack so
         you can analyse them. However if I wanted to increase the size of the
         stack the pointers would also increase in size, taking up more room and
         rendering this instruction incorrect.
@@ -1218,7 +1209,7 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
       The VHDL would consist of a block RAM holding the data, for example a sine wave
       or another arbitrary signal, a counter, a pointer into the memory and a few
       registers to control the device. As the RAM being used is dual port, it is
-      possible to run two signals from the same RAM at a sacrifice or precision.
+      possible to run two signals from the same RAM at a sacrifice of precision.
 
       This would be output in parallel over some of the boards standard I/O pins
       to a digital to analogue converter.
@@ -1298,16 +1289,16 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
     \subsection{Project achievements}
 
     From the section of "Future Plans" you can see that I have some grand ideas when
-    it comes to what will happen with this project next and given that I would of course
-    would like to achieve even more than I did regardless of how much I actually got done.
+    it comes to what will happen with this project next and given that, I would of course
+    like to achieve even more than I did regardless of how much I actually got done.
 
     I did however achieve nearly all of my objectives when it came to this project and
     met one of the optional ones which I believe makes this an overall win.
 
-    I would have liked to have tried different instructions out with the processor and
+    I would have liked to have tried even more different instructions out with the processor and
     tried to optimize it for my needs, my primary concern was getting it working but
     there are few instructions that could be merged into one and a few others that can
-    be replaced if for example a few of the bits were used for signed addition, bellow
+    be replaced if for example a few of the bits were used for signed addition, below
     is an example of what I mean.
 
     As I did not end up using the full range of the CPUs ALU bits (there are 24 instructions
@@ -1333,9 +1324,9 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
     \subsection{What I would have done differently}
 
     If I could do this project again I would have tried to make even better test benches
-    and tried to automate even more than I did. It is possible to automatically test all
+    to automate even more than I did. It is possible to automatically test all
     the major instructions instead of manually looking at waveforms. The problem laid in
-    the fast paced changes that I implemented, there was no use in created tests for the
+    the fast paced changes that I implemented, there was no use in creating tests for the
     system if it was to change a few hours or minutes later as I was experimenting on 
     everything.
 
@@ -1347,7 +1338,7 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
     conditional is satisfied; \emph{if you can find a good enough core}. Otherwise you
     can spend a good deal of time debugging your code and how you interface to things
     until you realize it is not your project that is the problem but some one else's
-    code. More core can be found at opencores.org\cite{opencore}.
+    code. More cores can be found at opencores.org\cite{opencore}.
 
     I would have also worked on improving the FORTH interpreter, not the C program
     section but the actual assembler itself, it is certain powerful enough for the
@@ -1358,7 +1349,7 @@ when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c;
 
     While giving the poster presentation a number of lecturers expressed an interest
     in my project and its future, specifically the capability for it to act as a
-    signal generator or be part of some kind of DIY electronic laboratory, I am as well,
+    signal generator or be part of some kind of DIY electronics laboratory, I am as well,
     so rest assured that this project will continue and check in in perhaps a year or 
     two to monitor the progress made.
 
