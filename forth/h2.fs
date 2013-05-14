@@ -15,7 +15,7 @@
 
 \ Default Register assignment
 
-242 constant o_vgaCtrlDefault \ 11110010, VGA control register set to this.
+122 constant o_vgaCtrlDefault \ 01111010, VGA control register set to this.
 
 \ Outputs
 0 constant o_7seg

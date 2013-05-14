@@ -7,6 +7,8 @@
 -- Copyright (c) 2007 Javier Valcarce García, javier.valcarce@gmail.com
 -- $Id$
 --
+-- Richard Howe: I've made a few minor modications, mainly to do with
+--  coding style.
 ----------------------------------------------------------------------------------------------------
 -- This program is free software: you can redistribute it and/or modify
 -- it under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +23,6 @@
 -- You should have received a copy of the GNU Lesser General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ----------------------------------------------------------------------------------------------------
-
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -32,13 +33,13 @@ entity vga80x40 is
     reset       : in  std_logic;
     clk25MHz    : in  std_logic;
     TEXT_A      : out std_logic_vector(11 downto 0); -- text buffer
-    TEXT_D      : in  std_logic_vector(07 downto 0);
+    TEXT_D      : in  std_logic_vector(7 downto 0);
     FONT_A      : out std_logic_vector(11 downto 0); -- font buffer
-    FONT_D      : in  std_logic_vector(07 downto 0);
+    FONT_D      : in  std_logic_vector(7 downto 0);
      --
-    ocrx        : in  std_logic_vector(07 downto 0); -- OUTPUT regs
-    ocry        : in  std_logic_vector(07 downto 0);
-    octl        : in  std_logic_vector(07 downto 0);
+    ocrx        : in  std_logic_vector(6 downto 0); -- OUTPUT regs
+    ocry        : in  std_logic_vector(5 downto 0);
+    octl        : in  std_logic_vector(6 downto 0);
     --
     R           : out std_logic;
     G           : out std_logic;
@@ -62,10 +63,10 @@ architecture rtl of vga80x40 is
   signal hctr  : integer range 793 downto 0 := 0;
   signal vctr  : integer range 524 downto 0 := 0;
   -- character/pixel position on the screen
-  signal scry  : integer range 039 downto 0 := 0;  -- chr row   < 40 (6 bits)
-  signal scrx  : integer range 079 downto 0 := 0;  -- chr col   < 80 (7 bits)
-  signal chry  : integer range 011 downto 0 := 0;  -- chr high  < 12 (4 bits)
-  signal chrx  : integer range 007 downto 0 := 0;  -- chr width < 08 (3 bits)
+  signal scry  : integer range 39 downto 0 := 0;  -- chr row   < 40 (6 bits)
+  signal scrx  : integer range 79 downto 0 := 0;  -- chr col   < 80 (7 bits)
+  signal chry  : integer range 11 downto 0 := 0;  -- chr high  < 12 (4 bits)
+  signal chrx  : integer range 7  downto 0 := 0;  -- chr width < 08 (3 bits)
   
   signal losr_ce : std_logic :='0';
   signal losr_ld : std_logic :='0';
@@ -84,7 +85,7 @@ architecture rtl of vga80x40 is
 
   component ctrm
     generic (
-      M : integer := 08);
+      M : integer := 8);
     port (
       reset : in  std_logic;            -- asyncronous reset
       clk   : in  std_logic;
@@ -96,7 +97,7 @@ architecture rtl of vga80x40 is
 
   component losr
     generic (
-      N : integer := 04);
+      N : integer := 4);
     port (
       reset : in  std_logic;
       clk   : in  std_logic;
@@ -173,10 +174,10 @@ begin
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
   -- Control register. Individual control signal
-  cur_mode  <= octl(4); 
-  cur_blink <= octl(5); 
-  cur_en    <= octl(6); 
-  vga_en    <= octl(7); 
+  vga_en    <= octl(6); 
+  cur_en    <= octl(5); 
+  cur_blink <= octl(4); 
+  cur_mode  <= octl(3); 
   ctl_r     <= octl(2);
   ctl_g     <= octl(1);
   ctl_b     <= octl(0);
@@ -220,16 +221,16 @@ begin
     vctr_ce <= '1' when hctr = 663 else '0';
     vctr_rs <= '1' when vctr = 524 else '0';
 
-    U_CHRX: ctrm generic map (M => 008) port map (reset, clk25MHz, chrx_ce, chrx_rs, chrx);
-    U_CHRY: ctrm generic map (M => 012) port map (reset, clk25MHz, chry_ce, chry_rs, chry);
-    U_SCRX: ctrm generic map (M => 080) port map (reset, clk25MHz, scrx_ce, scrx_rs, scrx);
-    U_SCRY: ctrm generic map (M => 040) port map (reset, clk25MHz, scry_ce, scry_rs, scry);
+    U_CHRX: ctrm generic map (M => 8) port map (reset, clk25MHz, chrx_ce, chrx_rs, chrx);
+    U_CHRY: ctrm generic map (M => 12) port map (reset, clk25MHz, chry_ce, chry_rs, chry);
+    U_SCRX: ctrm generic map (M => 80) port map (reset, clk25MHz, scrx_ce, scrx_rs, scrx);
+    U_SCRY: ctrm generic map (M => 40) port map (reset, clk25MHz, scry_ce, scry_rs, scry);
 
     hctr_639 <= '1' when hctr = 639 else '0';
     vctr_479 <= '1' when vctr = 479 else '0';
-    chrx_007 <= '1' when chrx = 007 else '0';
-    chry_011 <= '1' when chry = 011 else '0';
-    scrx_079 <= '1' when scrx = 079 else '0';
+    chrx_007 <= '1' when chrx = 7 else '0';
+    chry_011 <= '1' when chry = 11 else '0';
+    scrx_079 <= '1' when scrx = 79 else '0';
 
     chrx_rs <= chrx_007 or hctr_639;
     chry_rs <= chry_011 or vctr_479;
@@ -262,7 +263,7 @@ begin
     port map (reset, clk25MHz, losr_ld, losr_ce, losr_do, FONT_D);
   
   losr_ce <= blank;
-  losr_ld <= '1' when (chrx = 007) else '0';
+  losr_ld <= '1' when (chrx = 7) else '0';
 
   -- video out, vga_en control signal enable/disable vga signal
   R_int <= (ctl_r and y) and blank;
@@ -283,10 +284,10 @@ begin
     signal slowclk : std_logic;
     signal curpos  : std_logic;
     signal yint    : std_logic;
-    signal crx_tmp : integer range 079 downto 0;
-    signal cry_tmp : integer range 039 downto 0;
-    signal crx     : integer range 079 downto 0;
-    signal cry     : integer range 039 downto 0;
+    signal crx_tmp : integer range 79 downto 0;
+    signal cry_tmp : integer range 39 downto 0;
+    signal crx     : integer range 79 downto 0;
+    signal cry     : integer range 39 downto 0;
     signal counter : unsigned(22 downto 0);  
   begin
 

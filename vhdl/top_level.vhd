@@ -73,18 +73,18 @@ architecture behav of top_level is
   signal  vga_ram_b_addr:           std_logic_vector(11 downto 0):= (others => '0');
   signal  vga_rom_addr:             std_logic_vector(11 downto 0):= (others => '0');
   signal  vga_rom_dout:             std_logic_vector(7 downto 0):=  (others => '0');
-  signal  crx_oreg:                 std_logic_vector(7 downto 0):=  (others => '0');
-  signal  cry_oreg:                 std_logic_vector(7 downto 0):=  (others => '0');
-  signal  ctl_oreg:                 std_logic_vector(7 downto 0):=  (others => '0');
+  signal  crx_oreg:                 std_logic_vector(6 downto 0):=  (others => '0');
+  signal  cry_oreg:                 std_logic_vector(5 downto 0):=  (others => '0');
+  signal  ctl_oreg:                 std_logic_vector(6 downto 0):=  (others => '0');
   -- Basic IO register
   ---- LEDs/Switches
   signal  an_c,an_n:                std_logic_vector(3 downto 0):=  (others => '0');
   signal  ka_c,ka_n:                std_logic_vector(7 downto 0):=  (others => '0');
   signal  ld_c,ld_n:                std_logic_vector(7 downto 0):=  (others => '0');
   ---- VGA
-  signal  ocrx_c, ocrx_n:           std_logic_vector(7 downto 0):=  (others => '0');
-  signal  ocry_c, ocry_n:           std_logic_vector(7 downto 0):=  (others => '0');
-  signal  octl_c, octl_n:           std_logic_vector(7 downto 0):=  (others => '0');
+  signal  ocrx_c, ocrx_n:           std_logic_vector(6 downto 0):=  (others => '0');
+  signal  ocry_c, ocry_n:           std_logic_vector(5 downto 0):=  (others => '0');
+  signal  octl_c, octl_n:           std_logic_vector(6 downto 0):=  (others => '0');
   signal  txt_addr_c, txt_addr_n:   std_logic_vector(11 downto 0):= (others => '0');
   signal  txt_din_c, txt_din_n:     std_logic_vector(7 downto 0) := (others => '0');
   ---- UART
@@ -272,13 +272,13 @@ begin
         when "0001" => -- LEDs, next to switches.
           ld_n <= cpu_io_dout(7 downto 0);
         when "0010" => -- VGA, cursor registers.
-          ocrx_n <= cpu_io_dout(7 downto 0);
-          ocry_n <= cpu_io_dout(15 downto 8);
+          ocrx_n <= cpu_io_dout(6 downto 0);
+          ocry_n <= cpu_io_dout(13 downto 8);
         when "0011" => -- VGA, control register.
-          octl_n <= cpu_io_dout(7 downto 0);
+          octl_n <= cpu_io_dout(6 downto 0);
         when "0100" => -- VGA update address register.
           txt_addr_n <= cpu_io_dout(11 downto 0);
-        when "0101" => -- VGA, update register, write out;
+        when "0101" => -- VGA, update register.
           txt_din_n  <= cpu_io_dout(7 downto 0);
         when "0110" => -- VGA write, could be put into the previous statement.
           vga_ram_a_dwe <= '1';
