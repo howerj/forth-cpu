@@ -1,10 +1,10 @@
 : immediate read \ exit br ?br + - * % / lshift rshift 
-and or ~ xor 1+ 1- clear 0> = < > @reg @dic @var @ret @str 
-!reg !dic !var !ret !str key emit dup drop swap over >r r> 
-tail ' , printnum get_word strlen isnumber strnequ _find 
-halt kernel
+and or invert xor 1+ 1- = < > @reg @ pick @str 
+!reg ! !var !str key emit dup drop swap over >r r> 
+tail ' , printnum get_word strlen isnumber strnequ find 
+execute kernel
 
-\ Howe Forth Core and Assembler.
+\ Howe Forth: Start up code.
 \ @author         Richard James Howe.
 \ @copyright      Copyright 2013 Richard James Howe.
 \ @license        LGPL      
@@ -15,32 +15,36 @@ halt kernel
 : true 1 exit
 : false 0 exit
 
-: CPF 13 exit \ Compile Flag 
-: state CPF !reg exit
+: cpf 13 exit \ Compile Flag 
+: state cpf !reg exit
 : ; immediate 
 	' exit , 
 	false state
 exit
-: r 3 ;	\ Return stack pointer
-: v 4 ;	\ Variable stack pointer
-: h 5 ;	\ Dictionary pointer
-: str 6 ; \ String storage pointer
+
+\ Register constants
+: r 3 ;	        \ Return stack pointer
+: v 4 ;	        \ Variable stack pointer
+: h 5 ;	        \ Dictionary pointer
+: str 6 ;       \ String storage pointer
+: pwd 7 ;       \ previous word
+: exf 14 ;      \ Pointer to execution token, executed on error.
+: iobl 21 ;     \ I/O buf len address
 : here h @reg ;
-: pwd 7 ;
+
+\ Error handling!
+: on_err read on_err ;
+find on_err exf !reg
 
 \ change to command mode
 : [ immediate false state ;
 \ change to compile mode
 : ] true state ;
 
+\ invisible forth words, they have no name!
 : _push 0 ;
 : _compile 1 ;
 : _run 2 ;
-: _define 3 ;
-: _immediate 4 ;
-: _read 5 ;
-: _comment 6 ;
-: _exit 7 ;
 
 \ System calls
 : reset 0 ;
@@ -54,40 +58,34 @@ exit
 \ Constants for system call arguments
 : input 0 ;
 : output 1 ;
-: error 2 ;
 
 : literal immediate _push , , ;
 
-\ Error handling!
-: EXF 14 ;
-: _on_err read _on_err ;
-
-: on_err ' _on_err EXF !reg ;
-on_err
-
 \ ASCII chars
 
-: 'space' 32 ;
 : 'esc' 27 ;
-: '\n' 10 ;
-: '\t' 9 ;
 : '"' 34 ;
 : ')' 41 ;
 
 : 0= 0 = ;
 
-: cr '\n' emit ;
-: tab '\t' emit ;
+: space 32 emit ;
+: cr 10 emit ;
+: tab 9 emit ;
 
 : prnn 10 swap printnum ;
 : . prnn cr ;
-: # dup . ;
+\ : # dup . ;
 
 : tuck swap over ;
 : nip swap drop ;
 : rot >r swap r> swap ;
-: -rot rot rot ;
-: <> = 0= ;
+\ : <> = 0= ;
+\ : ?dup dup if dup then ;
+\ : negate -1 * ;
+\ : abs dup 0 < if negate then ;
+\ : -rot rot rot ;
+\ : incrementer create , does> dup dup @ 1+ swap ! @ ;
 
 : 2drop drop drop ;
 : 2dup over over ;
@@ -95,25 +93,24 @@ on_err
 : 2+ 1+ 1+ ;
 : 2- 1- 1- ;
 
-: negate -1 * ;
-
 : swap- swap - ;
 
 : if immediate 
 	' ?br , 
 	here 0 , 
 ;
+
 : else immediate
 	' br ,
 	here
 	0 ,
 	swap dup here swap-
-	swap !dic
+	swap !
 ;
 : then immediate 
 	dup here 
 	swap- swap 
-	!dic 
+	! 
 ;
 
 : here- here - ;
@@ -125,57 +122,40 @@ on_err
 	' ?br ,
 	here- ,
 ;
-: always immediate
-	' br ,
-	here- ,
-;
 
-: while 	immediate
-	' ?br ,
-	0 ,
-	here
-;
-
-: repeat	immediate 
-	' br ,
-	swap here- ,
-	dup here swap- 1+ swap 1- !dic
-	' drop ,
-;
-
-: abs dup 0> if negate then ;
-: ?dup dup if dup then ;
 : allot here + h !reg ;
 : :noname immediate here _run , ] ;
 : ? 0= if \ ( bool -- ) ( Conditional evaluation )
-        [ '\n' literal ] key <>
-        if 
-            0 ? 
-        then 
+      [ find \ literal ] execute 
     then 
 ;
 
-: _s \ ( key to halt on -- )
-    >r
+: _( \ ( letter bool -- ) \ 
+  >r \ Store bool on return stack for simplicity
      begin 
-        key dup r> dup >r  = dup 
-        if 
-            nip
+        key 2dup = \ key in a letter, test if it is equal to out terminator
+        if
+          2drop 1 \ Drop items, quit loop
         else 
-            swap emit 
+          r> dup >r \ test for bool
+          if        \ bool == 1, emit letter, bool == 0 drop it.
+             emit 
+          else 
+             drop 
+          then 
+          0 \ Continue
         then 
     until 
-    r> drop
+  r> drop \ Return stack back to normal now.
 ;
 
-: .( 
-    ')' _s
-;
+: ( immediate ')' 0 _( ;  ( Now we have proper comments )
+: .( immediate ')' 1 _( ; ( Print out word )
 
-\ Print out a string stored in string storage
-: prn \ ( str_ptr -- )
+ ( Print out a string stored in string storage )
+: prn ( str_ptr -- )
     begin
-        dup @str dup 0= \ if null
+        dup @str dup 0= ( if null )
         if
             2drop 1       
         else
@@ -184,8 +164,8 @@ on_err
     until
 ;
 
-\ Store a '"' terminated string in string storage
-: _." \ ( -- )
+ ( Store a '"' terminated string in string storage )
+: _." ( -- )
     str @reg 1-
     begin
         key dup >r '"' =
@@ -200,8 +180,8 @@ on_err
 ;
 
 : ." immediate
-    CPF @reg 0= if
-    '"' _s
+    cpf @reg 0= if
+    '"' 1 _(
     else
         _push , str @reg ,
         _."
@@ -210,95 +190,74 @@ on_err
 ;
  
 : :: 	\ compiles a ':'
-	[ 
-		here 1- h !reg	\ back up dictionary pointer
-		_define , 	\ write in primitive for ':'
-	] 
+  [ find : , ]
 ;
 
-: create 
-	:: 
-	false state 
+\ Helper words for create
+: '', ' ' , ;       \ A word that writes ' into the dictionary
+: ',, ' , , ;       \ A word that writes , into the dictionary
+: 'exit, ' exit , ; \ A word that write exit into the dictionary
+: 3+ 2+ 1+ ;
+
+\ The word create involves multiple levels of indirection.
+\ It makes a word which has to write in values into
+\ another word
+: create immediate              \ This is a complicated word! It makes a
+                                    \ word that makes a word.
+  cpf @reg if                   \ Compile time behavour
+  ' :: ,                        \ Make the defining word compile a header
+  '', _push , ',,               \ Write in push to the creating word
+  ' here , ' 3+ , ',,           \ Write in the number we want the created word to push
+  '', here 0 , ',,              \ Write in a place holder (0) and push a 
+                                    \ pointer to to be used by does>
+  '', 'exit, ',,                \ Write in an exit in the word we're compiling.
+  ' false , ' state ,           \ Make sure to change the state back to command mode
+  else                          \ Run time behavour
+    ::                          \ Compile a word
+    _push ,                     \ Write push into new word
+    here 2+ ,                   \ Push a pointer to data field
+    'exit,                      \ Write in an exit to new word (data field is after exit)
+    false state                 \ Return to command mode.
+  then
 ;
 
-: constant immediate
-	create 
-	_push , , 
-	' exit , 
-; 
-
-: variable immediate
-	create
-	_push , 
-	here 2+ , \ pointer to allocations
-	' exit ,	\ over this
-	,		\ <-- points here
+: does> immediate
+  'exit,                      \ Write in an exit, we don't want the
+                                  \ defining to run it, but the *defined* word to.
+  here swap !                \ Patch in the code fields to point to.
+  _run ,                        \ Write a run in.
 ;
 
-\ There is no bounds checking at the moment...expects NUMBER INDEX
-: array immediate
-	create
-	_push , 
-	here 3 + , \ pointer to allocations
-	' + ,		\ over this
-	' exit ,	\ over this
-	allot		\ <-- points here
-;
+: constant create , does> @ ; 
+: variable create , does> ;
+: array create allot does> + ;
 
-: ban \ ( x -- )
-	begin 
-		[ key = literal ] 
-		emit 1- dup 0= 
-	until 
-	cr drop 
-;
-
-: 40ban 40 ban ;
-
-: @reg. \ ( x -- )
-	@reg .
-;
-
-: _show
-    2dup - @dic prnn tab 1- dup 0=
-;
-
-: show \ ( from to -- )
-    40ban
-    ." Dictionary contents: " cr
-    40ban
+: ps 2dup - prnn ." :" tab ;
+: _show 2dup - @ prnn tab 1- ;
+: show \ ( from to -- ) \ Show dictionary storage
     tuck swap-
     begin
-        2dup - prnn ." :" tab 
-        _show if 2drop cr 40ban exit then 
-        _show if 2drop cr 40ban exit then 
-        _show if 2drop cr 40ban exit then 
-        _show
+        ps
+        _show _show _show _show dup 0 <
         cr
     until
     2drop
-    40ban
 ;
 
 : _shstr
-    2dup - @str emit tab 1- dup 0=
+    2dup - @str emit tab 1- 
 ;
-: shstr \ ( from to -- )
-    40ban
-    ." String Storage contents: " cr
-    40ban
+: shstr \ ( from to -- ) \ Show string storage contents
     tuck
     swap-
     begin
-        2dup - prnn ." :" tab 
-        _shstr if 2drop cr 40ban exit then 
-        _shstr if 2drop cr 40ban exit then 
-        _shstr if 2drop cr 40ban exit then 
-        _shstr
+        _shstr 
+        _shstr 
+        _shstr 
+        _shstr dup 0 <
         cr
     until
     2drop
-    40ban
 ;
 
 : regs \ ( -- ) \ Print off register contents
@@ -309,31 +268,19 @@ on_err
     until
 ;
 
-3 constant tabvar
-: tabbing \ ( counter X -- counter-1 X )
-        swap dup if
-            tab 
-            1-
-        else
-            cr
-            drop
-            tabvar
-        then swap
-;
-
 : words
-    tabvar pwd @reg 
+    pwd @reg 
     begin
-        dup 1+ @dic prn
-        tabbing
-        @dic dup 0=   
+        dup 1+ @ prn
+        space
+        @ dup @ 0 =   
     until
     cr
-    2drop
+    drop
 ;
 
 \ Store filenames (temporary) here.
-str @reg dup 32 + str !reg constant filename
+str @reg dup iobl @reg + str !reg constant filename
 
 \ file i/o
 : foutput
@@ -344,11 +291,6 @@ str @reg dup 32 + str !reg constant filename
 : finput
     filename get_word
     filename input fopen kernel 
-;
-
-: ferror
-    filename get_word
-    filename error fopen kernel 
 ;
 
 : fremove
@@ -368,24 +310,21 @@ str @reg dup 32 + str !reg constant filename
     output rewind kernel
 ;
 
-: [END]
-    input fclose kernel 
-    output fclose kernel 
-    error fclose kernel
-    \ drops temporary measure
-    2drop drop 
+: .s
+  v @reg 1- dup 0= if exit then
+  begin
+    dup pick prnn space
+    1- dup 0= 
+  until
+  drop
+  cr
 ;
 
-: .s
-    v @reg tabvar swap
-    begin
-        dup @var prnn 
-        tabbing
-        1- dup 0=
-    until
-    cr
-    2drop
+\ Shows the header of a word.
+: header
+  find 2- dup 40 + show
 ;
+
 .( Howe Forth. ) cr
 .( Base system loaded ) cr
 .( Dictionary pointer: ) here . 
@@ -428,7 +367,7 @@ str @reg dup 32 + str !reg constant filename
 
 : pmem
     0 begin
-        dup mem @dic .b cr
+        dup mem @ .b cr
         dup mmax = swap 1+ swap
     until
     drop 
@@ -480,12 +419,12 @@ str @reg dup 32 + str !reg constant filename
 : R->PC    1 4 lshift ;
 
 0 variable pc
-: @pc pc @dic ;
-: !pc pc !dic ;
+: @pc pc @ ;
+: !pc pc ! ;
 : pc++ @pc 1+ !pc ;
 
 : !mem(pc++)
-    @pc mem !dic pc++
+    @pc mem ! pc++
 ;
 : lit  \ ( x -- )
     32767 and mLit or !mem(pc++)
@@ -543,7 +482,7 @@ str @reg dup 32 + str !reg constant filename
 
 : stop
     pmem
-    halt
+\    halt
 ;
 .( Dictionary pointer: ) here . 
 .( Printing stack: ) cr
@@ -552,15 +491,18 @@ str @reg dup 32 + str !reg constant filename
 foutput ../vhdl/mem_h2.binary
 finput h2.fs
 
-\ ==============================================================================
-\ INTRO
-\ ==============================================================================
-\ ANSI terminal color codes
-'esc' emit .( [2J) cr       \ Reset
-'esc' emit .( [32m) cr    \ Green fg
-\ 'esc' emit .( [40m) cr    \ Black bg
-.( Howe Forth ) cr .( Base System Loaded ) cr
-.( Memory Usuage: ) here 4 * str @reg + . cr
-'esc' emit .( [31m) .( OK ) cr 'esc' emit .( [30m) cr
 
-[END]
+
+\ \ ANSI terminal color codes
+\  'esc' emit .( [2J) cr       \ Clear screen
+\  'esc' emit .( [0;0H ) cr    \ Set cursor to 0,0
+\  'esc' emit .( [32;1m) cr    \ Green fg
+\  .( Howe Forth ) cr .( Base System Loaded ) cr
+\  .( @author         Richard James Howe. ) cr
+\  .( @copyright      Copyright 2013 Richard James Howe. ) cr
+\  .( @license        LGPL ) cr
+\  .( @email          howe.r.j.89@gmail.com ) cr
+\  .( Memory Used: ) cr 
+\  .(   Dictionary: ) here 4 * str @reg + .
+\  .(   Strings:    ) str @reg . cr
+\  'esc' emit .( [31m) .( OK ) cr 'esc' emit .( [0m) cr
