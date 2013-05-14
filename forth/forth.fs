@@ -493,33 +493,35 @@ str @reg dup iobl @reg + str !reg constant filename
     input fclose kernel
     output fclose kernel
 ;
+
+\ ANSI terminal color codes
+: esc 'esc' emit ;
+: rst esc ." [2J" cr ;    \ Clear screen
+: clr esc ." [0;0H" cr ;  \ Set cursor to 0,0
+: red esc ." [31;1m" ;    \ Change text color to red.
+: grn esc ." [32;1m" ;    \ ...to green.
+: blu esc ." [34;1m" ;    \ ...to blue.
+: nrm esc ." [0m" cr ;    \ ...to the default.
+
+: vocabulary create pwd @reg , does> @ pwd !reg ;
+vocabulary forth
+
 .( "Forth H2 Assembler" loaded, assembling source now. ) cr
 foutput ../vhdl/mem_h2.binary
 finput h2.fs
-: esc
-  'esc' emit
-;
 
-: term_rst
-  esc ." [2J" cr       \ Clear screen
-  esc ." [0;0H" cr    \ Set cursor to 0,0
-;
-
-: green esc ." [32;1m" ;
-: red   esc ." [31;1m" ;
-: blue  esc ." [34;1m" ;
-: norm  esc ." [0m"   cr ;
-\ ANSI terminal color codes
-green
-.( Howe Forth ) cr .( The assembler has assembled the assembly! ) cr
-.( @author         Richard James Howe. ) cr
-.( @copyright      Copyright 2013 Richard James Howe. ) cr
-.( @license        LGPL ) cr
-.( @email          howe.r.j.89@gmail.com ) cr
+\ Welcome message.
+rst clr grn
+.( Howe Forth ) cr .( The Assembler has assembled the assembly! ) cr
+.( @author         ) blu .( Richard James Howe. ) grn cr
+.( @copyright      ) blu .( Copyright 2013 Richard James Howe. ) grn cr
+.( @license        ) blu .( LGPL ) grn cr
+.( @email          ) blu .( howe.r.j.89@gmail.com ) grn cr
 .( Memory Used: ) cr 
-.(   Dictionary: ) blue here 4 * str @reg + . green
-.(   Strings:    ) blue str @reg . cr green
-.( Printing out stack contents: ) cr
-blue .s
-red .( OK ) cr norm
+.(   Dictionary:   ) blu here 4 * str @reg + . grn
+.(   Strings:      ) blu str @reg . grn
+red .( OK ) cr
+grn .( Printing out variable stack: )
+blu cr 
+.(                 ) .s nrm cr
 halt
