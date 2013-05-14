@@ -54,6 +54,7 @@ enum forth_primitives {
         TAIL, QUOTE, COMMA, PRINTNUM, GET_WORD, STRLEN, ISNUMBER, STRNEQU, FIND,
         EXECUTE,
         KERNEL,
+        ERROR,
         LAST_PRIMITIVE
 };
 

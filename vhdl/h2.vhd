@@ -146,66 +146,67 @@ begin
             tos_n   <=  "0" & insn(14 downto 0);
         else 
             case aluop is -- ALU operation, 12 downto 8
-                -- Original J1 instructions -- 
                 when "00000" =>  tos_n   <=  tos_c;
                 when "00001" =>  tos_n   <=  nos;
-                when "00010" =>  
-                    tos_n   <=  std_logic_vector(unsigned(tos_c)+unsigned(nos));
-                when "00011" =>  tos_n   <=  tos_c and nos;
-                when "00100" =>  tos_n   <=  tos_c or nos;
-                when "00101" =>  tos_n   <=  tos_c xor nos;
-                when "00110" =>  tos_n   <=  not tos_c;
-                when "00111" =>  
-                                if 
-                                    nos = tos_c
-                                then
-                                    tos_n   <=  (0 => '1', others => '0');
-                                else
-                                    tos_n   <=  (others => '0');    
-                                end if;
-                when "01000" =>
-                                if 
-                                    signed(nos) < signed(tos_c)
-                                then
-                                    tos_n   <=  (0=>'1', others => '0');
-                                else
-                                    tos_n   <=  (others => '0');
-                                end if;
-                when "01001" =>  
-                    tos_n   <=  std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
-                when "01010" =>  tos_n   <=  std_logic_vector(unsigned(tos_c)-1);
-                when "01011" =>  tos_n   <=  rtos_c;
-                when "01100" =>  tos_n   <=  din;
-                when "01101" =>  
+                when "00010" =>  tos_n   <=  rtos_c;
+                when "00011" =>  tos_n   <=  din;  
+                when "00100" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c; -- depth of stacks 
+                when "00101" =>  tos_n   <=  tos_c or nos;
+                when "00110" =>  tos_n   <=  tos_c and nos;
+                when "00111" =>  tos_n   <=  tos_c xor nos;
+                when "01000" =>  tos_n   <=  tos_c xnor nos;
+                when "01001" =>  tos_n   <=  not tos_c;
+                when "01010" =>  tos_n   <=  std_logic_vector(unsigned(tos_c)+unsigned(nos));
+                when "01011" =>  tos_n   <=  std_logic_vector(unsigned(nos)-unsigned(tos_c));
+                when "01100" =>  
                     tos_n   <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-                when "01110" =>  tos_n   <=  vstkp_c & "000000" & rstkp_c; -- depth of stacks
-                when "01111" =>
-                                if 
-                                    nos < tos_c
-                                then
-                                    tos_n <= (0=>'1', others => '0');
-                                else
-                                    tos_n <= (others => '0');
-                                end if;
-                -- Additional instructions ---
-                  when "10000" => tos_n   <=  std_logic_vector(unsigned(nos)-unsigned(tos_c));
-                  when "10001" => tos_n   <=  tos_c xnor nos;
-                  when "10010" => -- Reserved for multiplier low bits
-                  when "10011" => -- Reserved for multilpier high bits
-                  when "10100" => tos_n   <=  io_din; -- Should be integrated din instruction
-                  when "10101" => io_wr   <=  '1';    -- Should be integrated to other write instruction
-                  when "10110" => 
-                    tos_n   <=  std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
-                  when "10111" =>
+                when "01101" =>  
+                    tos_n   <=  std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
+                when "01110" => 
                     tos_n   <=  std_logic_vector(unsigned(nos) rol to_integer(unsigned(tos_c(3 downto 0))));
-                  when "11000" => tos_n   <=  (others => '0');
-                  when "11001" =>
-                  when "11010" =>
-                  when "11011" =>
-                  when "11100" =>
-                  when "11101" =>
-                  when "11110" =>
-                  when "11111" =>
+                when "01111" =>
+                    tos_n   <=  std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
+                when "10000" => 
+                              if 
+                                  nos < tos_c
+                              then
+                                  tos_n <= (0=>'1', others => '0');
+                              else
+                                  tos_n <= (others => '0');
+                              end if;
+                when "10001" => 
+                              if 
+                                  signed(nos) < signed(tos_c)
+                              then
+                                  tos_n   <=  (0=>'1', others => '0');
+                              else
+                                  tos_n   <=  (others => '0');
+                              end if;
+                when "10010" => 
+                              if 
+                                  nos = tos_c
+                              then
+                                  tos_n   <=  (0 => '1', others => '0');
+                              else
+                                  tos_n   <=  (others => '0');    
+                              end if;
+                when "10011" =>
+                              
+                when "10100" => 
+                when "10101" => 
+                when "10110" => 
+                when "10111" =>
+                when "11000" =>
+                when "11001" =>
+                when "11010" =>
+                when "11011" =>
+                when "11100" =>
+                when "11101" =>
+                                tos_n   <=  std_logic_vector(unsigned(tos_c)-1);
+                when "11110" =>
+                                tos_n   <=  io_din; -- Should be integrated din instruction
+                when "11111" =>
+                                io_wr   <=  '1';    -- Should be integrated to other write instruction
                 when others => tos_n    <=  (others => 'X');
             end case;
         end if;

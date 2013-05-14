@@ -885,6 +885,8 @@ mw forth_interpreter(fobj_t * fo)
                                 return OP0;
                         }
                         break;
+                case ERROR:
+                        return TOS;
                 default:
                         ERR_LN_PRN(err_file);
                         return ERR_INSTRUCTION;

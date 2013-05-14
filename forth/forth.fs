@@ -2,7 +2,7 @@
 and or invert xor 1+ 1- = < > @reg @ pick @str 
 !reg ! !var !str key emit dup drop swap over >r r> 
 tail ' , printnum get_word strlen isnumber strnequ find 
-execute kernel
+execute kernel error
 
 \ Howe Forth: Start up code.
 \ @author         Richard James Howe.
@@ -54,6 +54,12 @@ find on_err exf !reg
 : remove 4 ;
 : rename 5 ;
 : rewind 6 ;
+
+\ Error codes
+: halt 
+  31    \ 31 is the number for the error code 'halt'
+  error 
+;
 
 \ Constants for system call arguments
 : input 0 ;
@@ -325,14 +331,14 @@ str @reg dup iobl @reg + str !reg constant filename
   find 2- dup 40 + show
 ;
 
-.( Howe Forth. ) cr
 .( Base system loaded ) cr
-.( Dictionary pointer: ) here . 
 
 \ ==============================================================================
 \ ASSEMBLER
 \ ==============================================================================
 
+.( H2 Assembler ) cr
+.( Consult the manual and TODO files. ) cr
 
 \ : _.h 16 swap printnum ;
 \ : F 15 ;
@@ -343,6 +349,7 @@ str @reg dup iobl @reg + str !reg constant filename
 \     F and _.h 
 \ ;
 : _.b 2 swap printnum ;
+
 : .b 
     dup 1 15 lshift and 15 rshift _.b
     dup 1 14 lshift and 14 rshift _.b
@@ -391,26 +398,27 @@ str @reg dup iobl @reg + str !reg constant filename
 :  mALU 8 lshift ;
 0  mALU  constant T
 1  mALU  constant N
-2  mALU  constant T+N
-3  mALU  constant T&N
-4  mALU  constant T|N
-5  mALU  constant T^N
-6  mALU  constant ~T
-7  mALU  constant N=T
-8  mALU  constant N<T
-9  mALU  constant N<<T
-10 mALU  constant T-1
-11 mALU  constant R
-12 mALU  constant [T]
-13 mALU  constant N<<T
-14 mALU  constant depth
-15 mALU  constant Nu<T
-16 mALU  constant T-N
-17 mALU  constant ~(T^N)
-\ 18 mALU constant L(T*N)   \ Low bits of multiplication
-\ 19 mALU constant H(T*N)   \ High bit of multiplication
-20 mALU  constant [T<-IO]  \ Get input
-21 mALU  constant N->IO(T) \ Set output
+2  mALU  constant R
+3  mALU  constant [T]
+4  mALU  constant depth
+5  mALU  constant T|N
+6  mALU  constant T&N
+7  mALU  constant T^N
+8  mALU  constant ~(T^N)
+9  mALU  constant ~T
+10 mALU  constant T+N
+11 mALU  constant N-T
+12 mALU  constant N<<T
+13 mALU  constant N>>T
+14 mALU  constant NrolT
+15 mALU  constant NrorT
+16 mALU  constant Nu<T
+17 mALU  constant N<T
+17 mALU  constant N=T
+\ ...
+29 mALU  constant T-1  \ Get input
+30 mALU  constant [T<-IO]  \ Get input
+31 mALU  constant N->IO(T) \ Set output
 
 : mLit 1 15 lshift ;
 : T->N     1 7 lshift ;
@@ -451,7 +459,7 @@ str @reg dup iobl @reg + str !reg constant filename
 : _over     alu[ N T->N d+1 or or ]alu ;
 : _invert   alu[ ~T ]alu ;
 : _+        alu[ T+N d-1 or ]alu ;
-: _-        alu[ T-N d-1 or ]alu ;
+: _-        alu[ N-T d-1 or ]alu ;
 : _1-       alu[ T-1 ]alu ;
 : _=        alu[ N=T d-1 or ]alu ;
 : _and      alu[ T&N d-1 or ]alu ;
@@ -482,27 +490,36 @@ str @reg dup iobl @reg + str !reg constant filename
 
 : stop
     pmem
-\    halt
+    input fclose kernel
+    output fclose kernel
 ;
-.( Dictionary pointer: ) here . 
-.( Printing stack: ) cr
-.s
 .( "Forth H2 Assembler" loaded, assembling source now. ) cr
 foutput ../vhdl/mem_h2.binary
 finput h2.fs
+: esc
+  'esc' emit
+;
 
+: term_rst
+  esc ." [2J" cr       \ Clear screen
+  esc ." [0;0H" cr    \ Set cursor to 0,0
+;
 
-
-\ \ ANSI terminal color codes
-\  'esc' emit .( [2J) cr       \ Clear screen
-\  'esc' emit .( [0;0H ) cr    \ Set cursor to 0,0
-\  'esc' emit .( [32;1m) cr    \ Green fg
-\  .( Howe Forth ) cr .( Base System Loaded ) cr
-\  .( @author         Richard James Howe. ) cr
-\  .( @copyright      Copyright 2013 Richard James Howe. ) cr
-\  .( @license        LGPL ) cr
-\  .( @email          howe.r.j.89@gmail.com ) cr
-\  .( Memory Used: ) cr 
-\  .(   Dictionary: ) here 4 * str @reg + .
-\  .(   Strings:    ) str @reg . cr
-\  'esc' emit .( [31m) .( OK ) cr 'esc' emit .( [0m) cr
+: green esc ." [32;1m" ;
+: red   esc ." [31;1m" ;
+: blue  esc ." [34;1m" ;
+: norm  esc ." [0m"   cr ;
+\ ANSI terminal color codes
+green
+.( Howe Forth ) cr .( The assembler has assembled the assembly! ) cr
+.( @author         Richard James Howe. ) cr
+.( @copyright      Copyright 2013 Richard James Howe. ) cr
+.( @license        LGPL ) cr
+.( @email          howe.r.j.89@gmail.com ) cr
+.( Memory Used: ) cr 
+.(   Dictionary: ) blue here 4 * str @reg + . green
+.(   Strings:    ) blue str @reg . cr green
+.( Printing out stack contents: ) cr
+blue .s
+red .( OK ) cr norm
+halt

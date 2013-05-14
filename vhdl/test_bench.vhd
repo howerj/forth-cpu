@@ -83,7 +83,7 @@ begin
 	begin
         tb_sw <= X"A5";
         tb_rst <= '1';
-        wait for clk_period * 1;
+        wait for clk_period * 2;
         tb_rst <= '0';
         wait for clk_period * 10000;
         wait_flag   <=  '1';
