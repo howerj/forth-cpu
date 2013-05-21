@@ -136,16 +136,16 @@ fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l)
         }
 
         /*initializing memory */
-        fo->reg[ENUM_maxReg] = MAX_REG;
-        fo->reg[ENUM_maxDic] = MAX_DIC;
-        fo->reg[ENUM_maxVar] = MAX_VAR;
-        fo->reg[ENUM_maxRet] = MAX_RET;
-        fo->reg[ENUM_maxStr] = MAX_STR;
+        fo->reg[ENUM_maxReg] = reg_l;
+        fo->reg[ENUM_maxDic] = dic_l;
+        fo->reg[ENUM_maxVar] = var_l;
+        fo->reg[ENUM_maxRet] = ret_l;
+        fo->reg[ENUM_maxStr] = str_l;
         fo->reg[ENUM_inputBufLen] = 32;
         fo->reg[ENUM_dictionaryOffset] = 4;
-        fo->reg[ENUM_sizeOfMW] = sizeof(mw);
-        fo->reg[ENUM_INI] = true;
-        fo->reg[ENUM_cycles] = false;   /*Run for X amount of cycles turned off by default. */
+        fo->reg[ENUM_sizeOfMW] = (mw) sizeof(mw);
+        fo->reg[ENUM_INI] = (mw) true;
+        fo->reg[ENUM_cycles] = (mw) false;      /*Run for X amount of cycles turned off by default. */
         fo->reg[ENUM_ccount] = 0;       /*Run for X amount of cycles turned off by default. */
         fo->reg[ENUM_inStrm] = 1;
 
@@ -178,7 +178,7 @@ int main(void)
         fo = forth_obj_create(MAX_REG, MAX_DIC, MAX_VAR, MAX_RET, MAX_STR);
         CALLOC_FAIL(fo, -1);    /*memory might not be free()'d on error. */
         fprintf(stderr, "\tRUNNING.\n");
-        fprintf(stderr, "\t[RETURNED:%X]\n", forth_monitor(fo));
+        fprintf(stderr, "\t[RETURNED:%X]\n", (unsigned int)forth_monitor(fo));
 #ifdef DEBUG_PRN
         fprintf(stderr, "\tDEBUG PRINT RUNNING\n");
         debug_print(fo);

@@ -203,7 +203,7 @@ begin
     signal vctr_479 : std_logic;
     signal chrx_007 : std_logic;
     signal chry_011 : std_logic;
-    signal scrx_079 : std_logic;
+--    signal scrx_079 : std_logic;
 
     -- RAM read, ROM read
     signal ram_tmp : integer range 3200 downto 0;  --12 bits
@@ -230,7 +230,7 @@ begin
     vctr_479 <= '1' when vctr = 479 else '0';
     chrx_007 <= '1' when chrx = 7 else '0';
     chry_011 <= '1' when chry = 11 else '0';
-    scrx_079 <= '1' when scrx = 79 else '0';
+--    scrx_079 <= '1' when scrx = 79 else '0';
 
     chrx_rs <= chrx_007 or hctr_639;
     chry_rs <= chry_011 or vctr_479;

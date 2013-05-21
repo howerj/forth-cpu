@@ -19,10 +19,10 @@
 #define true    1
 #define false   0
 
-#define    MAX_PRN_STR    64
-#define    MAX_ERR_STR    64
-#define    MAX_STRLEN     32
-#define    MAX_INSTRM     32
+#define MAX_PRN_STR    64
+#define MAX_ERR_STR    64
+#define MAX_STRLEN     32
+#define MAX_INSTRM     32
 
 /*minimum memory requirements*/
 #define MIN_REG        32

@@ -16,7 +16,7 @@ SOURCES = \
 	h2.vhd \
 	mem_h2.vhd
 
-all help:
+all:
 	@echo ""
 	@echo "Simulation:"
 	@echo ""
@@ -38,7 +38,7 @@ all help:
 	@echo "make clean          - delete temporary files and cleanup directory"
 	@echo ""
 
-simulation sim:
+simulation:
 	@for f in $(SOURCES); do \
 	    echo "ghdl -a $$f"; \
 	    ghdl -a $$f; \
@@ -48,10 +48,10 @@ simulation sim:
 	ghdl -e test_bench
 	ghdl -r test_bench --wave=test_bench.ghw 
 
-viewer view:
-	gtkwave test_bench.ghw test_bench.sav &
+viewer:
+	gtkwave test_bench.ghw &>/dev/null&
 
-synthesis syn:
+synthesis:
 	@echo "Synthesis running..."
 
 	@[ -d reports    ]    || mkdir reports
@@ -88,7 +88,7 @@ synthesis syn:
 	 grep -v "WARNING.*has a constant value.*This FF/Latch will be trimmed during the optimization process." | \
 	 cat
 
-implementation impl:
+implementation: 
 	@echo "Implementation running..."
 	
 	@[ -d reports             ] || mkdir reports
@@ -128,7 +128,7 @@ implementation impl:
 	@#rmdir _xmsgs
 	@#mv top_level_xsim.nlf top_level_tsim.nlf tmp
 
-bitfile bit:
+bitfile:
 	@echo "Generate bitfile running..."
 	@touch webtalk.log
 	@bitgen -intstyle silent -w top_level.ncd
@@ -140,9 +140,11 @@ bitfile bit:
 	@sleep 5
 	@mv top_level.drc top_level_bitgen.xwbt top_level_usage.xml top_level_summary.xml webtalk.log tmp
 
-upload up:
+upload:
 	djtgcfg prog -d Nexys3 -i 0 -f design.bit
-                                                                                                       
+
+design: clean synthesis implementation bifile
+
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."
 	@rm -f *~ *.o trace.dat test_bench test_bench.ghw work-obj93.cf top_level.ngc top_level.ngd top_level_map.ngm \
