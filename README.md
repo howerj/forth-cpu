@@ -71,15 +71,12 @@ forth/
 Contains a Forth interpreter, this has been used in the build process
 and as an assembler.
 
-Edit the file **h2.fs** with the program you want to run on the device
+Edit the file **h2.fs** with the program you want to run on the device.
 
-latex/  
-------
+doc/
+----
 
-Contains the report and documentation.
-
-Each LaTeX document folder contains a script called **show.sh** execute this
-to compile the document and show it.
+Contains the documentation for the project.
 
 vhdl/
 -----  

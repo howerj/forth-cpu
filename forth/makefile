@@ -23,10 +23,11 @@ CCOPTS=-ansi -g -Wall -Wno-write-strings -Wshadow -Wextra -pedantic -O2
 
 ## Help
 
-all: banner forth
+all: banner forth assemble
 
 banner:
 	@echo -e "Howe Forth, GNU Makefile\n"
+	@echo -e "Assembler/Virtual machine"
 	@echo -e "Author:    $(BLUE)Richard James Howe$(DEFAULT)."
 	@echo -e "Copyright: $(BLUE)Copyright 2013 Richard James Howe.$(DEFAULT)."
 	@echo -e "License:   $(BLUE)LGPL$(DEFAULT)."
@@ -56,6 +57,11 @@ help:
 	@echo "     Compile the documentation."
 	@echo "make valgrind"
 	@echo "     Run program with valgrind on start up forth file only."
+
+## Run the interpreter
+assemble:
+	@echo "Running the assembler."
+	@./forth
 
 ## Main forth program
 

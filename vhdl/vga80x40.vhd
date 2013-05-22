@@ -149,7 +149,6 @@ begin
 -- Blank signal, 0 = no draw, 1 = visible/draw zone   
 
 -- Proboscide99 31/08/08
---  blank <= '0' when (hctr > 639) or (vctr > 479) else '1';
   blank <= '0' when (hctr < 8) or (hctr > 647) or (vctr > 479) else '1';
 
 -------------------------------------------------------------------------------
@@ -174,6 +173,8 @@ begin
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
   -- Control register. Individual control signal
+
+  -- RHOWE, Reorganized this.
   vga_en    <= octl(6); 
   cur_en    <= octl(5); 
   cur_blink <= octl(4); 
@@ -230,7 +231,6 @@ begin
     vctr_479 <= '1' when vctr = 479 else '0';
     chrx_007 <= '1' when chrx = 7 else '0';
     chry_011 <= '1' when chry = 11 else '0';
---    scrx_079 <= '1' when scrx = 79 else '0';
 
     chrx_rs <= chrx_007 or hctr_639;
     chry_rs <= chry_011 or vctr_479;
@@ -242,11 +242,6 @@ begin
     chry_ce <= hctr_639 and blank;
     scry_ce <= chry_011 and hctr_639;
 
-
--- Proboscide99 31/08/08
---    ram_tmp <= scry * 80 + scrx + 1 when ((scrx_079 = '0')) else
---               scry * 80 when ((chry_011 = '0') and (scrx_079 = '1')) else
---               0         when ((chry_011 = '1') and (scrx_079 = '1'));
     ram_tmp <= scry * 80 + scrx;
 
     TEXT_A <= std_logic_vector(TO_UNSIGNED(ram_tmp, 12));
