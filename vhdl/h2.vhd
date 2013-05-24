@@ -167,13 +167,7 @@ begin
                 when "01111" =>
                     tos_n   <=  std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
                 when "10000" => 
-                              if 
-                                  nos < tos_c
-                              then
-                                  tos_n <= (0=>'1', others => '0');
-                              else
-                                  tos_n <= (others => '0');
-                              end if;
+                    tos_n   <=  std_logic_vector(unsigned(nos(7 downto 0)) * to_integer(unsigned(tos_c(7 downto 0))));
                 when "10001" => 
                               if 
                                   signed(nos) < signed(tos_c)
@@ -190,8 +184,14 @@ begin
                               else
                                   tos_n   <=  (others => '0');    
                               end if;
-                when "10011" =>
-                              
+                when "10011" => 
+                              if 
+                                  nos < tos_c
+                              then
+                                  tos_n <= (0=>'1', others => '0');
+                              else
+                                  tos_n <= (others => '0');
+                              end if;
                 when "10100" => 
                 when "10101" => 
                 when "10110" => 
