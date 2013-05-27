@@ -8,6 +8,41 @@
 
 typedef uint16_t mw;
 
+enum h2_alu {
+        alu_tos,
+        alu_nos,
+        alu_rtos,
+        alu_din,
+        alu_depth,
+        alu_or,
+        alu_and,
+        alu_xor,
+        alu_xnor,
+        alu_not,
+        alu_add,
+        alu_sub,
+        alu_sll,
+        alu_srl,
+        alu_rol,
+        alu_ror,
+        alu_mul,
+        alu_sLT,
+        alu_equ,
+        alu_uLT,
+        alu_A,
+        alu_B,
+        alu_C,
+        alu_D,
+        alu_E,
+        alu_F,
+        alu_G,
+        alu_H,
+        alu_I,
+        alu_dec,
+        alu_ioDin,
+        alu_ioW
+};
+
 struct h2_state {
         int error;              /*Any error code returned */
         int cycles;             /*Number of cycles to run for */
