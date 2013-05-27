@@ -75,7 +75,7 @@ pretty:
 	@echo -e "$(RED)"
 	@rm -vf h2 vm memory.txt *.log *.swo *.swp *.o *~ *.gcov *.gcda *.gcno *.html *.htm;
 	@echo -e "$(DEFAULT)"
-	@wc *.c *.h *.fs makefile
+	@wc *.c *.h makefile
 
 # Clean up directory.
 clean:
