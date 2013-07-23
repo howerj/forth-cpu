@@ -73,8 +73,8 @@ and as an assembler.
 
 Edit the file **h2.fs** with the program you want to run on the device.
 
-doc/
-----
+docs/
+-----
 
 Contains the documentation for the project.
 
@@ -84,8 +84,8 @@ vhdl/
 Contains the actual code, written in what should be portable VHDL,
 it includes a test benches.
 
-To run the test bench, run the script **./testbenchRun.sh**, to show
-the output run **./testbenchShow.sh**.
+To run the test bench, run the script **make simulation**, to show
+the output run **make viewer**.
 
 To implement the design type:
 
