@@ -49,7 +49,50 @@ end;
 architecture behav of io is
   signal  clk25MHz:                 std_logic:= '0';
   signal  clk50MHz:                 std_logic:= '0';
+
+  signal  R_internal:               std_logic:= '0';
+  signal  G_internal:               std_logic:= '0';
+  signal  B_internal:               std_logic:= '0';
+
+  signal  vga_ram_a_dwe:            std_logic:= '0';
+  signal  vga_ram_a_dout:           std_logic_vector(7 downto 0):= (others => '0');
+  signal  vga_ram_a_din:            std_logic_vector(7 downto 0):= (others => '0');
+  signal  vga_ram_a_addr:           std_logic_vector(11 downto 0):= (others => '0');
+  signal  vga_ram_b_dwe:            std_logic:= '0';
+  signal  vga_ram_b_dout:           std_logic_vector(7 downto 0):=  (others => '0');
+  signal  vga_ram_b_din:            std_logic_vector(7 downto 0):=  (others => '0');
+  signal  vga_ram_b_addr:           std_logic_vector(11 downto 0):= (others => '0');
+  signal  vga_rom_addr:             std_logic_vector(11 downto 0):= (others => '0');
+  signal  vga_rom_dout:             std_logic_vector(7 downto 0):=  (others => '0');
+  signal  crx_oreg:                 std_logic_vector(6 downto 0):=  (others => '0');
+  signal  cry_oreg:                 std_logic_vector(5 downto 0):=  (others => '0');
+  signal  ctl_oreg:                 std_logic_vector(6 downto 0):=  (others => '0');
+  -- Basic IO register
+  ---- LEDs/Switches
+  signal  an_c,an_n:                std_logic_vector(3 downto 0):=  (others => '0');
+  signal  ka_c,ka_n:                std_logic_vector(7 downto 0):=  (others => '0');
+  signal  ld_c,ld_n:                std_logic_vector(7 downto 0):=  (others => '0');
+  ---- VGA
+  signal  ocrx_c, ocrx_n:           std_logic_vector(6 downto 0):=  (others => '0');
+  signal  ocry_c, ocry_n:           std_logic_vector(5 downto 0):=  (others => '0');
+  signal  octl_c, octl_n:           std_logic_vector(6 downto 0):=  (others => '0');
+  signal  txt_addr_c, txt_addr_n:   std_logic_vector(11 downto 0):= (others => '0');
+  signal  txt_din_c, txt_din_n:     std_logic_vector(7 downto 0) := (others => '0');
+  ---- UART
+  signal  uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
+  signal  ack_din_c, ack_din_n:     std_logic:= '0';
+  signal  uart_dout_c, uart_dout_n: std_logic_vector(7 downto 0):= (others => '0');
+  signal  stb_dout_c, stb_dout_n:   std_logic:= '0';
+  signal  uart_din, uart_dout:      std_logic_vector(7 downto 0):= (others => '0');
+  signal  stb_din, stb_dout:        std_logic:= '0';
+  signal  ack_din, ack_dout:        std_logic:= '0';
+  signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
+
 begin
+
+  vga_red   <=  R_internal & R_internal & R_internal;
+  vga_green <=  G_internal & G_internal & G_internal;
+  vga_blue  <=  B_internal & B_internal;
 
    -- Xilinx Application Note:
    -- It seems like it buffers the clock correctly here, so no need to
@@ -67,9 +110,9 @@ begin
     uart_deglitch: process (clk)
     begin
         if rising_edge(clk) then
-            rx_sync <= rx;
+            rx_sync <= uart_rx;
             rx_uart <= rx_sync;
-            tx <= tx_uart;
+            uart_tx <= tx_uart;
         end if;
     end process;
 
@@ -111,7 +154,7 @@ begin
 
 
   io_select: process(
-    cpu_io_wr,cpu_io_dout,cpu_io_daddr,
+    io_wr,io_dout,io_daddr,
     an_c,ka_c,ld_c,
     ocrx_c,ocry_c,octl_c,
     txt_addr_c,txt_din_c,
@@ -124,9 +167,9 @@ begin
   )
   begin
     -- Outputs
-    an <= an_c;
-    ka <= ka_c;
-    ld <= ld_c;
+    led_an <= an_c;
+    led_ka <= ka_c;
+    led_ld <= ld_c;
     crx_oreg <= ocrx_c;
     cry_oreg <= ocry_c;
     ctl_oreg <= octl_c;
@@ -167,30 +210,30 @@ begin
         stb_dout_n <= stb_dout_c;
     end if;
 
-    cpu_io_din <= (others => '0');
+    io_din <= (others => '0');
     vga_ram_a_dwe <= '0';
 
-    if cpu_io_wr = '1' then
+    if io_wr = '1' then
       -- Write output.
-      case cpu_io_daddr(3 downto 0) is
+      case io_daddr(3 downto 0) is
         when "0000" => -- LEDs 7 Segment displays.
-          an_n <= cpu_io_dout(3 downto 0);
-          ka_n <= cpu_io_dout(15 downto 8);
+          an_n <= io_dout(3 downto 0);
+          ka_n <= io_dout(15 downto 8);
         when "0001" => -- LEDs, next to switches.
-          ld_n <= cpu_io_dout(7 downto 0);
+          ld_n <= io_dout(7 downto 0);
         when "0010" => -- VGA, cursor registers.
-          ocrx_n <= cpu_io_dout(6 downto 0);
-          ocry_n <= cpu_io_dout(13 downto 8);
+          ocrx_n <= io_dout(6 downto 0);
+          ocry_n <= io_dout(13 downto 8);
         when "0011" => -- VGA, control register.
-          octl_n <= cpu_io_dout(6 downto 0);
+          octl_n <= io_dout(6 downto 0);
         when "0100" => -- VGA update address register.
-          txt_addr_n <= cpu_io_dout(11 downto 0);
+          txt_addr_n <= io_dout(11 downto 0);
         when "0101" => -- VGA, update register.
-          txt_din_n  <= cpu_io_dout(7 downto 0);
+          txt_din_n  <= io_dout(7 downto 0);
         when "0110" => -- VGA write, could be put into the previous statement.
           vga_ram_a_dwe <= '1';
         when "0111" => -- UART write output.
-          uart_din_n <= cpu_io_dout(7 downto 0);
+          uart_din_n <= io_dout(7 downto 0);
         when "1000" => -- UART strobe input.
           stb_din <= '1';
         when "1001" => -- UART acknowledge output.
@@ -205,32 +248,32 @@ begin
       end case;
     else
       -- Get input.
-      case cpu_io_daddr(3 downto 0) is
+      case io_daddr(3 downto 0) is
         when "0000" => -- Switches, plus direct access to UART bit.
-                cpu_io_din <= "0000000000" & uart_rx & buttons;
+                io_din <= "0000000000" & uart_rx & buttons;
         when "0001" => 
-                cpu_io_din <= X"00" & switches;
+                io_din <= X"00" & switches;
         when "0010" => -- VGA, Read VGA text buffer.
-                cpu_io_din <= X"00" & vga_ram_a_dout;
+                io_din <= X"00" & vga_ram_a_dout;
         when "0011" => -- UART get input.
-                cpu_io_din <= X"00" & uart_dout_c;
+                io_din <= X"00" & uart_dout_c;
         when "0100" => -- UART acknowledged input.
-                cpu_io_din <= (0 => ack_din_c, others => '0');
+                io_din <= (0 => ack_din_c, others => '0');
                 ack_din_n <= '0';
         when "0101" => -- UART strobe output (write output).
-                cpu_io_din <= (0 => stb_dout_c, others => '0');
+                io_din <= (0 => stb_dout_c, others => '0');
                 stb_dout_n <= '0';
-        when "0110" => cpu_io_din <= (others => '0');
-        when "0111" => cpu_io_din <= (others => '0');
-        when "1000" => cpu_io_din <= (others => '0');
-        when "1001" => cpu_io_din <= (others => '0');
-        when "1010" => cpu_io_din <= (others => '0');
-        when "1011" => cpu_io_din <= (others => '0');
-        when "1100" => cpu_io_din <= (others => '0');
-        when "1101" => cpu_io_din <= (others => '0');
-        when "1110" => cpu_io_din <= (others => '0');
-        when "1111" => cpu_io_din <= (others => '0');
-        when others => cpu_io_din <= (others => '0');
+        when "0110" => io_din <= (others => '0');
+        when "0111" => io_din <= (others => '0');
+        when "1000" => io_din <= (others => '0');
+        when "1001" => io_din <= (others => '0');
+        when "1010" => io_din <= (others => '0');
+        when "1011" => io_din <= (others => '0');
+        when "1100" => io_din <= (others => '0');
+        when "1101" => io_din <= (others => '0');
+        when "1110" => io_din <= (others => '0');
+        when "1111" => io_din <= (others => '0');
+        when others => io_din <= (others => '0');
       end case;
     end if;
   end process;
@@ -266,8 +309,8 @@ begin
   R       => R_internal,
   G       => G_internal,
   B       => B_internal,
-  hsync     => hsync,
-  vsync     => vsync
+  hsync     => vga_hsync,
+  vsync     => vga_vsync
   );
 
   U_TEXT: entity work.mem_text port map (
