@@ -53,35 +53,29 @@ architecture behav of top_level is
 
 
   -- VGA interface signals
-  signal  R_internal:               std_logic:= '0';
-  signal  G_internal:               std_logic:= '0';
-  signal  B_internal:               std_logic:= '0';
   signal  clk25MHz:                 std_logic:= '0';
   signal  clk50MHz:                 std_logic:= '0';
-  signal  vga_ram_a_dwe:            std_logic:= '0';
-  signal  vga_ram_a_dout:           std_logic_vector(7 downto 0):= (others => '0');
-  signal  vga_ram_a_din:            std_logic_vector(7 downto 0):= (others => '0');
-  signal  vga_ram_a_addr:           std_logic_vector(11 downto 0):= (others => '0');
-  signal  vga_ram_b_dwe:            std_logic:= '0';
-  signal  vga_ram_b_dout:           std_logic_vector(7 downto 0):=  (others => '0');
-  signal  vga_ram_b_din:            std_logic_vector(7 downto 0):=  (others => '0');
-  signal  vga_ram_b_addr:           std_logic_vector(11 downto 0):= (others => '0');
-  signal  vga_rom_addr:             std_logic_vector(11 downto 0):= (others => '0');
-  signal  vga_rom_dout:             std_logic_vector(7 downto 0):=  (others => '0');
-  signal  crx_oreg:                 std_logic_vector(6 downto 0):=  (others => '0');
-  signal  cry_oreg:                 std_logic_vector(5 downto 0):=  (others => '0');
-  signal  ctl_oreg:                 std_logic_vector(6 downto 0):=  (others => '0');
   -- Basic IO register
   ---- LEDs/Switches
   signal  an_c,an_n:                std_logic_vector(3 downto 0):=  (others => '0');
   signal  ka_c,ka_n:                std_logic_vector(7 downto 0):=  (others => '0');
   signal  ld_c,ld_n:                std_logic_vector(7 downto 0):=  (others => '0');
   ---- VGA
-  signal  ocrx_c, ocrx_n:           std_logic_vector(6 downto 0):=  (others => '0');
-  signal  ocry_c, ocry_n:           std_logic_vector(5 downto 0):=  (others => '0');
-  signal  octl_c, octl_n:           std_logic_vector(6 downto 0):=  (others => '0');
-  signal  txt_addr_c, txt_addr_n:   std_logic_vector(11 downto 0):= (others => '0');
-  signal  txt_din_c, txt_din_n:     std_logic_vector(7 downto 0) := (others => '0');
+
+  signal  crx_we:           std_logic :=  '0';
+  signal  cry_we:           std_logic :=  '0';
+  signal  ctl_we:           std_logic :=  '0';
+
+  signal  crx:           std_logic_vector(6 downto 0):=  (others => '0');
+  signal  cry:           std_logic_vector(5 downto 0):=  (others => '0');
+  signal  ctl:           std_logic_vector(6 downto 0):=  (others => '0');
+  signal  vga_we_ram:           std_logic :=  '0';
+  signal  vga_a_we:           std_logic :=  '0';
+  signal  vga_d_we:           std_logic :=  '0';
+  signal  vga_addr:      std_logic_vector(11 downto 0):= (others => '0');
+  signal  vga_dout:      std_logic_vector(7 downto 0) := (others => '0');
+  signal  vga_din:       std_logic_vector(7 downto 0) := (others => '0');
+
   ---- UART
   signal  uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
   signal  ack_din_c, ack_din_n:     std_logic:= '0';
@@ -94,9 +88,6 @@ architecture behav of top_level is
 begin
 ------- Output assignments (Not in a process) ---------------------------------
   rst   <=  '0';
-  red   <=  R_internal & R_internal & R_internal;
-  green <=  G_internal & G_internal & G_internal;
-  blue  <=  B_internal & B_internal;
 -------------------------------------------------------------------------------
 -- The Main components
 -------------------------------------------------------------------------------
@@ -127,6 +118,35 @@ begin
         not clk25MHz when rising_edge(clk50MHz);
    ---- End note.
 
+  vga_module: entity work.vga_top
+  port map(
+            clk => clk,
+            clk25MHz => clk25MHz,
+            rst => rst,
+            
+            crx_we => crx_we, 
+            cry_we => cry_we, 
+            ctl_we => ctl_we, 
+
+            crx_oreg => crx, 
+            cry_oreg => cry, 
+            ctl_oreg => ctl, 
+
+            vga_we_ram => vga_we_ram,
+            vga_a_we => vga_a_we,
+            vga_d_we => vga_d_we,
+            vga_dout => vga_dout,
+            vga_din => vga_din,
+            vga_addr => vga_addr,
+
+
+            red => red,  
+            green => green,  
+            blue => blue,  
+            hsync => hsync,  
+            vsync => vsync 
+  );
+
 
     uart_deglitch: process (clk)
     begin
@@ -144,12 +164,6 @@ begin
        an_c        <=  (others => '0');
        ka_c        <=  (others => '0');
        ld_c        <=  (others => '0');
-       -- VGA
-       ocrx_c      <=  (others => '0');
-       ocry_c      <=  (others => '0');
-       octl_c      <=  (others => '0');
-       txt_addr_c  <=  (others => '0');
-       txt_din_c   <=  (others => '0');
        -- UART
        uart_din_c  <=  (others => '0');
        ack_din_c   <=  '0';
@@ -159,12 +173,6 @@ begin
        an_c        <=  an_n;
        ka_c        <=  ka_n;
        ld_c        <=  ld_n;
-       -- VGA
-       ocrx_c      <=  ocrx_n;
-       ocry_c      <=  ocry_n;
-       octl_c      <=  octl_n;
-       txt_addr_c  <=  txt_addr_n;
-       txt_din_c   <=  txt_din_n;
        -- UART
        uart_din_c  <=  uart_din_n; 
        ack_din_c   <=  ack_din_n;
@@ -173,14 +181,10 @@ begin
      end if;
    end process;
 
-
   io_select: process(
     cpu_io_wr,cpu_io_dout,cpu_io_daddr,
     an_c,ka_c,ld_c,
-    ocrx_c,ocry_c,octl_c,
-    txt_addr_c,txt_din_c,
     sw,rx,btnu,btnd,btnl,btnr,btnc,
-    vga_ram_a_dout,
     uart_din_c, ack_din_c,
     uart_dout_c, 
     uart_dout, stb_dout, ack_din,
@@ -191,12 +195,6 @@ begin
     an <= an_c;
     ka <= ka_c;
     ld <= ld_c;
-    crx_oreg <= ocrx_c;
-    cry_oreg <= ocry_c;
-    ctl_oreg <= octl_c;
-
-    vga_ram_a_addr <= txt_addr_c;
-    vga_ram_a_din  <= txt_din_c;
 
     uart_din    <= uart_din_c;
     stb_din     <= '0';
@@ -207,12 +205,19 @@ begin
     ka_n <= ka_c;
     ld_n <= ld_c;
 
-    ocrx_n <= ocrx_c;
-    ocry_n <= ocry_c;
-    octl_n <= octl_c;
+    -- VGA
+    crx_we <= '0';
+    cry_we <= '0';
+    ctl_we <= '0';
+    crx <= (others => '0');
+    cry <= (others => '0');
+    ctl <= (others => '0');
 
-    txt_addr_n <= txt_addr_c;
-    txt_din_n  <= txt_din_c;
+    vga_we_ram <= '0';
+    vga_a_we <= '0';
+    vga_d_we <= '0';
+    vga_din <= (others => '0');
+    vga_addr <= (others => '0');
 
     uart_din_n  <=  uart_din_c; 
 
@@ -232,7 +237,6 @@ begin
     end if;
 
     cpu_io_din <= (others => '0');
-    vga_ram_a_dwe <= '0';
 
     if cpu_io_wr = '1' then
       -- Write output.
@@ -243,23 +247,29 @@ begin
         when "0001" => -- LEDs, next to switches.
           ld_n <= cpu_io_dout(7 downto 0);
         when "0010" => -- VGA, cursor registers.
-          ocrx_n <= cpu_io_dout(6 downto 0);
-          ocry_n <= cpu_io_dout(13 downto 8);
+          crx_we <= '1';
+          cry_we <= '1';
+          crx <= cpu_io_dout(6 downto 0);
+          cry <= cpu_io_dout(13 downto 8);
+--          ocrx_n <= cpu_io_dout(6 downto 0);
+--          ocry_n <= cpu_io_dout(13 downto 8);
         when "0011" => -- VGA, control register.
-          octl_n <= cpu_io_dout(6 downto 0);
+          ctl_we <= '1';
+          ctl <= cpu_io_dout(6 downto 0);
+--          octl_n <= cpu_io_dout(6 downto 0);
         when "0100" => -- VGA update address register.
-          txt_addr_n <= cpu_io_dout(11 downto 0);
+--          txt_addr_n <= cpu_io_dout(11 downto 0);
         when "0101" => -- VGA, update register.
-          txt_din_n  <= cpu_io_dout(7 downto 0);
+--          txt_din_n  <= cpu_io_dout(7 downto 0);
         when "0110" => -- VGA write, could be put into the previous statement.
-          vga_ram_a_dwe <= '1';
-        when "0111" => -- UART write output.
+--          vga_ram_a_dwe <= '1';
+        when "0111" =>
+        when "1000" =>  -- UART write output.
           uart_din_n <= cpu_io_dout(7 downto 0);
-        when "1000" => -- UART strobe input.
+        when "1001" => -- UART strobe input.
           stb_din <= '1';
-        when "1001" => -- UART acknowledge output.
+        when "1010" => -- UART acknowledge output.
           ack_dout <= '1';
-        when "1010" =>
         when "1011" =>
         when "1100" =>
         when "1101" =>
@@ -275,7 +285,7 @@ begin
         when "0001" => 
                 cpu_io_din <= X"00" & sw;
         when "0010" => -- VGA, Read VGA text buffer.
-                cpu_io_din <= X"00" & vga_ram_a_dout;
+--                cpu_io_din <= X"00" & vga_ram_a_dout;
         when "0011" => -- UART get input.
                 cpu_io_din <= X"00" & uart_dout_c;
         when "0100" => -- UART acknowledged input.
@@ -316,45 +326,6 @@ begin
    rx => rx_uart,
    tx => tx_uart
   );
-
-  U_VGA : entity work.vga80x40 port map (
-  reset     => rst,
-  clk25MHz  => clk25MHz,
-  TEXT_A    => vga_ram_b_addr,
-  TEXT_D    => vga_ram_b_dout,
-  FONT_A    => vga_rom_addr,
-  FONT_D    => vga_rom_dout,
-  ocrx    => crx_oreg,
-  ocry    => cry_oreg,
-  octl    => ctl_oreg,
-  R       => R_internal,
-  G       => G_internal,
-  B       => B_internal,
-  hsync     => hsync,
-  vsync     => vsync
-  );
-
-  U_TEXT: entity work.mem_text port map (
-  a_clk  => clk25MHz,
-  a_dwe  => vga_ram_a_dwe,
-  a_addr => vga_ram_a_addr,
-  a_din  => vga_ram_a_din,
-  a_dout => vga_ram_a_dout,
-
-  b_clk  => clk25MHz,
-  b_dwe  => vga_ram_b_dwe,
-  b_addr => vga_ram_b_addr,
-  b_din  => vga_ram_b_din,
-  b_dout => vga_ram_b_dout
-  );
-  U_FONT: entity work.mem_font port map (
-  a_clk => clk25MHz,
-  a_addr => vga_rom_addr,
-  a_dout => vga_rom_dout
-  );
-   
-  vga_ram_b_dwe  <= '0';
-  vga_ram_b_din  <= (others => '0');
 
 -------------------------------------------------------------------------------
 end architecture;

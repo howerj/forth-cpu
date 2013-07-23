@@ -13,9 +13,10 @@ SOURCES = \
 	ctrm.vhd \
 	losr.vhd \
 	vga80x40.vhd \
+	vga_top.vhd \
 	h2.vhd \
-	io.vhd \
 	mem_h2.vhd \
+	io.vhd \
 	cpu.vhd \
 
 all:
