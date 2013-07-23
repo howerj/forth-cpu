@@ -1,37 +1,4 @@
 v 3
-file . "test_bench.vhd" "20130514102955.000" "20130723212820.788":
-  entity test_bench at 12( 375) + 0 on 51;
-  architecture behavior of test_bench at 19( 488) + 0 on 52;
-file . "cpu.vhd" "20130723202500.000" "20130723212819.379":
-  entity cpu at 11( 345) + 0 on 47;
-  architecture behav of cpu at 27( 759) + 0 on 48;
-file . "mem_h2.vhd" "20130422152854.000" "20130723212819.164":
-  entity mem_h2 at 7( 232) + 0 on 45;
-  architecture rtl of mem_h2 at 28( 819) + 0 on 46;
-file . "h2.vhd" "20130524093315.000" "20130723212817.735":
-  entity h2 at 8( 314) + 0 on 41;
-  architecture rtl of h2 at 32( 1103) + 0 on 42;
-file . "losr.vhd" "20130411143922.000" "20130723212816.782":
-  entity losr at 25( 1176) + 0 on 37;
-  architecture arch of losr at 45( 1576) + 0 on 38;
-file . "uart.vhd" "20130422013200.000" "20130723212816.117":
-  entity uart at 15( 548) + 0 on 33;
-  architecture rtl of uart at 38( 1389) + 0 on 34;
-file . "mem_font.vhd" "20130422152828.000" "20130723212815.739":
-  entity mem_font at 7( 204) + 0 on 29;
-  architecture rtl of mem_font at 20( 533) + 0 on 30;
-file . "mem_text.vhd" "20130419232655.000" "20130723212815.902":
-  entity mem_text at 5( 152) + 0 on 31;
-  architecture rtl of mem_text at 26( 777) + 0 on 32;
-file . "ctrm.vhd" "20130411143829.000" "20130723212816.660":
-  entity ctrm at 23( 1179) + 0 on 35;
-  architecture arch of ctrm at 42( 1764) + 0 on 36;
-file . "vga80x40.vhd" "20130521162422.000" "20130723212816.919":
-  entity vga80x40 at 26( 1292) + 0 on 39;
-  architecture rtl of vga80x40 at 54( 2074) + 0 on 40;
-file . "io.vhd" "20130723195539.000" "20130723212819.082":
-  entity io at 8( 197) + 0 on 43;
-  architecture behav of io at 18( 340) + 0 on 44;
-file . "top_level.vhd" "20130723202609.000" "20130723212819.565":
-  entity top_level at 10( 301) + 0 on 49;
-  architecture behav of top_level at 42( 1739) + 0 on 50;
+file . "io.vhd" "20130723195539.000" "20130723222710.187":
+  entity io at 8( 197) + 0 on 11;
+  architecture behav of io at 18( 340) + 0 on 12;
