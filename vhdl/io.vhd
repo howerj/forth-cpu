@@ -21,8 +21,8 @@ entity io is
       -- CPU --
       ---------
       io_wr: in std_logic;                         -- Write/Read toggle, 0=Read, 1=Write
-      io_din:   out std_logic_vector(15 downto 0); -- CPU intput, IO module output
-      io_dout:  in  std_logic_vector(15 downto 0); -- CPU output, IO module input
+      io_dout:   out std_logic_vector(15 downto 0); -- CPU intput, IO module output
+      io_din:  in  std_logic_vector(15 downto 0); -- CPU output, IO module input
       io_daddr: in  std_logic_vector(15 downto 0); -- IO address
 
       --------------------
@@ -154,7 +154,7 @@ begin
 
 
   io_select: process(
-    io_wr,io_dout,io_daddr,
+    io_wr,io_din,io_daddr,
     an_c,ka_c,ld_c,
     ocrx_c,ocry_c,octl_c,
     txt_addr_c,txt_din_c,
@@ -210,30 +210,30 @@ begin
         stb_dout_n <= stb_dout_c;
     end if;
 
-    io_din <= (others => '0');
+    io_dout <= (others => '0');
     vga_ram_a_dwe <= '0';
 
     if io_wr = '1' then
       -- Write output.
       case io_daddr(3 downto 0) is
         when "0000" => -- LEDs 7 Segment displays.
-          an_n <= io_dout(3 downto 0);
-          ka_n <= io_dout(15 downto 8);
+          an_n <= io_din(3 downto 0);
+          ka_n <= io_din(15 downto 8);
         when "0001" => -- LEDs, next to switches.
-          ld_n <= io_dout(7 downto 0);
+          ld_n <= io_din(7 downto 0);
         when "0010" => -- VGA, cursor registers.
-          ocrx_n <= io_dout(6 downto 0);
-          ocry_n <= io_dout(13 downto 8);
+          ocrx_n <= io_din(6 downto 0);
+          ocry_n <= io_din(13 downto 8);
         when "0011" => -- VGA, control register.
-          octl_n <= io_dout(6 downto 0);
+          octl_n <= io_din(6 downto 0);
         when "0100" => -- VGA update address register.
-          txt_addr_n <= io_dout(11 downto 0);
+          txt_addr_n <= io_din(11 downto 0);
         when "0101" => -- VGA, update register.
-          txt_din_n  <= io_dout(7 downto 0);
+          txt_din_n  <= io_din(7 downto 0);
         when "0110" => -- VGA write, could be put into the previous statement.
           vga_ram_a_dwe <= '1';
         when "0111" => -- UART write output.
-          uart_din_n <= io_dout(7 downto 0);
+          uart_din_n <= io_din(7 downto 0);
         when "1000" => -- UART strobe input.
           stb_din <= '1';
         when "1001" => -- UART acknowledge output.
@@ -250,30 +250,30 @@ begin
       -- Get input.
       case io_daddr(3 downto 0) is
         when "0000" => -- Switches, plus direct access to UART bit.
-                io_din <= "0000000000" & uart_rx & buttons;
+                io_dout <= "0000000000" & uart_rx & buttons;
         when "0001" => 
-                io_din <= X"00" & switches;
+                io_dout <= X"00" & switches;
         when "0010" => -- VGA, Read VGA text buffer.
-                io_din <= X"00" & vga_ram_a_dout;
+                io_dout <= X"00" & vga_ram_a_dout;
         when "0011" => -- UART get input.
-                io_din <= X"00" & uart_dout_c;
+                io_dout <= X"00" & uart_dout_c;
         when "0100" => -- UART acknowledged input.
-                io_din <= (0 => ack_din_c, others => '0');
+                io_dout <= (0 => ack_din_c, others => '0');
                 ack_din_n <= '0';
         when "0101" => -- UART strobe output (write output).
-                io_din <= (0 => stb_dout_c, others => '0');
+                io_dout <= (0 => stb_dout_c, others => '0');
                 stb_dout_n <= '0';
-        when "0110" => io_din <= (others => '0');
-        when "0111" => io_din <= (others => '0');
-        when "1000" => io_din <= (others => '0');
-        when "1001" => io_din <= (others => '0');
-        when "1010" => io_din <= (others => '0');
-        when "1011" => io_din <= (others => '0');
-        when "1100" => io_din <= (others => '0');
-        when "1101" => io_din <= (others => '0');
-        when "1110" => io_din <= (others => '0');
-        when "1111" => io_din <= (others => '0');
-        when others => io_din <= (others => '0');
+        when "0110" => io_dout <= (others => '0');
+        when "0111" => io_dout <= (others => '0');
+        when "1000" => io_dout <= (others => '0');
+        when "1001" => io_dout <= (others => '0');
+        when "1010" => io_dout <= (others => '0');
+        when "1011" => io_dout <= (others => '0');
+        when "1100" => io_dout <= (others => '0');
+        when "1101" => io_dout <= (others => '0');
+        when "1110" => io_dout <= (others => '0');
+        when "1111" => io_dout <= (others => '0');
+        when others => io_dout <= (others => '0');
       end case;
     end if;
   end process;
