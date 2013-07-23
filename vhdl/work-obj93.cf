@@ -1,4 +1,0 @@
-v 3
-file . "io.vhd" "20130723195539.000" "20130723222710.187":
-  entity io at 8( 197) + 0 on 11;
-  architecture behav of io at 18( 340) + 0 on 12;
