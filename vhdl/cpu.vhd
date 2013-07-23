@@ -14,13 +14,13 @@ use ieee.numeric_std.all;
 
 entity cpu is
   port(
-    clk: in std_logic := 'X';
-    rst: in std_logic;
+    clk:        in   std_logic;
+    rst:        in   std_logic;
 
-    cpu_wr:  out              std_logic;
-    cpu_din:  in             std_logic_vector(15 downto 0):= (others => '0');
-    cpu_dout:   out           std_logic_vector(15 downto 0):= (others => '0');
-    cpu_daddr:  out           std_logic_vector(15 downto 0):= (others => '0')
+    cpu_wr:     out  std_logic;
+    cpu_din:    in   std_logic_vector(15 downto 0):= (others => '0');
+    cpu_dout:   out  std_logic_vector(15 downto 0):= (others => '0');
+    cpu_daddr:  out  std_logic_vector(15 downto 0):= (others => '0')
   );
 end;
 

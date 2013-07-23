@@ -45,18 +45,13 @@ architecture behav of top_level is
   constant clock_frequency:         positive := 100000000;
   -- Signals
   signal  rst:                      std_logic := '0';
-  -- H2 IO interface signals.
+  -- CPU H2 IO interface signals.
   signal  cpu_io_wr:                std_logic;
   signal  cpu_io_din:               std_logic_vector(15 downto 0):= (others => '0');
   signal  cpu_io_dout:              std_logic_vector(15 downto 0):= (others => '0');
   signal  cpu_io_daddr:             std_logic_vector(15 downto 0):= (others => '0');
-  -- CPU memory signals
-  signal  cpu_pc:                   std_logic_vector(12 downto 0):= (others => '0');
-  signal  cpu_insn:                 std_logic_vector(15 downto 0):= (others => '0');
-  signal  cpu_dwe:                  std_logic:= '0';   
-  signal  cpu_din:                  std_logic_vector(15 downto 0):= (others => '0');
-  signal  cpu_dout:                 std_logic_vector(15 downto 0):= (others => '0');
-  signal  cpu_daddr:                std_logic_vector(12 downto 0):= (others => '0');
+
+
   -- VGA interface signals
   signal  R_internal:               std_logic:= '0';
   signal  G_internal:               std_logic:= '0';
@@ -105,41 +100,17 @@ begin
 -------------------------------------------------------------------------------
 -- The Main components
 -------------------------------------------------------------------------------
-
-  -- The CPU:
-  h2_instance: entity work.h2
+  cpu_instance: entity work.cpu
   port map(
-    clk   =>  clk,
-    rst   =>  rst,
-    pco   =>  cpu_pc, 
-    insn  =>  cpu_insn,  
+    clk => clk,
+    rst => rst,
 
-    io_wr   =>  cpu_io_wr,
-    io_din  =>  cpu_io_din,
-    io_dout =>  cpu_io_dout,
-    io_daddr=>  cpu_io_daddr,
+    cpu_wr => cpu_io_wr,
+    cpu_din => cpu_io_din,
+    cpu_dout => cpu_io_dout,
+    cpu_daddr => cpu_io_daddr
+  );
 
-    dwe   =>  cpu_dwe,
-    din   =>  cpu_din,
-    dout  =>  cpu_dout,
-    daddr   =>  cpu_daddr
-      );
-
-  -- RAM for the CPU
-  mem_h2_instance: entity work.mem_h2
-  port map(
-    a_clk => clk,
-    a_dwe => '0',
-    a_addr => cpu_pc,
-    a_din => X"0000",
-    a_dout => cpu_insn,
-
-    b_clk => clk,
-    b_dwe => cpu_dwe,
-    b_addr => cpu_daddr,
-    b_din => cpu_dout,
-    b_dout => cpu_din
-      );
 -------------------------------------------------------------------------------
 -- IO
 -------------------------------------------------------------------------------

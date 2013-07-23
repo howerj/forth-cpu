@@ -15,8 +15,8 @@ SOURCES = \
 	vga80x40.vhd \
 	h2.vhd \
 	io.vhd \
+	mem_h2.vhd \
 	cpu.vhd \
-	mem_h2.vhd
 
 all:
 	@echo ""
