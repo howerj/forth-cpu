@@ -1,0 +1,76 @@
+-- Richard James Howe.
+-- This contains the CPU/main memory cache
+--
+-- @author     Richard James Howe.
+-- @copyright    Copyright 2013 Richard James Howe.
+-- @license    LGPL    
+-- @email      howe.r.j.89@gmail.com
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity cpu is
+  port(
+    clk: in std_logic := 'X';
+    rst: in std_logic;
+
+    
+
+  );
+end;
+
+architecture behav of cpu is
+  -- CPU, External interface
+  signal  cpu_io_wr:                std_logic;
+  signal  cpu_io_din:               std_logic_vector(15 downto 0):= (others => '0');
+  signal  cpu_io_dout:              std_logic_vector(15 downto 0):= (others => '0');
+  signal  cpu_io_daddr:             std_logic_vector(15 downto 0):= (others => '0');
+
+  -- CPU, Memory interface to RAM/ROM
+  signal  cpu_pc:                   std_logic_vector(12 downto 0):= (others => '0');
+  signal  cpu_insn:                 std_logic_vector(15 downto 0):= (others => '0');
+  signal  cpu_dwe:                  std_logic:= '0';   
+  signal  cpu_din:                  std_logic_vector(15 downto 0):= (others => '0');
+  signal  cpu_dout:                 std_logic_vector(15 downto 0):= (others => '0');
+  signal  cpu_daddr:                std_logic_vector(12 downto 0):= (others => '0');
+
+
+begin
+
+  -- The actual CPU instance (H2)
+  h2_instance: entity work.h2
+  port map(
+    clk   =>  clk,
+    rst   =>  rst,
+    pco   =>  cpu_pc, 
+    insn  =>  cpu_insn,  
+
+    io_wr   =>  cpu_io_wr,
+    io_din  =>  cpu_io_din,
+    io_dout =>  cpu_io_dout,
+    io_daddr=>  cpu_io_daddr,
+
+    dwe   =>  cpu_dwe,
+    din   =>  cpu_din,
+    dout  =>  cpu_dout,
+    daddr   =>  cpu_daddr
+      );
+
+  -- RAM for the CPU
+  mem_h2_instance: entity work.mem_h2
+  port map(
+    a_clk => clk,
+    a_dwe => '0',
+    a_addr => cpu_pc,
+    a_din => X"0000",
+    a_dout => cpu_insn,
+
+    b_clk => clk,
+    b_dwe => cpu_dwe,
+    b_addr => cpu_daddr,
+    b_din => cpu_dout,
+    b_dout => cpu_din
+      );
+
+
+end architecture;
