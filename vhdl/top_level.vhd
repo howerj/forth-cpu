@@ -139,7 +139,6 @@ begin
             vga_din => vga_din,
             vga_addr => vga_addr,
 
-
             red => red,  
             green => green,  
             blue => blue,  

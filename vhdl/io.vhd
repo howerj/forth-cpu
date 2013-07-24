@@ -89,7 +89,6 @@ architecture behav of io is
   signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
 
 begin
-
   vga_red   <=  R_internal & R_internal & R_internal;
   vga_green <=  G_internal & G_internal & G_internal;
   vga_blue  <=  B_internal & B_internal;
