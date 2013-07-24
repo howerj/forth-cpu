@@ -284,7 +284,7 @@ begin
         when "0001" => 
                 cpu_io_din <= X"00" & sw;
         when "0010" => -- VGA, Read VGA text buffer.
---                cpu_io_din <= X"00" & vga_ram_a_dout;
+                cpu_io_din <= X"00" & vga_dout;
         when "0011" => -- UART get input.
                 cpu_io_din <= X"00" & uart_dout_c;
         when "0100" => -- UART acknowledged input.
