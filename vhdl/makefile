@@ -1,11 +1,13 @@
 #
 # Makefile to simulate and synthesize VHDL designs
 #
-# @Author 		Marc Eberhard
+# @Author 		Marc Eberhard/Richard Howe
 # @Copyright	Copyright 2013 Marc Eberhard
 # @License		LGPL
 #
 
+
+## Remember to update the synthesis section as well
 SOURCES = \
 	mem_font.vhd \
 	mem_text.vhd \
