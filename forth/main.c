@@ -116,11 +116,11 @@ fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l)
         fo->err_file->fio = io_stderr;
 
         /*memories of the interpreter */
-        fo->reg = calloc(reg_l, sizeof(mw));
-        fo->dic = calloc(dic_l, sizeof(mw));
-        fo->var = calloc(var_l, sizeof(mw));
-        fo->ret = calloc(ret_l, sizeof(mw));
-        fo->str = calloc(str_l, sizeof(char));
+        fo->reg = calloc((unsigned)reg_l, sizeof(mw));
+        fo->dic = calloc((unsigned)dic_l, sizeof(mw));
+        fo->var = calloc((unsigned)var_l, sizeof(mw));
+        fo->ret = calloc((unsigned)ret_l, sizeof(mw));
+        fo->str = calloc((unsigned)str_l, sizeof(char));
 
         CALLOC_FAIL(fo->reg, NULL);
         CALLOC_FAIL(fo->dic, NULL);
@@ -130,7 +130,7 @@ fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l)
 
         /*initialize input file, fclose is handled elsewhere */
         fo->in_file[1]->fio = io_rd_file;
-        if ((fo->in_file[1]->iou.f = fopen("forth.fs", "r")) == NULL) {
+        if ((fo->in_file[1]->iou.f = fopen("forth.4th", "r")) == NULL) {
                 fprintf(stderr, "Unable to open initial input file!\n");
                 return NULL;
         }

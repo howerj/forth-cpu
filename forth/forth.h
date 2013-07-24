@@ -16,9 +16,6 @@
 #ifndef forth_h_header_guard
 #define forth_h_header_guard
 
-#define true    1
-#define false   0
-
 #define MAX_PRN_STR    64
 #define MAX_ERR_STR    64
 #define MAX_STRLEN     32
@@ -34,6 +31,8 @@
 #define MIN_DIC_OFF    4
 
 /* Enums */
+enum bool { false, true };
+
 enum forth_io {
         io_stdin,               /*read from stdin */
         io_stdout,              /*write to stdout */

@@ -14,13 +14,9 @@
 #include <stdio.h>
 #include "forth.h"
 
-#define ISSPACE(X)    ((((char)X)=='\n')||(((char)X)=='\r')||(((char)X)=='\t')||\
-    (((char)X)=='\v')||(((char)X)==' ')|| (((char)X)=='\f'))
-
-#define ISDIGIT(X)    ((X=='0')||(X=='1')||(X=='2')||(X=='3')||(X=='4')||(X=='5')||\
-            (X=='6')||(X=='7')||(X=='8')||(X=='9'))
-
 /*internal function prototypes*/
+static enum bool my_isspace(char x);
+static enum bool my_isdigit(char x);
 static int wrap_get(fio_t * in_file);
 static int wrap_put(fio_t * out_file, char c);
 static mw get_word(char *str, const mw str_len, fio_t * io_file);
@@ -33,12 +29,49 @@ static char *my_itoa(mw value, int base);
 static void print_string(const char *s, const mw max, fio_t * out_file);
 static void print_line_file(int line, const char *file, fio_t * err_file);
 static mw find_word(fobj_t * fo);
-static mw compile_word(enum forth_primitives fp, fobj_t * fo);
+void my_strcpy(char *destination, char *source);
+static mw compile_word(enum forth_primitives fp, fobj_t * fo, enum bool flag,
+                       char *prim);
+static mw compile_word_prim(fobj_t * fo, char *prim);
 static mw forth_initialize(fobj_t * fo);
 static void on_err(fobj_t * fo);
 static mw forth_system_calls(fobj_t * fo, mw enum_syscall);
 
 /* IO wrappers*/
+
+static enum bool my_isspace(char x)
+{
+        switch (x) {
+        case '\n':
+        case '\r':
+        case '\t':
+        case '\v':
+        case ' ':
+        case '\f':
+                return true;
+        default:
+                return false;
+        }
+}
+
+static enum bool my_isdigit(char x)
+{
+        switch (x) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+                return true;
+        default:
+                return false;
+        }
+}
 
 /*Either get input from stdin, a string or a file*/
 static int wrap_get(fio_t * in_file)
@@ -108,12 +141,13 @@ static mw get_word(char *str, const mw str_len, fio_t * io_file)
                 str[i] = '\0';
 
         /*discard spaces */
-        for (c = wrap_get(io_file); ISSPACE(c); c = wrap_get(io_file))
+        for (c = wrap_get(io_file); my_isspace(c); c = wrap_get(io_file))
                 if (c == EOF)
                         return ERR_FAILURE;
 
         /*copy word */
-        for (i = 0; (i < str_len) && (!ISSPACE(c)); i++, c = wrap_get(io_file)) {
+        for (i = 0; (i < str_len) && (!my_isspace(c));
+             i++, c = wrap_get(io_file)) {
                 str[i] = (char)c;
                 if (c == EOF)
                         return ERR_FAILURE;
@@ -132,10 +166,10 @@ static mw get_word(char *str, const mw str_len, fio_t * io_file)
 static mw isnumber(const char s[])
 {
         mw x = 0;
-        if (((s[x] == '-') || (s[x] == '+')) && ISDIGIT(s[x + 1]))
+        if (((s[x] == '-') || (s[x] == '+')) && my_isdigit(s[x + 1]))
                 x++;
         for (; s[x] != '\0'; x++) {
-                if (!ISDIGIT(s[x])) {
+                if (!my_isdigit(s[x])) {
                         return false;
                 }
         }
@@ -173,12 +207,12 @@ static mw my_strlen(const char s[], int maxlen)
 static mw kr_atoi(const char s[])
 {
         mw i, n, sign;
-        for (i = 0; ISSPACE(s[i]); i++) ;
+        for (i = 0; my_isspace(s[i]); i++) ;
 
         sign = (s[i] == '-') ? -1 : 1;
         if ((s[i] == '+') || (s[i] == '-'))
                 i++;
-        for (n = 0; ISDIGIT(s[i]); i++) {
+        for (n = 0; my_isdigit(s[i]); i++) {
                 n = 10 * n + (mw) (s[i] - '0');
         }
         return sign * n;
@@ -190,10 +224,10 @@ static mw kr_atoi(const char s[])
 static char *my_itoa(mw value, int base)
 {
         mw v = value, i = 0;
-        static char buf[MAX_ERR_STR]; 
+        static char buf[MAX_ERR_STR];
 
-        for(i=0;i<MAX_ERR_STR;i++)
-          buf[i] = '\0';
+        for (i = 0; i < MAX_ERR_STR; i++)
+                buf[i] = '\0';
 
         i = MAX_ERR_STR - 2;
 
@@ -291,7 +325,14 @@ static mw find_word(fobj_t * fo)
         return ERR_OK;
 }
 
-static mw compile_word(enum forth_primitives fp, fobj_t * fo)
+void my_strcpy(char *destination, char *source)
+{
+        while (*source != '\0')
+                *destination++ = *source++;
+}
+
+static mw compile_word(enum forth_primitives fp, fobj_t * fo, enum bool flag,
+                       char *prim)
 {
         mw *reg = fo->reg, *dic = fo->dic;
         char *str = fo->str;
@@ -305,12 +346,27 @@ static mw compile_word(enum forth_primitives fp, fobj_t * fo)
         DIC++;
         dic[DIC] = fp;
         DIC++;
-        if (get_word(str + STR, SM_inputBufLen, in_file) != ERR_OK)
+        if (flag)
+                my_strcpy(str + STR, prim);
+        else if (get_word(str + STR, SM_inputBufLen, in_file) != ERR_OK)
                 return ERR_FAILURE;
         STR += my_strlen(str + STR, MAX_STRLEN) + 1;
         return ERR_OK;
 }
 
+/*should add error checking.*/
+static mw compile_word_prim(fobj_t * fo, char *prim)
+{
+        mw *reg = fo->reg, *dic = fo->dic, ret;
+        ret = compile_word(COMPILE, fo, true, prim);
+        dic[DIC] = OP0;
+        DIC++;
+        OP0++;
+        /*Here in case I want to return error codes instead. */
+        return ret;
+}
+
+#define COMPILE_PRIM(X)  if(compile_word_prim(fo,(X))!=ERR_OK){ return ERR_FAILURE; }
 static mw forth_initialize(fobj_t * fo)
 {
         /*copy pointers, removes level of indirection */
@@ -339,15 +395,15 @@ static mw forth_initialize(fobj_t * fo)
         PWD = 1;
 
         /*immediate words */
-        if (compile_word(DEFINE, fo) != ERR_OK) {
+        if (compile_word(DEFINE, fo, true, ":") != ERR_OK) {
                 return ERR_FAILURE;
         }
-        if (compile_word(IMMEDIATE, fo) != ERR_OK) {
+        if (compile_word(IMMEDIATE, fo, true, "immediate") != ERR_OK) {
                 return ERR_FAILURE;
         }
 
         /*define a special word (read) */
-        if (compile_word(COMPILE, fo) != ERR_OK) {
+        if (compile_word(COMPILE, fo, true, "read") != ERR_OK) {
                 return ERR_FAILURE;
         }
         OP0 = DIC;
@@ -365,20 +421,58 @@ static mw forth_initialize(fobj_t * fo)
         /*...end special word definition */
 
         /*more immediate words */
-        if (compile_word(COMMENT, fo) != ERR_OK) {
+        if (compile_word(COMMENT, fo, true, "\\") != ERR_OK) {
                 return ERR_FAILURE;
         }
+        OP0 = EXIT;
+        COMPILE_PRIM("exit");
+        COMPILE_PRIM("br");
+        COMPILE_PRIM("?br");
+        COMPILE_PRIM("+");
+        COMPILE_PRIM("-");
+        COMPILE_PRIM("*");
+        COMPILE_PRIM("mod");
+        COMPILE_PRIM("/");
+        COMPILE_PRIM("lshift");
+        COMPILE_PRIM("rshift");
+        COMPILE_PRIM("and");
+        COMPILE_PRIM("or");
+        COMPILE_PRIM("invert");
+        COMPILE_PRIM("xor");
+        COMPILE_PRIM("1+");
+        COMPILE_PRIM("1-");
+        COMPILE_PRIM("=");
+        COMPILE_PRIM("<");
+        COMPILE_PRIM(">");
+        COMPILE_PRIM("@reg");
+        COMPILE_PRIM("@");
+        COMPILE_PRIM("pick");
+        COMPILE_PRIM("@str");
+        COMPILE_PRIM("!reg");
+        COMPILE_PRIM("!");
+        COMPILE_PRIM("!var");
+        COMPILE_PRIM("!str");
+        COMPILE_PRIM("key");
+        COMPILE_PRIM("emit");
+        COMPILE_PRIM("dup");
+        COMPILE_PRIM("drop");
+        COMPILE_PRIM("swap");
+        COMPILE_PRIM("over");
+        COMPILE_PRIM(">r");
+        COMPILE_PRIM("r>");
+        COMPILE_PRIM("tail");
+        COMPILE_PRIM("'");
+        COMPILE_PRIM(",");
+        COMPILE_PRIM("printnum");
+        COMPILE_PRIM("get_word");
+        COMPILE_PRIM("strlen");
+        COMPILE_PRIM("isnumber");
+        COMPILE_PRIM("strnequ");
+        COMPILE_PRIM("find");
+        COMPILE_PRIM("execute");
+        COMPILE_PRIM("kernel");
+        COMPILE_PRIM("error");
 
-        /*define 'compile only' words */
-        ECUZ(SM_maxDic - (LAST_PRIMITIVE - EXIT), DIC, ERR_DIC, err_file);
-        for (OP0 = EXIT; OP0 < LAST_PRIMITIVE;) {
-                if (compile_word(COMPILE, fo) != ERR_OK) {
-                        return ERR_FAILURE;
-                }
-                dic[DIC] = OP0;
-                DIC++;
-                OP0++;
-        }
         ECUZ(SM_maxRet, RET, ERR_RET, err_file);
         RET++;
         ret[RET] = DIC;
@@ -622,7 +716,7 @@ mw forth_interpreter(fobj_t * fo)
                         break;
                 case DEFINE:
                         CPF = (mw) true;
-                        if (compile_word(COMPILE, fo) != ERR_OK) {
+                        if (compile_word(COMPILE, fo, false, NULL) != ERR_OK) {
                                 return ERR_FAILURE;
                         }
                         ECUZ(SM_maxDic, DIC, ERR_DIC, err_file);

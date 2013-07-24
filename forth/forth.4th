@@ -1,16 +1,8 @@
-: immediate read \ exit br ?br + - * % / lshift rshift 
-and or invert xor 1+ 1- = < > @reg @ pick @str 
-!reg ! !var !str key emit dup drop swap over >r r> 
-tail ' , printnum get_word strlen isnumber strnequ find 
-execute kernel error
-
 \ Howe Forth: Start up code.
 \ @author         Richard James Howe.
 \ @copyright      Copyright 2013 Richard James Howe.
 \ @license        LGPL      
 \ @email          howe.r.j.89@gmail.com
-\ This notice cannot go at the top of the file, comments
-\  will not work until the comment symbol is read in.
 
 : true 1 exit
 : false 0 exit
@@ -84,7 +76,7 @@ find on_err exf !reg    \ Write the executable token for on_err into the diction
 \ : ?dup dup if dup then ;
 \ : negate -1 * ;
 \ : abs dup 0 < if negate then ;
-\ : -rot rot rot ;
+: -rot rot rot ;
 
 : 2drop drop drop ;
 : 2dup over over ;
@@ -228,52 +220,6 @@ find on_err exf !reg    \ Write the executable token for on_err into the diction
 : variable create , does> ;
 : array create allot does> + ;
 
-: ps 2dup - prnn ." :" tab ;
-: _show 2dup - @ prnn tab 1- ;
-: show \ ( from to -- ) \ Show dictionary storage
-    tuck swap -
-    begin
-        ps
-        _show _show _show _show dup 0 <
-        cr
-    until
-    2drop
-;
-
-: _shstr
-    2dup - @str emit tab 1- 
-;
-: shstr \ ( from to -- ) \ Show string storage contents
-    tuck
-    swap -
-    begin
-        _shstr 
-        _shstr 
-        _shstr 
-        _shstr dup 0 <
-        cr
-    until
-    2drop
-;
-
-: regs \ ( -- ) \ Print off register contents
-    16 @reg 1- 0 \ register 16 holds the maximum number of registers
-    begin
-        dup prnn ." :" tab dup @reg . 1+
-        2dup =
-    until
-;
-
-: words
-    pwd @reg 
-    begin
-        dup 1+ @ prn
-        space
-        @ dup @ 0 =   
-    until
-    cr
-    drop
-;
 \ Store filenames (temporary) here.
 str @reg dup iobl @reg + str !reg constant filename
 
@@ -315,6 +261,85 @@ str @reg dup iobl @reg + str !reg constant filename
   cr
 ;
 
+0 variable i
+0 variable j
+
+: i! i ! ;
+: j! j ! ;
+: i@ i @ ;
+: j@ j @ ;
+
+: do immediate
+  ' j! ,
+  ' i! ,
+  here
+;
+
+: not
+  if 0 else 1 then
+;
+
+: >=
+  < not
+;
+
+: (++i)>=j
+  i@ 1+ i! i@ j@ >= 
+;
+
+: loop immediate
+  ' (++i)>=j ,
+  ' ?br ,
+  here - ,
+;
+
+
+: _show i@ @ prnn tab i@ 1+ i!  ;
+: show \ ( from to -- ) \ Show dictionary storage
+  do
+        i@ prnn ." :" tab
+        _show _show _show _show i@ 1- i!
+        cr
+  loop
+;
+
+: _shstr
+    2dup - @str emit tab 1- 
+;
+: shstr \ ( from to -- ) \ Show string storage contents
+    tuck
+    swap -
+    begin
+        _shstr 
+        _shstr 
+        _shstr 
+        _shstr dup 0 <
+        cr
+    until
+    2drop
+;
+
+: regs \ ( -- ) \ Print off register contents
+    16 @reg 1- 0 \ register 16 holds the maximum number of registers
+    begin
+        dup prnn ." :" tab dup @reg . 1+
+        2dup =
+    until
+;
+
+: words
+    pwd @reg 
+    begin
+        dup 1+ @ prn
+        space
+        @ dup @ 0 =   
+    until
+    cr
+    drop
+;
+
+
+
 \ Shows the header of a word.
 : header
   find 2- dup 40 + show
@@ -329,8 +354,7 @@ str @reg dup iobl @reg + str !reg constant filename
 : blu esc ." [34;1m" ;    \ ...to blue.
 : nrm esc ." [0m" cr ;    \ ...to the default.
 
-: vocabulary create pwd @reg , does> @ pwd !reg ;
-vocabulary forth
+: cursor esc ." [" prnn ." ;" prnn ." H" fflush kernel ;
 
 .( Base system loaded ) cr
 
@@ -493,7 +517,7 @@ vocabulary forth
 
 .( "Forth H2 Assembler" loaded, assembling source now. ) cr
 foutput ../vhdl/mem_h2.binary
-finput h2.fs
+finput h2.4th
 
 \ Welcome message.
 \ rst clr grn
