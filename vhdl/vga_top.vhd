@@ -102,7 +102,6 @@ begin
     din_n  <= din_c;
     addr_n <= addr_c;
     
-
     if crx_we = '1' then
       ocrx_n <= crx_oreg;
     end if;

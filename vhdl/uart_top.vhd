@@ -19,10 +19,11 @@ entity uart_top is
     clk:    in  std_logic;  -- clock
     rst:    in  std_logic;
 
-    rx:       in  std_logic;              -- uart rx 
-    tx:       out std_logic :=      '0';  -- uart tx
+    rx:     in  std_logic;              -- uart rx 
+    tx:     out std_logic :=      '0';  -- uart tx
 
-    
+    rx_i:   out std_logic := '0'; -- uart rx interrupt line
+    tx_i:   out std_logic := '0'; -- uart tx interrupt line
 
   );
 end entity
@@ -37,6 +38,26 @@ architecture behav of uart_top is
   signal  ack_din, ack_dout:        std_logic:= '0';
   signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
 begin
+
+  uart_control_registers_ns: process(clk)
+  begin
+    if rst = '1' then
+       uart_din_c  <=  (others => '0');
+       uart_dout_c <=  (others => '0');
+       ack_din_c   <=  '0';
+       stb_dout_c  <=  '0';
+    elsif rising_edge(clk) then
+       uart_din_c  <=  uart_din_n; 
+       ack_din_c   <=  ack_din_n;
+       uart_dout_c <=  uart_dout_n;
+       stb_dout_c  <=  stb_dout_n;
+    end if;
+  end process;
+
+  uart_control_registers_io: process()
+  begin
+
+  end process;
 
   uart_deglitch: process (clk)
   begin
