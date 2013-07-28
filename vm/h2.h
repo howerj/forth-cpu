@@ -8,6 +8,13 @@
 
 typedef uint16_t mw;
 
+enum vm_err {
+        err_ok,
+        err_malloc,
+        err_cycles,
+        err_instruction
+};
+
 enum h2_alu {
         alu_tos,
         alu_nos,
