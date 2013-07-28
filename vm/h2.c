@@ -69,21 +69,51 @@ int h2_cpu(h2_state_t * state)
                                  * insn & 0x000C , stack delta return
                                  * insn & 0x1F00,  alu
                                  */
+                                fprintf(stdout,"(h2_alu ");
+
+                                if((insn & 0x0010)){}
+                                else{}
+
+                                if((insn & 0x0020)){}
+                                else{}
+
+                                if((insn & 0x0040)){}
+                                else{}
+
+                                if((insn & 0x0080)){}
+                                else{}
+
+
 
                                 /* dd stack delta, implements signed addition */
                                 if ((insn & 0x0003) == 0x0) {
+                                  fprintf(stdout,"(dd +/-0) ");
                                 } else if ((insn & 0x0003) == 0x1) {
+                                  fprintf(stdout,"(dd +1) ");
+                                  st->datap++;
                                 } else if ((insn & 0x0003) == 0x2) {
+                                  fprintf(stdout,"(dd -2) ");
+                                  st->datap-=2;
                                 } else if ((insn & 0x0003) == 0x3) {
+                                  fprintf(stdout,"(dd -1) ");
+                                  st->datap-=1;
                                 }
 
                                 /* rd stack delta, implements signed addition */
                                 if ((insn & 0x000C) == (0x0 << 2)) {
+                                  fprintf(stdout,"(rd +/-0) ");
                                 } else if ((insn & 0x000C) == (0x1 << 2)) {
+                                  fprintf(stdout,"(rd +1) ");
+                                  st->retnp++;
                                 } else if ((insn & 0x000C) == (0x2 << 2)) {
+                                  fprintf(stdout,"(rd -2) ");
+                                  st->retnp-=2;
                                 } else if ((insn & 0x000C) == (0x3 << 2)) {
+                                  fprintf(stdout,"(rd -1) ");
+                                  st->retnp-=1;
                                 }
 
+                                fprintf(stdout,")\n");
                                 (st->pc)++;
                                 break;
                         default:       /*something went wrong */
