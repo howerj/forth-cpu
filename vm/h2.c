@@ -11,11 +11,11 @@ h2_state_t *h2_cpu_init(void){
   return st;
 }*/
 
-int h2_cpu(h2_state_t * state)
+int h2_cpu(h2_state_t * st)
 {
-        h2_state_t *st = state;
         mw insn;                /*the instruction or ram[pc] */
         mw is_x;                /*is_alu,is_jmp,is_call,is_cjmp */
+        mw alu_op;
 
         /*
            if (st == NULL){
@@ -69,51 +69,128 @@ int h2_cpu(h2_state_t * state)
                                  * insn & 0x000C , stack delta return
                                  * insn & 0x1F00,  alu
                                  */
-                                fprintf(stdout,"(h2_alu ");
+                                fprintf(stdout, "(h2_alu ");
 
-                                if((insn & 0x0010)){}
-                                else{}
+                                alu_op = (insn & 0x1F00) >> 8;
+                                fprintf(stdout, "(alu %x) ",
+                                        alu_op);
 
-                                if((insn & 0x0020)){}
-                                else{}
+                                switch (alu_op) {
+                                case alu_tos:
+                                        break;
+                                case alu_nos:
+                                        break;
+                                case alu_rtos:
+                                        break;
+                                case alu_din:
+                                        break;
+                                case alu_depth:
+                                        break;
+                                case alu_or:
+                                        break;
+                                case alu_and:
+                                        break;
+                                case alu_xor:
+                                        break;
+                                case alu_xnor:
+                                        break;
+                                case alu_not:
+                                        break;
+                                case alu_add:
+                                        break;
+                                case alu_sub:
+                                        break;
+                                case alu_sll:
+                                        break;
+                                case alu_srl:
+                                        break;
+                                case alu_rol:
+                                        break;
+                                case alu_ror:
+                                        break;
+                                case alu_mul:
+                                        break;
+                                case alu_sLT:
+                                        break;
+                                case alu_equ:
+                                        break;
+                                case alu_uLT:
+                                        break;
+                                case alu_A:
+                                        break;
+                                case alu_B:
+                                        break;
+                                case alu_C:
+                                        break;
+                                case alu_D:
+                                        break;
+                                case alu_E:
+                                        break;
+                                case alu_F:
+                                        break;
+                                case alu_G:
+                                        break;
+                                case alu_H:
+                                        break;
+                                case alu_I:
+                                        break;
+                                case alu_dec:
+                                        break;
+                                case alu_ioDin:
+                                        break;
+                                case alu_ioW:
+                                        break;
+                                default:
+                                        fprintf(stderr,
+                                                "(error \"Incorrect ALU instruction\")\n");
+                                        ST_ERROR(err_instruction);
+                                }
 
-                                if((insn & 0x0040)){}
-                                else{}
+                                if ((insn & 0x0010)) {
+                                } else {
+                                }
 
-                                if((insn & 0x0080)){}
-                                else{}
+                                if ((insn & 0x0020)) {
+                                } else {
+                                }
 
+                                if ((insn & 0x0040)) {
+                                } else {
+                                }
 
+                                if ((insn & 0x0080)) {
+                                } else {
+                                }
 
                                 /* dd stack delta, implements signed addition */
                                 if ((insn & 0x0003) == 0x0) {
-                                  fprintf(stdout,"(dd +/-0) ");
+                                        fprintf(stdout, "(dd +/-0) ");
                                 } else if ((insn & 0x0003) == 0x1) {
-                                  fprintf(stdout,"(dd +1) ");
-                                  st->datap++;
+                                        fprintf(stdout, "(dd +1) ");
+                                        st->datap++;
                                 } else if ((insn & 0x0003) == 0x2) {
-                                  fprintf(stdout,"(dd -2) ");
-                                  st->datap-=2;
+                                        fprintf(stdout, "(dd -2) ");
+                                        st->datap -= 2;
                                 } else if ((insn & 0x0003) == 0x3) {
-                                  fprintf(stdout,"(dd -1) ");
-                                  st->datap-=1;
+                                        fprintf(stdout, "(dd -1) ");
+                                        st->datap -= 1;
                                 }
 
                                 /* rd stack delta, implements signed addition */
                                 if ((insn & 0x000C) == (0x0 << 2)) {
-                                  fprintf(stdout,"(rd +/-0) ");
+                                        fprintf(stdout, "(rd +/-0) ");
                                 } else if ((insn & 0x000C) == (0x1 << 2)) {
-                                  fprintf(stdout,"(rd +1) ");
-                                  st->retnp++;
+                                        fprintf(stdout, "(rd +1) ");
+                                        st->retnp++;
                                 } else if ((insn & 0x000C) == (0x2 << 2)) {
-                                  fprintf(stdout,"(rd -2) ");
-                                  st->retnp-=2;
+                                        fprintf(stdout, "(rd -2) ");
+                                        st->retnp -= 2;
                                 } else if ((insn & 0x000C) == (0x3 << 2)) {
-                                  fprintf(stdout,"(rd -1) ");
-                                  st->retnp-=1;
+                                        fprintf(stdout, "(rd -1) ");
+                                        st->retnp -= 1;
                                 }
 
-                                fprintf(stdout,")\n");
+                                fprintf(stdout, ")\n");
                                 (st->pc)++;
                                 break;
                         default:       /*something went wrong */
