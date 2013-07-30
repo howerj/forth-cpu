@@ -18,7 +18,7 @@ entity h2 is
         io_din:     in  std_logic_vector(15 downto 0);
         io_dout:    out std_logic_vector(15 downto 0);
         io_daddr:   out std_logic_vector(15 downto 0);
-        -- RAM interface
+        -- RAM interface, Dual port
         pco:        out std_logic_vector(12 downto 0);
         insn:       in  std_logic_vector(15 downto 0);
 
@@ -32,44 +32,41 @@ end;
 architecture rtl of h2 is
 
     -- Program counter.
-    signal pc_c      :   std_logic_vector(12 downto 0) := (others => '0');     
-    signal pc_n      :   std_logic_vector(12 downto 0) := (others => '0');
-
+    signal pc_c:          std_logic_vector(12 downto 0) := (others => '0');     
+    signal pc_n:          std_logic_vector(12 downto 0) := (others => '0');
+    -- Stack Type!
     type   stk  is array (31 downto 0) of std_logic_vector(15 downto 0);
     -- Variable stack (RAM Template)
-    signal vstkp_c   :   std_logic_vector(4 downto 0) := (others => '0');
-    signal vstkp_n   :   std_logic_vector(4 downto 0) := (others => '0');
-    signal vstk_ram    :   stk := (others => (others => '0'));
+    signal vstkp_c:       std_logic_vector(4 downto 0)  := (others => '0');
+    signal vstkp_n:       std_logic_vector(4 downto 0)  := (others => '0');
+    signal vstk_ram:      stk := (others => (others => '0'));
     -- Return stack (RAM Template)
-    signal rstkp_c   :   std_logic_vector(4 downto 0) := (others => '0');
-    signal rstkp_n   :   std_logic_vector(4 downto 0) := (others => '0');
-    signal rstk_ram    :   stk := (others => (others => '0'));
+    signal rstkp_c:       std_logic_vector(4 downto 0)  := (others => '0');
+    signal rstkp_n:       std_logic_vector(4 downto 0)  := (others => '0');
+    signal rstk_ram:      stk := (others => (others => '0'));
     -- Stack deltas
-    signal dd        :   std_logic_vector(4 downto 0) := (others => '0');
-    signal rd        :   std_logic_vector(4 downto 0) := (others => '0');
-
+    signal dd:            std_logic_vector(4 downto 0)  := (others => '0');
+    signal rd:            std_logic_vector(4 downto 0)  := (others => '0');
     -- is_x signals, booleans, does the instruction have a certain property.
-    signal is_alu    :   std_logic                    := '0';
-    signal is_lit    :   std_logic                    := '0';
-    signal is_jmp    :   std_logic                    := '0';
-    signal is_cjmp   :   std_logic                    := '0';
-    signal is_call   :   std_logic                    := '0';
-
+    signal is_alu:        std_logic                     := '0';
+    signal is_lit:        std_logic                     := '0';
+    signal is_jmp:        std_logic                     := '0';
+    signal is_cjmp:       std_logic                     := '0';
+    signal is_call:       std_logic                     := '0';
     -- Top of stack, and next on stack.
-    signal tos_c     :   std_logic_vector(15 downto 0):= (others => '0');
-    signal tos_n     :   std_logic_vector(15 downto 0):= (others => '0');
-    signal nos       :   std_logic_vector(15 downto 0):= (others => '0');
+    signal tos_c:         std_logic_vector(15 downto 0) := (others => '0');
+    signal tos_n:         std_logic_vector(15 downto 0) := (others => '0');
+    signal nos:           std_logic_vector(15 downto 0) := (others => '0');
     -- Top of return stack.
-    signal rtos_c    :   std_logic_vector(15 downto 0):= (others => '0');
-
+    signal rtos_c:        std_logic_vector(15 downto 0) := (others => '0');
     -- aluop is what is fed into the alu.
-    signal aluop: std_logic_vector(4 downto 0)      := (others => '0');
+    signal aluop:         std_logic_vector(4 downto 0)  := (others => '0');
     -- pc_plus_1, forces fewer adders.
-    signal pc_plus_one: std_logic_vector(12 downto 0):= (others => '0');
+    signal pc_plus_one:   std_logic_vector(12 downto 0) := (others => '0');
     -- Stack signals
-    signal dstkW:   std_logic                       := '0';
-    signal rstkD:   std_logic_vector(15 downto 0)   := (others => '0');
-    signal rstkW:   std_logic                       := '0';
+    signal dstkW:         std_logic                     := '0';
+    signal rstkD:         std_logic_vector(15 downto 0) := (others => '0');
+    signal rstkW:         std_logic                     := '0';
 begin
     -- is_x
     is_alu  <=  '1' when insn(15 downto 13) = "011" else '0';
