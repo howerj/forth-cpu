@@ -86,35 +86,48 @@ int h2_cpu(h2_state_t * st)
                                         break;
                                 case alu_depth: st->tos = (mw)((st->datap << 11) | (st->retnp ));
                                         break;
-                                case alu_or:
+                                case alu_or: 
+                                        st->tos =  st->data[st->datap-1] | st->tos;
                                         break;
-                                case alu_and:
+                                case alu_and: 
+                                        st->tos =  st->data[st->datap-1] & st->tos;
                                         break;
                                 case alu_xor:
+                                        st->tos =  st->data[st->datap-1] ^ st->tos;
                                         break;
                                 case alu_xnor:
+                                        st->tos =  ~(st->data[st->datap-1] ^ st->tos);
                                         break;
                                 case alu_not:
+                                        st->tos =  ~st->tos;
                                         break;
-                                case alu_add:
+                                case alu_add: 
+                                        st->tos =  st->data[st->datap-1] + st->tos;
                                         break;
-                                case alu_sub: st->tos =  st->data[st->datap-1] - st->tos;
+                                case alu_sub: 
+                                        st->tos =  st->data[st->datap-1] - st->tos;
                                         break;
                                 case alu_sll:
+                                        st->tos =  st->data[st->datap-1] << (st->tos & 0x000F);
                                         break;
                                 case alu_srl:
+                                        st->tos =  st->data[st->datap-1] >> (st->tos & 0x000F);
                                         break;
                                 case alu_rol:
                                         break;
                                 case alu_ror:
                                         break;
                                 case alu_mul:
+                                        st->tos =  (mw)((st->data[st->datap-1] & 0x00FF) * (st->tos & 0x00FF));
                                         break;
                                 case alu_sLT:
+                                        st->tos =  (signed)st->data[st->datap-1] < (signed)st->tos;
                                         break;
                                 case alu_equ:
+                                        st->tos =  st->data[st->datap-1] == st->tos;
                                         break;
                                 case alu_uLT:
+                                        st->tos =  st->data[st->datap-1] < st->tos;
                                         break;
                                 case alu_A:
                                         break;
@@ -135,6 +148,7 @@ int h2_cpu(h2_state_t * st)
                                 case alu_I:
                                         break;
                                 case alu_dec:
+                                        st->tos--;
                                         break;
                                 case alu_ioDin:
                                         break;
