@@ -45,47 +45,47 @@ all:
 
 ##
 ## Simulation ==============================================================
-an_mem_font: mem_font.vhd
+mem_font.o: mem_font.vhd
 	@echo "ghdl -a mem_font.vhd"
 	@ghdl -a mem_font.vhd
 
-an_mem_text: mem_text.vhd
+mem_text.o: mem_text.vhd
 	@echo "ghdl -a mem_text.vhd"
 	@ghdl -a mem_text.vhd
 
-an_ctrm: ctrm.vhd
+ctrm.o: ctrm.vhd
 	@echo "ghdl -a ctrm.vhd"
 	@ghdl -a ctrm.vhd
 
-an_losr: losr.vhd
+losr.o: losr.vhd
 	@echo "ghdl -a losr.vhd"
 	@ghdl -a losr.vhd
 
-an_vga80x40: an_ctrm an_losr vga80x40.vhd
+vga80x40.o: ctrm.o losr.o vga80x40.vhd
 	@echo "ghdl -a vga80x40.vhd"
 	@ghdl -a vga80x40.vhd
 
-an_vga_top: an_mem_font an_mem_text an_vga80x40 vga_top.vhd
+vga_top.o: mem_font.o mem_text.o vga80x40.o vga_top.vhd
 	@echo "ghdl -a vga_top.vhd"
 	@ghdl -a vga_top.vhd
 
-an_uart: uart.vhd
+uart.o: uart.vhd
 	@echo "ghdl -a uart.vhd"
 	@ghdl -a uart.vhd
 
-an_h2: h2.vhd
+h2.o: h2.vhd
 	@echo "ghdl -a h2.vhd"
 	@ghdl -a h2.vhd
 
-an_mem_h2: mem_h2.vhd
+mem_h2.o: mem_h2.vhd
 	@echo "ghdl -a mem_h2.vhd"
 	@ghdl -a mem_h2.vhd
 
-an_cpu: an_h2 an_mem_h2 cpu.vhd
+cpu.o: h2.o mem_h2.o cpu.vhd
 	@echo "ghdl -a cpu.vhd"
 	@ghdl -a cpu.vhd
 
-simulation: an_cpu an_uart an_vga_top top_level.vhd test_bench.vhd
+simulation: cpu.o uart.o vga_top.o top_level.vhd test_bench.vhd
 	ghdl -a top_level.vhd
 	ghdl -a test_bench.vhd
 	ghdl -e test_bench
