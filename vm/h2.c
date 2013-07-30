@@ -78,13 +78,16 @@ int h2_cpu(h2_state_t * st)
                                 switch (alu_op) {
                                 case alu_tos: /* tos = tos */
                                         break;
-                                case alu_nos: st->tos = st->data[st->datap-1];
+                                case alu_nos: 
+                                        st->tos = st->data[st->datap-1];
                                         break;
                                 case alu_rtos:
                                         break;
                                 case alu_din:
+                                        st->tos = st->data[st->tos & 0x1FFF];
                                         break;
-                                case alu_depth: st->tos = (mw)((st->datap << 11) | (st->retnp ));
+                                case alu_depth: 
+                                        st->tos = (mw)((st->datap << 11) | (st->retnp ));
                                         break;
                                 case alu_or: 
                                         st->tos =  st->data[st->datap-1] | st->tos;
@@ -151,8 +154,10 @@ int h2_cpu(h2_state_t * st)
                                         st->tos--;
                                         break;
                                 case alu_ioDin:
+                                        /*fget*/
                                         break;
                                 case alu_ioW:
+                                        /*fput*/
                                         break;
                                 default:
                                         fprintf(stderr,

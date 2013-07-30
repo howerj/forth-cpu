@@ -53,8 +53,10 @@ enum h2_alu {
 struct h2_state {
         int error;              /*Any error code returned */
         int cycles;             /*Number of cycles to run for */
-        FILE *input;            /*Input to processor*/
-        FILE *output;           /*Output of processor*/
+        /* Need to sort out IO, should it be a 2D array or an array of FILE *ptr?
+        FILE *input;            //Input to processor
+        FILE *output;           //Output of processor
+        */
         mw ram[RAM_SZ];         /*Main RAM */
         mw tos;                 /*Top of data stack */
         mw data[VAR_SZ];        /*Data stack */
