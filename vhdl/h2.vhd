@@ -5,6 +5,16 @@
 -- @copyright      Copyright 2013 Richard James Howe.
 -- @license        LGPL      
 -- @email          howe.r.j.89@gmail.com
+
+-- TODO:
+--  * Interrupts
+--  * Move around ALU instructions, especially I/O interface.
+--  * Testing
+--  * Make CPU more generic:
+--    - instead of (15 downto 0) have (15_bit downto 0_bit)
+--      where 15_bit and 0_bit are constants that can be moved
+--      up and down relative to each other.
+
 library ieee,work,std;
 use ieee.std_logic_1164.all; 
 use ieee.numeric_std.all;
