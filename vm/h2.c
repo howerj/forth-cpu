@@ -75,7 +75,7 @@ int h2_cpu(h2_state_t * st)
                 insn = (st->ram[st->pc % RAM_SZ]);      /*makes sure this is in bounds */
 
                 if (insn & 0x8000) {    /*literal */
-                        fprintf(stdout, "(literal (tos %d) (dp %d))\n",
+                        fprintf(stdout, "        (literal (tos %d) (dp %d))\n",
                                 st->tos, st->datap);
                         st->data[++(st->datap) % VAR_SZ] = st->tos;
                         st->tos = insn & 0x7FFF;
@@ -274,6 +274,6 @@ int h2_cpu(h2_state_t * st)
                         }
 
                 }
-          fprintf(stdout, "  )\n");
+          fprintf(stdout, "  )\n\n");
         }
 }
