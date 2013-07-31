@@ -17,6 +17,7 @@ enum vm_err {
         err_instruction
 };
 
+
 enum h2_alu {
         alu_tos,
         alu_nos,

@@ -11,18 +11,17 @@ int main(void)
         FILE *ram_init, *ram_final;
         h2_state_t *st = calloc(1, sizeof(h2_state_t));
 
+        fprintf(stdout,"(h2 \"H2 CPU Simulation running for %d cycles\"",CYCLES);
+
         if (st == NULL) {
-                fprintf(stderr, "(error \"Could not calloc().\")\n");
+                fprintf(stdout, "(error \"Could not calloc().\")\n");
                 return 1;
         }
 
         st->cycles = CYCLES;
 
-        fprintf(stderr, "H2 CPU Simulator. Running for %d clock cycles.\n",
-                st->cycles);
-
         if ((ram_init = fopen("../vhdl/mem_h2.binary", "r")) == NULL) {
-                fprintf(stderr,
+                fprintf(stdout,
                         "(error \"Could not open inital H2 CPU RAM file.\")\n");
                 goto FAIL;
         }
@@ -31,7 +30,7 @@ int main(void)
         for (i = 0; i < RAM_SZ; i++) {
 
                 if (fgets(s, LIN_SZ, ram_init) == NULL) {
-                        fprintf(stderr, "fgets()==NULL\n");
+                        fprintf(stdout, "(error \"fgets()==NULL\")\n");
                         goto FAIL;
                 }
 
@@ -40,14 +39,14 @@ int main(void)
                                 if (j >= (sizeof(mw) * 8)) {
                                         break;
                                 } else {
-                                        fprintf(stderr,
+                                        fprintf(stdout,
                                                 "(error \"Too few characters on line %d for ram_init.\")\n",
                                                 i);
                                         goto FAIL;
                                 }
                         }
                         if (s[j] != '0' && s[j] != '1') {
-                                fprintf(stderr,
+                                fprintf(stdout,
                                         "(error \"On line %d, character number %d, an invalid character (%c) was detected.\")\n",
                                         i, j, s[j]);
                                 goto FAIL;
@@ -60,10 +59,10 @@ int main(void)
 
         /*Execute h2 vm */
         ret = h2_cpu(st);
-        fprintf(stderr, "(error-returned (\"h2_cpu(st)\" %d))\n", ret);
+        fprintf(stdout, "(error-returned (\"h2_cpu(st)\" %d))\n)\n", ret);
 
         if ((ram_final = fopen("ram.log", "w")) == NULL) {
-                fprintf(stderr,
+                fprintf(stdout,
                         "(error \"Could not open output file for final RAM contents.\")\n");
                 goto FAIL;
         }
@@ -78,6 +77,6 @@ int main(void)
         return 0;
  FAIL:
         free(st);
-        fprintf(stderr, "(error \"Fission Mailed\")\n");
+        fprintf(stdout, "(error \"main.c Failure\")\n)\n");
         return 1;
 }

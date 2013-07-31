@@ -11,6 +11,43 @@ h2_state_t *h2_cpu_init(void){
   return st;
 }*/
 
+char aluop_str[][20]={
+    "tos",
+    "nos",
+    "rtos",
+    "din",
+    "depth",
+    "or",
+    "and",
+    "xor",
+    "xnor",
+    "not",
+    "add",
+    "sub",
+    "sll",
+    "srl",
+    "rol",
+    "ror",
+    "mul",
+    "sLT",
+    "equ",
+    "uLT",
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "dec",
+    "ioDin",
+    "ioW"
+};
+
+
+
 int h2_cpu(h2_state_t * st)
 {
         mw insn;                /*the instruction or ram[pc] */
@@ -25,20 +62,20 @@ int h2_cpu(h2_state_t * st)
         while (true) {
 
                 fprintf(stdout,
-                        "(h2 (cycles %d) (tos %d) (pc %d) (dp %d) (rp %d)\n",
+                        "  (state (cycles %d) (tos %d) (pc %d) (dp %d) (rp %d)\n",
                         st->cycles, st->tos, st->pc, st->datap, st->retnp);
 
                 if (st->cycles > 0) {
                         st->cycles--;
                 } else {
-                        fprintf(stdout, "    (error \"Ran out of cycles\"))\n");
+                        fprintf(stdout, "    (error \"Ran out of cycles\")\n  )\n");
                         ST_ERROR(err_cycles);
                 }
 
-                insn = (st->ram[st->pc & 0x1FFF]);      /*makes sure this is in bounds */
+                insn = (st->ram[st->pc % RAM_SZ]);      /*makes sure this is in bounds */
 
                 if (insn & 0x8000) {    /*literal */
-                        fprintf(stdout, "(h2_literal (tos %d) (dp %d))\n",
+                        fprintf(stdout, "(literal (tos %d) (dp %d))\n",
                                 st->tos, st->datap);
                         st->data[++(st->datap) % VAR_SZ] = st->tos;
                         st->tos = insn & 0x7FFF;
@@ -63,6 +100,10 @@ int h2_cpu(h2_state_t * st)
                                 }
                                 break;
                         case 0x4000:   /*call */
+                                fprintf(stdout, "    (call (pc %d) (pc_n %d))\n",
+                                        st->pc, insn & 0x1FFF);
+                                st->retn[++(st->retnp) % RET_SZ] = st->pc;
+                                st->pc = insn & 0x1FFF;
                                 break;
                         case 0x6000:   /*alu */
                                 /*This is the most complex section */
@@ -70,22 +111,22 @@ int h2_cpu(h2_state_t * st)
                                  * insn & 0x000C , stack delta return
                                  * insn & 0x1F00,  alu
                                  */
-                                fprintf(stdout, "    (alu ");
+                                fprintf(stdout, "    (alu\n");
 
                                 alu_op = (insn & 0x1F00) >> 8;
-                                fprintf(stdout, "(aluop %x) ",
-                                        alu_op);
+                                fprintf(stdout, "        (aluop %d %s)\n",
+                                        alu_op, aluop_str[alu_op]);
 
                                 switch (alu_op) {
                                 case alu_tos: /* tos = tos */
                                         break;
                                 case alu_nos: 
-                                        st->tos = st->data[(st->datap-1)&0x001F];
+                                        st->tos = st->data[(st->datap-1)%VAR_SZ];
                                         break;
                                 case alu_rtos:
                                         break;
                                 case alu_din:
-                                        st->tos = st->ram[st->tos & 0x1FFF];
+                                        st->tos = st->ram[st->tos % RAM_SZ];
                                         break;
                                 case alu_depth: 
                                         st->tos = (mw)((st->datap << 11) | (st->retnp ));
@@ -112,26 +153,26 @@ int h2_cpu(h2_state_t * st)
                                         st->tos =  st->data[st->datap-1] - st->tos;
                                         break;
                                 case alu_sll:
-                                        st->tos =  st->data[st->datap-1] << (st->tos & 0x000F);
+                                        st->tos =  st->data[(st->datap-1)%VAR_SZ] << (st->tos & 0x000F);
                                         break;
                                 case alu_srl:
-                                        st->tos =  st->data[st->datap-1] >> (st->tos & 0x000F);
+                                        st->tos =  st->data[(st->datap-1)%VAR_SZ] >> (st->tos & 0x000F);
                                         break;
                                 case alu_rol:
                                         break;
                                 case alu_ror:
                                         break;
                                 case alu_mul:
-                                        st->tos =  (mw)((st->data[st->datap-1] & 0x00FF) * (st->tos & 0x00FF));
+                                        st->tos =  (mw)((st->data[(st->datap-1)%VAR_SZ] & 0x00FF) * (st->tos & 0x00FF));
                                         break;
                                 case alu_sLT:
-                                        st->tos =  (signed)st->data[st->datap-1] < (signed)st->tos;
+                                        st->tos =  (signed)st->data[(st->datap-1)%VAR_SZ] < (signed)st->tos;
                                         break;
                                 case alu_equ:
-                                        st->tos =  st->data[st->datap-1] == st->tos;
+                                        st->tos =  st->data[(st->datap-1)%VAR_SZ] == st->tos;
                                         break;
                                 case alu_uLT:
-                                        st->tos =  st->data[st->datap-1] < st->tos;
+                                        st->tos =  st->data[(st->datap-1)%VAR_SZ] < st->tos;
                                         break;
                                 case alu_A:
                                         break;
@@ -162,77 +203,77 @@ int h2_cpu(h2_state_t * st)
                                         break;
                                 default:
                                         fprintf(stdout,
-                                                "    (error \"Incorrect ALU instruction\"))\n");
+                                                "    (error \"Incorrect ALU instruction\")\n  )\n");
                                         ST_ERROR(err_instruction);
                                 }
 
                                 /*Does all this go before of after the stack delta?*/
                                 if ((insn & 0x0010)) { /* R->PC */
-                                  fprintf(stdout,"(R->PC true) ");
-                                  st->pc = st->retn[st->retnp & 0x001F];
+                                  fprintf(stdout,"        (R->PC true)\n");
+                                  st->pc = st->retn[st->retnp % RET_SZ];
                                 } else {
-                                  fprintf(stdout,"(R->PC false) ");
+                                  fprintf(stdout,"        (R->PC false)\n");
                                 }
 
                                 if ((insn & 0x0020)) { /* N->[T] */
-                                  fprintf(stdout,"(N->[T] true) ");
-                                  st->ram[st->tos] = st->data[(st->datap-1)&0x001F];
+                                  fprintf(stdout,"        (N->[T] true)\n");
+                                  st->ram[st->tos] = st->data[(st->datap-1)%VAR_SZ];
                                 } else {
-                                  fprintf(stdout,"(N->[T] false) ");
+                                  fprintf(stdout,"        (N->[T] false)\n");
                                 }
 
                                 if ((insn & 0x0040)) { /* T->R */
-                                  fprintf(stdout,"(T->R true) ");
-                                  st->retn[st->retnp&0x001F] = st->tos;
+                                  fprintf(stdout,"        (T->R true)\n");
+                                  st->retn[st->retnp%RET_SZ] = st->tos;
                                 } else {
-                                  fprintf(stdout,"(T->R false) ");
+                                  fprintf(stdout,"        (T->R false)\n");
                                 }
 
                                 if ((insn & 0x0080)) { /* T->N */
-                                  fprintf(stdout,"(T->N true) ");
-                                  st->data[(st->datap-1)&0x001F] = st->tos;
+                                  fprintf(stdout,"        (T->N true)\n");
+                                  st->data[(st->datap-1)%VAR_SZ] = st->tos;
                                 } else {
-                                  fprintf(stdout,"(T->N false) ");
+                                  fprintf(stdout,"        (T->N false)\n");
                                 }
 
                                 /* dd stack delta, implements signed addition */
                                 if ((insn & 0x0003) == 0x0) {
-                                        fprintf(stdout, "(dd +/-0) ");
+                                        fprintf(stdout, "        (dd +/-0)\n");
                                 } else if ((insn & 0x0003) == 0x1) {
-                                        fprintf(stdout, "(dd +1) ");
+                                        fprintf(stdout, "        (dd +1)\n");
                                         st->datap++;
                                 } else if ((insn & 0x0003) == 0x2) {
-                                        fprintf(stdout, "(dd -2) ");
+                                        fprintf(stdout, "        (dd -2)\n");
                                         st->datap -= 2;
                                 } else if ((insn & 0x0003) == 0x3) {
-                                        fprintf(stdout, "(dd -1) ");
+                                        fprintf(stdout, "        (dd -1)\n");
                                         st->datap -= 1;
                                 }
 
                                 /* rd stack delta, implements signed addition */
                                 if ((insn & 0x000C) == (0x0 << 2)) {
-                                        fprintf(stdout, "(rd +/-0) ");
+                                        fprintf(stdout, "        (rd +/-0)\n");
                                 } else if ((insn & 0x000C) == (0x1 << 2)) {
-                                        fprintf(stdout, "(rd +1) ");
+                                        fprintf(stdout, "        (rd +1)\n");
                                         st->retnp++;
                                 } else if ((insn & 0x000C) == (0x2 << 2)) {
-                                        fprintf(stdout, "(rd -2) ");
+                                        fprintf(stdout, "        (rd -2)\n");
                                         st->retnp -= 2;
                                 } else if ((insn & 0x000C) == (0x3 << 2)) {
-                                        fprintf(stdout, "(rd -1) ");
+                                        fprintf(stdout, "        (rd -1)\n");
                                         st->retnp -= 1;
                                 }
 
-                                fprintf(stdout, ")\n");
+                                fprintf(stdout, "    )\n");
                                 (st->pc)++;
                                 break;
                         default:       /*something went wrong */
                                 fprintf(stdout,
-                                        "    (error \"Incorrect instruction\"))\n");
+                                        "    (error \"Incorrect instruction\")\n  )\n");
                                 ST_ERROR(err_instruction);
                         }
 
                 }
-          fprintf(stdout, ")\n");
+          fprintf(stdout, "  )\n");
         }
 }
