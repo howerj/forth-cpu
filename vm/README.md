@@ -1,14 +1,12 @@
-H2 Virtual Machine
-==================
+## H2 Virtual Machine
 
-As of "Mon May 27 17:00:17 BST 2013" the virtual machine is still a work in progress,
-there is a lot to do in order to make this program fully functional. It should be
-able to read specially marked up input data as input for all the peripherals and be
-able to output the correct signals that the system on a chip would. In the beginning
-however a simulation of the CPU core only is necessary.
+This is a virtual machine for the H2 CPU, it should allow for faster development
+on slower computers or at least as a part of a system for automatic verification
+and comparisons between this and the VHDL implementation.
 
-TODO
-----
+### TODO
 
-* Implement the Virtual Machine for the H2 CPU
+* Vigorous testing of both this VM and the VHDL implementation
 * Expand capabilities to include all the peripherals.
+* Automatic comparison of outputs
+
