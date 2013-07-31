@@ -3,8 +3,10 @@
 #define VAR_SZ 32
 #define RET_SZ 32
 
-#define false 0
-#define true  1
+enum boolean{
+  false,
+  true
+};
 
 typedef uint16_t mw;
 

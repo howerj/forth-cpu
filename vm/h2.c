@@ -19,19 +19,19 @@ int h2_cpu(h2_state_t * st)
 
         /*
            if (st == NULL){
-           fprintf(stderr,"(initializing)\n");
+           fprintf(stdout,"(initializing)\n");
            } */
 
         while (true) {
 
                 fprintf(stdout,
-                        "(h2 (cycles %d) (tos %d) (pc %d) (dp %d) (rp %d))\n",
+                        "(h2 (cycles %d) (tos %d) (pc %d) (dp %d) (rp %d)\n",
                         st->cycles, st->tos, st->pc, st->datap, st->retnp);
 
                 if (st->cycles > 0) {
                         st->cycles--;
                 } else {
-                        fprintf(stderr, "(error \"Ran out of cycles\")\n");
+                        fprintf(stdout, "    (error \"Ran out of cycles\"))\n");
                         ST_ERROR(err_cycles);
                 }
 
@@ -48,11 +48,12 @@ int h2_cpu(h2_state_t * st)
 
                         switch (is_x) {
                         case 0x0000:   /*jmp */
-                                fprintf(stdout, "(h2_jump (pc %d) (pc_n %d))\n",
+                                fprintf(stdout, "    (jump (pc %d) (pc_n %d))\n",
                                         st->pc, insn & 0x1FFF);
                                 st->pc = insn & 0x1FFF;
                                 break;
                         case 0x2000:   /*cjmp */
+                                fprintf(stdout, "    (cjmp (pc %d) (cond %s) (pc_n %d))\n", st->pc, st->tos?"true":"false",st->tos?insn&0x1FFF:st->pc+1);
                                 if (st->tos == 0) {
                                         st->pc = insn & 0x1FFF;
                                         st->tos =
@@ -69,22 +70,22 @@ int h2_cpu(h2_state_t * st)
                                  * insn & 0x000C , stack delta return
                                  * insn & 0x1F00,  alu
                                  */
-                                fprintf(stdout, "(h2_alu ");
+                                fprintf(stdout, "    (alu ");
 
                                 alu_op = (insn & 0x1F00) >> 8;
-                                fprintf(stdout, "(alu %x) ",
+                                fprintf(stdout, "(aluop %x) ",
                                         alu_op);
 
                                 switch (alu_op) {
                                 case alu_tos: /* tos = tos */
                                         break;
                                 case alu_nos: 
-                                        st->tos = st->data[st->datap-1];
+                                        st->tos = st->data[(st->datap-1)&0x001F];
                                         break;
                                 case alu_rtos:
                                         break;
                                 case alu_din:
-                                        st->tos = st->data[st->tos & 0x1FFF];
+                                        st->tos = st->ram[st->tos & 0x1FFF];
                                         break;
                                 case alu_depth: 
                                         st->tos = (mw)((st->datap << 11) | (st->retnp ));
@@ -160,25 +161,38 @@ int h2_cpu(h2_state_t * st)
                                         /*fput*/
                                         break;
                                 default:
-                                        fprintf(stderr,
-                                                "(error \"Incorrect ALU instruction\")\n");
+                                        fprintf(stdout,
+                                                "    (error \"Incorrect ALU instruction\"))\n");
                                         ST_ERROR(err_instruction);
                                 }
 
-                                if ((insn & 0x0010)) {
+                                /*Does all this go before of after the stack delta?*/
+                                if ((insn & 0x0010)) { /* R->PC */
+                                  fprintf(stdout,"(R->PC true) ");
+                                  st->pc = st->retn[st->retnp & 0x001F];
                                 } else {
+                                  fprintf(stdout,"(R->PC false) ");
                                 }
 
-                                if ((insn & 0x0020)) {
+                                if ((insn & 0x0020)) { /* N->[T] */
+                                  fprintf(stdout,"(N->[T] true) ");
+                                  st->ram[st->tos] = st->data[(st->datap-1)&0x001F];
                                 } else {
+                                  fprintf(stdout,"(N->[T] false) ");
                                 }
 
-                                if ((insn & 0x0040)) {
+                                if ((insn & 0x0040)) { /* T->R */
+                                  fprintf(stdout,"(T->R true) ");
+                                  st->retn[st->retnp&0x001F] = st->tos;
                                 } else {
+                                  fprintf(stdout,"(T->R false) ");
                                 }
 
-                                if ((insn & 0x0080)) {
+                                if ((insn & 0x0080)) { /* T->N */
+                                  fprintf(stdout,"(T->N true) ");
+                                  st->data[(st->datap-1)&0x001F] = st->tos;
                                 } else {
+                                  fprintf(stdout,"(T->N false) ");
                                 }
 
                                 /* dd stack delta, implements signed addition */
@@ -213,12 +227,12 @@ int h2_cpu(h2_state_t * st)
                                 (st->pc)++;
                                 break;
                         default:       /*something went wrong */
-                                fprintf(stderr,
-                                        "(error \"Incorrect instruction\")\n");
+                                fprintf(stdout,
+                                        "    (error \"Incorrect instruction\"))\n");
                                 ST_ERROR(err_instruction);
                         }
 
                 }
-
+          fprintf(stdout, ")\n");
         }
 }
