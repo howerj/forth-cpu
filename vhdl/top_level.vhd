@@ -14,7 +14,7 @@ use ieee.numeric_std.all;
 entity top_level is
   port
   (
-    clk:    in  std_logic := 'X';  -- clock
+    clk:      in  std_logic                    :=      'X';  -- clock
     -- Buttons
     btnu:     in  std_logic                    :=      'X';  -- button up
     btnd:     in  std_logic                    :=      'X';  -- button down
@@ -22,18 +22,18 @@ entity top_level is
     btnl:     in  std_logic                    :=      'X';  -- button left
     btnr:     in  std_logic                    :=      'X';  -- button right
     -- Switches
-    sw:       in  std_logic_vector(7 downto 0) := (others => 'X'); -- switches
+    sw:       in  std_logic_vector(7 downto 0) :=      (others => 'X'); -- switches
     -- Simple LED outputs
-    an:       out std_logic_vector(3 downto 0) := (others => '0'); -- anodes   7 segment display
-    ka:       out std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 7 segment display
-    ld:       out std_logic_vector(7 downto 0) := (others => '0'); -- leds
+    an:       out std_logic_vector(3 downto 0) :=      (others => '0'); -- anodes   7 segment display
+    ka:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- kathodes 7 segment display
+    ld:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- leds
     -- UART
     rx:       in  std_logic                    :=      'X';  -- uart rx 
     tx:       out std_logic                    :=      '0';  -- uart tx
     -- VGA
-    red:      out std_logic_vector(2 downto 0) := (others => '0'); 
-    green:    out std_logic_vector(2 downto 0) := (others => '0'); 
-    blue:     out std_logic_vector(1 downto 0) := (others => '0'); 
+    red:      out std_logic_vector(2 downto 0) :=      (others => '0'); 
+    green:    out std_logic_vector(2 downto 0) :=      (others => '0'); 
+    blue:     out std_logic_vector(1 downto 0) :=      (others => '0'); 
     hsync:    out std_logic                    :=      '0';
     vsync:    out std_logic                    :=      '0'
   );
@@ -50,7 +50,6 @@ architecture behav of top_level is
   signal  cpu_io_din:               std_logic_vector(15 downto 0):= (others => '0');
   signal  cpu_io_dout:              std_logic_vector(15 downto 0):= (others => '0');
   signal  cpu_io_daddr:             std_logic_vector(15 downto 0):= (others => '0');
-
 
   -- VGA interface signals
   signal  clk25MHz:                 std_logic:= '0';
