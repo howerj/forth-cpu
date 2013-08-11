@@ -196,10 +196,10 @@ int h2_cpu(h2_state_t * st)
                                         st->tos--;
                                         break;
                                 case alu_ioDin:
-                                        /*fget*/
+                                        /*fgetc*/
                                         break;
                                 case alu_ioW:
-                                        /*fput*/
+                                        /*fputc*/
                                         break;
                                 default:
                                         fprintf(stdout,

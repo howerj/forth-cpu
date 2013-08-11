@@ -69,7 +69,7 @@ begin
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
 	begin
-        while wait_flag = '0' loop
+      while wait_flag = '0' loop
 			tb_clk	<=	'1';
 			wait for clk_period/2;
 			tb_clk	<=	'0';

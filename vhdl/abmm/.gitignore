@@ -1,0 +1,6 @@
+*.o
+*.cf
+abmm_tb
+*.swo
+*.swp
+*.ghw
