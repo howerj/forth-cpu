@@ -19,20 +19,22 @@ architecture behavior of abmm_tb is
   signal    tb_clk:            std_logic                       :=  '0';
 
   signal    tb_s_reg:          std_logic_vector(15 downto 0)   :=  (others => '0'); 
-  signal    tb_addr_reg_0_3:   std_logic_vector(15 downto 0)   :=  (others => '0'); 
-  signal    tb_addr_reg_4_7:   std_logic_vector(15 downto 0)   :=  (others => '0'); 
-  signal    tb_addr_reg_8_11:  std_logic_vector(15 downto 0)   :=  (others => '0');
-  signal    tb_addr_reg_12_15: std_logic_vector(15 downto 0)   :=  (others => '0');
+  signal    tb_addr_reg:       std_logic_vector(63 downto 0)   :=  (others => '0'); 
+--  signal    tb_addr_reg_0_3:   std_logic_vector(15 downto 0)   :=  (others => '0'); 
+--  signal    tb_addr_reg_4_7:   std_logic_vector(15 downto 0)   :=  (others => '0'); 
+--  signal    tb_addr_reg_8_11:  std_logic_vector(15 downto 0)   :=  (others => '0');
+--  signal    tb_addr_reg_12_15: std_logic_vector(15 downto 0)   :=  (others => '0');
   signal    tb_din:            std_logic_vector(15 downto 0)   :=  (others => '0'); 
   signal    tb_dout:           std_logic_vector(15 downto 0)   :=  (others => 'X');
 begin
   abmm_uut: entity work.abmm
   port map(
             s_reg => tb_s_reg,
-            addr_reg_0_3 => tb_addr_reg_0_3,
-            addr_reg_4_7 => tb_addr_reg_4_7,
-            addr_reg_8_11 => tb_addr_reg_8_11,
-            addr_reg_12_15 => tb_addr_reg_12_15,
+            addr_reg => tb_addr_reg,
+--            addr_reg_0_3 => tb_addr_reg_0_3,
+--            addr_reg_4_7 => tb_addr_reg_4_7,
+--            addr_reg_8_11 => tb_addr_reg_8_11,
+--            addr_reg_12_15 => tb_addr_reg_12_15,
             din => tb_din,
             dout => tb_dout
           );
@@ -55,50 +57,32 @@ begin
 
         -- Reverse bit pattern
         tb_din <= X"F0A5";
-
-        tb_addr_reg_0_3   <= X"CDEF";
-        tb_addr_reg_4_7   <= X"89AB";
-        tb_addr_reg_8_11  <= X"4567";
-        tb_addr_reg_12_15 <= X"0123";
+        tb_addr_reg <= X"0123456789ABCDEF";
 
         wait for clk_period;
 
         -- Rotate left by one
         tb_din <= X"8888";
-
-        tb_addr_reg_0_3   <= X"210F";
-        tb_addr_reg_4_7   <= X"6543";
-        tb_addr_reg_8_11  <= X"A987";
-        tb_addr_reg_12_15 <= X"EDCB";
-
+        tb_addr_reg <= X"EDCBA9876543210F";
         wait for clk_period;
 
         -- Set to zero
         tb_din <= X"F0A5";
 
         tb_s_reg <= (others => '1');
-        tb_addr_reg_0_3   <= X"0000";
-        tb_addr_reg_4_7   <= X"0000";
-        tb_addr_reg_8_11  <= X"0000";
-        tb_addr_reg_12_15 <= X"0000";
+        tb_addr_reg <= (others => '0');
 
         wait for clk_period;
 
         -- Set to one
         tb_s_reg <= (others => '1');
-        tb_addr_reg_0_3   <= X"1111";
-        tb_addr_reg_4_7   <= X"1111";
-        tb_addr_reg_8_11  <= X"1111";
-        tb_addr_reg_12_15 <= X"1111";
+        tb_addr_reg <= X"0000000000000000";
 
         wait for clk_period;
 
         -- Invert original bit pattern
         tb_s_reg <= (others => '1');
-        tb_addr_reg_0_3   <= X"2222";
-        tb_addr_reg_4_7   <= X"2222";
-        tb_addr_reg_8_11  <= X"2222";
-        tb_addr_reg_12_15 <= X"2222";
+        tb_addr_reg <= X"2222222222222222";
 
         wait for clk_period;
 
