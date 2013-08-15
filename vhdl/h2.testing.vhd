@@ -20,43 +20,65 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity h2 is
+    generic(
+    bit_length: integer:= 16
+    );
     port(
         clk:        in  std_logic;
         rst:        in  std_logic;
         -- IO interface
         io_wr:      out std_logic;
-        io_din:     in  std_logic_vector(15 downto 0);
-        io_dout:    out std_logic_vector(15 downto 0);
-        io_daddr:   out std_logic_vector(15 downto 0);
+        io_din:     in  std_logic_vector(bit_length-1 downto 0);
+        io_dout:    out std_logic_vector(bit_length-1 downto 0);
+        io_daddr:   out std_logic_vector(bit_length-1 downto 0);
         -- RAM interface, Dual port
-        pco:        out std_logic_vector(12 downto 0);
-        insn:       in  std_logic_vector(15 downto 0);
+        pco:        out std_logic_vector(bit_length-4 downto 0);
+        insn:       in  std_logic_vector(bit_length-1 downto 0);
 
         dwe:        out std_logic; -- data write enable, read enable not need.
-        din:        in  std_logic_vector(15 downto 0);
-        dout:       out std_logic_vector(15 downto 0);
-        daddr:      out std_logic_vector(12 downto 0)
+        din:        in  std_logic_vector(bit_length-1 downto 0);
+        dout:       out std_logic_vector(bit_length-1 downto 0);
+        daddr:      out std_logic_vector(bit_length-4 downto 0)
     );
 end;
 
 architecture rtl of h2 is
 
+    -- The following constants are just the beginning in making
+    -- this CPU more generic.
+    constant b0:  integer := bit_length-16;
+    constant b1:  integer := bit_length-15;
+    constant b2:  integer := bit_length-14;
+    constant b3:  integer := bit_length-13;
+    constant b4:  integer := bit_length-12;
+    constant b5:  integer := bit_length-11;
+    constant b6:  integer := bit_length-10;
+    constant b7:  integer := bit_length-9;
+    constant b8:  integer := bit_length-8;
+    constant b9:  integer := bit_length-7;
+    constant b10: integer := bit_length-6;
+    constant b11: integer := bit_length-5;
+    constant b12: integer := bit_length-4;
+    constant b13: integer := bit_length-3;
+    constant b14: integer := bit_length-2;
+    constant b15: integer := bit_length-1;
+
     -- Program counter.
-    signal pc_c:          std_logic_vector(12 downto 0) := (others => '0');     
-    signal pc_n:          std_logic_vector(12 downto 0) := (others => '0');
+    signal pc_c:          std_logic_vector(b12 downto 0) := (others => '0');     
+    signal pc_n:          std_logic_vector(b12 downto 0) := (others => '0');
     -- Stack Type!
-    type   stk  is array (31 downto 0) of std_logic_vector(15 downto 0);
+    type   stk  is array (31 downto 0) of std_logic_vector(b15 downto 0);
     -- Variable stack (RAM Template)
-    signal vstkp_c:       std_logic_vector(4 downto 0)  := (others => '0');
-    signal vstkp_n:       std_logic_vector(4 downto 0)  := (others => '0');
+    signal vstkp_c:       std_logic_vector(b4 downto b0)  := (others => '0');
+    signal vstkp_n:       std_logic_vector(b4 downto b0)  := (others => '0');
     signal vstk_ram:      stk := (others => (others => '0'));
     -- Return stack (RAM Template)
-    signal rstkp_c:       std_logic_vector(4 downto 0)  := (others => '0');
-    signal rstkp_n:       std_logic_vector(4 downto 0)  := (others => '0');
+    signal rstkp_c:       std_logic_vector(b4 downto b0)  := (others => '0');
+    signal rstkp_n:       std_logic_vector(b4 downto b0)  := (others => '0');
     signal rstk_ram:      stk := (others => (others => '0'));
     -- Stack deltas
-    signal dd:            std_logic_vector(4 downto 0)  := (others => '0');
-    signal rd:            std_logic_vector(4 downto 0)  := (others => '0');
+    signal dd:            std_logic_vector(b4 downto b0)  := (others => '0');
+    signal rd:            std_logic_vector(b4 downto b0)  := (others => '0');
     -- is_x signals, booleans, does the instruction have a certain property.
     signal is_alu:        std_logic                     := '0';
     signal is_lit:        std_logic                     := '0';
@@ -64,26 +86,26 @@ architecture rtl of h2 is
     signal is_cjmp:       std_logic                     := '0';
     signal is_call:       std_logic                     := '0';
     -- Top of stack, and next on stack.
-    signal tos_c:         std_logic_vector(15 downto 0) := (others => '0');
-    signal tos_n:         std_logic_vector(15 downto 0) := (others => '0');
-    signal nos:           std_logic_vector(15 downto 0) := (others => '0');
+    signal tos_c:         std_logic_vector(b15 downto 0) := (others => '0');
+    signal tos_n:         std_logic_vector(b15 downto 0) := (others => '0');
+    signal nos:           std_logic_vector(b15 downto 0) := (others => '0');
     -- Top of return stack.
-    signal rtos_c:        std_logic_vector(15 downto 0) := (others => '0');
+    signal rtos_c:        std_logic_vector(b15 downto 0) := (others => '0');
     -- aluop is what is fed into the alu.
-    signal aluop:         std_logic_vector(4 downto 0)  := (others => '0');
+    signal aluop:         std_logic_vector(b4 downto b0)  := (others => '0');
     -- pc_plus_1, forces fewer adders.
-    signal pc_plus_one:   std_logic_vector(12 downto 0) := (others => '0');
+    signal pc_plus_one:   std_logic_vector(b12 downto 0) := (others => '0');
     -- Stack signals
     signal dstkW:         std_logic                     := '0';
-    signal rstkD:         std_logic_vector(15 downto 0) := (others => '0');
+    signal rstkD:         std_logic_vector(b15 downto 0) := (others => '0');
     signal rstkW:         std_logic                     := '0';
 begin
     -- is_x
-    is_alu  <=  '1' when insn(15 downto 13) = "011" else '0';
-    is_lit  <=  '1' when insn(15) = '1' else '0';
-    is_jmp  <=  '1' when insn(15 downto 13) = "000" else '0';
-    is_cjmp <=  '1' when insn(15 downto 13) = "001" else '0';
-    is_call <=  '1' when insn(15 downto 13) = "010" else '0';
+    is_alu  <=  '1' when insn(b15 downto b13) = "011" else '0';
+    is_lit  <=  '1' when insn(b15) = '1' else '0';
+    is_jmp  <=  '1' when insn(b15 downto b13) = "000" else '0';
+    is_cjmp <=  '1' when insn(b15 downto b13) = "001" else '0';
+    is_call <=  '1' when insn(b15 downto b13) = "010" else '0';
 
     -- Stack assignments
     nos       <=  vstk_ram(to_integer(unsigned(vstkp_c)));
@@ -92,8 +114,8 @@ begin
     -- I/O assignments
     pco       <=  pc_n;
     dout      <=  nos;
-    daddr     <=  tos_c(12 downto 0);
-    dwe       <=  insn(5) when is_alu = '1' else '0';
+    daddr     <=  tos_c(b12 downto 0);
+    dwe       <=  insn(b5) when is_alu = '1' else '0';
 
     -- io_wr are handled in the ALU, 
     --  this makes things slower but we have
@@ -105,10 +127,10 @@ begin
     pc_plus_one    <=  std_logic_vector(unsigned(pc_c) + 1);
 
     -- Signed addition!
-    dd  <=  insn(1) & insn(1) & insn(1) & insn(1) & insn(0);
-    rd  <=  insn(3) & insn(3) & insn(3) & insn(3) & insn(2);
+    dd  <=  insn(b1) & insn(b1) & insn(b1) & insn(b1) & insn(b0);
+    rd  <=  insn(b3) & insn(b3) & insn(b3) & insn(b3) & insn(b2);
 
-    dstkW   <= '1' when is_lit = '1' or (is_alu = '1' and insn(7) = '1') else '0';
+    dstkW   <= '1' when is_lit = '1' or (is_alu = '1' and insn(b7) = '1') else '0';
 
     stackWrite: process(
         clk
@@ -129,11 +151,11 @@ begin
         insn
     )
     begin
-        case insn(14 downto 13) is
+        case insn(b14 downto b13) is
             when "00" => aluop <= "00000"; -- ubranch
             when "01" => aluop <= "00000"; -- call
             when "10" => aluop <= "00001"; -- 0branch
-            when "11" => aluop <= insn(12 downto 8); -- alu operation.
+            when "11" => aluop <= insn(b12 downto b8); -- alu operation.
             when others => aluop <= "XXXXX";
         end case;
     end process;
@@ -150,7 +172,7 @@ begin
         io_wr       <=  '0';
         tos_n       <=  tos_c;
         if is_lit = '1' then
-            tos_n   <=  "0" & insn(14 downto 0);
+            tos_n   <=  "0" & insn(b14 downto 0);
         else 
             case aluop is -- ALU operation, 12 downto 8
                 when "00000" =>  tos_n   <=  tos_c;
@@ -253,7 +275,7 @@ begin
             rstkW   <=  '0';
             rstkD   <=  "000" & pc_plus_one; 
         elsif is_alu = '1' then 
-            rstkW   <=  insn(6);
+            rstkW   <=  insn(b6);
             rstkD   <=  tos_c;
             -- Signed addition.
             vstkp_n <=  std_logic_vector(unsigned(vstkp_c) + unsigned(dd));
@@ -281,9 +303,9 @@ begin
     begin
         pc_n    <=  pc_c;
         if is_jmp = '1' or (is_cjmp = '1' and unsigned(tos_c) = 0) or is_call = '1' then
-            pc_n    <=  insn(12 downto 0);
-        elsif is_alu = '1' and insn(4) = '1' then
-            pc_n    <=  rtos_c(12 downto 0);
+            pc_n    <=  insn(b12 downto 0);
+        elsif is_alu = '1' and insn(b4) = '1' then
+            pc_n    <=  rtos_c(b12 downto 0);
         else
             pc_n    <=  pc_plus_one;
         end if;

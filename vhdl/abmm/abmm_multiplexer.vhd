@@ -28,25 +28,7 @@ begin
   process(s,c_bit,input,addr)
   begin
     if s = '0' then
-      case addr is
-        when "0000" => output <= input(0); 
-        when "0001" => output <= input(1); 
-        when "0010" => output <= input(2); 
-        when "0011" => output <= input(3); 
-        when "0100" => output <= input(4); 
-        when "0101" => output <= input(5); 
-        when "0110" => output <= input(6); 
-        when "0111" => output <= input(7); 
-        when "1000" => output <= input(8); 
-        when "1001" => output <= input(9); 
-        when "1010" => output <= input(10); 
-        when "1011" => output <= input(11); 
-        when "1100" => output <= input(12); 
-        when "1101" => output <= input(13); 
-        when "1110" => output <= input(14); 
-        when "1111" => output <= input(15); 
-        when others => output <= '0';
-      end case;
+      output <= input(to_integer(unsigned(addr)));
     elsif s = '1' then
       case addr is
         when "0000" => output <= '0';
