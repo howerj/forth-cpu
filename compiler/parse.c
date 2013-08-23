@@ -17,6 +17,7 @@
       statement =
         ident ":=" expression
         | "!" ident
+        | "?" ident
         | "call" ident
         | "begin" statement ";" {statement ";"} "end"
         | "if" condition "then" statement
@@ -108,7 +109,7 @@ static bool isnumber(const char *num);
 static symbol_e findsym(const char *sym_str);
 
 static void getsym(parser_st *ps);
-static void error(const char msg[], parser_st *ps);
+static void error(const char msg[], parser_st *ps, unsigned int line);
 
 static bool accept(symbol_e s, parser_st *ps);
 static bool expect(symbol_e s, parser_st *ps);
@@ -167,7 +168,7 @@ static void getsym(parser_st *ps){
 START:
   /*get space delimited symbol*/
   if(fscanf(IN,"%s",BUF)==EOF){
-    error("getsym: EOF",ps);
+    error("getsym: EOF",ps,__LINE__);
   }
 
   /*comments*/
@@ -176,7 +177,7 @@ START:
     while(true){
       c = fgetc(IN);
       if(c == EOF)
-        error("getsym: EOF",ps);
+        error("getsym: EOF",ps,__LINE__);
       else if(c == '}')
         goto START;
     }
@@ -188,8 +189,8 @@ START:
   return;
 }
 
-static void error(const char msg[], parser_st *ps){
-  fprintf(ERR,"(error %s)\n",msg);
+static void error(const char msg[], parser_st *ps, unsigned int line){
+  fprintf(ERR,"(error (msg \"%s\") (symbol \"%s\") (line %d))\n",msg, BUF, line);
   exit(1);
 }
 
@@ -206,7 +207,7 @@ static bool expect(symbol_e s, parser_st *ps){
   if(accept(s,ps)){
     return true;
   } else{
-    error("expect: unexpected symbol",ps);
+    error("expect: unexpected symbol",ps,__LINE__);
     return false;
   }
 }
@@ -220,7 +221,7 @@ static void factor(parser_st *ps){
     expression(ps);
     expect(rparen,ps);
   } else{
-    error("factor: syntax error",ps);
+    error("factor: syntax error",ps,__LINE__);
     getsym(ps);
   }
 }
@@ -254,7 +255,7 @@ static void condition(parser_st *ps){
       getsym(ps);
       expression(ps);
     } else {
-      error("condition: invalid operator",ps);
+      error("condition: invalid operator",ps,__LINE__);
       getsym(ps);
     }
   } 
@@ -284,7 +285,7 @@ void statement(parser_st *ps) {
     expect(dosym,ps);
     statement(ps);
   } else {
-    error("statement: syntax error",ps);
+    error("statement: syntax error",ps,__LINE__);
     getsym(ps);
   }
 }
