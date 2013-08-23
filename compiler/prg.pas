@@ -1,3 +1,5 @@
+{ Test program }
+
 var x , squ ;
 
 procedure square ;
@@ -10,7 +12,7 @@ begin
    while x <= 10 do
    begin
       call square ;
-      {      ! squ ;  ! not implemented yet }
+      ! squ ; 
       x := x + 1
    end
 end .

@@ -3,11 +3,46 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+/*=============================================================================
+
+  The Grammar (See https://en.wikipedia.org/wiki/Recursive_descent_parser)
+  
+      program = block "." .
+        
+      block =
+        ["const" ident "=" number {"," ident "=" number} ";"]
+        ["var" ident {"," ident} ";"]
+        {"procedure" ident ";" block ";"} statement .
+       
+      statement =
+        ident ":=" expression
+        | "!" ident
+        | "call" ident
+        | "begin" statement ";" {statement ";"} "end"
+        | "if" condition "then" statement
+        | "while" condition "do" statement .
+
+      condition =
+       "odd" expression
+        | expression ("="|"#"|"<"|"<="|">"|">=") expression .
+
+      expression = ["+"|"-"] term {("+"|"-") term} .
+        
+      term = factor {("*"|"/") factor} .
+
+      factor =
+        ident
+        | number
+        | "(" expression ")" .
+
+=============================================================================*/
+
 
 /*===========================================================================*/
 #define SYMBOL_TABLE \
   XMAC_SYM(ident, "ident") /*implicit definition checked later*/\
   XMAC_SYM(number, "number")/*implicit definition checked later*/\
+  XMAC_SYM(output, "!")\
   XMAC_SYM(lparen, "(")\
   XMAC_SYM(rparen, ")")\
   XMAC_SYM(times, "*")\
@@ -94,8 +129,16 @@ char *symbol_name[] = {
 
 
 static bool isnumber(const char *num){
-  int i;
-  for(i=0 ;num[i]!='\0'; i++)
+  int i = 0;
+  if((num[0] == '+')||(num[0] == '-')){
+    if(num[1] == '\0'){
+      return false;
+    } else{
+      i = 1;
+    }
+  }
+
+  for(;num[i]!='\0'; i++)
     if(!isdigit(num[i]))
       return false;
 
@@ -220,6 +263,8 @@ void statement(parser_st *ps) {
   if (accept(ident,ps)) {
     expect(becomes,ps);
     expression(ps);
+  } else if (accept(output,ps)){
+    expect(ident,ps);
   } else if (accept(callsym,ps)) {
     expect(ident,ps);
   } else if (accept(beginsym,ps)) {
