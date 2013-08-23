@@ -92,6 +92,7 @@ typedef struct{
   FILE *in;
   FILE *out;
   FILE *err;
+  unsigned int snum;
 } parser_st;
 
 typedef enum{
@@ -99,11 +100,12 @@ typedef enum{
   true
 } bool;
 
-#define BUF (ps->buf)
-#define SYM (ps->sym)
-#define IN  (ps->in)
-#define OUT (ps->out)
-#define ERR (ps->err)
+#define BUF   (ps->buf)
+#define SYM   (ps->sym)
+#define IN    (ps->in)
+#define OUT   (ps->out)
+#define ERR   (ps->err)
+#define SNUM  (ps->snum)
 
 static bool isnumber(const char *num);
 static symbol_e findsym(const char *sym_str);
@@ -166,6 +168,7 @@ static symbol_e findsym(const char *sym_str){
 static void getsym(parser_st *ps){
   int c;
 START:
+  SNUM++;
   /*get space delimited symbol*/
   if(fscanf(IN,"%s",BUF)==EOF){
     error("getsym: EOF",ps,__LINE__);
@@ -190,7 +193,10 @@ START:
 }
 
 static void error(const char msg[], parser_st *ps, unsigned int line){
-  fprintf(ERR,"(error (msg \"%s\") (symbol \"%s\") (line %d))\n",msg, BUF, line);
+  fprintf(ERR,
+      "(error (msg \"%s\") (symbol \"%s\") (snum %d) (source %d))\n"
+      ,msg, BUF, SNUM , line
+      );
   exit(1);
 }
 
@@ -320,6 +326,7 @@ void parse_program(parser_st *ps) {
   expect(period,ps);
 }
 
+#undef SNUM
 #undef BUF
 #undef SYM
 #undef IN
@@ -332,7 +339,8 @@ int main(void){
     0,
     NULL,
     NULL,
-    NULL
+    NULL,
+    0
   };
   ps.in   = stdin;
   ps.out  = stdout;
