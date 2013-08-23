@@ -1,0 +1,4 @@
+*.o
+parse
+*.swo
+*.swp
