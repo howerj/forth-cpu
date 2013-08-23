@@ -1,6 +1,6 @@
 { Test program }
 
-var x , squ ;
+var x , limit , squ ;
 
 procedure square ;
 begin
@@ -8,7 +8,9 @@ begin
 end ;
  
 begin
+   limit := 1 ;
    x := 1 ;
+   ? limit ;
    while x <= 10 do
    begin
       call square ;

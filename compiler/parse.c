@@ -43,6 +43,7 @@
   XMAC_SYM(ident, "ident") /*implicit definition checked later*/\
   XMAC_SYM(number, "number")/*implicit definition checked later*/\
   XMAC_SYM(output, "!")\
+  XMAC_SYM(input, "?")\
   XMAC_SYM(lparen, "(")\
   XMAC_SYM(rparen, ")")\
   XMAC_SYM(times, "*")\
@@ -264,6 +265,8 @@ void statement(parser_st *ps) {
     expect(becomes,ps);
     expression(ps);
   } else if (accept(output,ps)){
+    expect(ident,ps);
+  } else if (accept(input,ps)){
     expect(ident,ps);
   } else if (accept(callsym,ps)) {
     expect(ident,ps);
