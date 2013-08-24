@@ -171,7 +171,9 @@ START:
   SNUM++;
   /*get space delimited symbol*/
   if(fscanf(IN,"%s",BUF)==EOF){
-    error("getsym: EOF",ps,__LINE__);
+    if(!strcmp(symbol_name[period],"BUF")){
+      error("getsym: EOF",ps,__LINE__);
+    }
   }
 
   /*comments*/

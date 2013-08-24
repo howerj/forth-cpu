@@ -17,4 +17,4 @@ begin
       ! squ ; 
       x := x + 1
    end
-end .
+end . 
