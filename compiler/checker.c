@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "parse.h"
 /*=============================================================================
 
   The Grammar (See https://en.wikipedia.org/wiki/Recursive_descent_parser)
@@ -38,6 +37,68 @@
         | "(" expression ")" .
 
 =============================================================================*/
+
+
+/*===========================================================================*/
+#define SYMBOL_TABLE \
+  XMAC_SYM(ident, "ident") /*implicit definition checked later*/\
+  XMAC_SYM(number, "number")/*implicit definition checked later*/\
+  XMAC_SYM(output, "!")\
+  XMAC_SYM(input, "?")\
+  XMAC_SYM(lparen, "(")\
+  XMAC_SYM(rparen, ")")\
+  XMAC_SYM(times, "*")\
+  XMAC_SYM(slash, "/")\
+  XMAC_SYM(plus, "+")\
+  XMAC_SYM(minus, "-")\
+  XMAC_SYM(eql, "=")\
+  XMAC_SYM(neq, "#")\
+  XMAC_SYM(lss, "<")\
+  XMAC_SYM(leq, "<=")\
+  XMAC_SYM(gtr, ">")\
+  XMAC_SYM(geq, ">=")\
+  XMAC_SYM(callsym, "call")\
+  XMAC_SYM(beginsym, "begin")\
+  XMAC_SYM(semicolon, ";")\
+  XMAC_SYM(endsym, "end")\
+  XMAC_SYM(ifsym, "if")\
+  XMAC_SYM(whilesym, "while")\
+  XMAC_SYM(becomes, ":=")\
+  XMAC_SYM(thensym, "then")\
+  XMAC_SYM(dosym, "do")\
+  XMAC_SYM(constsym, "const")\
+  XMAC_SYM(comma, ",")\
+  XMAC_SYM(varsym, "var")\
+  XMAC_SYM(procsym, "procedure")\
+  XMAC_SYM(period, ".")\
+  XMAC_SYM(oddsym, "odd")\
+  XMAC_SYM(FINAL_SYMBOL,"")\
+
+#define XMAC_SYM(a, b) a,
+typedef enum{
+    SYMBOL_TABLE
+} symbol_e;
+#undef XMAC_SYM
+
+/* The other X Macro is defined in the file it is used in*/
+
+/*===========================================================================*/
+
+#define BUF_SZ (512)
+
+typedef struct{
+  char buf[BUF_SZ];
+  symbol_e sym;
+  FILE *in;
+  FILE *out;
+  FILE *err;
+  unsigned int snum;
+} parser_st;
+
+typedef enum{
+  false,
+  true
+} bool;
 
 #define BUF   (ps->buf)
 #define SYM   (ps->sym)
@@ -117,7 +178,7 @@ START:
 
   /*comments*/
   if(!strcmp("{",BUF)){
-    fprintf(OUT,"(comment)\n");
+    printf("FOUND COMMENT\n");
     while(true){
       c = fgetc(IN);
       if(c == EOF)
@@ -128,9 +189,8 @@ START:
   }
 
   SYM = findsym(BUF);
-  fprintf(OUT,"(%s)", symbol_name[SYM]);
-  if((SYM == semicolon) || (SYM == period))
-    fputc('\n',OUT);
+
+  printf("FOUND SYMBOL (%s)\n", symbol_name[SYM]);
   return;
 }
 
@@ -282,9 +342,7 @@ int main(void){
     NULL,
     NULL,
     NULL,
-    0,
-    NULL,
-    NULL
+    0
   };
   ps.in   = stdin;
   ps.out  = stdout;
