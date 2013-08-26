@@ -39,12 +39,13 @@
 
 =============================================================================*/
 
-#define BUF   (ps->buf)
-#define SYM   (ps->sym)
-#define IN    (ps->in)
-#define OUT   (ps->out)
-#define ERR   (ps->err)
-#define SNUM  (ps->snum)
+#define AST_CUR (ps->current)
+#define BUF     (ps->buf)
+#define SYM     (ps->sym)
+#define IN      (ps->in)
+#define OUT     (ps->out)
+#define ERR     (ps->err)
+#define SNUM    (ps->snum)
 
 static bool isnumber(const char *num);
 static symbol_e findsym(const char *sym_str);
@@ -52,6 +53,15 @@ static symbol_e findsym(const char *sym_str);
 static void getsym(parser_st *ps);
 static void error(const char msg[], parser_st *ps, unsigned int line);
 
+/*Abstract syntax tree allocations*/
+static void calloc_ast(ast_t **tree, parser_st *ps);
+static void calloc_ast_car(ast_t *tree, parser_st *ps);
+static void calloc_ast_cdr(ast_t *tree, parser_st *ps);
+/*Identifier database*/
+static void calloc_id(id_t **id, parser_st *ps);
+static id_t* find_id(id_t *id, parser_st *ps);
+static void add_id(const char *name, symbol_e sym, parser_st *ps);
+/*parsing*/
 static bool accept(symbol_e s, parser_st *ps);
 static bool expect(symbol_e s, parser_st *ps);
 static void factor(parser_st *ps);
@@ -61,7 +71,6 @@ static void condition(parser_st *ps);
 static void statement(parser_st *ps);
 static void block(parser_st *ps);
 
-void parse_program(parser_st *ps);
 /*============================================================================*/
 
 #define XMAC_SYM(a, b) b,
@@ -69,7 +78,6 @@ char *symbol_name[] = {
     SYMBOL_TABLE
 };
 #undef XMAC_SYM
-
 
 static bool isnumber(const char *num){
   int i = 0;
@@ -117,7 +125,7 @@ START:
 
   /*comments*/
   if(!strcmp("{",BUF)){
-    fprintf(OUT,"(comment)\n");
+    fprintf(OUT,"comment\n");
     while(true){
       c = fgetc(IN);
       if(c == EOF)
@@ -128,7 +136,7 @@ START:
   }
 
   SYM = findsym(BUF);
-  fprintf(OUT,"(%s)", symbol_name[SYM]);
+  fprintf(OUT,"%s ", symbol_name[SYM]);
   if((SYM == semicolon) || (SYM == period))
     fputc('\n',OUT);
   return;
@@ -139,8 +147,46 @@ static void error(const char msg[], parser_st *ps, unsigned int line){
       "(error (msg \"%s\") (symbol \"%s\") (snum %d) (source %d))\n"
       ,msg, BUF, SNUM , line
       );
-  exit(1);
+  exit(EXIT_FAILURE);
 }
+
+/*============================================================================*/
+static void calloc_ast(ast_t **tree, parser_st *ps){
+  if((*tree=calloc(1,sizeof(ast_t)))==NULL){
+    error("Could not calloc()",ps,__LINE__);
+  }
+}
+static void calloc_ast_car(ast_t *tree, parser_st *ps){
+  if(tree == NULL){
+    error("Passed a NULL, expected a valid pointer",ps,__LINE__);
+  }
+  calloc_ast(&(tree->car),ps);
+}
+static void calloc_ast_cdr(ast_t *tree, parser_st *ps){
+  if(tree == NULL){
+    error("Passed a NULL, expected a valid pointer",ps,__LINE__);
+  }
+  calloc_ast(&(tree->cdr),ps);
+}
+
+static void calloc_id(id_t **id, parser_st *ps){
+  if((*id = calloc(1,sizeof(id_t))) == NULL){
+    error("Could not calloc()",ps,__LINE__);
+  }
+}
+static id_t* find_id(id_t *id, parser_st *ps){
+  id_t *idt = ps->id_next;
+  for(;idt!=NULL;idt = idt->idn){
+    
+
+  }
+}
+
+static void add_id(const char *name, symbol_e sym, parser_st *ps){
+}
+
+/*============================================================================*/
+
 
 static bool accept(symbol_e s, parser_st *ps){
   if(SYM == s){
@@ -284,11 +330,14 @@ int main(void){
     NULL,
     0,
     NULL,
+    NULL,
     NULL
   };
   ps.in   = stdin;
   ps.out  = stdout;
   ps.err  = stderr;
+  calloc_ast(&(ps.head),&ps);
+  ps.current = ps.head;
 
   parse_program(&ps);
 

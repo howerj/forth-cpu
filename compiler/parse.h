@@ -53,7 +53,6 @@ typedef enum{
 typedef struct identifier_dictionary{
   char name[BUF_SZ];
   symbol_e type;
-  unsigned int value; /*Either a constant, value or location*/
   struct identifier_dictionary *idn;
 } id_t;
 
@@ -78,5 +77,9 @@ typedef struct{
   unsigned int snum;
 
   struct abstract_syntax_tree *head;
-  struct identifier_dictionary *idn;
+  struct abstract_syntax_tree *current;
+  struct identifier_dictionary *id_next;
+  struct identifier_dictionary *id_head;
 } parser_st;
+
+void parse_program(parser_st *ps);
