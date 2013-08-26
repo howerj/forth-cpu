@@ -58,7 +58,7 @@ typedef struct identifier_dictionary{
 
 typedef struct abstract_syntax_tree{
   symbol_e sym;         /*symbol*/
-  unsigned int index;   /*index into identifier tables*/
+  id_t *id;
   char *s;              /*names if needed*/
 
   struct abstract_syntax_tree *car;

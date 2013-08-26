@@ -61,6 +61,7 @@ static void calloc_ast_cdr(ast_t *tree, parser_st *ps);
 static void calloc_id(id_t **id, parser_st *ps);
 static id_t* find_id(const char *name, parser_st *ps);
 static void add_id(const char *name, symbol_e sym, parser_st *ps);
+static void free_id(parser_st *ps);
 /*parsing*/
 static bool accept(symbol_e s, parser_st *ps);
 static bool expect(symbol_e s, parser_st *ps);
@@ -192,6 +193,15 @@ static void add_id(const char *name, symbol_e sym, parser_st *ps){
   ps->id_next = ps->id_next->idn;
   strcpy(ps->id_next->name,name);
   ps->id_next->type = sym;
+}
+
+static void free_id(parser_st *ps){
+  id_t *idt,*tmp;
+  for(idt = ps->id_head; idt!=NULL; ){
+    tmp = idt;
+    idt = idt->idn;
+    free(tmp);
+  }
 }
 
 /*============================================================================*/
@@ -352,6 +362,7 @@ int main(void){
   ps.id_next = ps.id_head;
 
   parse_program(&ps);
+  free_id(&ps);
 
   return 0;
 }
