@@ -304,6 +304,8 @@ void statement(parser_st *ps) {
 }
 
 void block(parser_st *ps) {
+  /*TODO in coments*/
+  /* car -> constants list*/
   if (accept(constsym,ps)) {
     do {
       expect(ident,ps);
@@ -312,12 +314,14 @@ void block(parser_st *ps) {
     } while (accept(comma,ps));
     expect(semicolon,ps);
   }
+  /* cdr->car-> variable list*/
   if (accept(varsym,ps)) {
     do {
     expect(ident,ps);
     } while (accept(comma,ps));
     expect(semicolon,ps);
   }
+  /* cdr->cdr-> program list*/
   while (accept(procsym,ps)) {
     expect(ident,ps);
     expect(semicolon,ps);
