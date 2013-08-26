@@ -59,7 +59,7 @@ static void calloc_ast_car(ast_t *tree, parser_st *ps);
 static void calloc_ast_cdr(ast_t *tree, parser_st *ps);
 /*Identifier database*/
 static void calloc_id(id_t **id, parser_st *ps);
-static id_t* find_id(id_t *id, parser_st *ps);
+static id_t* find_id(const char *name, parser_st *ps);
 static void add_id(const char *name, symbol_e sym, parser_st *ps);
 /*parsing*/
 static bool accept(symbol_e s, parser_st *ps);
@@ -174,15 +174,24 @@ static void calloc_id(id_t **id, parser_st *ps){
     error("Could not calloc()",ps,__LINE__);
   }
 }
-static id_t* find_id(id_t *id, parser_st *ps){
-  id_t *idt = ps->id_next;
-  for(;idt!=NULL;idt = idt->idn){
-    
-
+static id_t* find_id(const char *name, parser_st *ps){
+  id_t *idt;
+  for(idt = ps->id_head; idt!=NULL; idt = idt->idn){
+    if(idt->name == NULL){
+      error("ID name is NULL",ps,__LINE__);
+    }
+    if(!strcmp(idt->name,name)){
+      return idt;
+    }
   }
+  return NULL;
 }
 
 static void add_id(const char *name, symbol_e sym, parser_st *ps){
+  calloc_id(&(ps->id_next->idn),ps);
+  ps->id_next = ps->id_next->idn;
+  strcpy(ps->id_next->name,name);
+  ps->id_next->type = sym;
 }
 
 /*============================================================================*/
@@ -331,6 +340,7 @@ int main(void){
     0,
     NULL,
     NULL,
+    NULL,
     NULL
   };
   ps.in   = stdin;
@@ -338,6 +348,8 @@ int main(void){
   ps.err  = stderr;
   calloc_ast(&(ps.head),&ps);
   ps.current = ps.head;
+  calloc_id(&(ps.id_head),&ps);
+  ps.id_next = ps.id_head;
 
   parse_program(&ps);
 
