@@ -200,7 +200,7 @@ begin
                                   tos_n <= (others => '0');
                               end if;
                 when "10100" =>   tos_n   <= tos_c(7 downto 0) & tos_c(15 downto 8);
-                when "10101" => 
+                when "10101" =>  
                 when "10110" => 
                 when "10111" =>
                 when "11000" =>
