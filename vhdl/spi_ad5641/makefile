@@ -34,11 +34,7 @@ help:
 ##
 ## Simulation ==============================================================
 
-edgeDff.o: edgeDff.vhd
-	@echo "ghdl -a edgeDff.vhd"
-	@ghdl -a edgeDff.vhd
-
-shift_reg_16.o: edgeDff.o shift_reg_16.vhd
+shift_reg_16.o: shift_reg_16.vhd
 	@echo "ghdl -a shift_reg_16.vhd"
 	@ghdl -a shift_reg_16.vhd
 
