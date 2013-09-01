@@ -23,7 +23,7 @@ begin
 
   counter_process: process(clk, rst)
   begin
-    if rst = '0' then
+    if rst = '1' then
       counter_int <= 0;
     elsif rising_edge(clk) then
       if enable = '1' then

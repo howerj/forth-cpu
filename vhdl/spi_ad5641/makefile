@@ -49,8 +49,18 @@ simulation: spi_ad5641.o spi_test_bench.vhd
 ## Simulation ==============================================================
 
 viewer:
-	gtkwave test_bench.ghw &>/dev/null&
+	gtkwave spi_test_bench.ghw &>/dev/null&
+
+## Second simulation of sub component
+
+shift_reg_sim: shift_reg_16.o
+	ghdl -a shift_reg_test_bench.vhd
+	ghdl -e shift_reg_test_bench
+	ghdl -r shift_reg_test_bench --wave=shift_reg_test_bench.ghw 
+
+shift_reg_viewer:
+	gtkwave shift_reg_test_bench.ghw &>/dev/null&
 
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."
-	@rm -vf *.o *.cf
+	@rm -vf *.o *.cf spi_test_bench shift_reg_test_bench
