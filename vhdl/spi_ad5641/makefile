@@ -57,4 +57,4 @@ viewer:
 
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."
-	@rm -vf *.o
+	@rm -vf *.o *.cf
