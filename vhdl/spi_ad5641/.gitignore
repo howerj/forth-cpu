@@ -3,4 +3,5 @@
 *.swo
 *.cf
 spi_top_level
+spi_test_bench
 shift_reg_test_bench
