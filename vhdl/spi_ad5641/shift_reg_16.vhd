@@ -24,19 +24,19 @@ begin
   counter_process: process(clk, rst)
   begin
     if rst = '1' then
-      counter_int <= 0;
+      counter_int <= 15;
     elsif rising_edge(clk) then
       if enable = '1' then
-        if counter_int = count_max then
-          counter_int <= 0;
+        if counter_int = 0 then
+          counter_int <= 15;
         else
-          counter_int <= counter_int + 1;
+          counter_int <= counter_int - 1;
         end if;
       end if;
     end if;
   end process;
 
   sout <= sin(counter_int);
-  done <= '1' when counter_int = 15 else '0';
+  done <= '1' when counter_int = 0 else '0';
 
 end architecture;
