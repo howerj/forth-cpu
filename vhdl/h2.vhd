@@ -235,7 +235,7 @@ begin
         end if;
     end process;
 
-    mainProcess: process(
+    stackUpdate: process(
             pc_c, 
             insn,
             vstkp_c, vstk_ram, dd,

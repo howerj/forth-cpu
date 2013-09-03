@@ -32,7 +32,8 @@ the buffers instead of handling the UART directly.
 vm/
 ===
 
-* Implement virtual machine?
+* Implement peripherals
+* Move to Forth
 
 ALL:
 ====

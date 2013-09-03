@@ -41,7 +41,6 @@ architecture behavior of test_bench is
     signal      tb_hsync:        std_logic                    :=            '0';
     signal      tb_vsync:        std_logic                    :=            '0';
 
-
 begin
 ---- Units under test ----------------------------------------------------------
 

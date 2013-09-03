@@ -1,5 +1,17 @@
--- Example from http://www.cse.wustl.edu/~jbf/cse362.d/cse362.vhdl.Generate.pdf
--- Needs modification
+-- App note:
+-- Possible simplification in other case:
+--  if load = '0' then
+--    shift_reg <= parallel;
+--  elsif (clock’event and clock = '1') then
+--    serial <= shift_reg(7);
+--    shift_reg(7 downto 1) <= (6 downto 0);
+--  end if;
+--  The counter could possibly be replaced by
+--  another shift register, on load a '1' is
+--  put into the first bit that then gets shifted
+--  through the device until it pops out the end
+--  at the same time as the last bit of the above
+--  register.
 
 library ieee,work,std;
 use ieee.std_logic_1164.all; 

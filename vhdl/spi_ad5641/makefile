@@ -27,8 +27,13 @@ help:
 	@echo ""
 	@echo "Simulation:"
 	@echo ""
-	@echo "make simulation     - simulate design"
-	@echo "make viewer         - start waveform viewer for simulation results"
+	@echo "make simulation     		- simulate design"
+	@echo "make viewer         		- start waveform viewer for simulation results"
+	@echo ""
+	@echo "make shift_reg_sim" 		- Simulate shift register sub section
+	@echo "make shift_reg_viewer" - Waveform viewer for sub section
+	@echo ""
+	@echo "make clean"						- Clean up working directory
 	@echo ""
 
 ##
@@ -63,4 +68,4 @@ shift_reg_viewer:
 
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."
-	@rm -vf *.o *.cf spi_test_bench shift_reg_test_bench
+	@rm -vf *.o *.cf *.ghw spi_test_bench shift_reg_test_bench

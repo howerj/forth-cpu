@@ -1,5 +1,4 @@
-Simple VHDL Computing System
-============================
+## Simple VHDL Computing System
 
 Author:             
 
@@ -22,8 +21,7 @@ Email(s):
 All works are copyright of Richard James Howe unless stated elsewhere, all
 works not written by me have also been released under the LGPL license.
 
-Introduction
-============
+### Introduction
 
 This project contains various modules linked together to create a small
 computer. It is meant to be extensible and is an on going project,
@@ -34,8 +32,7 @@ The project is written in VHDL, and is built around a CPU core called
 the H2, which is a rewrite and extension of a Forth based CPU core called
 the J1.
 
-Software needed
-===============
+### Software needed
 
 * Make
 
@@ -49,8 +46,7 @@ Software needed
 
 * Xilinx Webpack 14.X
 
-Hardware needed
-===============
+### Hardware needed
 
 * Digilent\`s Nexys 3 FPGA development board.
 
@@ -62,24 +58,16 @@ Hardware needed
 
 * VGA compatible monitor.
 
-Directory structure.
-====================
+### Directory structure.
 
-forth/  
-------
+#### forth/  
 
 Contains a Forth interpreter, this has been used in the build process
 and as an assembler.
 
 Edit the file **h2.fs** with the program you want to run on the device.
 
-docs/
------
-
-Contains the documentation for the project.
-
-vhdl/
------  
+#### vhdl/
 
 Contains the actual code, written in what should be portable VHDL,
 it includes a test benches.
@@ -90,7 +78,6 @@ the output run **make viewer**.
 To implement the design type:
 
 ~~~
-
     make synthesis
     make implementation
     make bitfile
@@ -100,10 +87,6 @@ To implement the design type:
 
 *make upload* requires the device (the Nexys 3) be plugged in.
 
-vm/
----   
-
-Contains virtual machine, simulation of the H2 CPU. [TODO]
-
+#### experimental/
 
 EOF
