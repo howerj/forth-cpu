@@ -429,9 +429,15 @@ str @reg dup iobl @reg + str !reg constant filename
 13 mALU  constant N>>T
 14 mALU  constant NrolT
 15 mALU  constant NrorT
-16 mALU  constant Nu<T
-17 mALU  constant N<T
-17 mALU  constant N=T
+16 mALU  constant L(T)*L(N)
+17 mALU  constant Nu<T
+18 mALU  constant N<T
+19 mALU  constant N=T
+20 mALU  constant T<0
+21 mALU  constant T=0
+22 mALU  constant swapbytes
+23 mALU  constant seti
+24 mALU  constant clri
 \ ...
 29 mALU  constant T-1  \ Get input
 30 mALU  constant [T<-IO]  \ Get input
