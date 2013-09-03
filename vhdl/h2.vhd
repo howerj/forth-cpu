@@ -28,6 +28,10 @@ entity h2 is
         io_din:     in  std_logic_vector(15 downto 0);
         io_dout:    out std_logic_vector(15 downto 0);
         io_daddr:   out std_logic_vector(15 downto 0);
+        ---- Interrupts
+--      irq:        in  std_logic;
+--      irc:        in  std_logic_vector(3 downto 0);
+
         -- RAM interface, Dual port
         pco:        out std_logic_vector(12 downto 0);
         insn:       in  std_logic_vector(15 downto 0);
@@ -63,6 +67,7 @@ architecture rtl of h2 is
     signal is_instr_jmp:        std_logic                     :=  '0';
     signal is_instr_cjmp:       std_logic                     :=  '0';
     signal is_instr_call:       std_logic                     :=  '0';
+--  signal is_instr_interrupt:  std_logic                     :=  '0';
 
     -- Comparisions on stack items
     signal comp_more_signed:    std_logic                     :=  '0';
@@ -73,6 +78,8 @@ architecture rtl of h2 is
 
     -- Interrupt enable register (for when interrupts are implemented)
     signal int_en_c, int_en_n:  std_logic                     :=  '0';
+--    signal irq_c, irq_n:        std_logic                     :=  '0';
+--    signal irc_c, irc_n:        std_logic_vector(3 downto 0)  :=  (others => '0');
 
     -- Top of stack, and next on stack.
     signal tos_c:         std_logic_vector(15 downto 0) := (others => '0');
@@ -178,7 +185,7 @@ begin
                 when "00001" =>  tos_n  <=  nos;
                 when "00010" =>  tos_n  <=  rtos_c;
                 when "00011" =>  tos_n  <=  din;  
-                when "00100" =>  tos_n  <=  vstkp_c & rstkp_c & int_en_c & "000000"; -- depth of stacks 
+                when "00100" =>  tos_n  <=  vstkp_c & rstkp_c & int_en_c & comp_zero & comp_negative & "0000"; -- depth of stacks 
                 when "00101" =>  tos_n  <=  tos_c or nos;
                 when "00110" =>  tos_n  <=  tos_c and nos;
                 when "00111" =>  tos_n  <=  tos_c xor nos;
