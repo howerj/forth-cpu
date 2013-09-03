@@ -61,6 +61,17 @@
 
 start
   [SETUP]
+
+\ Small test prog
+  _seti _depth
+  _clri _depth
+  _swapbytes
+
+  1 lit
+  1 lit
+  _=
+
+
   256 lit
   label main
       2 lit

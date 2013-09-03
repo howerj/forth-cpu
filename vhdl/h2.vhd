@@ -29,8 +29,8 @@ entity h2 is
         io_dout:    out std_logic_vector(15 downto 0);
         io_daddr:   out std_logic_vector(15 downto 0);
         ---- Interrupts
---      irq:        in  std_logic;
---      irc:        in  std_logic_vector(3 downto 0);
+--        irq:        in  std_logic;
+--        irc:        in  std_logic_vector(3 downto 0);
 
         -- RAM interface, Dual port
         pco:        out std_logic_vector(12 downto 0);
@@ -78,8 +78,8 @@ architecture rtl of h2 is
 
     -- Interrupt enable register (for when interrupts are implemented)
     signal int_en_c, int_en_n:  std_logic                     :=  '0';
---    signal irq_c, irq_n:        std_logic                     :=  '0';
---    signal irc_c, irc_n:        std_logic_vector(3 downto 0)  :=  (others => '0');
+    signal irq_c, irq_n:        std_logic                     :=  '0';
+    signal irc_c, irc_n:        std_logic_vector(3 downto 0)  :=  (others => '0');
 
     -- Top of stack, and next on stack.
     signal tos_c:         std_logic_vector(15 downto 0) := (others => '0');
@@ -102,6 +102,7 @@ begin
     is_instr_jmp  <=  '1' when insn(15 downto 13) = "000" else '0';
     is_instr_cjmp <=  '1' when insn(15 downto 13) = "001" else '0';
     is_instr_call <=  '1' when insn(15 downto 13) = "010" else '0';
+--  is_instr_interrupt <= '1' when irc_c = '1' else '0';
 
     comp_more_signed  <= '1' when signed(tos_c) > signed(nos) else '0';
     comp_more         <= '1' when tos_c > nos else '0';
@@ -151,6 +152,7 @@ begin
 
     alu_sel: process(
         insn
+--        ,is_instr_interrupt
     )
     begin
         case insn(14 downto 13) is
@@ -185,7 +187,7 @@ begin
                 when "00001" =>  tos_n  <=  nos;
                 when "00010" =>  tos_n  <=  rtos_c;
                 when "00011" =>  tos_n  <=  din;  
-                when "00100" =>  tos_n  <=  vstkp_c & rstkp_c & int_en_c & comp_zero & comp_negative & "0000"; -- depth of stacks 
+                when "00100" =>  tos_n  <=  vstkp_c & rstkp_c & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
                 when "00101" =>  tos_n  <=  tos_c or nos;
                 when "00110" =>  tos_n  <=  tos_c and nos;
                 when "00111" =>  tos_n  <=  tos_c xor nos;
@@ -211,12 +213,12 @@ begin
                 when "10110" => tos_n  <=  tos_c(7 downto 0) & tos_c(15 downto 8);
                 when "10111" => int_en_n <= '1'; -- enable interrupts
                 when "11000" => int_en_n <= '0'; -- disable interrupts
-                when "11001" =>
+                when "11001" => tos_n   <=  std_logic_vector(unsigned(tos_c)-1);
                 when "11010" =>
                 when "11011" =>
                 when "11100" =>
                 when "11101" =>
-                                tos_n   <=  std_logic_vector(unsigned(tos_c)-1);
+                              
                 when "11110" =>
                                 tos_n   <=  io_din; -- Should be integrated din instruction
                 when "11111" =>
@@ -235,12 +237,16 @@ begin
             pc_c        <=  (others => '0');
             tos_c       <=  (others => '0');
             int_en_c    <=  '0';
+--            irq_c       <=  '0';
+--            irc_c       <=  (others => '0');
         elsif rising_edge(clk) then
             vstkp_c     <=  vstkp_n;
             rstkp_c     <=  rstkp_n;
             pc_c        <=  pc_n;
             tos_c       <=  tos_n;
             int_en_c    <=  int_en_n;
+--            irq_c       <=  irq_n;
+--            irc_c       <=  irc_n;
         end if;
     end process;
 

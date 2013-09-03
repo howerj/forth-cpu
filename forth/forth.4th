@@ -438,8 +438,8 @@ str @reg dup iobl @reg + str !reg constant filename
 22 mALU  constant swapbytes
 23 mALU  constant seti
 24 mALU  constant clri
+25 mALU  constant T-1  
 \ ...
-29 mALU  constant T-1  \ Get input
 30 mALU  constant [T<-IO]  \ Get input
 31 mALU  constant N->IO(T) \ Set output
 
@@ -497,9 +497,14 @@ str @reg dup iobl @reg + str !reg constant filename
 : _r@       alu[ R T->N T->R d+1 or or or ]alu ;
 : _@        alu[ [T] ]alu ;
 : _!        alu[ N d-2 N->[T] or or ]alu ;
-\ : _*      alu[ L(T*N) d-1 or ]alu ;
+: _*        alu[ L(T)*L(N) d-1 or ]alu ;
 : _input    alu[ [T<-IO] ]alu ;
 : _output   alu[ N d-2 N->IO(T) or or ]alu ;
+: _depth    alu[ depth T->N d+1 or or ]alu ;
+: _seti     alu[ seti ]alu ;
+: _clri     alu[ clri ]alu ;
+: _swapbytes alu[ swapbytes ]alu ;
+
 
 : label immediate
 	create 
