@@ -87,6 +87,9 @@ To implement the design type:
 
 *make upload* requires the device (the Nexys 3) be plugged in.
 
-#### experimental/
+#### test/
+
+Testing directory for miscellaneous side and sub projects.
+
 
 EOF
