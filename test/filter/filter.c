@@ -18,6 +18,8 @@ void disInsr_h2(char *in, char *out, FILE *log){
     sprintf(out,"call(%hx)",0x1FFF&instruction);
   }else if(instruction & 0x2000){
     sprintf(out,"cjmp(%hx)",0x1FFF&instruction);
+  }else if(!(instruction & 0xC000)){
+    sprintf(out,"jmp(%hx)",0x1FFF&instruction);
   } else{
     memcpy(out,in,BUF_LEN_M);
   }
