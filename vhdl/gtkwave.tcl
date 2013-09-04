@@ -42,14 +42,28 @@ lappend names "vstkp_c"
 set num_added [ gtkwave::addSignalsFromList $names ]
 puts "num signals added: $num_added"
 
-set highLight_insn [list]
-lappend highlight_insn "insn"
+set highlight_insn [list]
+
+for {set i 0} {$i < $nfacs } {incr i} {
+     set facname [ gtkwave::getFacName $i ]
+     set indx [ string last "insn" $facname  ]
+ 
+     if {$indx != -1} {
+       lappend highlight_insn "$facname"
+       puts "found : $facname"
+   }
+}
+
 set num_added [ gtkwave::highlightSignalsFromList $highlight_insn ]
 puts "num highlighted: $num_added"
-set procFile "../test/filter/filter"
+gtkwave::/Edit/Highlight_Regexp "insn"
+set procFile "../test/filter/./filter"
 set which_f [ gtkwave::setCurrentTranslateProc $procFile ]
-set num_update [ gtkwave::installProcFilter $which_f ]
-puts "num updated with proc filter: $num_update"
+gtkwave::/Edit/Data_Format/Translate_Filter_Process/Enable_and_Select
+puts "which_f: $which_f"
+## Causes seg fault, is this the right command?
+#set num_update [ gtkwave::installProcFilter $which_f ]
+#puts "num updated with proc filter: $num_update"
 
 gtkwave::/Edit/Set_Trace_Max_Hier 0
 gtkwave::/Time/Zoom/Zoom_Amount -21.5
