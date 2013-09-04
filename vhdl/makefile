@@ -93,7 +93,8 @@ simulation: cpu.o uart.o vga_top.o top_level.vhd test_bench.vhd
 ## Simulation ==============================================================
 
 viewer:
-	gtkwave test_bench.ghw &>/dev/null&
+	gtkwave -S gtkwave.tcl -f test_bench.ghw 
+#	gtkwave -S gtkwave.tcl -f test_bench.ghw &> /dev/null&
 
 synthesis:
 	@echo "Synthesis running..."
