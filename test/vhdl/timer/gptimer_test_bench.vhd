@@ -22,7 +22,6 @@ architecture simulation of gptimer_test_bench is
   signal   tb_ctr_r:       std_logic_vector(15 downto 0) := (others =>'0'); 
   signal   tb_comp1_r:     std_logic_vector(15 downto 0) := (others =>'0'); 
   signal   tb_comp2_r:     std_logic_vector(15 downto 0) := (others =>'0'); 
-  signal   tb_irq_roll:    std_logic := 'X';
   signal   tb_irq_comp1:   std_logic := 'X';
   signal   tb_irq_comp2:   std_logic := 'X';
   signal   tb_q:           std_logic := 'X';                     
@@ -40,7 +39,6 @@ begin
     ctr_r       => tb_ctr_r,
     comp1_r     => tb_comp1_r,
     comp2_r     => tb_comp2_r,
-    irq_roll    => tb_irq_roll,
     irq_comp1   => tb_irq_comp1,
     irq_comp2   => tb_irq_comp2,
     q           => tb_q,

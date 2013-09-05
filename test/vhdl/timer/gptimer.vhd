@@ -33,7 +33,6 @@ entity gptimer is
     comp2_r:      in std_logic_vector(15 downto 0); -- Compare value two
 
     -- Timer interrupts
-    irq_roll:     out std_logic;                    -- Roll over Interrupt
     irq_comp1:    out std_logic;                    -- Compare one Interrupt
     irq_comp2:    out std_logic;                    -- Compare two Interrupt
     Q:            out std_logic;                    -- Timer signal
