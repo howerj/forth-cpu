@@ -64,14 +64,20 @@ begin
     tb_rst        <= '0';
 
     tb_ctr_r_we   <= '1';
-    tb_ctr_r      <= X"B280";
+    tb_ctr_r      <= X"B180";
 
     tb_comp1_r_we <= '1';
     tb_comp1_r    <= X"0004";
+    tb_comp2_r_we <= '1';
+    tb_comp2_r    <= X"0008";
     wait for clk_period;
 
     tb_ctr_r_we   <= '0';
     tb_ctr_r      <= X"0000";
+    tb_comp1_r_we <= '0';
+    tb_comp1_r    <= X"0000";
+    tb_comp2_r_we <= '0';
+    tb_comp2_r    <= X"0000";
     wait for clk_period * 256;
 
     wait_flag <= '1';
