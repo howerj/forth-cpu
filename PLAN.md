@@ -1,5 +1,8 @@
 ## The Plan
 
+* Coding standards
+  - Come up with naming convention and stick with it.
+  - Create better test benched.
 * Documentation
   - LaTeX book and markdown help files.
 * Implement *portable* VHDL modules for the following:

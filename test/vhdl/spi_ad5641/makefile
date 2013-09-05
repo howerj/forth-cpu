@@ -1,25 +1,12 @@
 #
 # Makefile to simulate and synthesize VHDL designs
 #
-# @Author 		Marc Eberhard/Richard Howe
+# @Author 		Richard Howe
 # @Copyright	Copyright 2013 Marc Eberhard
 # @License		LGPL
 #
 
 
-## Remember to update the synthesis section as well
-SOURCES = \
-	mem_font.vhd \
-	mem_text.vhd \
-	uart.vhd \
-	ctrm.vhd \
-	losr.vhd \
-	vga80x40.vhd \
-	vga_top.vhd \
-	h2.vhd \
-	mem_h2.vhd \
-	cpu.vhd \
-#	io.vhd
 
 all: help simulation
 

@@ -413,32 +413,32 @@ str @reg dup iobl @reg + str !reg constant filename
 
 \ ALU instructions
 :  mALU 8 lshift ;
-0  mALU  constant T ." T" cr
-1  mALU  constant N ." N" cr
-2  mALU  constant R ." R" cr
-3  mALU  constant [T] ." [T]" cr
-4  mALU  constant depth ." depth" cr
-5  mALU  constant T|N ." T|N" cr
-6  mALU  constant T&N ." T&N" cr
-7  mALU  constant T^N ." T^N" cr
-8  mALU  constant ~(T^N) ." ~(T^N)" cr
-9  mALU  constant ~T ." ~T" cr
-10 mALU  constant T+N ." T+N" cr
-11 mALU  constant N-T ." N-T" cr
-12 mALU  constant N<<T ." N<<T" cr
-13 mALU  constant N>>T ." N>>T" cr
-14 mALU  constant NrolT ." NrolT" cr
-15 mALU  constant NrorT ." NrorT" cr
-16 mALU  constant L(T)*L(N) ." L(T)*L(N)" cr
-17 mALU  constant Nu<T ." Nu<T" cr
-18 mALU  constant N<T ." N<T" cr
-19 mALU  constant N=T ." N=T" cr
-20 mALU  constant T<0 ." T<0" cr
-21 mALU  constant T=0 ." T=0" cr
-22 mALU  constant swapbytes ." swapbytes" cr
-23 mALU  constant seti ." seti" cr
-24 mALU  constant clri ." clri" cr
-25 mALU  constant T-1   ." T-1  " cr
+0  mALU  constant T         ." TOS = "          T       prnn ." , " cr
+1  mALU  constant N         ." NOS = "          N       prnn ." , " cr
+2  mALU  constant R         ." RET = "          R       prnn ." , " cr
+3  mALU  constant [T]       ." fetch = "        [T]     prnn ." , " cr
+4  mALU  constant depth     ." depth = "      depth   prnn ." , " cr
+5  mALU  constant T|N       ." TorN = "        T|N     prnn ." , " cr
+6  mALU  constant T&N       ." TandN = "        T&N     prnn ." , " cr
+7  mALU  constant T^N       ." TxorN = "        T^N     prnn ." , " cr
+8  mALU  constant ~(T^N)    ." Txnor = "     ~(T^N)  prnn ." , " cr
+9  mALU  constant ~T        ." invT = "         ~T      prnn ." , " cr
+10 mALU  constant T+N       ." TplusN = "        T+N     prnn ." , " cr
+11 mALU  constant N-T       ." NsubT = "        N-T     prnn ." , " cr
+12 mALU  constant N<<T      ." NlslT = "       N<<T    prnn ." , " cr
+13 mALU  constant N>>T      ." NrslT = "       N>>T    prnn ." , " cr
+14 mALU  constant NrolT     ." NrolT = "      NrolT   prnn ." , " cr
+15 mALU  constant NrorT     ." NrorT = "      NrorT   prnn ." , " cr
+16 mALU  constant L(T)*L(N) ." LmulT = "  L(T)*L(N) prnn ." , " cr
+17 mALU  constant Nu<T      ." NuLessT = "       Nu<T    prnn ." , " cr
+18 mALU  constant N<T       ." NLessT = "        N<T     prnn ." , " cr
+19 mALU  constant N=T       ." NeqT = "        N=T     prnn ." , " cr
+20 mALU  constant T<0       ." TlessZ = "        T<0     prnn ." , " cr
+21 mALU  constant T=0       ." TeqZ = "        T=0     prnn ." , " cr
+22 mALU  constant swapbytes ." swapbytes = "  swapbytes prnn ." , " cr
+23 mALU  constant seti      ." seti = "       seti    prnn ." , " cr
+24 mALU  constant clri      ." clri = "       clri    prnn ." , " cr
+25 mALU  constant T-1       ." TsubOne = "        T-1     prnn ." , " cr
 \ ...
 30 mALU  constant [T<-IO]  \ Get input
 31 mALU  constant N->IO(T) \ Set output
