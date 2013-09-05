@@ -101,25 +101,41 @@ begin
     count,
     timersig_c,
     reset_c,
-    ctrl_comp1_reset, ctrl_comp2_reset
+    ctrl_comp1_reset, ctrl_comp2_reset,
+    ctrl_comp1_action, ctrl_comp2_action
   )
   begin
     timersig_n  <= timersig_c;
     reset_n <= '0';
 
     if count = unsigned(comp1_r_c) then
-      timersig_n <= not timersig_c;
+      case ctrl_comp1_action is
+        when "00"   => timersig_n  <= timersig_c;
+        when "01"   => timersig_n  <= '0';
+        when "10"   => timersig_n  <= '1';
+        when "11"   => timersig_n  <= not timersig_c;
+        when others => timersig_n <= 'X';
+      end case;
+
       if ctrl_comp1_reset = '1' then
         reset_n <= '1';
       end if;
     end if;
 
---    if count = unsigned(comp2_r_c) then
---      timersig_n <= not timersig_c;
---      if ctrl_comp2_reset = '1' then
---        reset_n <= '1';
---      end if;
---    end if;
+    if count = unsigned(comp2_r_c) then
+      case ctrl_comp2_action is
+        when "00"   => timersig_n  <= timersig_c;
+        when "01"   => timersig_n  <= '0';
+        when "10"   => timersig_n  <= '1';
+        when "11"   => timersig_n  <= not timersig_c;
+        when others => timersig_n  <= 'X';
+      end case;
+
+      timersig_n <= not timersig_c;
+      if ctrl_comp2_reset = '1' then
+        reset_n <= '1';
+      end if;
+    end if;
   end process;
 
   assignRegisters: process( 

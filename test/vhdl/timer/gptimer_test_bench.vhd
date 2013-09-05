@@ -60,7 +60,7 @@ begin
     tb_rst        <= '0';
 
     tb_ctr_r_we   <= '1';
-    tb_ctr_r      <= X"8200";
+    tb_ctr_r      <= X"B200";
 
     tb_comp1_r_we <= '1';
     tb_comp1_r    <= X"0004";
