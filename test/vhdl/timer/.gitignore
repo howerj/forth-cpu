@@ -4,3 +4,4 @@ gptimer_test_bench
 *.swp
 *.log
 *.swo
+*.ghw
