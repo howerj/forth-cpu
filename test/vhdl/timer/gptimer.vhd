@@ -3,6 +3,13 @@
 -- @copyright      Copyright 2013 Richard James Howe.
 -- @license        LGPL      
 -- @email          howe.r.j.89@gmail.com
+-- TODO:
+--  * Each comparator should be able to trigger a LOAD of a value
+--    into the counter
+--  * Check this synthesizes correctly.
+--  * Testing.
+--  * Complete functionality.
+--  * Increment and decrement counter by value instead of +/- 1
 
 library ieee,work,std;
 use ieee.std_logic_1164.all; 
@@ -15,16 +22,22 @@ entity gptimer is
 
     timer_reset:  in std_logic;                     -- Has same function as rst
 
+    -- Write enables
     ctr_r_we:     in std_logic;                     -- ctr_r write enable
     comp1_r_we:   in std_logic;                     -- comp1_r write enable
     comp2_r_we:   in std_logic;                     -- comp2_r write enable
 
+    -- Registers
     ctr_r:        in std_logic_vector(15 downto 0); -- Control register
     comp1_r:      in std_logic_vector(15 downto 0); -- Compare value one
     comp2_r:      in std_logic_vector(15 downto 0); -- Compare value two
 
-    interrupt:    out std_logic;                    -- Generate interrupt
-    timersig:     out std_logic                     -- Any timer signal
+    -- Timer interrupts
+    irq_roll:     out std_logic;                    -- Roll over Interrupt
+    irq_comp1:    out std_logic;                    -- Compare one Interrupt
+    irq_comp2:    out std_logic;                    -- Compare two Interrupt
+    Q:            out std_logic;                    -- Timer signal
+    NQ:           out std_logic                     -- Timer signal inverted
   );
 end entity;
 
@@ -43,6 +56,7 @@ architecture rtl of gptimer is
   signal ctrl_comp2_action:       std_logic_vector(1 downto 0)   := (others => '0');
   signal ctrl_comp1_reset:        std_logic := '0';
   signal ctrl_comp2_reset:        std_logic := '0';
+  signal ctrl_irq_en:             std_logic := '0';
 
   signal count:                   unsigned(15 downto 0)          := (others => '0');
   signal reset_c, reset_n:        std_logic := '0';
@@ -53,8 +67,10 @@ begin
   ctrl_comp2_action <= ctr_r_c(11 downto 10);
   ctrl_comp1_reset  <= ctr_r_c(9);
   ctrl_comp2_reset  <= ctr_r_c(8);
+  ctrl_irq_en       <= ctr_r_c(7);
 
-  timersig          <= timersig_c when ctrl_enabled = '1' else '0';
+  Q   <=      timersig_c when ctrl_enabled = '1' else '0';
+  NQ  <= not  timersig_c when ctrl_enabled = '1' else '1';
 
   clockRegisters: process(clk,rst,timer_reset)
   begin
@@ -102,13 +118,17 @@ begin
     timersig_c,
     reset_c,
     ctrl_comp1_reset, ctrl_comp2_reset,
-    ctrl_comp1_action, ctrl_comp2_action
+    ctrl_comp1_action, ctrl_comp2_action,
+    ctrl_irq_en
   )
   begin
     timersig_n  <= timersig_c;
-    reset_n <= '0';
+    reset_n     <= '0';
+    irq_comp1   <= '0';
+    irq_comp2   <= '0';
 
     if count = unsigned(comp1_r_c) then
+      irq_comp1 <= ctrl_irq_en;
       case ctrl_comp1_action is
         when "00"   => timersig_n  <= timersig_c;
         when "01"   => timersig_n  <= '0';
@@ -123,6 +143,8 @@ begin
     end if;
 
     if count = unsigned(comp2_r_c) then
+      irq_comp2 <= ctrl_irq_en;
+
       case ctrl_comp2_action is
         when "00"   => timersig_n  <= timersig_c;
         when "01"   => timersig_n  <= '0';

@@ -22,8 +22,11 @@ architecture simulation of gptimer_test_bench is
   signal   tb_ctr_r:       std_logic_vector(15 downto 0) := (others =>'0'); 
   signal   tb_comp1_r:     std_logic_vector(15 downto 0) := (others =>'0'); 
   signal   tb_comp2_r:     std_logic_vector(15 downto 0) := (others =>'0'); 
-  signal   tb_interrupt:   std_logic := 'X';
-  signal   tb_timersig:    std_logic := 'X';                     
+  signal   tb_irq_roll:    std_logic := 'X';
+  signal   tb_irq_comp1:   std_logic := 'X';
+  signal   tb_irq_comp2:   std_logic := 'X';
+  signal   tb_q:           std_logic := 'X';                     
+  signal   tb_nq:          std_logic := 'X';                     
 begin
 
   gpt_timer_uut: entity work.gptimer
@@ -37,8 +40,11 @@ begin
     ctr_r       => tb_ctr_r,
     comp1_r     => tb_comp1_r,
     comp2_r     => tb_comp2_r,
-    interrupt   => tb_interrupt,
-    timersig    => tb_timersig
+    irq_roll    => tb_irq_roll,
+    irq_comp1   => tb_irq_comp1,
+    irq_comp2   => tb_irq_comp2,
+    q           => tb_q,
+    nq          => tb_nq
           );
 
 	clk_process: process
@@ -60,7 +66,7 @@ begin
     tb_rst        <= '0';
 
     tb_ctr_r_we   <= '1';
-    tb_ctr_r      <= X"B200";
+    tb_ctr_r      <= X"B280";
 
     tb_comp1_r_we <= '1';
     tb_comp1_r    <= X"0004";
