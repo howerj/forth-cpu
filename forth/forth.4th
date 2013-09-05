@@ -413,32 +413,32 @@ str @reg dup iobl @reg + str !reg constant filename
 
 \ ALU instructions
 :  mALU 8 lshift ;
-0  mALU  constant T
-1  mALU  constant N
-2  mALU  constant R
-3  mALU  constant [T]
-4  mALU  constant depth
-5  mALU  constant T|N
-6  mALU  constant T&N
-7  mALU  constant T^N
-8  mALU  constant ~(T^N)
-9  mALU  constant ~T
-10 mALU  constant T+N
-11 mALU  constant N-T
-12 mALU  constant N<<T
-13 mALU  constant N>>T
-14 mALU  constant NrolT
-15 mALU  constant NrorT
-16 mALU  constant L(T)*L(N)
-17 mALU  constant Nu<T
-18 mALU  constant N<T
-19 mALU  constant N=T
-20 mALU  constant T<0
-21 mALU  constant T=0
-22 mALU  constant swapbytes
-23 mALU  constant seti
-24 mALU  constant clri
-25 mALU  constant T-1  
+0  mALU  constant T ." T" cr
+1  mALU  constant N ." N" cr
+2  mALU  constant R ." R" cr
+3  mALU  constant [T] ." [T]" cr
+4  mALU  constant depth ." depth" cr
+5  mALU  constant T|N ." T|N" cr
+6  mALU  constant T&N ." T&N" cr
+7  mALU  constant T^N ." T^N" cr
+8  mALU  constant ~(T^N) ." ~(T^N)" cr
+9  mALU  constant ~T ." ~T" cr
+10 mALU  constant T+N ." T+N" cr
+11 mALU  constant N-T ." N-T" cr
+12 mALU  constant N<<T ." N<<T" cr
+13 mALU  constant N>>T ." N>>T" cr
+14 mALU  constant NrolT ." NrolT" cr
+15 mALU  constant NrorT ." NrorT" cr
+16 mALU  constant L(T)*L(N) ." L(T)*L(N)" cr
+17 mALU  constant Nu<T ." Nu<T" cr
+18 mALU  constant N<T ." N<T" cr
+19 mALU  constant N=T ." N=T" cr
+20 mALU  constant T<0 ." T<0" cr
+21 mALU  constant T=0 ." T=0" cr
+22 mALU  constant swapbytes ." swapbytes" cr
+23 mALU  constant seti ." seti" cr
+24 mALU  constant clri ." clri" cr
+25 mALU  constant T-1   ." T-1  " cr
 \ ...
 30 mALU  constant [T<-IO]  \ Get input
 31 mALU  constant N->IO(T) \ Set output

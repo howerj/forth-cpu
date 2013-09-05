@@ -24,9 +24,7 @@ works not written by me have also been released under the LGPL license.
 ### Introduction
 
 This project contains various modules linked together to create a small
-computer. It is meant to be extensible and is an on going project,
-although it\`s ultimate purpose as my final year project while studying
-for an electronic engineering degree.
+computer. It is meant to be extensible and is an on going project.
 
 The project is written in VHDL, and is built around a CPU core called
 the H2, which is a rewrite and extension of a Forth based CPU core called
