@@ -15,6 +15,7 @@ architecture simulation of gptimer_test_bench is
   signal   tb_clk:       std_logic                       :=  '0';
   signal   tb_rst:       std_logic                       :=  '1';
 
+  signal   tb_timer_reset: std_logic :=  '0';
   signal   tb_ctr_r_we:    std_logic :=  '0';
   signal   tb_comp1_r_we:  std_logic :=  '0';
   signal   tb_comp2_r_we:  std_logic :=  '0';
@@ -29,6 +30,7 @@ begin
   port map(
     clk         => tb_clk,
     rst         => tb_rst,
+    timer_reset => tb_timer_reset,
     ctr_r_we    => tb_ctr_r_we,
     comp1_r_we  => tb_comp1_r_we,
     comp2_r_we  => tb_comp2_r_we,
@@ -52,6 +54,20 @@ begin
 
 	stimulus_process: process
 	begin
+    tb_rst        <= '1';
+    wait for clk_period;
+
+    tb_rst        <= '0';
+
+    tb_ctr_r_we   <= '1';
+    tb_ctr_r      <= X"8200";
+
+    tb_comp1_r_we <= '1';
+    tb_comp1_r    <= X"0004";
+    wait for clk_period;
+
+    tb_ctr_r_we   <= '0';
+    tb_ctr_r      <= X"0000";
     wait for clk_period * 256;
 
     wait_flag <= '1';

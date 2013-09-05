@@ -10,19 +10,21 @@ use ieee.numeric_std.all;
 
 entity gptimer is
   port(
-    clk:        in std_logic;
-    rst:        in std_logic;
+    clk:          in std_logic;
+    rst:          in std_logic;
 
-    ctr_r_we:   in std_logic;                     -- ctr_r write enable
-    comp1_r_we: in std_logic;                     -- comp1_r write enable
-    comp2_r_we: in std_logic;                     -- comp2_r write enable
+    timer_reset:  in std_logic;                     -- Has same function as rst
 
-    ctr_r:      in std_logic_vector(15 downto 0); -- Control register
-    comp1_r:    in std_logic_vector(15 downto 0); -- Compare value one
-    comp2_r:    in std_logic_vector(15 downto 0); -- Compare value two
+    ctr_r_we:     in std_logic;                     -- ctr_r write enable
+    comp1_r_we:   in std_logic;                     -- comp1_r write enable
+    comp2_r_we:   in std_logic;                     -- comp2_r write enable
 
-    interrupt:  out std_logic;                    -- Generate interrupt
-    timersig:   out std_logic                     -- Any timer signal
+    ctr_r:        in std_logic_vector(15 downto 0); -- Control register
+    comp1_r:      in std_logic_vector(15 downto 0); -- Compare value one
+    comp2_r:      in std_logic_vector(15 downto 0); -- Compare value two
+
+    interrupt:    out std_logic;                    -- Generate interrupt
+    timersig:     out std_logic                     -- Any timer signal
   );
 end entity;
 
@@ -39,34 +41,92 @@ architecture rtl of gptimer is
   signal ctrl_updown:             std_logic := '0';
   signal ctrl_comp1_action:       std_logic_vector(1 downto 0)   := (others => '0');
   signal ctrl_comp2_action:       std_logic_vector(1 downto 0)   := (others => '0');
+  signal ctrl_comp1_reset:        std_logic := '0';
+  signal ctrl_comp2_reset:        std_logic := '0';
+
+  signal count:                   unsigned(15 downto 0)          := (others => '0');
+  signal reset_c, reset_n:        std_logic := '0';
 begin
-  clockRegisters: process(clk,rst)
+  ctrl_enabled      <= ctr_r_c(15);
+  ctrl_updown       <= ctr_r_c(14);
+  ctrl_comp1_action <= ctr_r_c(13 downto 12);
+  ctrl_comp2_action <= ctr_r_c(11 downto 10);
+  ctrl_comp1_reset  <= ctr_r_c(9);
+  ctrl_comp2_reset  <= ctr_r_c(8);
+
+  timersig          <= timersig_c when ctrl_enabled = '1' else '0';
+
+  clockRegisters: process(clk,rst,timer_reset)
   begin
-    if rst = '1' then
+    if rst = '1' or timer_reset = '1' then
       ctr_r_c   <=  (others => '0');
       comp1_r_c <=  (others => '0');
       comp2_r_c <=  (others => '0');
 
       timersig_c <= '0';
+      reset_c    <= '0';
     elsif rising_edge(clk) then
       ctr_r_c   <=  ctr_r_n;
       comp1_r_c <=  comp1_r_n;
       comp2_r_c <=  comp2_r_n;
 
       timersig_c <= timersig_n;
+      reset_c    <= reset_n;
     end if;
+  end process;
+
+  counterProcess: process(rst,clk)
+  begin
+    if rst = '1' or timer_reset = '1' then
+      count <= (others => '0');
+    elsif rising_edge(clk) then
+      if reset_c = '0' then
+        if ctrl_enabled = '1' then
+          if ctrl_updown = '0' then
+            count <= count + 1;
+          else
+            count <= count - 1;
+          end if;
+        else
+          count <= count;
+        end if;
+      else
+        count <= (others => '0');
+      end if;
+    end if;
+  end process;
+
+  compareProcess: process(
+    comp1_r_c, comp2_r_c,
+    count,
+    timersig_c,
+    reset_c,
+    ctrl_comp1_reset, ctrl_comp2_reset
+  )
+  begin
+    timersig_n  <= timersig_c;
+    reset_n <= '0';
+
+    if count = unsigned(comp1_r_c) then
+      timersig_n <= not timersig_c;
+      if ctrl_comp1_reset = '1' then
+        reset_n <= '1';
+      end if;
+    end if;
+
+--    if count = unsigned(comp2_r_c) then
+--      timersig_n <= not timersig_c;
+--      if ctrl_comp2_reset = '1' then
+--        reset_n <= '1';
+--      end if;
+--    end if;
   end process;
 
   assignRegisters: process( 
     ctr_r_we, comp1_r_we, comp2_r_we,
-    ctr_r_c, comp1_r_c, comp2_r_c,
-
-    timersig_c
+    ctr_r_c, comp1_r_c, comp2_r_c
   )
   begin
-  --- BEGIN Set register *default* next state BEGIN ---
-      timersig_n <= timersig_c;
-  --- END Set register *default* next state END ---
 
   --- BEGIN Set register next state BEGIN ---
 
@@ -88,7 +148,7 @@ begin
         comp2_r_n   <=  comp2_r_c;
       end if;
   --- END Set register next state END ---
-
   end process;
+
 
 end architecture;
