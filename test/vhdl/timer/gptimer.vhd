@@ -26,11 +26,17 @@ entity gptimer is
     ctr_r_we:     in std_logic;                     -- ctr_r write enable
     comp1_r_we:   in std_logic;                     -- comp1_r write enable
     comp2_r_we:   in std_logic;                     -- comp2_r write enable
+    load1_r_we:   in std_logic;                     -- load1_r write enable
+    load2_r_we:   in std_logic;                     -- load2_r write enable
+    load_s_we:    in std_logic;                     -- load_r write enable
 
     -- Registers
     ctr_r:        in std_logic_vector(15 downto 0); -- Control register
     comp1_r:      in std_logic_vector(15 downto 0); -- Compare value one
     comp2_r:      in std_logic_vector(15 downto 0); -- Compare value two
+    load1_r:      in std_logic_vector(15 downto 0); -- Load value one
+    load2_r:      in std_logic_vector(15 downto 0); -- Load value two
+    load_s:       in std_logic_vector(15 downto 0); -- Load this into the counter 
 
     -- Timer interrupts
     irq_comp1:    out std_logic;                    -- Compare one Interrupt
@@ -45,6 +51,9 @@ architecture rtl of gptimer is
   signal ctr_r_c, ctr_r_n:        std_logic_vector(15 downto 0)  := (others => '0');
   signal comp1_r_c, comp1_r_n:    std_logic_vector(15 downto 0)  := (others => '0');
   signal comp2_r_c, comp2_r_n:    std_logic_vector(15 downto 0)  := (others => '0');
+
+  signal load1_r_c, load1_r_n:    std_logic_vector(15 downto 0)  := (others => '0');
+  signal load2_r_c, load2_r_n:    std_logic_vector(15 downto 0)  := (others => '0');
   -- Registers for holding output
   signal timersig_c, timersig_n:  std_logic := '0';
 
@@ -56,9 +65,14 @@ architecture rtl of gptimer is
   signal ctrl_comp1_reset:        std_logic := '0';
   signal ctrl_comp2_reset:        std_logic := '0';
   signal ctrl_irq_en:             std_logic := '0';
+  signal ctrl_comp1_load:        std_logic := '0';
+  signal ctrl_comp2_load:        std_logic := '0';
 
   signal count:                   unsigned(15 downto 0)          := (others => '0');
   signal reset_c, reset_n:        std_logic := '0';
+
+  signal load_actual:             std_logic_vector(15 downto 0)  := (others => '0');
+  signal load_actual_we:          std_logic := '0';
 begin
   ctrl_enabled      <= ctr_r_c(15);
   ctrl_updown       <= ctr_r_c(14);
@@ -67,6 +81,8 @@ begin
   ctrl_comp1_reset  <= ctr_r_c(9);
   ctrl_comp2_reset  <= ctr_r_c(8);
   ctrl_irq_en       <= ctr_r_c(7);
+  ctrl_comp1_load   <= ctr_r_c(6);
+  ctrl_comp2_load   <= ctr_r_c(5);
 
   Q   <=      timersig_c when ctrl_enabled = '1' else '0';
   NQ  <= not  timersig_c when ctrl_enabled = '1' else '1';
@@ -77,6 +93,8 @@ begin
       ctr_r_c   <=  (others => '0');
       comp1_r_c <=  (others => '0');
       comp2_r_c <=  (others => '0');
+      load1_r_c <=  (others => '0');
+      load2_r_c <=  (others => '0');
 
       timersig_c <= '0';
       reset_c    <= '0';
@@ -84,6 +102,8 @@ begin
       ctr_r_c   <=  ctr_r_n;
       comp1_r_c <=  comp1_r_n;
       comp2_r_c <=  comp2_r_n;
+      load1_r_c <=  load1_r_n;
+      load2_r_c <=  load2_r_n;
 
       timersig_c <= timersig_n;
       reset_c    <= reset_n;
@@ -97,7 +117,9 @@ begin
     elsif rising_edge(clk) then
       if reset_c = '0' then
         if ctrl_enabled = '1' then
-          if ctrl_updown = '0' then
+          if load_actual_we = '1' then
+            count <= unsigned(load_actual);
+          elsif ctrl_updown = '0' then
             count <= count + 1;
           else
             count <= count - 1;
@@ -113,18 +135,26 @@ begin
 
   compareProcess: process(
     comp1_r_c, comp2_r_c,
+    load1_r_c, load2_r_c,
     count,
     timersig_c,
     reset_c,
     ctrl_comp1_reset, ctrl_comp2_reset,
     ctrl_comp1_action, ctrl_comp2_action,
-    ctrl_irq_en
+    ctrl_irq_en,
+    ctrl_comp1_load, ctrl_comp2_load,
+
+    load_s_we,
+    load_s
   )
   begin
-    timersig_n  <= timersig_c;
-    reset_n     <= '0';
-    irq_comp1   <= '0';
-    irq_comp2   <= '0';
+    timersig_n      <= timersig_c;
+    reset_n         <= '0';
+    irq_comp1       <= '0';
+    irq_comp2       <= '0';
+
+    load_actual     <= (others => '0');
+    load_actual_we  <= '0';
 
     if count = unsigned(comp1_r_c) then
       irq_comp1 <= ctrl_irq_en;
@@ -138,6 +168,11 @@ begin
 
       if ctrl_comp1_reset = '1' then
         reset_n <= '1';
+      end if;
+
+      if ctrl_comp1_load = '1' then
+        load_actual_we <= '1';
+        load_actual <= load1_r_c;
       end if;
     end if;
 
@@ -156,17 +191,27 @@ begin
       if ctrl_comp2_reset = '1' then
         reset_n <= '1';
       end if;
+
+      if ctrl_comp2_load = '1' then
+        load_actual_we <= '1';
+        load_actual <= load2_r_c;
+      end if;
     end if;
+
+    if load_s_we = '1' then
+      load_actual_we <= '1';
+      load_actual    <= load_s;
+    end if;
+
   end process;
 
   assignRegisters: process( 
-    ctr_r_we, comp1_r_we, comp2_r_we,
-    ctr_r_c, comp1_r_c, comp2_r_c
+    ctr_r_we, comp1_r_we, comp2_r_we, load1_r_we, load2_r_we,
+    ctr_r_c, comp1_r_c, comp2_r_c, load1_r_c, load2_r_c
   )
   begin
 
   --- BEGIN Set register next state BEGIN ---
-
       if ctr_r_we = '1' then
         ctr_r_n   <=  ctr_r;
       else
@@ -183,6 +228,18 @@ begin
         comp2_r_n   <=  comp2_r;
       else
         comp2_r_n   <=  comp2_r_c;
+      end if;
+
+      if load1_r_we = '1' then
+        load1_r_n   <=  load1_r;
+      else
+        load1_r_n   <=  load1_r_c;
+      end if;
+
+      if load2_r_we = '1' then
+        load2_r_n   <=  load2_r;
+      else
+        load2_r_n   <=  load2_r_c;
       end if;
   --- END Set register next state END ---
   end process;
