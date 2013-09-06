@@ -20,10 +20,6 @@ architecture behavior of abmm_tb is
 
   signal    tb_s_reg:          std_logic_vector(15 downto 0)   :=  (others => '0'); 
   signal    tb_addr_reg:       std_logic_vector(63 downto 0)   :=  (others => '0'); 
---  signal    tb_addr_reg_0_3:   std_logic_vector(15 downto 0)   :=  (others => '0'); 
---  signal    tb_addr_reg_4_7:   std_logic_vector(15 downto 0)   :=  (others => '0'); 
---  signal    tb_addr_reg_8_11:  std_logic_vector(15 downto 0)   :=  (others => '0');
---  signal    tb_addr_reg_12_15: std_logic_vector(15 downto 0)   :=  (others => '0');
   signal    tb_din:            std_logic_vector(15 downto 0)   :=  (others => '0'); 
   signal    tb_dout:           std_logic_vector(15 downto 0)   :=  (others => 'X');
 begin
@@ -31,10 +27,6 @@ begin
   port map(
             s_reg => tb_s_reg,
             addr_reg => tb_addr_reg,
---            addr_reg_0_3 => tb_addr_reg_0_3,
---            addr_reg_4_7 => tb_addr_reg_4_7,
---            addr_reg_8_11 => tb_addr_reg_8_11,
---            addr_reg_12_15 => tb_addr_reg_12_15,
             din => tb_din,
             dout => tb_dout
           );

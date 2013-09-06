@@ -1,5 +1,10 @@
 ## The Plan
 
+* Wishbone compliance
+  - All HDL components should be wishbone compliant
+* Replace Forth?
+  - Should I replace my Forth interpreter with a
+  Perl interpreter for assembly?
 * Coding standards
   - Come up with naming convention and stick with it.
   - Create better test benched.
