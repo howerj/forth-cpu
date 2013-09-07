@@ -1,0 +1,22 @@
+Release 14.6 Map P.68d (lin)
+Xilinx Map Application Log File for Design 'top_level'
+
+Design Information
+------------------
+Command Line   : map -intstyle silent -detail -p xc6slx16-csg324-3 -pr b -c 100
+-w -o top_level_map.ncd top_level.ngd top_level.pcf 
+Target Device  : xc6slx16
+Target Package : csg324
+Target Speed   : -3
+Mapper Version : spartan6 -- $Revision: 1.55 $
+Mapped Date    : Sat Sep  7 22:57:56 2013
+
+Mapping design into LUTs...
+Running directed packing...
+Running delay-based LUT packing...
+Updating timing models...
+INFO:Map:215 - The Interim Design Summary has been generated in the MAP Report
+   (.mrp).
+Running timing-driven placement...
+Total REAL time at the beginning of Placer: 30 secs 
+Total CPU  time at the beginning of Placer: 30 secs 

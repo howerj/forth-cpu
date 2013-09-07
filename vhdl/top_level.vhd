@@ -170,7 +170,14 @@ begin
     uart_din_c, ack_din_c,
     uart_dout_c, 
     uart_dout, stb_dout, ack_din,
-    stb_dout, stb_dout_c, vga_dout
+    stb_dout, stb_dout_c, vga_dout,
+
+    gpt1_ctr_r_we ,
+    gpt1_comp1_r_we ,
+    gpt1_comp2_r_we ,
+    gpt1_load1_r_we ,
+    gpt1_load2_r_we ,
+    gpt1_load_s_we
   )
   begin
     -- Outputs
@@ -211,6 +218,12 @@ begin
     gpt1_load2_r_we <= '0';
     gpt1_load_s_we <= '0';
 
+    gpt1_ctr_r <= (others => '0');
+    gpt1_comp1_r <= (others => '0');
+    gpt1_comp2_r <= (others => '0');
+    gpt1_load1_r <= (others => '0');
+    gpt1_load2_r <= (others => '0');
+    gpt1_load_s <= (others => '0');
 
     if ack_din = '1' then
         ack_din_n <= '1';

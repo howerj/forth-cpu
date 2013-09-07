@@ -105,7 +105,7 @@ begin
     end if;
   end process;
 
-  counterProcess: process(rst,clk)
+  counterProcess: process(rst,clk,timer_reset)
   begin
     if rst = '1' or timer_reset = '1' then
       count <= (others => '0');
@@ -202,7 +202,8 @@ begin
 
   assignRegisters: process( 
     ctr_r_we, comp1_r_we, comp2_r_we, load1_r_we, load2_r_we,
-    ctr_r_c, comp1_r_c, comp2_r_c, load1_r_c, load2_r_c
+    ctr_r_c, comp1_r_c, comp2_r_c, load1_r_c, load2_r_c,
+    ctr_r, comp1_r, comp2_r, load1_r, load2_r
   )
   begin
 
