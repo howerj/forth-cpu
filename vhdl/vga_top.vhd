@@ -93,7 +93,9 @@ begin
     crx_we,cry_we,ctl_we,
     crx_oreg, cry_oreg, ctl_oreg,
     ocrx_c, ocry_c, octl_c,
-    din_c, addr_c
+    din_c, addr_c,
+    vga_a_we, vga_din,
+    vga_d_we, vga_addr
   )
   begin
     ocrx_n <= ocrx_c;

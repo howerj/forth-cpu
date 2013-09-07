@@ -186,7 +186,7 @@ begin
     uart_din_c, ack_din_c,
     uart_dout_c, 
     uart_dout, stb_dout, ack_din,
-    stb_dout, stb_dout_c
+    stb_dout, stb_dout_c, vga_dout
   )
   begin
     -- Outputs
