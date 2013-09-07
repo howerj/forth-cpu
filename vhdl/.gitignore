@@ -28,3 +28,7 @@ test_bench
 work-obj93.cf
 *.ps
 log.txt
+top_level_map.*
+*.map
+*.mrp
+*.xrpt
