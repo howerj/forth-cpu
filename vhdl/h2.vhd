@@ -195,16 +195,21 @@ begin
                 when "01001" =>  tos_n  <=  not tos_c;
                 when "01010" =>  tos_n  <=  std_logic_vector(unsigned(tos_c)+unsigned(nos));
                 when "01011" =>  tos_n  <=  std_logic_vector(unsigned(nos)-unsigned(tos_c));
-                when "01100" =>  
+                when "01100" =>
 --                    tos_n   <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
+                      tos_n  <= tos_c;
                 when "01101" =>  
 --                    tos_n   <=  std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
+                      tos_n  <= tos_c;
                 when "01110" => 
 --                    tos_n   <=  std_logic_vector(unsigned(nos) rol to_integer(unsigned(tos_c(3 downto 0))));
+                      tos_n  <= tos_c;
                 when "01111" =>
 --                    tos_n   <=  std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
+                      tos_n  <= tos_c;
                 when "10000" => 
 --                    tos_n   <=  std_logic_vector(unsigned(nos(7 downto 0)) * to_integer(unsigned(tos_c(7 downto 0))));
+                      tos_n  <= tos_c;
                 when "10001" => tos_n  <=  (0 => comp_more_signed, others => '0');
                 when "10010" => tos_n  <=  (0 => comp_more, others => '0');
                 when "10011" => tos_n  <=  (0 => comp_equal, others => '0');

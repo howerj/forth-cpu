@@ -35,7 +35,10 @@ entity top_level is
     green:    out std_logic_vector(2 downto 0) :=      (others => '0'); 
     blue:     out std_logic_vector(1 downto 0) :=      (others => '0'); 
     hsync:    out std_logic                    :=      '0';
-    vsync:    out std_logic                    :=      '0'
+    vsync:    out std_logic                    :=      '0';
+    -- PWM from timer
+    gpt1_q:   out std_logic                    :=      '0';
+    gpt1_nq:  out std_logic                    :=      '0'
   );
 end;
 
@@ -84,6 +87,25 @@ architecture behav of top_level is
   signal  stb_din, stb_dout:        std_logic:= '0';
   signal  ack_din, ack_dout:        std_logic:= '0';
   signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
+
+  signal  gpt1_timer_reset:  std_logic := '0';
+  signal  gpt1_ctr_r_we:     std_logic := '0';               
+  signal  gpt1_comp1_r_we:   std_logic := '0';                
+  signal  gpt1_comp2_r_we:   std_logic := '0';                 
+  signal  gpt1_load1_r_we:   std_logic := '0';                  
+  signal  gpt1_load2_r_we:   std_logic := '0';                   
+  signal  gpt1_load_s_we:    std_logic := '0';                   
+  signal  gpt1_ctr_r:        std_logic_vector(15 downto 0) := (others =>'0');
+  signal  gpt1_comp1_r:      std_logic_vector(15 downto 0) := (others =>'0');
+  signal  gpt1_comp2_r:      std_logic_vector(15 downto 0) := (others =>'0');
+  signal  gpt1_load1_r:      std_logic_vector(15 downto 0) := (others =>'0');
+  signal  gpt1_load2_r:      std_logic_vector(15 downto 0) := (others =>'0'); 
+  signal  gpt1_load_s:       std_logic_vector(15 downto 0) := (others =>'0');
+  signal  gpt1_irq_comp1:    std_logic;                    
+  signal  gpt1_irq_comp2:    std_logic;                    
+  signal  gpt1_q_internal:   std_logic;                    
+  signal  gpt1_nq_internal:  std_logic;
+
 begin
 ------- Output assignments (Not in a process) ---------------------------------
   rst   <=  '0';
@@ -116,44 +138,6 @@ begin
    clk25MHz <= '0' when rst = '1' else
         not clk25MHz when rising_edge(clk50MHz);
    ---- End note.
-
-  vga_module: entity work.vga_top
-  port map(
-            clk => clk,
-            clk25MHz => clk25MHz,
-            rst => rst,
-            
-            crx_we => crx_we, 
-            cry_we => cry_we, 
-            ctl_we => ctl_we, 
-
-            crx_oreg => crx, 
-            cry_oreg => cry, 
-            ctl_oreg => ctl, 
-
-            vga_we_ram => vga_we_ram,
-            vga_a_we => vga_a_we,
-            vga_d_we => vga_d_we,
-            vga_dout => vga_dout,
-            vga_din => vga_din,
-            vga_addr => vga_addr,
-
-            red => red,  
-            green => green,  
-            blue => blue,  
-            hsync => hsync,  
-            vsync => vsync 
-  );
-
-
-    uart_deglitch: process (clk)
-    begin
-        if rising_edge(clk) then
-            rx_sync <= rx;
-            rx_uart <= rx_sync;
-            tx <= tx_uart;
-        end if;
-    end process;
 
    io_nextState: process(clk,rst)
    begin
@@ -219,6 +203,15 @@ begin
 
     uart_din_n  <=  uart_din_c; 
 
+    -- General Purpose Timer
+    gpt1_ctr_r_we <= '0';
+    gpt1_comp1_r_we <= '0';
+    gpt1_comp2_r_we <= '0';
+    gpt1_load1_r_we <= '0';
+    gpt1_load2_r_we <= '0';
+    gpt1_load_s_we <= '0';
+
+
     if ack_din = '1' then
         ack_din_n <= '1';
     else
@@ -267,11 +260,23 @@ begin
         when "1001" => -- UART acknowledge output.
           ack_dout <= '1';
         when "1010" => 
+          gpt1_ctr_r_we <= '1';
+          gpt1_ctr_r    <= cpu_io_dout(15 downto 0);
         when "1011" =>
+          gpt1_comp1_r_we <= '1';
+          gpt1_comp1_r    <= cpu_io_dout(15 downto 0);
         when "1100" =>
+          gpt1_comp2_r_we <= '1';
+          gpt1_comp2_r    <= cpu_io_dout(15 downto 0);
         when "1101" =>
+          gpt1_load1_r_we <= '1';
+          gpt1_load1_r    <= cpu_io_dout(15 downto 0);
         when "1110" =>
+          gpt1_load2_r_we <= '1';
+          gpt1_load2_r    <= cpu_io_dout(15 downto 0);
         when "1111" =>
+          gpt1_load_s_we <= '1';
+          gpt1_load_s    <= cpu_io_dout(15 downto 0);
         when others =>
       end case;
     else
@@ -323,6 +328,71 @@ begin
    rx => rx_uart,
    tx => tx_uart
   );
+
+    uart_deglitch: process (clk)
+    begin
+        if rising_edge(clk) then
+            rx_sync <= rx;
+            rx_uart <= rx_sync;
+            tx <= tx_uart;
+        end if;
+    end process;
+
+  gpt1_q <= gpt1_q_internal;
+  gpt1_nq <= gpt1_nq_internal;
+  gptimer_module: entity work.gptimer
+  port map(
+    clk => clk,
+    rst => rst,
+    timer_reset => gpt1_timer_reset,
+    ctr_r_we => gpt1_ctr_r_we,
+    comp1_r_we => gpt1_comp1_r_we,
+    comp2_r_we => gpt1_comp2_r_we,
+    load1_r_we => gpt1_load1_r_we,
+    load2_r_we => gpt1_load2_r_we,
+    load_s_we => gpt1_load_s_we,
+    ctr_r => gpt1_ctr_r,
+    comp1_r => gpt1_comp1_r,
+    comp2_r => gpt1_comp2_r,
+    load1_r => gpt1_load1_r,
+    load2_r => gpt1_load2_r,
+    load_s => gpt1_load_s,
+    irq_comp1 => gpt1_irq_comp1,
+    irq_comp2 => gpt1_irq_comp2,
+    Q => gpt1_q_internal,
+    NQ => gpt1_nq_internal
+          );
+
+
+  vga_module: entity work.vga_top
+  port map(
+            clk => clk,
+            clk25MHz => clk25MHz,
+            rst => rst,
+            
+            crx_we => crx_we, 
+            cry_we => cry_we, 
+            ctl_we => ctl_we, 
+
+            crx_oreg => crx, 
+            cry_oreg => cry, 
+            ctl_oreg => ctl, 
+
+            vga_we_ram => vga_we_ram,
+            vga_a_we => vga_a_we,
+            vga_d_we => vga_d_we,
+            vga_dout => vga_dout,
+            vga_din => vga_din,
+            vga_addr => vga_addr,
+
+            red => red,  
+            green => green,  
+            blue => blue,  
+            hsync => hsync,  
+            vsync => vsync 
+  );
+
+
 
 -------------------------------------------------------------------------------
 end architecture;

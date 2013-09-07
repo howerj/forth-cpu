@@ -9,6 +9,7 @@
 
 ## Remember to update the synthesis section as well
 SOURCES = \
+	gptimer.vhd \
 	mem_font.vhd \
 	mem_text.vhd \
 	uart.vhd \
@@ -45,6 +46,10 @@ all:
 
 ##
 ## Simulation ==============================================================
+gptimer.o: gptimer.vhd
+	@echo "ghdl -a gptimer.vhd"
+	@ghdl -a gptimer.vhd
+
 mem_font.o: mem_font.vhd
 	@echo "ghdl -a mem_font.vhd"
 	@ghdl -a mem_font.vhd
@@ -85,7 +90,7 @@ cpu.o: h2.o mem_h2.o cpu.vhd
 	@echo "ghdl -a cpu.vhd"
 	@ghdl -a cpu.vhd
 
-simulation: cpu.o uart.o vga_top.o top_level.vhd test_bench.vhd
+simulation: gptimer.o cpu.o uart.o vga_top.o top_level.vhd test_bench.vhd
 	ghdl -a top_level.vhd
 	ghdl -a test_bench.vhd
 	ghdl -e test_bench

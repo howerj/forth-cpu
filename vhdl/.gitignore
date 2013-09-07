@@ -14,6 +14,7 @@ top_level.pcf
 top_level_map.ngm
 top_level_map.ncd
 top_level.bld
+top_level.par
 top_level_xst.xrpt
 design.bit
 _xmsgs/
