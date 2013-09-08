@@ -37,8 +37,8 @@ entity top_level is
     hsync:    out std_logic                    :=      '0';
     vsync:    out std_logic                    :=      '0';
     -- PWM from timer
-    gpt1_q:   out std_logic                    :=      '0';
-    gpt1_nq:  out std_logic                    :=      '0'
+    gpt0_q:   out std_logic                    :=      '0';
+    gpt0_nq:  out std_logic                    :=      '0'
   );
 end;
 
@@ -88,23 +88,23 @@ architecture behav of top_level is
   signal  ack_din, ack_dout:        std_logic:= '0';
   signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
 
-  signal  gpt1_timer_reset:  std_logic := '0';
-  signal  gpt1_ctr_r_we:     std_logic := '0';               
-  signal  gpt1_comp1_r_we:   std_logic := '0';                
-  signal  gpt1_comp2_r_we:   std_logic := '0';                 
-  signal  gpt1_load1_r_we:   std_logic := '0';                  
-  signal  gpt1_load2_r_we:   std_logic := '0';                   
-  signal  gpt1_load_s_we:    std_logic := '0';                   
-  signal  gpt1_ctr_r:        std_logic_vector(15 downto 0) := (others =>'0');
-  signal  gpt1_comp1_r:      std_logic_vector(15 downto 0) := (others =>'0');
-  signal  gpt1_comp2_r:      std_logic_vector(15 downto 0) := (others =>'0');
-  signal  gpt1_load1_r:      std_logic_vector(15 downto 0) := (others =>'0');
-  signal  gpt1_load2_r:      std_logic_vector(15 downto 0) := (others =>'0'); 
-  signal  gpt1_load_s:       std_logic_vector(15 downto 0) := (others =>'0');
-  signal  gpt1_irq_comp1:    std_logic;                    
-  signal  gpt1_irq_comp2:    std_logic;                    
-  signal  gpt1_q_internal:   std_logic;                    
-  signal  gpt1_nq_internal:  std_logic;
+  signal  gpt0_timer_reset:  std_logic := '0';
+  signal  gpt0_ctr_r_we:     std_logic := '0';               
+  signal  gpt0_comp1_r_we:   std_logic := '0';                
+  signal  gpt0_comp2_r_we:   std_logic := '0';                 
+  signal  gpt0_load1_r_we:   std_logic := '0';                  
+  signal  gpt0_load2_r_we:   std_logic := '0';                   
+  signal  gpt0_load_s_we:    std_logic := '0';                   
+  signal  gpt0_ctr_r:        std_logic_vector(15 downto 0) := (others =>'0');
+  signal  gpt0_comp1_r:      std_logic_vector(15 downto 0) := (others =>'0');
+  signal  gpt0_comp2_r:      std_logic_vector(15 downto 0) := (others =>'0');
+  signal  gpt0_load1_r:      std_logic_vector(15 downto 0) := (others =>'0');
+  signal  gpt0_load2_r:      std_logic_vector(15 downto 0) := (others =>'0'); 
+  signal  gpt0_load_s:       std_logic_vector(15 downto 0) := (others =>'0');
+  signal  gpt0_irq_comp1:    std_logic;                    
+  signal  gpt0_irq_comp2:    std_logic;                    
+  signal  gpt0_q_internal:   std_logic;                    
+  signal  gpt0_nq_internal:  std_logic;
 
 begin
 ------- Output assignments (Not in a process) ---------------------------------
@@ -172,12 +172,12 @@ begin
     uart_dout, stb_dout, ack_din,
     stb_dout, stb_dout_c, vga_dout,
 
-    gpt1_ctr_r_we ,
-    gpt1_comp1_r_we ,
-    gpt1_comp2_r_we ,
-    gpt1_load1_r_we ,
-    gpt1_load2_r_we ,
-    gpt1_load_s_we
+    gpt0_ctr_r_we ,
+    gpt0_comp1_r_we ,
+    gpt0_comp2_r_we ,
+    gpt0_load1_r_we ,
+    gpt0_load2_r_we ,
+    gpt0_load_s_we
   )
   begin
     -- Outputs
@@ -211,19 +211,20 @@ begin
     uart_din_n  <=  uart_din_c; 
 
     -- General Purpose Timer
-    gpt1_ctr_r_we <= '0';
-    gpt1_comp1_r_we <= '0';
-    gpt1_comp2_r_we <= '0';
-    gpt1_load1_r_we <= '0';
-    gpt1_load2_r_we <= '0';
-    gpt1_load_s_we <= '0';
+    gpt0_ctr_r_we <= '0';
+    gpt0_comp1_r_we <= '0';
+    gpt0_comp2_r_we <= '0';
+    gpt0_load1_r_we <= '0';
+    gpt0_load2_r_we <= '0';
+    gpt0_load_s_we <= '0';
 
-    gpt1_ctr_r <= (others => '0');
-    gpt1_comp1_r <= (others => '0');
-    gpt1_comp2_r <= (others => '0');
-    gpt1_load1_r <= (others => '0');
-    gpt1_load2_r <= (others => '0');
-    gpt1_load_s <= (others => '0');
+    gpt0_timer_reset <= '0';
+    gpt0_ctr_r <= (others => '0');
+    gpt0_comp1_r <= (others => '0');
+    gpt0_comp2_r <= (others => '0');
+    gpt0_load1_r <= (others => '0');
+    gpt0_load2_r <= (others => '0');
+    gpt0_load_s <= (others => '0');
 
     if ack_din = '1' then
         ack_din_n <= '1';
@@ -244,52 +245,54 @@ begin
 
     if cpu_io_wr = '1' then
       -- Write output.
-      case cpu_io_daddr(3 downto 0) is
-        when "0000" => -- LEDs 7 Segment displays.
+      case cpu_io_daddr(4 downto 0) is
+        when "00000" => -- LEDs 7 Segment displays.
           an_n <= cpu_io_dout(3 downto 0);
           ka_n <= cpu_io_dout(15 downto 8);
-        when "0001" => -- LEDs, next to switches.
+        when "00001" => -- LEDs, next to switches.
           ld_n <= cpu_io_dout(7 downto 0);
-        when "0010" => -- VGA, cursor registers.
+        when "00010" => -- VGA, cursor registers.
           crx_we <= '1';
           cry_we <= '1';
           crx <= cpu_io_dout(6 downto 0);
           cry <= cpu_io_dout(13 downto 8);
-        when "0011" => -- VGA, control register.
+        when "00011" => -- VGA, control register.
           ctl_we <= '1';
           ctl <= cpu_io_dout(6 downto 0);
-        when "0100" => -- VGA update address register.
+        when "00100" => -- VGA update address register.
           vga_a_we <= '1';
           vga_addr <= cpu_io_dout(11 downto 0);
-        when "0101" => -- VGA, update register.
+        when "00101" => -- VGA, update register.
           vga_d_we <= '1';
           vga_din <= cpu_io_dout(7 downto 0);
-        when "0110" => -- VGA write RAM write
+        when "00110" => -- VGA write RAM write
           vga_we_ram <= '1';
-        when "0111" => -- UART write output.
+        when "00111" => -- UART write output.
           uart_din_n <= cpu_io_dout(7 downto 0);
-        when "1000" => -- UART strobe input.
+        when "01000" => -- UART strobe input.
           stb_din <= '1';
-        when "1001" => -- UART acknowledge output.
+        when "01001" => -- UART acknowledge output.
           ack_dout <= '1';
-        when "1010" => 
-          gpt1_ctr_r_we <= '1';
-          gpt1_ctr_r    <= cpu_io_dout(15 downto 0);
-        when "1011" =>
-          gpt1_comp1_r_we <= '1';
-          gpt1_comp1_r    <= cpu_io_dout(15 downto 0);
-        when "1100" =>
-          gpt1_comp2_r_we <= '1';
-          gpt1_comp2_r    <= cpu_io_dout(15 downto 0);
-        when "1101" =>
-          gpt1_load1_r_we <= '1';
-          gpt1_load1_r    <= cpu_io_dout(15 downto 0);
-        when "1110" =>
-          gpt1_load2_r_we <= '1';
-          gpt1_load2_r    <= cpu_io_dout(15 downto 0);
-        when "1111" =>
-          gpt1_load_s_we <= '1';
-          gpt1_load_s    <= cpu_io_dout(15 downto 0);
+        when "01010" => 
+          gpt0_ctr_r_we <= '1';
+          gpt0_ctr_r    <= cpu_io_dout(15 downto 0);
+        when "01011" =>
+          gpt0_comp1_r_we <= '1';
+          gpt0_comp1_r    <= cpu_io_dout(15 downto 0);
+        when "01100" =>
+          gpt0_comp2_r_we <= '1';
+          gpt0_comp2_r    <= cpu_io_dout(15 downto 0);
+        when "01101" =>
+          gpt0_load1_r_we <= '1';
+          gpt0_load1_r    <= cpu_io_dout(15 downto 0);
+        when "01110" =>
+          gpt0_load2_r_we <= '1';
+          gpt0_load2_r    <= cpu_io_dout(15 downto 0);
+        when "01111" =>
+          gpt0_load_s_we <= '1';
+          gpt0_load_s    <= cpu_io_dout(15 downto 0);
+        when "10000" =>
+          gpt0_timer_reset <= '1';
         when others =>
       end case;
     else
@@ -351,29 +354,29 @@ begin
         end if;
     end process;
 
-  gpt1_q <= gpt1_q_internal;
-  gpt1_nq <= gpt1_nq_internal;
-  gptimer_module: entity work.gptimer
+  gpt0_q <= gpt0_q_internal;
+  gpt0_nq <= gpt0_nq_internal;
+  gptimer0_module: entity work.gptimer
   port map(
     clk => clk,
     rst => rst,
-    timer_reset => gpt1_timer_reset,
-    ctr_r_we => gpt1_ctr_r_we,
-    comp1_r_we => gpt1_comp1_r_we,
-    comp2_r_we => gpt1_comp2_r_we,
-    load1_r_we => gpt1_load1_r_we,
-    load2_r_we => gpt1_load2_r_we,
-    load_s_we => gpt1_load_s_we,
-    ctr_r => gpt1_ctr_r,
-    comp1_r => gpt1_comp1_r,
-    comp2_r => gpt1_comp2_r,
-    load1_r => gpt1_load1_r,
-    load2_r => gpt1_load2_r,
-    load_s => gpt1_load_s,
-    irq_comp1 => gpt1_irq_comp1,
-    irq_comp2 => gpt1_irq_comp2,
-    Q => gpt1_q_internal,
-    NQ => gpt1_nq_internal
+    timer_reset => gpt0_timer_reset,
+    ctr_r_we => gpt0_ctr_r_we,
+    comp1_r_we => gpt0_comp1_r_we,
+    comp2_r_we => gpt0_comp2_r_we,
+    load1_r_we => gpt0_load1_r_we,
+    load2_r_we => gpt0_load2_r_we,
+    load_s_we => gpt0_load_s_we,
+    ctr_r => gpt0_ctr_r,
+    comp1_r => gpt0_comp1_r,
+    comp2_r => gpt0_comp2_r,
+    load1_r => gpt0_load1_r,
+    load2_r => gpt0_load2_r,
+    load_s => gpt0_load_s,
+    irq_comp1 => gpt0_irq_comp1,
+    irq_comp2 => gpt0_irq_comp2,
+    Q => gpt0_q_internal,
+    NQ => gpt0_nq_internal
           );
 
 
