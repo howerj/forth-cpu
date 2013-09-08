@@ -22,11 +22,16 @@ entity dac is
     comp1_r_we:   in std_logic;                     -- comp1_r write enable
     comp2_r_we:   in std_logic;                     -- comp2_r write enable
     direct_r_we:  in std_logic;                     -- direct_r write enable
+    ram_s_we:     in std_logic;                     -- ram_s write enable
 
     ctr_r:        in std_logic_vector(15 downto 0); -- Control register
     comp1_r:      in std_logic_vector(15 downto 0); -- Compare value one
     comp2_r:      in std_logic_vector(15 downto 0); -- Compare value two
     direct_r:     in std_logic_vector(15 downto 0); -- Load DAV value directly
+
+    ram_s_addr:   in std_logic_vector(15 downto 0); -- DAC RAM Address
+    ram_s_data_i: in std_logic_vector(15 downto 0); -- DAC RAM Data (Input)
+    ram_s_data_o: in std_logic_vector(15 downto 0); -- DAC RAM Data (Output)
 
     -- DAC interrupts
     irq_comp1:    out std_logic;                    -- Compare one Interrupt
