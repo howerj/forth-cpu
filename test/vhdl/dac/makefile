@@ -22,6 +22,10 @@ help:
 ##
 ## Simulation ==============================================================
 
+mem_dac.o: mem_dac.vhd mem_dac.binary
+	@echo "ghdl -a mem_dac.vhd"
+	@ghdl -a mem_dac.vhd
+
 shift_reg_16.o: shift_reg_16.vhd
 	@echo "ghdl -a shift_reg_16.vhd"
 	@ghdl -a shift_reg_16.vhd
@@ -30,7 +34,7 @@ spi_ad5641.o: shift_reg_16.o spi_ad5641.vhd
 	@echo "ghdl -a spi_ad5641.vhd"
 	@ghdl -a spi_ad5641.vhd
 
-dac.o: spi_ad5641.o dac.vhd 
+dac.o: spi_ad5641.o mem_dac.o dac.vhd 
 	@echo "ghdl -a dac.vhd"
 	@ghdl -a dac.vhd
 
