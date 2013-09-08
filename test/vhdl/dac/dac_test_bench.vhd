@@ -37,28 +37,31 @@ begin
 
   dac_uut: entity work.dac
   port map(
-    clk       => tb_clk,
-    clk25MHz  => tb_clk25MHz,
-    rst       => tb_rst,
+    clk           => tb_clk,
+    clk25MHz      => tb_clk25MHz,
+    rst           => tb_rst,
 
-    ctr_r_we => tb_ctr_r_we,
-    comp1_r_we => tb_comp1_r_we,
-    comp2_r_we => tb_comp2_r_we,
-    direct_r_we => tb_direct_r_we,
-    ram_s_we => tb_ram_s_we,
-    ctr_r => tb_ctr_r,
-    comp1_r => tb_comp1_r,
-    comp2_r => tb_comp2_r,
-    direct_r => tb_direct_r,
-    ram_s_addr => tb_ram_s_addr,
-    ram_s_data_i => tb_ram_s_data_i,
-    ram_s_data_o => tb_ram_s_data_o,
-    irq_comp1 => tb_irq_comp1,
-    irq_comp2 => tb_irq_comp2,
-    cs  => tb_cs ,
-    oclk => tb_oclk,
-    odata => tb_odata,
-    done => tb_done
+    ctr_r_we      => tb_ctr_r_we,
+    comp1_r_we    => tb_comp1_r_we,
+    comp2_r_we    => tb_comp2_r_we,
+    direct_r_we   => tb_direct_r_we,
+    ram_s_we      => tb_ram_s_we,
+
+    ctr_r         => tb_ctr_r,
+    comp1_r       => tb_comp1_r,
+    comp2_r       => tb_comp2_r,
+    direct_r      => tb_direct_r,
+    ram_s_addr    => tb_ram_s_addr,
+    ram_s_data_i  => tb_ram_s_data_i,
+    ram_s_data_o  => tb_ram_s_data_o,
+
+    irq_comp1     => tb_irq_comp1,
+    irq_comp2     => tb_irq_comp2,
+
+    cs            => tb_cs ,
+    oclk          => tb_oclk,
+    odata         => tb_odata,
+    done          => tb_done
           );
 
 	clk_process: process
