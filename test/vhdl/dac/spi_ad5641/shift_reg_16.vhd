@@ -2,7 +2,7 @@
 -- Possible simplification in other case:
 --  if load = '0' then
 --    shift_reg <= parallel;
---  elsif (clock’event and clock = '1') then
+--  elsif rising_edge(clk) then
 --    serial <= shift_reg(7);
 --    shift_reg(7 downto 1) <= (6 downto 0);
 --  end if;
