@@ -41,6 +41,13 @@
 \ Word definitions.
 \ ==============================================================================
 
+\ Interrupt Service Routing jump table
+ label isr_0 4 jmp
+ label isr_1 isr_0 jmp
+ label isr_2 isr_0 jmp
+ label isr_3 isr_0 jmp
+\ End table!
+
 : [SETUP]
     o_vgaCtrlDefault lit
     o_vgaCtrl lit 

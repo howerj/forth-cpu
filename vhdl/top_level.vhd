@@ -345,14 +345,14 @@ begin
    tx => tx_uart
   );
 
-    uart_deglitch: process (clk)
-    begin
-        if rising_edge(clk) then
-            rx_sync <= rx;
-            rx_uart <= rx_sync;
-            tx <= tx_uart;
-        end if;
-    end process;
+  uart_deglitch: process (clk)
+  begin
+      if rising_edge(clk) then
+          rx_sync <= rx;
+          rx_uart <= rx_sync;
+          tx <= tx_uart;
+      end if;
+  end process;
 
   gpt0_q <= gpt0_q_internal;
   gpt0_nq <= gpt0_nq_internal;

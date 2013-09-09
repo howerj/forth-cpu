@@ -12,11 +12,10 @@ License:
 
 * LGPL
 
-Email(s):              
+Email:              
 
 * howe.r.j.89@googlemail.com
 
-* howerj@aston.ac.uk
 
 All works are copyright of Richard James Howe unless stated elsewhere, all
 works not written by me have also been released under the LGPL license.
@@ -43,6 +42,8 @@ the J1.
 * Gtkwave
 
 * Xilinx Webpack 14.X
+
+* Digilent drivers for the Nexys 3 development board.
 
 ### Hardware needed
 

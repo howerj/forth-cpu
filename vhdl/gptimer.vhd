@@ -60,8 +60,8 @@ architecture rtl of gptimer is
   signal ctrl_comp1_reset:        std_logic := '0';
   signal ctrl_comp2_reset:        std_logic := '0';
   signal ctrl_irq_en:             std_logic := '0';
-  signal ctrl_comp1_load:        std_logic := '0';
-  signal ctrl_comp2_load:        std_logic := '0';
+  signal ctrl_comp1_load:         std_logic := '0';
+  signal ctrl_comp2_load:         std_logic := '0';
 
   signal count:                   unsigned(15 downto 0)          := (others => '0');
   signal reset_c, reset_n:        std_logic := '0';
@@ -152,7 +152,9 @@ begin
     load_actual_we  <= '0';
 
     if count = unsigned(comp1_r_c) then
-      irq_comp1 <= ctrl_irq_en;
+      if ctrl_irq_en = '1' then
+        irq_comp1 <= ctrl_irq_en;
+      end if;
       case ctrl_comp1_action is
         when "00"   => timersig_n  <= timersig_c;
         when "01"   => timersig_n  <= '0';
@@ -172,7 +174,9 @@ begin
     end if;
 
     if count = unsigned(comp2_r_c) then
-      irq_comp2 <= ctrl_irq_en;
+      if ctrl_irq_en = '1' then
+        irq_comp2 <= ctrl_irq_en;
+      end if;
 
       case ctrl_comp2_action is
         when "00"   => timersig_n  <= timersig_c;

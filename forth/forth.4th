@@ -513,7 +513,7 @@ str @reg dup iobl @reg + str !reg constant filename
 ;
 
 : start
-    1 jmp
+    5 jmp
 ;
 
 : stop
