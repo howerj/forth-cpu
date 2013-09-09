@@ -46,21 +46,21 @@ end;
 architecture rtl of h2 is
 
     -- Program counter.
-    signal pc_c:          std_logic_vector(12 downto 0) := (others => '0');     
-    signal pc_n:          std_logic_vector(12 downto 0) := (others => '0');
+    signal pc_c:                std_logic_vector(12 downto 0) := (others => '0');
+    signal pc_n:                std_logic_vector(12 downto 0) := (others => '0');
     -- Stack Type!
     type   stk  is array (31 downto 0) of std_logic_vector(15 downto 0);
     -- Variable stack (RAM Template)
-    signal vstkp_c:       std_logic_vector(4 downto 0)  := (others => '0');
-    signal vstkp_n:       std_logic_vector(4 downto 0)  := (others => '0');
-    signal vstk_ram:      stk := (others => (others => '0'));
+    signal vstkp_c:             std_logic_vector(4 downto 0)  := (others => '0');
+    signal vstkp_n:             std_logic_vector(4 downto 0)  := (others => '0');
+    signal vstk_ram:            stk := (others => (others => '0'));
     -- Return stack (RAM Template)
-    signal rstkp_c:       std_logic_vector(4 downto 0)  := (others => '0');
-    signal rstkp_n:       std_logic_vector(4 downto 0)  := (others => '0');
-    signal rstk_ram:      stk := (others => (others => '0'));
+    signal rstkp_c:             std_logic_vector(4 downto 0)  := (others => '0');
+    signal rstkp_n:             std_logic_vector(4 downto 0)  := (others => '0');
+    signal rstk_ram:            stk := (others => (others => '0'));
     -- Stack deltas
-    signal dd:            std_logic_vector(4 downto 0)  := (others => '0');
-    signal rd:            std_logic_vector(4 downto 0)  := (others => '0');
+    signal dd:                  std_logic_vector(4 downto 0)  := (others => '0');
+    signal rd:                  std_logic_vector(4 downto 0)  := (others => '0');
     -- is_instr_x signals, booleans, does the instruction have a certain property.
     signal is_instr_alu:        std_logic                     :=  '0';
     signal is_instr_lit:        std_logic                     :=  '0';
@@ -82,56 +82,56 @@ architecture rtl of h2 is
     signal irc_c, irc_n:        std_logic_vector(3 downto 0)  :=  (others => '0');
 
     -- Top of stack, and next on stack.
-    signal tos_c:         std_logic_vector(15 downto 0) := (others => '0');
-    signal tos_n:         std_logic_vector(15 downto 0) := (others => '0');
-    signal nos:           std_logic_vector(15 downto 0) := (others => '0');
+    signal tos_c:               std_logic_vector(15 downto 0) := (others => '0');
+    signal tos_n:               std_logic_vector(15 downto 0) := (others => '0');
+    signal nos:                 std_logic_vector(15 downto 0) := (others => '0');
     -- Top of return stack.
-    signal rtos_c:        std_logic_vector(15 downto 0) := (others => '0');
+    signal rtos_c:              std_logic_vector(15 downto 0) := (others => '0');
     -- aluop is what is fed into the alu.
-    signal aluop:         std_logic_vector(4 downto 0)  := (others => '0');
+    signal aluop:               std_logic_vector(4 downto 0)  := (others => '0');
     -- pc_plus_1, forces fewer adders.
-    signal pc_plus_one:   std_logic_vector(12 downto 0) := (others => '0');
+    signal pc_plus_one:         std_logic_vector(12 downto 0) := (others => '0');
     -- Stack signals
-    signal dstkW:         std_logic                     := '0';
-    signal rstkD:         std_logic_vector(15 downto 0) := (others => '0');
-    signal rstkW:         std_logic                     := '0';
+    signal dstkW:               std_logic                     := '0';
+    signal rstkD:               std_logic_vector(15 downto 0) := (others => '0');
+    signal rstkW:               std_logic                     := '0';
 begin
     -- is_instr_x, what kind of instruction do we have?
-    is_instr_alu  <=  '1' when insn(15 downto 13) = "011" else '0';
-    is_instr_lit  <=  '1' when insn(15) = '1' else '0';
-    is_instr_jmp  <=  '1' when insn(15 downto 13) = "000" else '0';
-    is_instr_cjmp <=  '1' when insn(15 downto 13) = "001" else '0';
-    is_instr_call <=  '1' when insn(15 downto 13) = "010" else '0';
---  is_instr_interrupt <= '1' when irc_c = '1' else '0';
+    is_instr_alu        <=  '1' when insn(15 downto 13) = "011" else '0';
+    is_instr_lit        <=  '1' when insn(15) = '1' else '0';
+    is_instr_jmp        <=  '1' when insn(15 downto 13) = "000" else '0';
+    is_instr_cjmp       <=  '1' when insn(15 downto 13) = "001" else '0';
+    is_instr_call       <=  '1' when insn(15 downto 13) = "010" else '0';
+--  is_instr_interrupt  <= '1' when irc_c = '1' else '0';
 
-    comp_more_signed  <= '1' when signed(tos_c) > signed(nos) else '0';
-    comp_more         <= '1' when tos_c > nos else '0';
-    comp_equal        <= '1' when tos_c = nos else '0';
-    comp_negative     <= tos_c(15);
-    comp_zero         <= '1' when unsigned(tos_c) = 0 else '0';
+    comp_more_signed    <= '1' when signed(tos_c) > signed(nos) else '0';
+    comp_more           <= '1' when tos_c > nos else '0';
+    comp_equal          <= '1' when tos_c = nos else '0';
+    comp_negative       <= tos_c(15);
+    comp_zero           <= '1' when unsigned(tos_c) = 0 else '0';
 
     -- Stack assignments
-    nos       <=  vstk_ram(to_integer(unsigned(vstkp_c)));
-    rtos_c    <=  rstk_ram(to_integer(unsigned(rstkp_c)));
+    nos                 <=  vstk_ram(to_integer(unsigned(vstkp_c)));
+    rtos_c              <=  rstk_ram(to_integer(unsigned(rstkp_c)));
 
     -- I/O assignments
-    pco       <=  pc_n;
-    dout      <=  nos;
-    daddr     <=  tos_c(12 downto 0);
-    dwe       <=  insn(5) when is_instr_alu = '1' else '0';
+    pco                 <=  pc_n;
+    dout                <=  nos;
+    daddr               <=  tos_c(12 downto 0);
+    dwe                 <=  insn(5) when is_instr_alu = '1' else '0';
 
     -- io_wr are handled in the ALU, 
     --  this makes things slower but we have
     --  run out of instruction bits to use.
-    io_dout   <=  nos;
-    io_daddr  <=  tos_c;
+    io_dout             <=  nos;
+    io_daddr            <=  tos_c;
 
     -- misc
-    pc_plus_one    <=  std_logic_vector(unsigned(pc_c) + 1);
+    pc_plus_one         <=  std_logic_vector(unsigned(pc_c) + 1);
 
     -- Signed addition!
-    dd  <=  insn(1) & insn(1) & insn(1) & insn(1) & insn(0);
-    rd  <=  insn(3) & insn(3) & insn(3) & insn(3) & insn(2);
+    dd                  <=  insn(1) & insn(1) & insn(1) & insn(1) & insn(0);
+    rd                  <=  insn(3) & insn(3) & insn(3) & insn(3) & insn(2);
 
     dstkW   <= '1' when is_instr_lit = '1' or (is_instr_alu = '1' and insn(7) = '1') else '0';
 
@@ -187,7 +187,8 @@ begin
                 when "00001" =>  tos_n  <=  nos;
                 when "00010" =>  tos_n  <=  rtos_c;
                 when "00011" =>  tos_n  <=  din;  
-                when "00100" =>  tos_n  <=  vstkp_c & rstkp_c & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
+                when "00100" =>  
+                  tos_n  <=  vstkp_c & rstkp_c & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
                 when "00101" =>  tos_n  <=  tos_c or nos;
                 when "00110" =>  tos_n  <=  tos_c and nos;
                 when "00111" =>  tos_n  <=  tos_c xor nos;
@@ -197,19 +198,14 @@ begin
                 when "01011" =>  tos_n  <=  std_logic_vector(unsigned(nos)-unsigned(tos_c));
                 when "01100" =>
 --                    tos_n   <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-                      tos_n  <= tos_c;
                 when "01101" =>  
 --                    tos_n   <=  std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
-                      tos_n  <= tos_c;
                 when "01110" => 
 --                    tos_n   <=  std_logic_vector(unsigned(nos) rol to_integer(unsigned(tos_c(3 downto 0))));
-                      tos_n  <= tos_c;
                 when "01111" =>
 --                    tos_n   <=  std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
-                      tos_n  <= tos_c;
                 when "10000" => 
 --                    tos_n   <=  std_logic_vector(unsigned(nos(7 downto 0)) * to_integer(unsigned(tos_c(7 downto 0))));
-                      tos_n  <= tos_c;
                 when "10001" => tos_n  <=  (0 => comp_more_signed, others => '0');
                 when "10010" => tos_n  <=  (0 => comp_more, others => '0');
                 when "10011" => tos_n  <=  (0 => comp_equal, others => '0');
@@ -223,7 +219,6 @@ begin
                 when "11011" =>
                 when "11100" =>
                 when "11101" =>
-                              
                 when "11110" =>
                                 tos_n   <=  io_din; -- Should be integrated din instruction
                 when "11111" =>
