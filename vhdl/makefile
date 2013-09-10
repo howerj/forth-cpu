@@ -90,9 +90,15 @@ cpu.o: h2.o mem_h2.o cpu.vhd
 	@echo "ghdl -a cpu.vhd"
 	@ghdl -a cpu.vhd
 
-simulation: gptimer.o cpu.o uart.o vga_top.o top_level.vhd test_bench.vhd
-	ghdl -a top_level.vhd
-	ghdl -a test_bench.vhd
+top_level.o: gptimer.o cpu.o uart.o vga_top.o top_level.vhd
+	@echo "ghdl -a top_level.vhd"
+	@ghdl -a top_level.vhd
+
+test_bench.o: top_level.o test_bench.vhd
+	@echo "ghdl -a test_bench.vhd"
+	@ghdl -a test_bench.vhd
+
+simulation: test_bench.o
 	ghdl -e test_bench
 	ghdl -r test_bench --wave=test_bench.ghw 
 ## Simulation ==============================================================
@@ -200,6 +206,6 @@ clean:
 	      top_level.pcf top_level_map.ncd top_level.ncd top_level_xsim.vhd top_level_tsim.vhd top_level_tsim.sdf \
 	      top_level_tsim.nlf top_level_xst.xrpt top_level_ngdbuild.xrpt top_level_usage.xml top_level_summary.xml \
 	      top_level_map.map top_level_map.xrpt par_usage_statistics.html top_level.ptwx top_level.pad top_level_pad.csv \
-	      top_level.unroutes top_level.xpi top_level_par.xrpt top_level.twx top_level.nlf design.bit
+	      top_level.unroutes top_level.xpi top_level_par.xrpt top_level.twx top_level.nlf design.bit top_level_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vf usage_statistics_webtalk.html

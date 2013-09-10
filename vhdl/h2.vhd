@@ -196,6 +196,7 @@ begin
                 when "01001" =>  tos_n  <=  not tos_c;
                 when "01010" =>  tos_n  <=  std_logic_vector(unsigned(tos_c)+unsigned(nos));
                 when "01011" =>  tos_n  <=  std_logic_vector(unsigned(nos)-unsigned(tos_c));
+-- SLOW Instructions: These instructions are slow to execute so have been commented out ---
                 when "01100" =>
 --                    tos_n   <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
                 when "01101" =>  
@@ -206,6 +207,7 @@ begin
 --                    tos_n   <=  std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
                 when "10000" => 
 --                    tos_n   <=  std_logic_vector(unsigned(nos(7 downto 0)) * to_integer(unsigned(tos_c(7 downto 0))));
+-- SLOW Instructions ---
                 when "10001" => tos_n  <=  (0 => comp_more_signed, others => '0');
                 when "10010" => tos_n  <=  (0 => comp_more, others => '0');
                 when "10011" => tos_n  <=  (0 => comp_equal, others => '0');
