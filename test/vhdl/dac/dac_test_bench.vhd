@@ -16,23 +16,23 @@ architecture simulation of dac_test_bench is
   signal tb_clk25Mhz:     std_logic                       :=  '0';
   signal tb_rst:          std_logic                       :=  '1';
 
-  signal tb_ctr_r_we:     std_logic;                     -- ctr_r write enable
-  signal tb_comp1_r_we:   std_logic;                     -- comp1_r write enable
-  signal tb_load1_r_we:   std_logic;                     -- load1_r write enable
-  signal tb_load_s_we:    std_logic;                     -- load1_r write enable
-  signal tb_direct_r_we:  std_logic;                     -- direct_r write enable
-  signal tb_ram_s_we:     std_logic;                     -- ram_s write enable
-  signal tb_ctr_r:        std_logic_vector(15 downto 0); -- Control register
-  signal tb_comp1_r:      std_logic_vector(15 downto 0); -- Compare value one
-  signal tb_load1_r:      std_logic_vector(15 downto 0); -- Compare value two
-  signal tb_load_s:       std_logic_vector(15 downto 0); -- Compare value two
-  signal tb_direct_r:     std_logic_vector(15 downto 0); -- Load DAV value directly
-  signal tb_ram_s_addr:   std_logic_vector(15 downto 0); -- DAC RAM Address
-  signal tb_ram_s_data_i: std_logic_vector(15 downto 0); -- DAC RAM Data (Input)
-  signal tb_ram_s_data_o: std_logic_vector(15 downto 0); -- DAC RAM Data (Output)
+  signal tb_ctr_r_we:     std_logic := '0';              -- ctr_r write enable
+  signal tb_comp1_r_we:   std_logic := '0';              -- comp1_r write enable
+  signal tb_load1_r_we:   std_logic := '0';              -- load1_r write enable
+  signal tb_load_s_we:    std_logic := '0';              -- load1_r write enable
+  signal tb_direct_r_we:  std_logic := '0';              -- direct_r write enable
+  signal tb_ram_s_we:     std_logic := '0';              -- ram_s write enable
+  signal tb_ctr_r:        std_logic_vector(15 downto 0) := (others => '0'); -- Control register
+  signal tb_comp1_r:      std_logic_vector(12 downto 0) := (others => '0'); -- Compare value one
+  signal tb_load1_r:      std_logic_vector(12 downto 0) := (others => '0'); -- Compare value two
+  signal tb_load_s:       std_logic_vector(12 downto 0) := (others => '0'); -- Compare value two
+  signal tb_direct_r:     std_logic_vector(15 downto 0) := (others => '0'); -- Load DAV value directly
+  signal tb_ram_s_addr:   std_logic_vector(12 downto 0) := (others => '0'); -- DAC RAM Address
+  signal tb_ram_s_data_i: std_logic_vector(15 downto 0) := (others => '0'); -- DAC RAM Data (Input)
+  signal tb_ram_s_data_o: std_logic_vector(15 downto 0) := (others => 'X'); -- DAC RAM Data (Output)
   signal tb_irq_comp1:    std_logic;                     -- Compare one Interrupt
 
-  signal tb_cs, tb_oclk, tb_odata, tb_done: std_logic;   -- SPI, output only
+  signal tb_cs, tb_oclk, tb_odata, tb_done: std_logic := 'X';   -- SPI, output only
 
 begin
 

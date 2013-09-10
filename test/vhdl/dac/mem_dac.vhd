@@ -21,7 +21,6 @@ entity mem_dac is
         b_addr:   in  std_logic_vector(12 downto 0);
         b_din:    in  std_logic_vector(15 downto 0);
         b_dout:   out std_logic_vector(15 downto 0)
-
     );
 end mem_dac;
 
