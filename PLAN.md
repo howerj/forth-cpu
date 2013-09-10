@@ -1,5 +1,7 @@
 ## The Plan
 
+* CORDIC
+  - Implementing a CORDIC and "advanced" arithmetic module is a *must*.
 * Test Benches!
   - I should make much better test benches,
   read data from a file, output it to a terminal
