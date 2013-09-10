@@ -1,0 +1,7 @@
+*.ghw
+*.o
+*.swp
+*.swo
+*.cf
+spi_top_level
+spi_test_bench
