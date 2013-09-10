@@ -18,18 +18,19 @@ architecture simulation of dac_test_bench is
 
   signal tb_ctr_r_we:     std_logic;                     -- ctr_r write enable
   signal tb_comp1_r_we:   std_logic;                     -- comp1_r write enable
-  signal tb_comp2_r_we:   std_logic;                     -- comp2_r write enable
+  signal tb_load1_r_we:   std_logic;                     -- load1_r write enable
+  signal tb_load_s_we:    std_logic;                     -- load1_r write enable
   signal tb_direct_r_we:  std_logic;                     -- direct_r write enable
   signal tb_ram_s_we:     std_logic;                     -- ram_s write enable
   signal tb_ctr_r:        std_logic_vector(15 downto 0); -- Control register
   signal tb_comp1_r:      std_logic_vector(15 downto 0); -- Compare value one
-  signal tb_comp2_r:      std_logic_vector(15 downto 0); -- Compare value two
+  signal tb_load1_r:      std_logic_vector(15 downto 0); -- Compare value two
+  signal tb_load_s:       std_logic_vector(15 downto 0); -- Compare value two
   signal tb_direct_r:     std_logic_vector(15 downto 0); -- Load DAV value directly
   signal tb_ram_s_addr:   std_logic_vector(15 downto 0); -- DAC RAM Address
   signal tb_ram_s_data_i: std_logic_vector(15 downto 0); -- DAC RAM Data (Input)
   signal tb_ram_s_data_o: std_logic_vector(15 downto 0); -- DAC RAM Data (Output)
   signal tb_irq_comp1:    std_logic;                     -- Compare one Interrupt
-  signal tb_irq_comp2:    std_logic;                     -- Compare two Interrupt
 
   signal tb_cs, tb_oclk, tb_odata, tb_done: std_logic;   -- SPI, output only
 
@@ -43,20 +44,21 @@ begin
 
     ctr_r_we      => tb_ctr_r_we,
     comp1_r_we    => tb_comp1_r_we,
-    comp2_r_we    => tb_comp2_r_we,
+    load1_r_we    => tb_load1_r_we,
+    load_s_we     => tb_load_s_we,
     direct_r_we   => tb_direct_r_we,
     ram_s_we      => tb_ram_s_we,
 
     ctr_r         => tb_ctr_r,
     comp1_r       => tb_comp1_r,
-    comp2_r       => tb_comp2_r,
+    load1_r       => tb_load1_r,
+    load_s        => tb_load_s,
     direct_r      => tb_direct_r,
     ram_s_addr    => tb_ram_s_addr,
     ram_s_data_i  => tb_ram_s_data_i,
     ram_s_data_o  => tb_ram_s_data_o,
 
     irq_comp1     => tb_irq_comp1,
-    irq_comp2     => tb_irq_comp2,
 
     cs            => tb_cs ,
     oclk          => tb_oclk,

@@ -20,13 +20,15 @@ entity dac is
 
     ctr_r_we:     in std_logic;                     -- ctr_r write enable
     comp1_r_we:   in std_logic;                     -- comp1_r write enable
-    comp2_r_we:   in std_logic;                     -- comp2_r write enable
+    load1_r_we:   in std_logic;                     -- load1_r write enable
+    load_s_we:    in std_logic;                     -- load1_r write enable
     direct_r_we:  in std_logic;                     -- direct_r write enable
     ram_s_we:     in std_logic;                     -- ram_s write enable
 
     ctr_r:        in std_logic_vector(15 downto 0); -- Control register
     comp1_r:      in std_logic_vector(15 downto 0); -- Compare value one
-    comp2_r:      in std_logic_vector(15 downto 0); -- Compare value two
+    load1_r:      in std_logic_vector(15 downto 0); -- Compare value two
+    load_s:      in std_logic_vector(15 downto 0); -- Compare value two
     direct_r:     in std_logic_vector(15 downto 0); -- Load DAV value directly
 
     ram_s_addr:   in std_logic_vector(15 downto 0); -- DAC RAM Address
@@ -35,7 +37,6 @@ entity dac is
 
     -- DAC interrupts
     irq_comp1:    out std_logic;                    -- Compare one Interrupt
-    irq_comp2:    out std_logic;                    -- Compare two Interrupt
 
     cs, oclk, odata, done: out std_logic            -- SPI, output only
   );
@@ -44,28 +45,106 @@ end;
 architecture behav of dac is
   signal ctr_r_c, ctr_r_n:        std_logic_vector(15 downto 0)  := (others => '0');
   signal comp1_r_c, comp1_r_n:    std_logic_vector(15 downto 0)  := (others => '0');
-  signal comp2_r_c, comp2_r_n:    std_logic_vector(15 downto 0)  := (others => '0');
+  signal load1_r_c, load1_r_n:    std_logic_vector(15 downto 0)  := (others => '0');
   signal direct_r_c, direct_r_n:  std_logic_vector(15 downto 0)  := (others => '0');
+
+  signal ctrl_enabled:            std_logic := '0';
+  signal ctrl_comp1_action:       std_logic_vector(1 downto 0)   := (others => '0');
+  signal ctrl_comp1_reset:        std_logic := '0';
+  signal ctrl_irq_en:             std_logic := '0';
+  signal ctrl_comp1_load:         std_logic := '0';
+
+  signal count:                   unsigned(15 downto 0)          := (others => '0');
+
+  signal load_actual:             std_logic_vector(15 downto 0)  := (others => '0');
+  signal load_actual_we:          std_logic := '0';
 begin
+  ctrl_enabled      <= ctr_r_c(15);
+  ctrl_comp1_action <= ctr_r_c(13 downto 12);
+  ctrl_comp1_reset  <= ctr_r_c(9);
+  ctrl_irq_en       <= ctr_r_c(7);
+  ctrl_comp1_load   <= ctr_r_c(6);
+
   clockRegisters: process(clk,rst)
   begin
     if rst = '1' then
       ctr_r_c   <=  (others => '0');
       comp1_r_c <=  (others => '0');
-      comp2_r_c <=  (others => '0');
+      load1_r_c <=  (others => '0');
       direct_r_c <=  (others => '0');
     elsif rising_edge(clk) then
       ctr_r_c   <=  ctr_r_n;
       comp1_r_c <=  comp1_r_n;
-      comp2_r_c <=  comp2_r_n;
+      load1_r_c <=  load1_r_n;
       direct_r_c <=  direct_r_n;
     end if;
   end process;
 
+  counterProcess: process(rst,clk)
+  begin
+    if rst = '1' then
+      count <= (others => '0');
+    elsif rising_edge(clk) then
+      if ctrl_enabled = '1' then
+        if load_actual_we = '1' then
+          count <= unsigned(load_actual);
+        else
+          count <= count + 1;
+        end if;
+      else
+        count <= count;
+      end if;
+    end if;
+  end process;
+
+  compareProcess: process(
+    comp1_r_c, 
+    load1_r_c, 
+    count,
+    ctrl_comp1_reset,
+    ctrl_comp1_action,
+    ctrl_irq_en,
+    ctrl_comp1_load, 
+
+    load_s_we,
+    load_s
+  )
+  begin
+    irq_comp1       <= '0';
+
+    load_actual     <= (others => '0');
+    load_actual_we  <= '0';
+
+    if count = unsigned(comp1_r_c) then
+      if ctrl_irq_en = '1' then
+        irq_comp1 <= ctrl_irq_en;
+      end if;
+
+      case ctrl_comp1_action is
+        when "00"   => 
+        when "01"   => 
+        when "10"   => 
+        when "11"   => 
+        when others =>
+      end case;
+
+      if ctrl_comp1_load = '1' then
+        load_actual_we <= '1';
+        load_actual <= load1_r_c;
+      end if;
+    end if;
+
+    if load_s_we = '1' then
+      load_actual_we <= '1';
+      load_actual    <= load_s;
+    end if;
+  end process;
+
+
   assignRegisters: process( 
-    ctr_r_we, comp1_r_we, comp2_r_we, direct_r_we,
-    ctr_r_c, comp1_r_c, comp2_r_c, direct_r_c,
-    ctr_r, comp1_r, comp2_r, direct_r
+    ctr_r_we, comp1_r_we, load1_r_we, direct_r_we,
+    ctr_r_c, comp1_r_c, load1_r_c, direct_r_c,
+    ctr_r, comp1_r, load1_r, direct_r
   )
   begin
 
@@ -82,10 +161,10 @@ begin
         comp1_r_n   <=  comp1_r_c;
       end if;
 
-      if comp2_r_we = '1' then
-        comp2_r_n   <=  comp2_r;
+      if load1_r_we = '1' then
+        load1_r_n   <=  load1_r;
       else
-        comp2_r_n   <=  comp2_r_c;
+        load1_r_n   <=  load1_r_c;
       end if;
 
       if direct_r_we = '1' then
@@ -96,8 +175,4 @@ begin
 
   --- END Set register next state END ---
   end process;
-
-
-
-
 end architecture;
