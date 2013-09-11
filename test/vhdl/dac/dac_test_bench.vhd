@@ -71,9 +71,9 @@ begin
 	begin
     while wait_flag = '0' loop
       tb_clk25MHz	<=	'1';
-      wait for clk_period/(2*4);
+      wait for (clk_period*4)/2;
       tb_clk25MHz	<=	'0';
-      wait for clk_period/(2*4);
+      wait for (clk_period*4)/2;
     end loop;
     wait;
 	end process;

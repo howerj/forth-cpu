@@ -62,7 +62,7 @@ architecture behav of dac is
   signal spi_done:                std_logic;
 
   signal spi_data:                std_logic_vector(15 downto 0)  := (others => '0');
-  signal spi_data_we:             std_logic := '0';
+  signal spi_data_we:             std_logic := '1';
 
   signal memory_b_i_DEAD:         std_logic_vector(15 downto 0)  := (others => '0');
   signal memory_b_i_we_DEAD:      std_logic := '0';
@@ -117,11 +117,11 @@ begin
     end if;
   end process;
 
-  counterProcess: process(rst,clk)
+  counterProcess: process(rst,clk25MHz)
   begin
     if rst = '1' then
       count <= (others => '0');
-    elsif rising_edge(clk) then
+    elsif rising_edge(clk25MHz) then
       if ctrl_enabled = '1' then
         if load_actual_we = '1' then
           count <= unsigned(load_actual);
