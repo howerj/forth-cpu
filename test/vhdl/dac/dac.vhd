@@ -83,7 +83,7 @@ begin
     a_din     => ram_s_data_i,
     a_dout    => ram_s_data_o,
 
-    b_clk     => clk25MHz,
+    b_clk     => clk,
     b_dwe     => memory_b_i_we_DEAD,
     b_addr    => std_logic_vector(count),
     b_din     => memory_b_i_DEAD,
