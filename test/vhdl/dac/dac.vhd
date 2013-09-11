@@ -83,7 +83,7 @@ begin
     a_din     => ram_s_data_i,
     a_dout    => ram_s_data_o,
 
-    b_clk     => clk,
+    b_clk     => clk25MHz,
     b_dwe     => memory_b_i_we_DEAD,
     b_addr    => std_logic_vector(count),
     b_din     => memory_b_i_DEAD,
@@ -92,7 +92,7 @@ begin
 
   instance_dac_spi: entity work.spi_ad5641
   port map(
-    clk       => clk, 
+    clk       => clk25MHz, 
     rst       => rst,
     idata_we  => spi_data_we,
     idata     => spi_data,

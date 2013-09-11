@@ -13,7 +13,7 @@ architecture simulation of dac_test_bench is
 
   signal wait_flag:       std_logic                       :=  '0';
   signal tb_clk:          std_logic                       :=  '0';
-  signal tb_clk25Mhz:     std_logic                       :=  '0';
+  signal tb_clk25MHz:     std_logic                       :=  '0';
   signal tb_rst:          std_logic                       :=  '1';
 
   signal tb_ctr_r_we:     std_logic := '0';              -- ctr_r write enable
@@ -66,6 +66,18 @@ begin
     done          => tb_done
           );
 
+
+	clk25MHz_process: process
+	begin
+    while wait_flag = '0' loop
+      tb_clk25MHz	<=	'1';
+      wait for clk_period/(2*4);
+      tb_clk25MHz	<=	'0';
+      wait for clk_period/(2*4);
+    end loop;
+    wait;
+	end process;
+
 	clk_process: process
 	begin
     while wait_flag = '0' loop
@@ -87,7 +99,7 @@ begin
     wait for clk_period * 1;
     tb_ctr_r_we <= '0';
 
-    wait for clk_period * 16;
+    wait for clk_period * 256;
     wait_flag   <=  '1';
     wait;
   end process;
