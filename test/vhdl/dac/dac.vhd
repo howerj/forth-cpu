@@ -177,6 +177,11 @@ begin
       load_actual_we <= '1';
       load_actual    <= load_s;
     end if;
+
+    if count = 8191 then
+      load_actual_we <= '1';
+      load_actual    <= (others => '0');
+    end if;
   end process;
 
 

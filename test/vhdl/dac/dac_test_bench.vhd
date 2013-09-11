@@ -79,6 +79,13 @@ begin
 
 	stimulus_process: process
 	begin
+    tb_rst <= '1';
+    wait for clk_period * 1;
+    tb_rst <= '0';
+    tb_ctr_r_we <= '1';
+    tb_ctr_r    <= X"8000";
+    wait for clk_period * 1;
+    tb_ctr_r_we <= '0';
 
     wait for clk_period * 16;
     wait_flag   <=  '1';
