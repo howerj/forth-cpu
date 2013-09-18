@@ -14,6 +14,18 @@ use ieee.numeric_std.all;
 entity top_level is
   port
   (
+-- pragma translate_off
+-- synthesis translate_off
+-- synopsys translate_off
+
+  -- This should be removed once testing is done in the interests of
+  -- portability.
+   sim_irq:   in  std_logic;
+   sim_irc:   in  std_logic_vector(3 downto 0);
+-- synopsys translate_on
+-- synthesis translate_on
+-- pragma translate_on
+
     clk:      in  std_logic                    :=      'X';  -- clock
     -- Buttons
     btnu:     in  std_logic                    :=      'X';  -- button up
@@ -39,6 +51,7 @@ entity top_level is
     -- PWM from timer
     gpt0_q:   out std_logic                    :=      '0';
     gpt0_nq:  out std_logic                    :=      '0'
+
   );
 end;
 
@@ -49,10 +62,13 @@ architecture behav of top_level is
   -- Signals
   signal  rst:                      std_logic := '0';
   -- CPU H2 IO interface signals.
-  signal  cpu_io_wr:                std_logic;
+  signal  cpu_io_wr:                std_logic := '0';
   signal  cpu_io_din:               std_logic_vector(15 downto 0):= (others => '0');
   signal  cpu_io_dout:              std_logic_vector(15 downto 0):= (others => '0');
   signal  cpu_io_daddr:             std_logic_vector(15 downto 0):= (others => '0');
+  -- CPU H2 Interrupts
+  signal  cpu_irq:                  std_logic:= '0';
+  signal  cpu_irc:                  std_logic_vector(3 downto 0):= (others => '0');
 
   -- VGA interface signals
   signal  clk25MHz:                 std_logic:= '0';
@@ -112,15 +128,32 @@ begin
 -------------------------------------------------------------------------------
 -- The Main components
 -------------------------------------------------------------------------------
+
+-- pragma translate_off
+-- synthesis translate_off
+-- synopsys translate_off
+
+  -- This should be removed once testing is done in the interests of
+  -- portability.
+  cpu_irq <= sim_irq;
+  cpu_irc <= sim_irc;
+-- synopsys translate_on
+-- synthesis translate_on
+-- pragma translate_on
+
+
   cpu_instance: entity work.cpu
   port map(
-    clk => clk,
-    rst => rst,
+    clk       => clk,
+    rst       => rst,
 
-    cpu_wr => cpu_io_wr,
-    cpu_din => cpu_io_din,
-    cpu_dout => cpu_io_dout,
-    cpu_daddr => cpu_io_daddr
+    cpu_wr    => cpu_io_wr,
+    cpu_din   => cpu_io_din,
+    cpu_dout  => cpu_io_dout,
+    cpu_daddr => cpu_io_daddr,
+
+    cpu_irq   => cpu_irq,
+    cpu_irc   => cpu_irc
   );
 
 -------------------------------------------------------------------------------

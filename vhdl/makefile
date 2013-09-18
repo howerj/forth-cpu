@@ -50,11 +50,11 @@ gptimer.o: gptimer.vhd
 	@echo "ghdl -a gptimer.vhd"
 	@ghdl -a gptimer.vhd
 
-mem_font.o: mem_font.vhd
+mem_font.o: mem_font.vhd mem_font.binary
 	@echo "ghdl -a mem_font.vhd"
 	@ghdl -a mem_font.vhd
 
-mem_text.o: mem_text.vhd
+mem_text.o: mem_text.vhd mem_text.binary
 	@echo "ghdl -a mem_text.vhd"
 	@ghdl -a mem_text.vhd
 
@@ -82,7 +82,7 @@ h2.o: h2.vhd
 	@echo "ghdl -a h2.vhd"
 	@ghdl -a h2.vhd
 
-mem_h2.o: mem_h2.vhd
+mem_h2.o: mem_h2.vhd mem_h2.binary
 	@echo "ghdl -a mem_h2.vhd"
 	@ghdl -a mem_h2.vhd
 

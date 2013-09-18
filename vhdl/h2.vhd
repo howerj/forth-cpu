@@ -28,9 +28,9 @@ entity h2 is
         io_din:     in  std_logic_vector(15 downto 0);
         io_dout:    out std_logic_vector(15 downto 0);
         io_daddr:   out std_logic_vector(15 downto 0);
-        ---- Interrupts
---        irq:        in  std_logic;
---        irc:        in  std_logic_vector(3 downto 0);
+        -- Interrupts
+        irq:        in  std_logic;
+        irc:        in  std_logic_vector(3 downto 0);
 
         -- RAM interface, Dual port
         pco:        out std_logic_vector(12 downto 0);
@@ -67,7 +67,7 @@ architecture rtl of h2 is
     signal is_instr_jmp:        std_logic                     :=  '0';
     signal is_instr_cjmp:       std_logic                     :=  '0';
     signal is_instr_call:       std_logic                     :=  '0';
---  signal is_instr_interrupt:  std_logic                     :=  '0';
+    signal is_instr_interrupt:  std_logic                     :=  '0';
 
     -- Comparisions on stack items
     signal comp_more_signed:    std_logic                     :=  '0';
@@ -102,7 +102,10 @@ begin
     is_instr_jmp        <=  '1' when insn(15 downto 13) = "000" else '0';
     is_instr_cjmp       <=  '1' when insn(15 downto 13) = "001" else '0';
     is_instr_call       <=  '1' when insn(15 downto 13) = "010" else '0';
---  is_instr_interrupt  <= '1' when irc_c = '1' else '0';
+    is_instr_interrupt  <=  '1' when irq_c = '1' else '0';
+
+    irq_n <= '1' when irq = '1' else '0';
+    irc_n <= irc when irq = '1' else (others => '0');
 
     comp_more_signed    <= '1' when signed(tos_c) > signed(nos) else '0';
     comp_more           <= '1' when tos_c > nos else '0';
@@ -135,6 +138,7 @@ begin
 
     dstkW   <= '1' when is_instr_lit = '1' or (is_instr_alu = '1' and insn(7) = '1') else '0';
 
+
     stackWrite: process(
         clk
     )
@@ -151,17 +155,22 @@ begin
     end process;
 
     alu_sel: process(
-        insn
---        ,is_instr_interrupt
+        insn,
+        is_instr_interrupt,
+        int_en_c
     )
     begin
+      if is_instr_interrupt = '1' and int_en_c = '1' then -- same as call or ubranch
+        aluop <= (others => '0');
+      else
         case insn(14 downto 13) is
-            when "00" => aluop <= "00000"; -- ubranch
-            when "01" => aluop <= "00000"; -- call
-            when "10" => aluop <= "00001"; -- 0branch
-            when "11" => aluop <= insn(12 downto 8); -- alu operation.
+            when "00" => aluop <= (others => '0');            -- ubranch
+            when "01" => aluop <= (others => '0');            -- call
+            when "10" => aluop <= (0 => '1', others => '0');  -- 0branch
+            when "11" => aluop <= insn(12 downto 8);          -- alu operation.
             when others => aluop <= "XXXXX";
         end case;
+      end if;
     end process;
 
     -- ALU
@@ -239,16 +248,16 @@ begin
             pc_c        <=  (others => '0');
             tos_c       <=  (others => '0');
             int_en_c    <=  '0';
---            irq_c       <=  '0';
---            irc_c       <=  (others => '0');
+            irq_c       <=  '0';
+            irc_c       <=  (others => '0');
         elsif rising_edge(clk) then
             vstkp_c     <=  vstkp_n;
             rstkp_c     <=  rstkp_n;
             pc_c        <=  pc_n;
             tos_c       <=  tos_n;
             int_en_c    <=  int_en_n;
---            irq_c       <=  irq_n;
---            irc_c       <=  irc_n;
+            irq_c       <=  irq_n;
+            irc_c       <=  irc_n;
         end if;
     end process;
 
@@ -259,13 +268,19 @@ begin
             rstkp_c, rstk_ram, rd,
             tos_c,
             is_instr_jmp, is_instr_cjmp, is_instr_call, is_instr_lit, is_instr_alu,
+            is_instr_interrupt, int_en_c,
             pc_plus_one
         )
     begin
         vstkp_n   <=  vstkp_c;
         rstkp_n   <=  rstkp_c;
+
         -- main control
-        if is_instr_lit = '1' then
+        if is_instr_interrupt = '1' and int_en_c = '1' then -- Interrupts are similar to a call
+            rstkp_n <=  std_logic_vector(unsigned(rstkp_c) + 1);
+            rstkW   <=  '1';
+            rstkD   <=  "000" & pc_c; 
+        elsif is_instr_lit = '1' then
             vstkp_n <=  std_logic_vector(unsigned(vstkp_c)+1);
             rstkW   <=  '0';
             rstkD   <=  "000" & pc_plus_one; 
@@ -280,7 +295,7 @@ begin
                 vstkp_n <=  std_logic_vector(unsigned(vstkp_c) - 1);
             end if;
 
-            if is_instr_call = '1' then
+            if is_instr_call = '1' then -- A call!
                 rstkp_n <=  std_logic_vector(unsigned(rstkp_c) + 1);
                 rstkW   <=  '1';
                 rstkD   <=  "000" & pc_plus_one; 
@@ -293,17 +308,33 @@ begin
 
     pcUpdate: process(
         pc_c,insn,rtos_c,pc_plus_one, 
-        is_instr_jmp,is_instr_cjmp,is_instr_call,is_instr_alu,
+        is_instr_jmp,is_instr_cjmp,is_instr_call,is_instr_alu, 
+        is_instr_interrupt, int_en_c,
+        irc_c,
         comp_zero
     )
     begin
         pc_n    <=  pc_c;
-        if is_instr_jmp = '1' or (is_instr_cjmp = '1' and comp_zero = '1') or is_instr_call = '1' then
-            pc_n    <=  insn(12 downto 0);
-        elsif is_instr_alu = '1' and insn(4) = '1' then
-            pc_n    <=  rtos_c(12 downto 0);
-        else
-            pc_n    <=  pc_plus_one;
+        if is_instr_interrupt = '1' and int_en_c = '1' then -- Update PC on interrupt
+          if irc_c(0) = '1' then
+            pc_n <= (others => '0');
+          elsif irc_c(1) = '1' then
+            pc_n <= (0 => '1', others => '0');
+          elsif irc_c(2) = '1' then
+            pc_n <= (1 => '1', others => '0');
+          elsif irc_c(3) = '1' then
+            pc_n <= (0 => '1',1 => '1', others => '0');
+          else
+            pc_n <= (others => '0');
+          end if;
+        else -- Update PC on normal operations
+          if is_instr_jmp = '1' or (is_instr_cjmp = '1' and comp_zero = '1') or is_instr_call = '1' then
+              pc_n    <=  insn(12 downto 0);
+          elsif is_instr_alu = '1' and insn(4) = '1' then
+              pc_n    <=  rtos_c(12 downto 0);
+          else
+              pc_n    <=  pc_plus_one;
+          end if;
         end if;
     end process;
 end architecture;

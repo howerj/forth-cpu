@@ -2,11 +2,11 @@
 # TCL Script for GTKWave on test_bench.ghw for final year project 
 #
 
-set nfacs [ gtkwave::getNumFacs ]
-set dumpname [ gtkwave::getDumpFileName ]
-set dmt [ gtkwave::getDumpType ]
+#set nfacs [ gtkwave::getNumFacs ]
+#set dumpname [ gtkwave::getDumpFileName ]
+#set dmt [ gtkwave::getDumpType ]
 
-puts "number of signals in dumpfile '$dumpname' of type $dmt: $nfacs"
+# puts "number of signals in dumpfile '$dumpname' of type $dmt: $nfacs"
 
 set names [list]
 lappend names "tb_clk"

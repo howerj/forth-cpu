@@ -17,11 +17,13 @@ entity test_bench is
 end test_bench;
 
 architecture behavior of test_bench is
-    constant    clk_freq:        positive                        :=  1000000000;
-    constant    clk_period:      time                            :=  1000 ms / clk_freq;
+    constant    clk_freq:        positive                     :=  1000000000;
+    constant    clk_period:      time                         :=  1000 ms / clk_freq;
 
-    signal      wait_flag:       std_logic                       :=  '0';
-    signal      tb_clk:          std_logic                       :=  '0';
+    signal      wait_flag:       std_logic                    :=  '0';
+    signal      tb_sim_irq:      std_logic                    :=  '0';
+    signal      tb_sim_irc:      std_logic_vector(3 downto 0) := (others => '0');
+    signal      tb_clk:          std_logic                    :=  '0';
     signal      tb_rst:          std_logic;
 
     signal      tb_btnu:         std_logic                    :=            '0';  -- button up
@@ -46,6 +48,10 @@ begin
 
     top_level_uut: entity work.top_level
     port map(
+      -- Remove me{{
+        sim_irq => tb_sim_irq,
+        sim_irc => tb_sim_irc,
+      -- }}
         clk => tb_clk,
         btnu => tb_btnu,
         btnd => tb_btnd,
@@ -84,7 +90,11 @@ begin
         tb_rst <= '1';
         wait for clk_period * 2;
         tb_rst <= '0';
-        wait for clk_period * 10000;
+        wait for clk_period * 256;
+        tb_sim_irq <= '1';
+        wait for clk_period * 1;
+        tb_sim_irq <= '0';
+        wait for clk_period * 256;
         wait_flag   <=  '1';
         wait;
     end process;

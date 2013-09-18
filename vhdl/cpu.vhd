@@ -17,10 +17,14 @@ entity cpu is
     clk:        in   std_logic;
     rst:        in   std_logic;
 
+    -- CPU External interface, I/O
     cpu_wr:     out  std_logic;
     cpu_din:    in   std_logic_vector(15 downto 0):= (others => '0');
     cpu_dout:   out  std_logic_vector(15 downto 0):= (others => '0');
-    cpu_daddr:  out  std_logic_vector(15 downto 0):= (others => '0')
+    cpu_daddr:  out  std_logic_vector(15 downto 0):= (others => '0');
+    -- Interrupts
+    cpu_irq:    in   std_logic;
+    cpu_irc:    in   std_logic_vector(3 downto 0)
   );
 end;
 
@@ -41,24 +45,26 @@ begin
   -- The actual CPU instance (H2)
   h2_instance: entity work.h2
   port map(
-          clk   =>    clk,
-          rst   =>    rst,
-
-          -- Instruction and instruction address to CPU
-          pco   =>    pc, 
-          insn  =>    insn,  
+          clk       =>    clk,
+          rst       =>    rst,
 
           -- External interface with the 'outside world'
-          io_wr   =>  cpu_wr,
-          io_din  =>  cpu_din,
-          io_dout =>  cpu_dout,
-          io_daddr=>  cpu_daddr,
+          io_wr     =>  cpu_wr,
+          io_din    =>  cpu_din,
+          io_dout   =>  cpu_dout,
+          io_daddr  =>  cpu_daddr,
 
-          -- Internal Internal with memory
-          dwe     =>    mem_dwe,
-          din     =>    mem_din,
-          dout    =>    mem_dout,
-          daddr   =>    mem_daddr
+          irq       =>  cpu_irq,
+          irc       =>  cpu_irc,
+
+          -- Instruction and instruction address to CPU
+          pco       =>    pc, 
+          insn      =>    insn,  
+          -- Fetch/Store
+          dwe       =>    mem_dwe,
+          din       =>    mem_din,
+          dout      =>    mem_dout,
+          daddr     =>    mem_daddr
       );
 
   -- Dual port RAM for the CPU, acts as bootloader or
