@@ -1,7 +1,7 @@
 ## H2 Core
 * Finish off core.
 * Extensive testing.
-* Add interrupts
+* Better interrupt handling
 * Why does it now infer two dual port block RAMs and not distributed RAM?
 
 ## Top level

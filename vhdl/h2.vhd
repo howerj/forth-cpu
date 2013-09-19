@@ -7,9 +7,9 @@
 -- @email          howe.r.j.89@gmail.com
 
 -- TODO:
---  * Interrupts
+--  * Interrupts, Test them
+--  * Interrupt handling needs to be improved, ie - simultaneous interrupts
 --  * Move around ALU instructions, especially I/O interface.
---  * Testing
 --  * Make CPU more generic:
 --    - instead of (15 downto 0) have (15_bit downto 0_bit)
 --      where 15_bit and 0_bit are constants that can be moved
