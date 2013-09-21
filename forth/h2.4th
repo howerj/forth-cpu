@@ -71,7 +71,6 @@ start
 
 \ Small test prog
   _seti _depth
-  _clri _depth
   _swapbytes
 
   1 lit

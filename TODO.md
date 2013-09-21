@@ -14,6 +14,9 @@ Loops and if statements
 vhdl/
 =====
 
+* Pseudo terminal for the system.
+  - <https://groups.google.com/forum/?_escaped_fragment_=msg/comp.lang.vhdl/vu9fVTdvSP0/0mmztHvZfDsJ#!msg/comp.lang.vhdl/vu9fVTdvSP0/0mmztHvZfDsJ>
+
 * Work on input/output more.
 
 * Implement simple bootloader as firmware.

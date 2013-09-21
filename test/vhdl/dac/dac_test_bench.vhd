@@ -99,7 +99,8 @@ begin
     wait for clk_period * 1;
     tb_ctr_r_we <= '0';
 
-    wait for clk_period * 256;
+    wait for clk_period * 9000; 
+--    wait for clk_period * 9000 * 16 * 16;
     wait_flag   <=  '1';
     wait;
   end process;
