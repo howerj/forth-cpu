@@ -1,0 +1,7 @@
+*.ghw
+*.o
+*.swp
+*.swo
+*.cf
+ptty_top_level
+ptty_test_bench
