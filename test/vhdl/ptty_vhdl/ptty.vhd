@@ -11,6 +11,7 @@
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use std.textio.all;
 
 entity ptty is
   port(
@@ -21,4 +22,38 @@ end;
 
 architecture behav of ptty is
 begin
+--  greetings: process
+--    variable s: line;
+--  begin
+--    write(s, string'("ptty, a tty to uart interface."));
+--    writeline(output,s);
+--    write(s, string'("ptty>"));
+--    writeline(output,s);
+--    wait;
+--  end process;
+
+  process
+    file      infile, outfile:  text;
+    variable  f_status:         FILE_OPEN_STATUS;
+    variable  buf_in, buf_out:  LINE;
+    variable  count:            integer;
+  begin
+    file_open(f_status, infile, "STD_INPUT", read_mode);
+    file_open(f_status, outfile, "STD_OUTPUT",write_mode);
+
+    write(buf_out, string'("?"));
+    writeline(outfile, buf_out);
+
+    readline(infile, buf_in);
+    read(buf_in, count);
+
+    write(buf_out, string'("<"));
+    write(buf_out, count);
+    write(buf_out, string'(">"));
+    writeline(outfile, buf_out);
+
+    file_close(outfile);
+    wait;
+  end process;
+
 end architecture;
