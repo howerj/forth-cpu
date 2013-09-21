@@ -1,4 +1,6 @@
-Copyright 2013 Richard James Howe
+## LICENSE.md
+
+### Copyright 2013 Richard James Howe
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

@@ -18,16 +18,22 @@ DEFAULT=\e[0m
 ## Compiler options
 
 CC=gcc
-CCOPTS=-ansi -g -Wall -Wno-write-strings -Wshadow -Wextra -pedantic -O2
+CCOPTS=-ansi -g -Wall -Wno-write-strings -Wshadow -Wextra -pedantic -O2 -save-temps
 #CCOPTS=-ansi --coverage -g -Wall -Wno-write-strings -Wshadow -Wextra -pedantic -O2
+
+## Long strings passed to commands
+
+RMSTR=bin/forth bin/*.o memory.txt *.log *.swo *.swp *.o lib/*~ *~ *.gcov *.gcda *.gcno doc/*.html doc/*.htm log/* *.i *.s log/*.i log/*.s
+
+INDENTSTR=-v -linux -nut -i2 -l120 -lc120 lib/*.h lib/*.c main.c
+SPLINTSTR=-forcehint main.c lib/*.h lib/*.c
 
 ## Help
 
-all: banner forth assemble
+all: banner bin/forth
 
 banner:
 	@/bin/echo -e "Howe Forth, GNU Makefile\n"
-	@/bin/echo -e "Assembler/Virtual machine"
 	@/bin/echo -e "Author:    $(BLUE)Richard James Howe$(DEFAULT)."
 	@/bin/echo -e "Copyright: $(BLUE)Copyright 2013 Richard James Howe.$(DEFAULT)."
 	@/bin/echo -e "License:   $(BLUE)LGPL$(DEFAULT)."
@@ -38,13 +44,14 @@ banner:
 	@/bin/echo -e "To compile $(RED)without$(DEFAULT) bounds checking:$(BLUE) \"-DUNCHECK\".$(DEFAULT)";
 	@/bin/echo -e "\n"
 
-
 help:
 	@/bin/echo "Options:"
 	@/bin/echo "make"
 	@/bin/echo "     Print out banner, this help message and compile program."
 	@/bin/echo "make forth"
-	@/bin/echo "     Compile howe forth."
+	@/bin/echo "     Compile Howe forth."
+	@/bin/echo "make run"
+	@/bin/echo "     Run Howe forth."
 	@/bin/echo "make pretty"
 	@/bin/echo "     Indent source, print out word count, clean up directory."
 	@/bin/echo "make clean"
@@ -58,57 +65,71 @@ help:
 	@/bin/echo "make valgrind"
 	@/bin/echo "     Run program with valgrind on start up forth file only."
 
-## Run the interpreter
-assemble:
-	@/bin/echo "Running the assembler."
-	@./forth
-
 ## Main forth program
 
-forth: main.c forth.h forth.o
-	$(CC) $(CCOPTS) main.c forth.o -o forth
+# The Forth interpreter top level
+bin/forth: main.c bin/forth.o bin/hosted.o
+	$(CC) $(CCOPTS) main.c bin/hosted.o bin/forth.o -o bin/forth
+	@mv *.i *.s log/
 
-forth.o: forth.c forth.h
-	$(CC) $(CCOPTS) -c forth.c -o forth.o
+# Desktop interface
+bin/hosted.o: lib/hosted.c lib/hosted.h
+	$(CC) $(CCOPTS) -c lib/hosted.c -o bin/hosted.o
+
+# The forth interpreter library
+bin/forth.o: lib/forth.c lib/forth.h
+	$(CC) $(CCOPTS) -c lib/forth.c -o bin/forth.o
 
 ## Optional extras, helper functions
+
+# Run the interpreter
+
+run: bin/forth
+	@cd bin; ./forth
 
 # Indent the files, clean up directory, word count.
 pretty: 
 	@/bin/echo -e "$(BLUE)"
 	@/bin/echo -e "Indent files and clean up system.$(DEFAULT)"
 	@/bin/echo -e "$(GREEN)"
-	@/bin/echo "indent -nut -linux *.h *.c";
-	@indent -nut -linux *.h *c;
+	@/bin/echo "indent $(INDENTSTR)"
+	@indent $(INDENTSTR);
 	@/bin/echo -e "$(RED)"
-	@rm -vf forth memory.txt *.log *.swo *.swp *.o *~ *.gcov *.gcda *.gcno *.html *.htm;
+	@rm -vf $(RMSTR);
 	@/bin/echo -e "$(DEFAULT)"
-	@wc *.c *.h *.fs makefile
+	@wc lib/*.c lib/*.h *.c fth/*.4th makefile
 
 # Clean up directory.
 clean:
 	@/bin/echo -e "$(RED)"
-	@rm -vf forth memory.txt *.log *.swo *.swp *.o *~ *.gcov *.gcda *.gcno *.html *.htm;
+	@rm -vf $(RMSTR);
 	@/bin/echo -e "$(DEFAULT)"
 
 # Static checking.
 splint:
-	@/bin/echo "Running \"splint *.c *.h &> splint.log\""
-	-splint *.c *.h &> splint.log 
+	@/bin/echo "$(SPLINTSTR)";
+	-splint $(SPLINTSTR);
 
 html:
 	@/bin/echo -e "Compiling markdown to html."
-	@for i in *.md; do /bin/echo "$$i > $$i.html"; markdown $$i > $$i.html; done
+	for i in doc/*.md; do\
+		/bin/echo "$$i > $$i.html";\
+		markdown $$i > $$i.html;\
+	done
 
-valgrind: forth
+valgrind: bin/forth
 	@/bin/echo "Running valgrind on ./forth"
 	@/bin/echo "  This command needs changing in the makefile"
-	-valgrind ./forth &> valgrind.log << EOF
+	-valgrind bin/./forth << EOF
+
+ctags:
+	@ctags -R .
 
 gcov: CCOPTS:=$(CCOPTS) --coverage
-gcov: clean forth
+gcov: clean bin/forth
 	@/bin/echo "Providing gcov statistics for forth program."
-	@./forth << EOF
-	@gcov forth.c main.c
-
-
+	@cd bin/; ./forth << EOF
+	@mv bin/*.gcda bin/*.gcno .
+	@gcov forth.c hosted.c main.c
+	@if [ ! -d log/ ]; then mkdir log; fi
+	@mv *.gcda *.gcno *.gcov log/
