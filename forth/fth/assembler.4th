@@ -76,9 +76,8 @@
 20 mALU  constant T<0       ." TlessZ = "       T<0       prnn ." , " cr
 21 mALU  constant T=0       ." TeqZ = "         T=0       prnn ." , " cr
 22 mALU  constant swapbytes ." swapbytes = "    swapbytes prnn ." , " cr
-23 mALU  constant seti      ." seti = "         seti      prnn ." , " cr
-24 mALU  constant clri      ." clri = "         clri      prnn ." , " cr
-25 mALU  constant T-1       ." TsubOne = "      T-1       prnn ." , " cr
+23 mALU  constant togglei   ." togglei = "      togglei   prnn ." , " cr
+24 mALU  constant T-1       ." TsubOne = "      T-1       prnn ." , " cr
 \ ...
 30 mALU  constant [T<-IO]  \ Get input
 31 mALU  constant N->IO(T) \ Set output
@@ -141,8 +140,7 @@
 : _input    alu[ [T<-IO] ]alu ;
 : _output   alu[ N d-2 N->IO(T) or or ]alu ;
 : _depth    alu[ depth T->N d+1 or or ]alu ;
-: _seti     alu[ seti ]alu ;
-: _clri     alu[ clri ]alu ;
+: _togglei  alu[ togglei ]alu ;
 : _swapbytes alu[ swapbytes ]alu ;
 
 : label immediate

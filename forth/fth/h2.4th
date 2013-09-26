@@ -70,7 +70,7 @@ start
   [SETUP]
 
 \ Small test prog
-  _seti _depth
+  _togglei _depth \ Set interrupt enable to '1'.
   _swapbytes
 
   1 lit

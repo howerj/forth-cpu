@@ -17,6 +17,12 @@ vhdl/
 * Pseudo terminal for the system.
   - <https://groups.google.com/forum/?_escaped_fragment_=msg/comp.lang.vhdl/vu9fVTdvSP0/0mmztHvZfDsJ#!msg/comp.lang.vhdl/vu9fVTdvSP0/0mmztHvZfDsJ>
 
+* Better and more tested peripherals:
+
+  - Generic Port peripherals
+  - Handling of 7-segment displays
+  - Test the DAC
+
 * Work on input/output more.
 
 * Implement simple bootloader as firmware.

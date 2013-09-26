@@ -1,5 +1,5 @@
 -- Richard James Howe
--- J1 processor clone and extension. Moved bit 12 to bit 4 to
+-- J1 processor translation and extension. Moved bit 12 to bit 4 to
 --  allow for more ALU instructions, added more ALU instructions.
 -- @author         Richard James Howe.
 -- @copyright      Copyright 2013 Richard James Howe.
@@ -10,6 +10,7 @@
 --  * Interrupts, Test them
 --  * Interrupt handling needs to be improved, ie - simultaneous interrupts
 --  * Move around ALU instructions, especially I/O interface.
+--  * Carry Flag
 --  * Make CPU more generic:
 --    - instead of (15 downto 0) have (15_bit downto 0_bit)
 --      where 15_bit and 0_bit are constants that can be moved
@@ -223,9 +224,9 @@ begin
                 when "10100" => tos_n  <=  (0 => comp_negative, others => '0');
                 when "10101" => tos_n  <=  (0 => comp_zero, others => '0');
                 when "10110" => tos_n  <=  tos_c(7 downto 0) & tos_c(15 downto 8);
-                when "10111" => int_en_n <= '1'; -- enable interrupts
-                when "11000" => int_en_n <= '0'; -- disable interrupts
-                when "11001" => tos_n   <=  std_logic_vector(unsigned(tos_c)-1);
+                when "10111" => int_en_n <= int_en_c xor '1'; -- toggle interrupts
+                when "11000" => tos_n   <=  std_logic_vector(unsigned(tos_c)-1); 
+                when "11001" =>
                 when "11010" =>
                 when "11011" =>
                 when "11100" =>
