@@ -21,38 +21,54 @@ entity ptty is
 end;
 
 architecture behav of ptty is
+  constant baud_rate:               positive := 115200;
+  constant clock_frequency:         positive := 100000000;
+
+  signal  rx:                       std_logic:=      'X'; 
+  signal  tx:                       std_logic:=      '0';  
+  signal  uart_din, uart_dout:      std_logic_vector(7 downto 0):= (others => '0');
+  signal  stb_din, stb_dout:        std_logic:= '0';
+  signal  ack_din, ack_dout:        std_logic:= '0';
+  signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
 begin
---  greetings: process
---    variable s: line;
---  begin
---    write(s, string'("ptty, a tty to uart interface."));
---    writeline(output,s);
---    write(s, string'("ptty>"));
---    writeline(output,s);
---    wait;
---  end process;
+  uart_ptty: entity work.uart
+  generic map(
+    BAUD_RATE => baud_rate,
+    CLOCK_FREQUENCY => clock_frequency
+  )
+  port map(
+   clock => clk,
+   reset => rst,
+   data_stream_in => uart_din,
+   data_stream_in_stb => stb_din,
+   data_stream_in_ack => ack_din,
+   data_stream_out => uart_dout,
+   data_stream_out_stb => stb_dout,
+   data_stream_out_ack => ack_dout,
+   rx => rx_uart,
+   tx => tx_uart
+  );
+
 
   process
-    file      infile, outfile:  text;
-    variable  f_status:         FILE_OPEN_STATUS;
-    variable  buf_in, buf_out:  LINE;
-    variable  count:            integer;
+    file stdin_file:            text is in  "STD_INPUT";
+    file stdout_file:           text is out "STD_OUTPUT";
+    variable  inline, outline:  line;
+    variable  end_of_line:      boolean;
+    variable  char_in:          character;
   begin
-    file_open(f_status, infile, "STD_INPUT", read_mode);
-    file_open(f_status, outfile, "STD_OUTPUT",write_mode);
 
-    write(buf_out, string'("?"));
-    writeline(outfile, buf_out);
-
-    readline(infile, buf_in);
-    read(buf_in, count);
-
-    write(buf_out, string'("<"));
-    write(buf_out, count);
-    write(buf_out, string'(">"));
-    writeline(outfile, buf_out);
-
-    file_close(outfile);
+    while not endfile(stdin_file) loop
+      readline(stdin_file,inline);
+      read(inline,char_in,end_of_line);
+      write(outline, char_in);
+      while end_of_line loop
+        read(inline,char_in,end_of_line);
+        write(outline, char_in);
+      end loop;
+      writeline(stdout_file, outline);
+    end loop;
+    file_close(stdout_file);
     wait;
   end process;
 

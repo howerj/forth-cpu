@@ -22,7 +22,11 @@ help:
 ##
 ## Simulation ==============================================================
 
-ptty.o: ptty.vhd 
+uart.o: uart.vhd 
+	@echo "ghdl -a uart.vhd"
+	@ghdl -a uart.vhd
+
+ptty.o: uart.o ptty.vhd 
 	@echo "ghdl -a ptty.vhd"
 	@ghdl -a ptty.vhd
 
