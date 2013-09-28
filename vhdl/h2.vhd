@@ -9,7 +9,6 @@
 -- TODO:
 --  * Interrupts, Test them
 --  * Interrupt handling needs to be improved, ie - simultaneous interrupts
---  * Move around ALU instructions, especially I/O interface.
 --  * Carry Flag
 --  * Make CPU more generic:
 --    - instead of (15 downto 0) have (15_bit downto 0_bit)
@@ -197,10 +196,12 @@ begin
                 when "00001" =>  tos_n  <=  nos;
                 when "00010" =>  tos_n  <=  rtos_c;
                 when "00011" =>  
+                  -- Anything greater than 8191 (ie. 13th bit set) means
+                  -- We're accessing a periphal and not CPU memory.
                   if tos_c(13) = '1' then 
-                    tos_n  <=  din;  
-                  else 
                     tos_n <= io_din; 
+                  else 
+                    tos_n  <=  din;  
                   end if;
                 when "00100" =>  
                   tos_n  <=  vstkp_c & rstkp_c & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
@@ -291,7 +292,7 @@ begin
         elsif is_instr_alu = '1' then 
             rstkW   <=  insn(6);
             rstkD   <=  tos_c;
-            -- Signed addition.
+            -- Signed addition, trust me, it's signed.
             vstkp_n <=  std_logic_vector(unsigned(vstkp_c) + unsigned(dd));
             rstkp_n <=  std_logic_vector(unsigned(rstkp_c) + unsigned(rd));
         else
