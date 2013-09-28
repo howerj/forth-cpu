@@ -78,9 +78,6 @@
 22 mALU  constant swapbytes ." swapbytes = "    swapbytes prnn ." , " cr
 23 mALU  constant togglei   ." togglei = "      togglei   prnn ." , " cr
 24 mALU  constant T-1       ." TsubOne = "      T-1       prnn ." , " cr
-\ ...
-30 mALU  constant [T<-IO]  \ Get input
-31 mALU  constant N->IO(T) \ Set output
 
 : mLit     1 15 lshift ;
 : T->N     1 7  lshift ;
@@ -137,8 +134,6 @@
 : _@        alu[ [T] ]alu ;
 : _!        alu[ N d-2 N->[T] or or ]alu ;
 : _*        alu[ L(T)*L(N) d-1 or ]alu ;
-: _input    alu[ [T<-IO] ]alu ;
-: _output   alu[ N d-2 N->IO(T) or or ]alu ;
 : _depth    alu[ depth T->N d+1 or or ]alu ;
 : _togglei  alu[ togglei ]alu ;
 : _swapbytes alu[ swapbytes ]alu ;

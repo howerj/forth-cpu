@@ -122,13 +122,14 @@ begin
     pco                 <=  pc_n;
     dout                <=  nos;
     daddr               <=  tos_c(12 downto 0);
-    dwe                 <=  insn(5) when is_instr_alu = '1' else '0';
+    dwe                 <=  insn(5) when is_instr_alu = '1' and tos_c(13) = '0' else '0';
 
     -- io_wr are handled in the ALU, 
     --  this makes things slower but we have
     --  run out of instruction bits to use.
     io_dout             <=  nos;
     io_daddr            <=  tos_c;
+    io_wr               <=  insn(5) when is_instr_alu = '1' and tos_c(13) = '1' else '0';
 
     -- misc
     pc_plus_one         <=  std_logic_vector(unsigned(pc_c) + 1);
@@ -186,7 +187,6 @@ begin
         int_en_c
     )
     begin
-        io_wr       <=  '0';
         tos_n       <=  tos_c;
         int_en_n       <=  int_en_c;
         if is_instr_lit = '1' then
@@ -196,7 +196,12 @@ begin
                 when "00000" =>  tos_n  <=  tos_c;
                 when "00001" =>  tos_n  <=  nos;
                 when "00010" =>  tos_n  <=  rtos_c;
-                when "00011" =>  tos_n  <=  din;  
+                when "00011" =>  
+                  if tos_c(13) = '1' then 
+                    tos_n  <=  din;  
+                  else 
+                    tos_n <= io_din; 
+                  end if;
                 when "00100" =>  
                   tos_n  <=  vstkp_c & rstkp_c & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
                 when "00101" =>  tos_n  <=  tos_c or nos;
@@ -232,9 +237,7 @@ begin
                 when "11100" =>
                 when "11101" =>
                 when "11110" =>
-                                tos_n   <=  io_din; -- Should be integrated din instruction
                 when "11111" =>
-                                io_wr   <=  '1';    -- Should be integrated to other write instruction
                 when others => tos_n    <=  (others => 'X');
             end case;
         end if;

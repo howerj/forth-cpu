@@ -18,24 +18,24 @@
 122 constant o_vgaCtrlDefault \ 01111010, VGA control register set to this.
 
 \ Outputs
-0 constant o_7seg
-1 constant o_ledS
-2 constant o_vgaCursor
-3 constant o_vgaCtrl
-4 constant o_vgaTxtAddr
-5 constant o_vgaTxtDin
-6 constant o_vgaWrite
-7 constant o_uartWrite
-8 constant o_uartStbWrite
-9 constant o_uartAckDout
+0  1 13 lshift or constant o_7seg
+1  1 13 lshift or constant o_ledS
+2  1 13 lshift or constant o_vgaCursor
+3  1 13 lshift or constant o_vgaCtrl
+4  1 13 lshift or constant o_vgaTxtAddr
+5  1 13 lshift or constant o_vgaTxtDin
+6  1 13 lshift or constant o_vgaWrite
+7  1 13 lshift or constant o_uartWrite
+8  1 13 lshift or constant o_uartStbWrite
+9  1 13 lshift or constant o_uartAckDout
 
 \ Inputs
-0 constant i_buttons
-1 constant i_switches
-2 constant i_vgaTxtDout
-3 constant i_uartRead
-4 constant i_uartAckWrite
-5 constant i_uartStbDout
+0  1 13 lshift or constant i_buttons
+1  1 13 lshift or constant i_switches
+2  1 13 lshift or constant i_vgaTxtDout
+3  1 13 lshift or constant i_uartRead
+4  1 13 lshift or constant i_uartAckWrite
+5  1 13 lshift or constant i_uartStbDout
 
 \ ==============================================================================
 \ Word definitions.
@@ -51,15 +51,15 @@
 : [SETUP]
     o_vgaCtrlDefault lit
     o_vgaCtrl lit 
-    _output
+    _!
 ;
 
 : [LED]
-    o_ledS lit _output
+    o_ledS lit _!
 ;
 
 : [SWITCH]
-    i_switches lit _input
+    i_switches lit _@
 ;
 
 \ ==============================================================================
