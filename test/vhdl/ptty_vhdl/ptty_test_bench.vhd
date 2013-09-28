@@ -8,24 +8,33 @@ entity ptty_test_bench is
 end entity;
 
 architecture simulation of ptty_test_bench is
-  constant clk_freq:     positive                        :=  1000000000;
-  constant clk_period:   time                            :=  1000 ms / clk_freq;
+  constant clk_freq:     positive                         :=  1000000000;
+  constant clk_period:   time                             :=  1000 ms / clk_freq;
+  constant baud_rate:    positive                         :=  115200;
 
-  signal wait_flag:       std_logic                       :=  '0';
+  signal tb_done:         std_logic                       :=  '0';
   signal tb_clk:          std_logic                       :=  '0';
-  signal tb_rst:          std_logic                       :=  '1';
-
+  signal tb_rst:          std_logic                       :=  '0';
+  signal tb_rx:           std_logic                       :=  '0';
+  signal tb_tx:           std_logic                       :=  '1';
 begin
 
   ptty_uut: entity work.ptty
+  generic map(
+    clock_frequency => clk_freq,
+    baud_rate       => baud_rate
+  ) 
   port map(
     clk           => tb_clk,
-    rst           => tb_rst
+    rst           => tb_rst,
+    rx            => tb_rx,
+    tx            => tb_tx,
+    done          => tb_done
           );
 
 	clk_process: process
 	begin
-    while wait_flag = '0' loop
+    while tb_done = '0' loop
       tb_clk	<=	'1';
       wait for clk_period/2;
       tb_clk	<=	'0';
@@ -33,15 +42,5 @@ begin
     end loop;
     wait;
 	end process;
-
-	stimulus_process: process
-	begin
-    tb_rst <= '1';
-    wait for clk_period * 1;
-    tb_rst <= '0';
-    wait for clk_period * 256; 
-    wait_flag   <=  '1';
-    wait;
-  end process;
 
 end architecture;

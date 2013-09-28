@@ -14,22 +14,27 @@ use ieee.numeric_std.all;
 use std.textio.all;
 
 entity ptty is
+  generic(
+    baud_rate:               positive := 115200;
+    clock_frequency:         positive := 100000000
+  );
   port(
     clk:          in  std_logic;
-    rst:          in  std_logic
+    rst:          in  std_logic;
+    rx:           in  std_logic                    :=      'X';  -- uart rx 
+    tx:           out std_logic                    :=      '0';  -- uart tx
+    done:         out std_logic                    :=      '0'  -- done flag
   );
 end;
 
 architecture behav of ptty is
-  constant baud_rate:               positive := 115200;
-  constant clock_frequency:         positive := 100000000;
+  constant clk_period:              time:=  1000 ms / clock_frequency;
 
-  signal  rx:                       std_logic:=      'X'; 
-  signal  tx:                       std_logic:=      '0';  
   signal  uart_din, uart_dout:      std_logic_vector(7 downto 0):= (others => '0');
   signal  stb_din, stb_dout:        std_logic:= '0';
   signal  ack_din, ack_dout:        std_logic:= '0';
   signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
+  signal  int_s:  integer;
 begin
   uart_ptty: entity work.uart
   generic map(
@@ -49,25 +54,29 @@ begin
    tx => tx_uart
   );
 
-
   process
     file stdin_file:            text is in  "STD_INPUT";
     file stdout_file:           text is out "STD_OUTPUT";
     variable  inline, outline:  line;
-    variable  end_of_line:      boolean;
+    variable  not_end_of_line:  boolean;
     variable  char_in:          character;
+    variable  int:              integer;
   begin
-
+    done <= '0';
     while not endfile(stdin_file) loop
       readline(stdin_file,inline);
-      read(inline,char_in,end_of_line);
-      write(outline, char_in);
-      while end_of_line loop
-        read(inline,char_in,end_of_line);
+      not_end_of_line := true;
+      while not_end_of_line loop
+        wait for clk_period/2;
+        read(inline,char_in,not_end_of_line);
+        int := character'pos(char_in);
+        int_s <= int;
+        uart_din <= std_logic_vector(to_unsigned(int, uart_din'length));
         write(outline, char_in);
       end loop;
       writeline(stdout_file, outline);
     end loop;
+    done <= '1';
     file_close(stdout_file);
     wait;
   end process;
