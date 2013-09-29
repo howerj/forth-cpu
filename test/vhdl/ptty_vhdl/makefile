@@ -38,7 +38,7 @@ simulation: ptty.o  ptty_test_bench.vhd
 ## Simulation ==============================================================
 
 viewer:
-	gtkwave ptty_test_bench.ghw &>/dev/null&
+	gtkwave ptty_test_bench.ghw 2&>/dev/null&
 
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."
