@@ -18,6 +18,14 @@ architecture simulation of ptty_test_bench is
   signal tb_rx:           std_logic                       :=  '0';
   signal tb_tx:           std_logic                       :=  '1';
 begin
+  
+  uart_loopback: entity work.loopback
+  port map(
+    CLOCK => tb_clk,
+    RESET => tb_rst,
+    RX    => tb_tx,
+    TX    => tb_rx
+          );
 
   ptty_uut: entity work.ptty
   generic map(

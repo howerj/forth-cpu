@@ -30,7 +30,11 @@ ptty.o: uart.o ptty.vhd
 	@echo "ghdl -a ptty.vhd"
 	@ghdl -a ptty.vhd
 
-simulation: ptty.o  ptty_test_bench.vhd
+loopback.o: loopback.vhd uart.o
+	@echo "ghdl -a loopback.vhd"
+	@ghdl -a loopback.vhd
+
+simulation: ptty.o loopback.o  ptty_test_bench.vhd
 	ghdl -a ptty_test_bench.vhd
 	ghdl -e ptty_test_bench
 	ghdl -r ptty_test_bench --wave=ptty_test_bench.ghw 
