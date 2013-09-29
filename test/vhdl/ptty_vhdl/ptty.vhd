@@ -71,13 +71,15 @@ begin
         char_out := character'val(int);
         write(outline, char_out);
         ack_dout <= '1';
-        if char_out = cr then
+--        assert int /= 0 report "null" severity note;
+        if (char_out = cr) or (char_out = nul) then
           writeline(stdout_file, outline);
         end if;
       end if;
 
       if done_internal_signal = '1' then
-        file_close(stdout_file);
+        writeline(stdout_file, outline);
+--        file_close(stdout_file); -- probably not best to close stdout
       end if;
 
       assert done_internal_signal = '0' report "Finished" severity note;
