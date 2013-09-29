@@ -33,7 +33,6 @@ architecture behav of ptty is
   signal  uart_din, uart_dout:      std_logic_vector(7 downto 0):= (others => '0');
   signal  stb_din, stb_dout:        std_logic:= '0';
   signal  ack_din, ack_dout:        std_logic:= '0';
-  signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
 begin
   uart_ptty: entity work.uart
   generic map(
@@ -49,8 +48,8 @@ begin
    data_stream_out => uart_dout,
    data_stream_out_stb => stb_dout,
    data_stream_out_ack => ack_dout,
-   rx => rx_uart,
-   tx => tx_uart
+   rx => rx,
+   tx => tx
   );
 
   process
