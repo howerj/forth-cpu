@@ -34,7 +34,6 @@ architecture behav of ptty is
   signal  stb_din, stb_dout:        std_logic:= '0';
   signal  ack_din, ack_dout:        std_logic:= '0';
   signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
-  signal  int_s:  integer;
 begin
   uart_ptty: entity work.uart
   generic map(
@@ -60,18 +59,21 @@ begin
     variable  inline, outline:  line;
     variable  not_end_of_line:  boolean;
     variable  char_in:          character;
-    variable  int:              integer;
+    variable  int:              integer := 0;
   begin
     done <= '0';
     while not endfile(stdin_file) loop
       readline(stdin_file,inline);
       not_end_of_line := true;
       while not_end_of_line loop
-        wait for clk_period/2;
         read(inline,char_in,not_end_of_line);
         int := character'pos(char_in);
-        int_s <= int;
         uart_din <= std_logic_vector(to_unsigned(int, uart_din'length));
+        stb_din <= '1';
+        wait for clk_period;
+        wait until ack_din = '1'; -- Wait for however long it takes!
+        stb_din <= '0';
+        wait for clk_period;
         write(outline, char_in);
       end loop;
       writeline(stdout_file, outline);

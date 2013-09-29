@@ -8,13 +8,13 @@ entity ptty_test_bench is
 end entity;
 
 architecture simulation of ptty_test_bench is
-  constant clk_freq:     positive                         :=  1000000000;
+  constant clk_freq:     positive                         :=  100000000;
   constant clk_period:   time                             :=  1000 ms / clk_freq;
   constant baud_rate:    positive                         :=  115200;
 
   signal tb_done:         std_logic                       :=  '0';
   signal tb_clk:          std_logic                       :=  '0';
-  signal tb_rst:          std_logic                       :=  '0';
+  signal tb_rst:          std_logic                       :=  '1';
   signal tb_rx:           std_logic                       :=  '0';
   signal tb_tx:           std_logic                       :=  '1';
 begin
@@ -34,6 +34,13 @@ begin
 
 	clk_process: process
 	begin
+    tb_rst <= '1';
+      tb_clk	<=	'1';
+      wait for clk_period/2;
+      tb_clk	<=	'0';
+      wait for clk_period/2;
+    tb_rst <= '0';
+    wait for clk_period/2;
     while tb_done = '0' loop
       tb_clk	<=	'1';
       wait for clk_period/2;
