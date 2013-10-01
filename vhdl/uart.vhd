@@ -45,7 +45,7 @@ architecture RTL of UART is
 
     signal baud_counter             :   integer;   
     signal baud_tick                :   std_logic := '0';
-    signal oversample_baud_counter  :   integer;
+    signal oversample_baud_counter  :   integer := 0;
     signal oversample_baud_tick     :   std_logic := '0';
 
     ----------------------------------------------------------------------------

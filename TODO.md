@@ -1,5 +1,14 @@
-forth/
-======
+### General
+
+* Coding standards
+
+Bring everything in line with the same coding standards.
+
+* Doxygen
+
+Set up Doxygen
+
+### forth/
 
 * FORTH word, change current vocabulary. 
 
@@ -11,8 +20,7 @@ Loops and if statements
 * It is possible that I could implement the
   Virtual machine here as well.  
 
-vhdl/
-=====
+### vhdl/
 
 * Pseudo terminal for the system.
   - <https://groups.google.com/forum/?_escaped_fragment_=msg/comp.lang.vhdl/vu9fVTdvSP0/0mmztHvZfDsJ#!msg/comp.lang.vhdl/vu9fVTdvSP0/0mmztHvZfDsJ>
@@ -38,14 +46,12 @@ dual port RAM as a UART buffer, and reading from
 the buffers instead of handling the UART directly.
 
 
-vm/
-===
+### vm/
 
 * Implement peripherals
 * Move to Forth
 
-ALL:
-====
+### ALL:
 
 * Documentation.
 

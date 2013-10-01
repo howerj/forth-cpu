@@ -1,6 +1,8 @@
 -- Richard James Howe
+-- The H2 Processor.
 -- J1 processor translation and extension. Moved bit 12 to bit 4 to
---  allow for more ALU instructions, added more ALU instructions.
+--  allow for more ALU instructions, added more ALU instructions and
+--  changed a few things around.
 -- @author         Richard James Howe.
 -- @copyright      Copyright 2013 Richard James Howe.
 -- @license        LGPL      
@@ -321,6 +323,7 @@ begin
     begin
         pc_n    <=  pc_c;
         if is_instr_interrupt = '1' and int_en_c = '1' then -- Update PC on interrupt
+          -- Prioritory encoded, LSB has higher prioritory.
           if irc_c(0) = '1' then
             pc_n <= (others => '0');
           elsif irc_c(1) = '1' then

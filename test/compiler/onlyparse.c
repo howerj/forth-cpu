@@ -1,6 +1,3 @@
-/*
- * Parser/Compiler that will target a dialect of Forth of my own devising
- */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
