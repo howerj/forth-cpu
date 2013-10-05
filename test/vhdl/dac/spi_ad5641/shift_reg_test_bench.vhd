@@ -1,4 +1,11 @@
--- SPI AD5641 interface.
+-------------------------------------------------------------------------------
+--! @file shift_reg_test_bench.vhd
+--! @brief Shift Register test bench only
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 
 library ieee,work,std;
 use ieee.std_logic_1164.all; 

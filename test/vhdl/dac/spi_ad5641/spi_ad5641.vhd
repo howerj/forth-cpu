@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---! @file spi_ad5651.vdh
+--! @file spi_ad5651.vhd
 --! @brief On output only SPI peripheral for talking to a AD5641 DAC 
 --! specifically, while a generic SPI driver would be great, it is not
 --! necessary for this project.

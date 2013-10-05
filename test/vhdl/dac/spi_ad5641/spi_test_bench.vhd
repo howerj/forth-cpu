@@ -1,5 +1,11 @@
--- SPI AD5641 interface.
-
+-------------------------------------------------------------------------------
+--! @file spi_test_bench.vhd
+--! @brief SPI test bench only for AD5641 interface.
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 library ieee,work,std;
 use ieee.std_logic_1164.all; 
 use ieee.numeric_std.all;

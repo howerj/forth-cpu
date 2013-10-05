@@ -3,5 +3,5 @@
 *.swp
 *.swo
 *.cf
-spi_top_level
-spi_test_bench
+cordic_test_bench
+ccordic

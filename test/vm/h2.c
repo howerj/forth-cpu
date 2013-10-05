@@ -1,3 +1,16 @@
+/** 
+ *
+ * @file h2.c
+ * @brief H2 Virtual Machine
+ *
+ * @author         Richard James Howe.
+ * @copyright      Copyright 2013 Richard James Howe.
+ * @license        LGPL      
+ * @email          howe.r.j.89@gmail.com
+ *
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "h2.h"

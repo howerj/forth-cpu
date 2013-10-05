@@ -2,24 +2,33 @@
 # Makefile to simulate and synthesize VHDL designs
 #
 # @Author 		Richard Howe
-# @Copyright	Copyright 2013 Marc Eberhard
+# @Copyright	Copyright 2013 Richard Howe
 # @License		LGPL
 #
 
-all: help simulation
+CC=gcc
+CCOPTS=-ansi -g -Wall -Wno-write-strings -Wshadow -Wextra -pedantic -O2
+
+
+all: help 
 
 help:
 	@echo ""
 	@echo "Simulation:"
 	@echo ""
-	@echo "make simulation     		- simulate design"
+	@echo "make simulation     		- simulate design (VHDL)"
+	@echo "make ccordic           - C Cordic algorithm for comparison"
 	@echo "make viewer         		- start waveform viewer for simulation results"
-	@echo ""
 	@echo ""
 	@echo "make clean"						- Clean up working directory
 	@echo ""
 
-##
+
+## C Cordic ================================================================
+
+ccordic: ccordic.c
+	$(CC) $(CCOPTS) ccordic.c -lm -o ccordic
+
 ## Simulation ==============================================================
 
 cordic.o: cordic.vhd 

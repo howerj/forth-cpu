@@ -1,3 +1,15 @@
+/**
+ *
+ * @file h2.h
+ * @brief H2 Virtual Machine header
+ *
+ * @author         Richard James Howe.
+ * @copyright      Copyright 2013 Richard James Howe.
+ * @license        LGPL      
+ * @email          howe.r.j.89@gmail.com
+ *
+ */
+
 #include <stdint.h>
 #define RAM_SZ 8192
 #define VAR_SZ 32
