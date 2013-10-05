@@ -1,5 +1,14 @@
--- SPI, AD5641 Interface
--- This SPI channel is output only.
+-------------------------------------------------------------------------------
+--! @file spi_ad5651.vdh
+--! @brief On output only SPI peripheral for talking to a AD5641 DAC 
+--! specifically, while a generic SPI driver would be great, it is not
+--! necessary for this project.
+--!
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 
 library ieee,work,std;
 use ieee.std_logic_1164.all; 

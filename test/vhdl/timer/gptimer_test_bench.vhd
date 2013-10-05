@@ -1,4 +1,11 @@
--- GP Timer test bench
+-------------------------------------------------------------------------------
+--! @file gptimer_test_bench.vhd
+--! @brief gptimer.vhd test bench
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 
 library ieee,work,std;
 use ieee.std_logic_1164.all; 

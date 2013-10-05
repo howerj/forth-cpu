@@ -1,12 +1,13 @@
--- Richard James Howe.
---
--- DAC driver module, this module takes some BRAM and
--- drives via SPI a DAC
---
--- @author     Richard James Howe.
--- @copyright    Copyright 2013 Richard James Howe.
--- @license    LGPL    
--- @email      howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
+--! @file dac.vhd
+--! @brief DAC driver module, this module takes some BRAM and
+--! drives via SPI a DAC
+--!
+--! @author     Richard James Howe.
+--! @copyright    Copyright 2013 Richard James Howe.
+--! @license    LGPL    
+--! @email      howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 
 library ieee,work;
 use ieee.std_logic_1164.all;

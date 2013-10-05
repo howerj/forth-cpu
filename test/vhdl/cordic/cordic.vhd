@@ -1,11 +1,11 @@
--- Richard James Howe.
---  CORDIC Top level
---
--- @author     Richard James Howe.
--- @copyright    Copyright 2013 Richard James Howe.
--- @license    LGPL    
--- @email      howe.r.j.89@gmail.com
-
+-------------------------------------------------------------------------------
+--! @file cordic.vhd
+--! @brief CORDIC implementation.
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

@@ -1,3 +1,15 @@
+-------------------------------------------------------------------------------
+--! @file shift_reg_16.vhd
+--! @brief A 16 bit shift register that *should* be made to be more generic.
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
+
+
+
+
 -- App note:
 -- Possible simplification in other case:
 --  if load = '0' then

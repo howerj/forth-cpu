@@ -1,10 +1,11 @@
--- Arbitrary bit manipulation module, multiplexer
--- @author         Richard James Howe.
--- @copyright      Copyright 2013 Richard James Howe.
--- @license        LGPL      
--- @email          howe.r.j.89@gmail.com
-
--- TODO, use generators?
+------------------------------------------------------------------------------- 
+--! @file abmm_multiplexer.vhd
+--! @brief Arbitrary bit manipulation module, multiplexer
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 
 library ieee,work,std;
 use ieee.std_logic_1164.all; 

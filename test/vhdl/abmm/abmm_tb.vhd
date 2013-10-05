@@ -1,8 +1,11 @@
--- Arbitrary bit manipulation module, test bench
--- @author         Richard James Howe.
--- @copyright      Copyright 2013 Richard James Howe.
--- @license        LGPL      
--- @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
+--! @file abmm_tb.vhd
+--! @brief Arbitrary bit manipulation module, test bench
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 
 library ieee,work;
 use ieee.std_logic_1164.all;

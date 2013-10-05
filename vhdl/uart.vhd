@@ -1,15 +1,14 @@
 --------------------------------------------------------------------------------
--- UART
--- Implements a universal asynchronous receiver transmitter with parameterisable
--- BAUD rate. Tested on a Spartan 6 LX9 connected to a Silicon Labs Cp210
--- USB-UART Bridge.
---          
--- @author         Peter A Bennett
--- @copyright      (c) 2012 Peter A Bennett
--- @license        LGPL      
--- @email          pab850@googlemail.com
--- @contact        www.bytebash.com
---
+--! @file uart.vhd
+--! @brief Implements a universal asynchronous receiver transmitter with 
+--! parameterisable BAUD rate. Tested on a Spartan 6 LX9 connected to a 
+--! Silicon Labs Cp210 USB-UART Bridge.
+--!          
+--! @author         Peter A Bennett
+--! @copyright      (c) 2012 Peter A Bennett
+--! @license        LGPL      
+--! @email          pab850@googlemail.com
+--! @contact        www.bytebash.com
 --------------------------------------------------------------------------------
 
 library ieee;

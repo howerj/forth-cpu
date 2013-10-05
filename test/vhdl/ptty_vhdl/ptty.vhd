@@ -1,13 +1,14 @@
--- Richard James Howe.
---
--- ptty driver module, this is meant to simulate a 
--- terminal to uart interface for testing.
---
--- @author     Richard James Howe.
--- @copyright    Copyright 2013 Richard James Howe.
--- @license    LGPL    
--- @email      howe.r.j.89@gmail.com
-
+-------------------------------------------------------------------------------
+--! @file ptty.vhd
+--! @brief A PTTY driver for *test benches* only. The architecture of this
+--! needs to be sorted out, however it seems to work, it allows the user
+--! to interact with the simulation with keyboard input sent over a simulated
+--! UART.
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

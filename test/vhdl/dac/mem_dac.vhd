@@ -1,9 +1,12 @@
--- Richard James Howe
--- This is the RAM used by the DAC
--- @author         Richard James Howe.
--- @copyright      Copyright 2013 Richard James Howe.
--- @license        LGPL      
--- @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
+--! @file mem_dac.vhd
+--! @brief This is the RAM used by the DAC
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

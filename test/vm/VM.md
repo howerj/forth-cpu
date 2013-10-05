@@ -10,3 +10,8 @@ and comparisons between this and the VHDL implementation.
 * Expand capabilities to include all the peripherals.
 * Automatic comparison of outputs
 
+### NOTE
+
+This virtual machine is nearly *always* out of date, it follows the development
+of the H2 CPU which currently is not stable at all. Do not expect too much from
+this VM as a consequence.

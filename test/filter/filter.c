@@ -1,3 +1,18 @@
+/**
+ * @file filter.c
+ * @brief This is a filter to be used with GTKWave, it is called
+ * by a script (gtkwave.tcl) when GTKWave is run via makefile in
+ * the main project file. It takes the input from a signal, which
+ * represents an instruction for the H2 Core, and disassembles it.
+ * The result is fed back into GTKWave to be used by it to display
+ * that signal with more clarity. 
+ *
+ * @author         Richard James Howe.
+ * @copyright      Copyright 2013 Richard James Howe.
+ * @license        LGPL      
+ * @email          howe.r.j.89@gmail.com
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -6,6 +21,10 @@
 #define BUF_LEN_M (1025u)
 #define LOG_FILE  "log.txt"
 
+/**The disassembler, it only *partially* disassembles the
+ * signal both because the instruction set is constantly
+ * changing and because there is only a limited amount of
+ * space to display any information. */
 void disInsr_h2(char *in, char *out, FILE *log){
   uint16_t instruction;
   sscanf(in,"%hx", &instruction);
@@ -25,6 +44,8 @@ void disInsr_h2(char *in, char *out, FILE *log){
   }
 }
 
+/**For every line of input the filter *must* produce a
+ * line of output otherwise GTKwave will hang.*/
 int main(void){
   char buf[BUF_LEN_M], output[BUF_LEN_M];
   FILE *log;
