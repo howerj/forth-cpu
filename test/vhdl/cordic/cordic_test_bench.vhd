@@ -9,6 +9,7 @@
 library ieee,work,std;
 use ieee.std_logic_1164.all; 
 use ieee.numeric_std.all;
+use std.textio.all;
 
 entity cordic_test_bench is
 end entity;
@@ -28,6 +29,13 @@ architecture simulation of cordic_test_bench is
   signal tb_sin_out:      signed(15 downto 0);
   signal tb_cos_out:      signed(15 downto 0);
   signal tb_ang_out:      signed(15 downto 0);
+
+  --! Stringify a signed fixed point 2.14 format number
+  function str_fix_s2_14(x: signed(15 downto 0)) return string is
+  begin
+      return integer'image(to_integer(x(15 downto 14))) & "." & integer'image(to_integer(unsigned(x(13 downto 0))));
+  end function;
+
 begin
 
   cordic_uut: entity work.cordic
@@ -56,58 +64,20 @@ begin
 	end process;
 
 	stimulus_process: process
+        --! angle.binary: a list of angles in signed 2.14 fixed point format
+        file     in_file:         text is in "angle.binary";
+        variable input_line:      line;
+        variable tmp_var:         bit_vector(15 downto 0);
 	begin
-      tb_ang_in <= X"0000"; wait for clk_period;
-      tb_ang_in <= X"0202"; wait for clk_period;
-      tb_ang_in <= X"0405"; wait for clk_period;
-      tb_ang_in <= X"0608"; wait for clk_period;
-      tb_ang_in <= X"080A"; wait for clk_period;
-      tb_ang_in <= X"0A0D"; wait for clk_period;
-      tb_ang_in <= X"0C10"; wait for clk_period;
-      tb_ang_in <= X"0E13"; wait for clk_period;
-      tb_ang_in <= X"1015"; wait for clk_period;
-      tb_ang_in <= X"1218"; wait for clk_period;
-      tb_ang_in <= X"141B"; wait for clk_period;
-      tb_ang_in <= X"161D"; wait for clk_period;
-      tb_ang_in <= X"1820"; wait for clk_period;
-      tb_ang_in <= X"1A23"; wait for clk_period;
-      tb_ang_in <= X"1C26"; wait for clk_period;
-      tb_ang_in <= X"1E28"; wait for clk_period;
-      tb_ang_in <= X"202B"; wait for clk_period;
-      tb_ang_in <= X"222E"; wait for clk_period;
-      tb_ang_in <= X"2430"; wait for clk_period;
-      tb_ang_in <= X"2633"; wait for clk_period;
-      tb_ang_in <= X"2836"; wait for clk_period;
-      tb_ang_in <= X"2A39"; wait for clk_period;
-      tb_ang_in <= X"2C3B"; wait for clk_period;
-      tb_ang_in <= X"2E3E"; wait for clk_period;
-      tb_ang_in <= X"3041"; wait for clk_period;
-      tb_ang_in <= X"3243"; wait for clk_period;
-      tb_ang_in <= X"3446"; wait for clk_period;
-      tb_ang_in <= X"3649"; wait for clk_period;
-      tb_ang_in <= X"384C"; wait for clk_period;
-      tb_ang_in <= X"3A4E"; wait for clk_period;
-      tb_ang_in <= X"3C51"; wait for clk_period;
-      tb_ang_in <= X"3E54"; wait for clk_period;
-      tb_ang_in <= X"4056"; wait for clk_period;
-      tb_ang_in <= X"4259"; wait for clk_period;
-      tb_ang_in <= X"445C"; wait for clk_period;
-      tb_ang_in <= X"465F"; wait for clk_period;
-      tb_ang_in <= X"4861"; wait for clk_period;
-      tb_ang_in <= X"4A64"; wait for clk_period;
-      tb_ang_in <= X"4C67"; wait for clk_period;
-      tb_ang_in <= X"4E6A"; wait for clk_period;
-      tb_ang_in <= X"506C"; wait for clk_period;
-      tb_ang_in <= X"526F"; wait for clk_period;
-      tb_ang_in <= X"5472"; wait for clk_period;
-      tb_ang_in <= X"5674"; wait for clk_period;
-      tb_ang_in <= X"5877"; wait for clk_period;
-      tb_ang_in <= X"5A7A"; wait for clk_period;
-      tb_ang_in <= X"5C7D"; wait for clk_period;
-      tb_ang_in <= X"5E7F"; wait for clk_period;
-      tb_ang_in <= X"6082"; wait for clk_period;
-      tb_ang_in <= X"6285"; wait for clk_period;
-
+      wait for clk_period;
+      while not endfile(in_file) loop
+        readline(in_file,input_line);
+        read(input_line,tmp_var);
+        tb_ang_in <= signed(to_stdlogicvector(tmp_var));
+        --! report angle input, sine output, cosine output
+        report "ang " & str_fix_s2_14(signed(to_stdlogicvector(tmp_var))) & " sin " & str_fix_s2_14(tb_sin_out) & " cos " & str_fix_s2_14(tb_cos_out);
+        wait for clk_period;
+      end loop;
 
     wait_flag   <=  '1';
     wait;
