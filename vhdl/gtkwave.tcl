@@ -35,7 +35,7 @@ for {set i 0} {$i < $nfacs } {incr i} {
 set num_added [ gtkwave::highlightSignalsFromList $highlight_insn ]
 puts "num highlighted: $num_added"
 gtkwave::/Edit/Highlight_Regexp "insn"
-set procFile "../test/filter/filter"
+set procFile "filter/filter"
 set which_f [ gtkwave::setCurrentTranslateProc $procFile ]
 gtkwave::/Edit/Data_Format/Translate_Filter_Process/Enable_and_Select
 puts "which_f: $which_f"

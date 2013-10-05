@@ -29,15 +29,15 @@ void disInsr_h2(char *in, char *out, FILE *log){
   uint16_t instruction;
   sscanf(in,"%hx", &instruction);
 
-  if(instruction & 0x8000){
+  if(instruction & 0x8000){ /**Literal */
     sprintf(out,"lit(%hx)",0x7FFF&instruction);
-  }else if(instruction & 0x6000){
+  }else if(instruction & 0x6000){/**ALU instruction */
     sprintf(out,"alu(%hx)",0x1FFF&instruction);
-  }else if(instruction & 0x4000){
+  }else if(instruction & 0x4000){/**Call */
     sprintf(out,"call(%hx)",0x1FFF&instruction);
-  }else if(instruction & 0x2000){
+  }else if(instruction & 0x2000){/**Conditional Jump */
     sprintf(out,"cjmp(%hx)",0x1FFF&instruction);
-  }else if(!(instruction & 0xC000)){
+  }else if(!(instruction & 0xC000)){/**Jump */
     sprintf(out,"jmp(%hx)",0x1FFF&instruction);
   } else{
     memcpy(out,in,BUF_LEN_M);
