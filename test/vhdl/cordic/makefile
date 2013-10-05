@@ -31,7 +31,11 @@ ccordic: ccordic.c
 
 ## Simulation ==============================================================
 
-cordic.o: cordic.vhd 
+cordic_iteration.o: cordic_iteration.vhd 
+	@echo "ghdl -a cordic_iteration.vhd"
+	@ghdl -a cordic_iteration.vhd
+
+cordic.o: cordic_iteration.o cordic.vhd 
 	@echo "ghdl -a cordic.vhd"
 	@ghdl -a cordic.vhd
 

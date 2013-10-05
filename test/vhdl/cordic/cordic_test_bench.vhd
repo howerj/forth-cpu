@@ -14,18 +14,34 @@ entity cordic_test_bench is
 end entity;
 
 architecture simulation of cordic_test_bench is
-  constant clk_freq:     positive                        :=  1000000000;
-  constant clk_period:   time                            :=  1000 ms / clk_freq;
+  constant clk_freq:     positive                         :=  1000000000;
+  constant clk_period:   time                             :=  1000 ms / clk_freq;
 
   signal wait_flag:       std_logic                       :=  '0';
   signal tb_clk:          std_logic                       :=  '0';
   signal tb_rst:          std_logic                       :=  '1';
+
+  signal tb_sin_in:       signed(15 downto 0)             := (others => '0');
+  signal tb_cos_in:       signed(15 downto 0)             := (others => '0');
+  signal tb_ang_in:       signed(15 downto 0)             := (others => '0');
+
+  signal tb_sin_out:      signed(15 downto 0);
+  signal tb_cos_out:      signed(15 downto 0);
+  signal tb_ang_out:      signed(15 downto 0);
 begin
 
   cordic_uut: entity work.cordic
   port map(
-    clk           => tb_clk,
-    rst           => tb_rst
+    clk     => tb_clk,
+    rst     => tb_rst,
+
+    sin_in  => tb_sin_in,
+    cos_in  => tb_cos_in,
+    ang_in  => tb_ang_in,
+
+    sin_out => tb_sin_out,
+    cos_out => tb_cos_out,
+    ang_out => tb_ang_out
           );
 
 	clk_process: process
