@@ -46,11 +46,6 @@ dual port RAM as a UART buffer, and reading from
 the buffers instead of handling the UART directly.
 
 
-### vm/
-
-* Implement peripherals
-* Move to Forth
-
 ### ALL:
 
 * Documentation.
@@ -66,7 +61,19 @@ forth/
   * It is possible that I could implement the
     Virtual machine here as well.  
 
+* Superoptimizer targeting my CPU?
+ 
+<https://en.wikipedia.org/wiki/Superoptimization>
+
+* Compiler targeting my assembler?
+
+<https://en.wikipedia.org/wiki/PL/0>
+<https://en.wikipedia.org/wiki/Recursive_descent_parser>
 Old TODO:
+
+* Implement a simple Unix on the board.
+
+* Improve memory addressing.
 
 vhdl/
 
@@ -77,14 +84,7 @@ vhdl/
     > What might be interesting is using some spare
     dual port RAM as a UART buffer, and reading from
     the buffers instead of handling the UART directly.
-vm/
 
-  * Implement virtual machine?
-
-latex/
-
-  * Poster.
-  * Thesis.
 ALL:
 
   * Documentation.

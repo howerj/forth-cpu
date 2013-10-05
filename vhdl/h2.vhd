@@ -1,21 +1,25 @@
--- Richard James Howe
--- The H2 Processor.
--- J1 processor translation and extension. Moved bit 12 to bit 4 to
---  allow for more ALU instructions, added more ALU instructions and
---  changed a few things around.
--- @author         Richard James Howe.
--- @copyright      Copyright 2013 Richard James Howe.
--- @license        LGPL      
--- @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
+--! @file h2.vhd
+--! @brief The H2 Processor:
+--! J1 processor translation and extension. Moved bit 12 to bit 4 to
+--!  allow for more ALU instructions, added more ALU instructions and
+--!  changed a few things around.
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 
--- TODO:
---  * Interrupts, Test them
---  * Interrupt handling needs to be improved, ie - simultaneous interrupts
---  * Carry Flag
---  * Make CPU more generic:
---    - instead of (15 downto 0) have (15_bit downto 0_bit)
---      where 15_bit and 0_bit are constants that can be moved
---      up and down relative to each other.
+-------------------------------------------------------------------------------
+--! TODO:
+--!  * Interrupts, Test them
+--!  * Interrupt handling needs to be improved, ie - simultaneous interrupts
+--!  * Carry Flag
+--!  * Make CPU more generic:
+--!    - instead of (15 downto 0) have (15_bit downto 0_bit)
+--!      where 15_bit and 0_bit are constants that can be moved
+--!      up and down relative to each other.
+-------------------------------------------------------------------------------
 
 library ieee,work,std;
 use ieee.std_logic_1164.all; 

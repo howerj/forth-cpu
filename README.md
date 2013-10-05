@@ -1,4 +1,5 @@
-## Simple VHDL Computing System
+Simple VHDL Computing System  {#mainpage}
+============================
 
 Author:             
 
