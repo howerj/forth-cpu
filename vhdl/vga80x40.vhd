@@ -1,28 +1,12 @@
--- Hi Emacs, this is -*- mode: vhdl; -*-
-----------------------------------------------------------------------------------------------------
---
--- Monocrome Text Mode Video Controller VHDL Macro
--- 80x40 characters. Pixel resolution is 640x480/60Hz
--- 
--- Copyright (c) 2007 Javier Valcarce García, javier.valcarce@gmail.com
--- $Id$
---
--- Richard Howe: I've made a few minor modications, mainly to do with
---  coding style.
-----------------------------------------------------------------------------------------------------
--- This program is free software: you can redistribute it and/or modify
--- it under the terms of the GNU Lesser General Public License as published by
--- the Free Software Foundation, either version 3 of the License, or
--- (at your option) any later version.
-
--- This program is distributed in the hope that it will be useful,
--- but WITHOUT ANY WARRANTY; without even the implied warranty of
--- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU Lesser General Public License for more details.
---
--- You should have received a copy of the GNU Lesser General Public License
--- along with this program.  If not, see <http://www.gnu.org/licenses/>.
-----------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+--! @file vga80x40.vhd
+--! @brief Monochrome TexT Mode Video Controller VHDL Macro.
+--! @author         Javier Valcarce García
+--! @copyright      Copyright 2007 Javier Valcarce García
+--! @license        LGPL version 3
+--! @email          javier.valcarce@gmail.com
+--! (RJHOWE: I made some minor modifications, mainly to the coding style) 
+-------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

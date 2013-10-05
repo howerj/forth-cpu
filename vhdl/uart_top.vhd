@@ -1,10 +1,12 @@
--- Richard James Howe.
--- Top Level UART interface
+-------------------------------------------------------------------------------
+-- @file uart_top.vhd
+-- @brief Top Level UART interface
 --
 -- @author     Richard James Howe.
 -- @copyright    Copyright 2013 Richard James Howe.
 -- @license    LGPL    
 -- @email      howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
