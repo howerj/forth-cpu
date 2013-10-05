@@ -1,13 +1,13 @@
 --------------------------------------------------------------------------------
--- UART
--- Simple loopback
---           
--- @author         Peter A Bennett
--- @copyright      (c) 2012 Peter A Bennett
--- @license        LGPL      
--- @email          pab850@googlemail.com
--- @contact        www.bytebash.com
---
+--! @file  loopback.vhd
+--! @brief Simple UART loopback
+--!           
+--! @author         Peter A Bennett
+--! @copyright      (c) 2012 Peter A Bennett
+--! @license        LGPL      
+--! @email          pab850@googlemail.com
+--! @contact        www.bytebash.com
+--!
 --------------------------------------------------------------------------------
 
 library ieee;

@@ -1,8 +1,7 @@
-/* 
- * Richard James Howe
- * Howe Forth.
- *
- * Desktop Interface, header
+/** Howe Forth.
+ * 
+ * @file hosted.h 
+ * @brief Desktop Interface, header
  *
  * @author         Richard James Howe.
  * @copyright      Copyright 2013 Richard James Howe.
@@ -13,6 +12,7 @@
 #ifndef hosted_h_header_guard    /* begin header guard for hosted.h */
 #define hosted_h_header_guard
 
+/**This macro is meant to be used within a large function for error handling*/
 #define CALLOC_FAIL(X,RET)\
       if((X)==NULL){\
           fprintf(stderr,"calloc() failed <%s:%d>\n", __FILE__,__LINE__);\

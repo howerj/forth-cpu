@@ -1,9 +1,8 @@
-/* 
- * Richard James Howe
- * Howe Forth.
+/** Howe Forth.
+ * @file hosted.c 
+ * @brief Hosted Interface.
  *
- * Desktop Interface
- *
+ * 
  * @author         Richard James Howe.
  * @copyright      Copyright 2013 Richard James Howe.
  * @license        LGPL      
@@ -29,6 +28,8 @@ static void debug_print(fobj_t * fo);
 static fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l);
 static void forth_obj_destroy(fobj_t * fo);
 
+/**Used to print out the contents of the Forth VMs memory if the
+ * debug option is set*/
 static void print_table(mw * p, int len, FILE * f)
 {
   int i;
@@ -41,7 +42,7 @@ static void print_table(mw * p, int len, FILE * f)
   fprintf(f, "\n");
 }
 
-/*print out a character table*/
+/**print out a character table from the Forth VMs string storage*/
 static void print_char_table(char *p, int len, FILE * f)
 {
   int i;
@@ -60,7 +61,7 @@ static void print_char_table(char *p, int len, FILE * f)
   fprintf(f, "\n");
 }
 
-/*print out main memory.*/
+/**print out main memory.*/
 void debug_print(fobj_t * fo)
 {
 
@@ -89,6 +90,10 @@ void debug_print(fobj_t * fo)
 }
 #endif
 
+/** forth_obj_create initializes the Forth environment.
+ * This function sets up memory and opens the initial input files, it
+ * also performs some basic sanity checks as well.
+ */
 fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l, FILE *input)
 {
   /*the vm forth object */
@@ -115,7 +120,7 @@ fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l, FILE 
   fo->out_file->fio = io_stdout;
   fo->err_file->fio = io_stderr;
 
-  /*memories of the interpreter */
+  /**memories of the interpreter */
   fo->reg = calloc((unsigned)reg_l, sizeof(mw));
   fo->dic = calloc((unsigned)dic_l, sizeof(mw));
   fo->var = calloc((unsigned)var_l, sizeof(mw));
@@ -128,7 +133,7 @@ fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l, FILE 
   CALLOC_FAIL(fo->ret, NULL);
   CALLOC_FAIL(fo->str, NULL);
 
-  /*initialize input file, fclose is handled elsewhere */
+  /**initialize input file, fclose is handled elsewhere */
   fo->in_file[1]->fio = io_rd_file;
   if (NULL != input){
     fo->in_file[1]->iou.f = input;
@@ -138,7 +143,7 @@ fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l, FILE 
     return NULL;
   }
 
-  /*initializing memory */
+  /**initializing memory */
   fo->reg[ENUM_maxReg] = reg_l;
   fo->reg[ENUM_maxDic] = dic_l;
   fo->reg[ENUM_maxVar] = var_l;
@@ -160,6 +165,10 @@ fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l, FILE 
   return fo;
 }
 
+/** forth_obj_destroy, the converse of forth_obj_create.
+ * This frees up any memory allocated (or assigned from a static pool) and
+ * closes any open files.
+ */
 void forth_obj_destroy(fobj_t * fo)
 {
   int i = 0;

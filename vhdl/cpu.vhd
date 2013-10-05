@@ -1,13 +1,15 @@
--- Richard James Howe.
--- This contains the CPU/main memory cache
---
--- This module does not *do* anything, it just makes things
--- a little tidier and easier to instantiate multiple instances.
---
--- @author     Richard James Howe.
--- @copyright    Copyright 2013 Richard James Howe.
--- @license    LGPL    
--- @email      howe.r.j.89@gmail.com
+--------------------------------------------------------------------------------
+--! @file cpu.vhd
+--! @brief This contains the CPU/main memory cache,
+--! This module does not *do* anything, it just makes things
+--! a little tidier and easier to instantiate multiple instances.
+--!
+--! @author     Richard James Howe.
+--! @copyright  Copyright 2013 Richard James Howe.
+--! @license    LGPL    
+--! @email      howe.r.j.89@gmail.com
+--------------------------------------------------------------------------------
+
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

@@ -23,10 +23,12 @@ CCOPTS=-ansi -g -Wall -Wno-write-strings -Wshadow -Wextra -pedantic -O2 -save-te
 
 ## Long strings passed to commands
 
-RMSTR=bin/forth bin/*.o memory.txt *.log *.swo *.swp *.o lib/*~ *~ *.gcov *.gcda *.gcno doc/*.html doc/*.htm log/* *.i *.s log/*.i log/*.s
+RMSTR=bin/forth bin/*.o memory.txt *.log *.swo *.swp *.o lib/*~ *~ *.gcov *.gcda *.gcno doc/*.html doc/*.htm log/* *.i *.s log/*.i log/*.s tags
 
 INDENTSTR=-v -linux -nut -i2 -l120 -lc120 lib/*.h lib/*.c main.c
 SPLINTSTR=-forcehint main.c lib/*.h lib/*.c
+
+DOXYFILE=doxygen.conf
 
 ## Help
 
@@ -96,6 +98,7 @@ pretty:
 	@indent $(INDENTSTR);
 	@/bin/echo -e "$(RED)"
 	@rm -vf $(RMSTR);
+	@rm -vrf doc/doxygen;
 	@/bin/echo -e "$(DEFAULT)"
 	@wc lib/*.c lib/*.h *.c fth/*.4th makefile
 
@@ -103,6 +106,7 @@ pretty:
 clean:
 	@/bin/echo -e "$(RED)"
 	@rm -vf $(RMSTR);
+	@rm -vrf doc/doxygen;
 	@/bin/echo -e "$(DEFAULT)"
 
 # Static checking.
@@ -124,6 +128,11 @@ valgrind: bin/forth
 
 ctags:
 	@ctags -R .
+
+doxy:
+	@doxygen $(DOXYFILE)
+
+doxygen: doxy
 
 gcov: CCOPTS:=$(CCOPTS) --coverage
 gcov: clean bin/forth

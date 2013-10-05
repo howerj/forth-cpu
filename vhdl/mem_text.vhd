@@ -1,7 +1,14 @@
--- Richard James Howe
---  This RAM module holds the text we want to
---  display on to the monitor. The text buffer
---  holds at least 80*40 characters.
+--------------------------------------------------------------------------------- 
+--! @file mem_text.vhd
+--! @brief This RAM module holds the text we want to
+--!  display on to the monitor. The text buffer
+--!  holds at least 80*40 characters.
+--!
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+--------------------------------------------------------------------------------- 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

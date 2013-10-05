@@ -1,12 +1,15 @@
--- Richard James Howe.
---  This file is the top level of the project.
---  It presents an interface between the CPU,
---  RAM, and all the I/O modules.
---
--- @author     Richard James Howe.
--- @copyright    Copyright 2013 Richard James Howe.
--- @license    LGPL    
--- @email      howe.r.j.89@gmail.com
+--------------------------------------------------------------------------------- 
+--! @file top_level.vhd
+--! @brief This file is the top level of the project.
+--!  It presents an interface between the CPU,
+--!  RAM, and all the I/O modules.
+--!
+--! @author     Richard James Howe.
+--! @copyright  Copyright 2013 Richard James Howe.
+--! @license    LGPL    
+--! @email      howe.r.j.89@gmail.com
+--------------------------------------------------------------------------------- 
+
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

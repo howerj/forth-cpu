@@ -1,10 +1,15 @@
--- General Purpose Timer
--- @author         Richard James Howe.
--- @copyright      Copyright 2013 Richard James Howe.
--- @license        LGPL      
--- @email          howe.r.j.89@gmail.com
--- TODO:
---  * Check this synthesizes correctly.
+-------------------------------------------------------------------------------
+--! @file gptimer.vhd
+--! @brief General Purpose Timer, for interrupt generation
+--! and PWM output
+--!
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+--! TODO:
+--!  * Check this synthesizes correctly.
+-------------------------------------------------------------------------------
 
 library ieee,work,std;
 use ieee.std_logic_1164.all; 

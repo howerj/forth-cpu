@@ -1,14 +1,15 @@
--- Richard James Howe
---
--- Main test bench. This is a simple test bench to
--- test the entire system, I/O is controlled here,
--- the program that is loaded into the CPU is in
--- the RAM module "mem_h2.vhd".
---
--- @author         Richard James Howe.
--- @copyright      Copyright 2013 Richard James Howe.
--- @license        LGPL      
--- @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
+--! @file test_bench.vhd
+--! @brief Main test bench. This is a simple test bench to
+--! test the entire system, I/O is controlled here,
+--! the program that is loaded into the CPU is in
+--! the RAM module "mem_h2.vhd".
+--!
+--! @author         Richard James Howe.
+--! @copyright      Copyright 2013 Richard James Howe.
+--! @license        LGPL      
+--! @email          howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

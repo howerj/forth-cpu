@@ -1,8 +1,9 @@
-/* 
- * Richard James Howe
- * Howe Forth.
- *
- * Forth interpreter.
+/** Howe Forth.
+ * 
+ * @file forth.c 
+ * @brief A portable forth interpreter written in C. It can be used as a library
+ * and is *very* easy to port to different platforms being written in
+ * ANSI C.
  *
  * @author         Richard James Howe.
  * @copyright      Copyright 2013 Richard James Howe.
@@ -45,7 +46,7 @@ static const char *forth_error_str[] = {
 
 #undef X
 
-/*X-Macro definition of actions to take on error*/
+/**X-Macro definition of actions to take on error*/
 #define X(a, b, c) c
 static const forth_error_action_e f_error_action[] = {
   FORTH_ERROR_XMACRO
@@ -55,6 +56,7 @@ static const forth_error_action_e f_error_action[] = {
 
 /* IO wrappers*/
 
+/** my_isspace, here so we can customize what is treated as a space or not*/
 static enum bool my_isspace(char x)
 {
   switch (x) {
@@ -70,6 +72,8 @@ static enum bool my_isspace(char x)
   }
 }
 
+/**Like my_isspace, my_isspace is here so we can customize what is
+ * treated as a digit.*/
 static enum bool my_isdigit(char x)
 {
   switch (x) {
@@ -89,7 +93,7 @@ static enum bool my_isdigit(char x)
   }
 }
 
-/*Either get input from stdin, a string or a file*/
+/**Either get input from stdin, a string or a file*/
 static int wrap_get(fio_t * in_file)
 {
   char tmp;
@@ -117,7 +121,7 @@ static int wrap_get(fio_t * in_file)
   }
 }
 
-/*Either put output to a stdout, stderr, a string or a file*/
+/**Either put output to a stdout, stderr, a string or a file*/
 static int wrap_put(fio_t * out_file, char c)
 {
   switch (out_file->fio) {
@@ -146,13 +150,13 @@ static int wrap_put(fio_t * out_file, char c)
 
 /*Basic IO functions*/
 
-/*This gets a space delimited FORTH word*/
+/**This gets a space delimited FORTH word*/
 static mw get_word(char *str, const mw str_len, fio_t * io_file)
 {
   mw i;
   int c;
 
-  /*memset */
+  /**memset */
   for (i = 0; i < str_len; i++)
     str[i] = '\0';
 
@@ -177,7 +181,7 @@ static mw get_word(char *str, const mw str_len, fio_t * io_file)
   return ERR_OK;                /*success! */
 }
 
-/*Basic Utils*/
+/**Basic Utils*/
 static mw isnumber(const char s[])
 {
   mw x = 0;
@@ -191,7 +195,7 @@ static mw isnumber(const char s[])
   return (mw) true;
 }
 
-/* 1 if not equal, 0 if equal, 2 means string limit exceeded*/
+/** 1 if not equal, 0 if equal, 2 means string limit exceeded*/
 static mw strnequ(const char str1[], const char str2[], const mw lim1, const mw lim2)
 {
 
@@ -216,7 +220,7 @@ static mw my_strlen(const char s[], const int maxlen)
   return p - s;
 }
 
-/*K&R atoi, slighty modified*/
+/**K&R atoi, slighty modified*/
 static mw kr_atoi(const char s[])
 {
   mw i, n, sign;
@@ -231,7 +235,7 @@ static mw kr_atoi(const char s[])
   return sign * n;
 }
 
-/*TODO buf needs replacing with an external pointer
+/**TODO buf needs replacing with an external pointer
  * Refactor code*/
 #define MAX_BASE 16
 static char *my_itoa(mw value, int base)
@@ -260,7 +264,7 @@ static char *my_itoa(mw value, int base)
   return buf + i + 1;
 }
 
-/*Error handling needed!*/
+/**print a string, nothing special, Error handling needed!*/
 static void print_string(const char *s, const mw max, fio_t * out_file)
 {
   mw i;
@@ -269,6 +273,7 @@ static void print_string(const char *s, const mw max, fio_t * out_file)
   }
 }
 
+/**print a line and a file*/
 static void print_line_file(int line, const char *file, fio_t * err_file)
 {
   print_string(my_itoa(line, 10), MAX_ERR_STR, err_file);

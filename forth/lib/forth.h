@@ -1,8 +1,7 @@
-/* 
- * Richard James Howe
- * Howe Forth.
+/** Howe Forth.
  *
- * Configuration file and interface API
+ * @file forth.h
+ * @brief Configuration file and interface API
  *
  * @author         Richard James Howe.
  * @copyright      Copyright 2013 Richard James Howe.
