@@ -1,5 +1,8 @@
-/*
- * Howe Forth: Wrapper/Top Level.
+/** Howe Forth
+ *
+ * @file main.c
+ * @brief Wrapper/Top Level.
+ *
  * @author         Richard James Howe.
  * @copyright      Copyright 2013 Richard James Howe.
  * @license        LGPL      
@@ -19,9 +22,11 @@
 #define MAX_RET 8192
 #define MAX_STR (1024*1024)
 
+/** versionmsg, used for a primitive version control */
 static const char versionmsg[] =
 "Howe Forth, version: " __DATE__ " " __TIME__ "\n";
 
+/** The help message! */
 static const char helpmsg[] =
 "\
 Usage: forth [OPTION/FILE]\n\
@@ -35,13 +40,14 @@ that will be read in. Once it has it finished it will continue\n\
 reading from stdin.\n\
 ";
 
+/**main, where the magic happens, well is called from.*/
 int main(int argc, char *argv[])
 {
   FILE *input=NULL;
   mw forth_return;
   fobj_t *fo;
 
-  if(argc > 1){ /*process command line arguments*/
+  if(argc > 1){ /**process command line arguments*/
     if((!strcmp("-h",argv[1]))||(!strcmp("--help",argv[1]))){
       fprintf(stdout,"%s\n%s\n",versionmsg,helpmsg);
       return 0;
