@@ -19,8 +19,8 @@
 
 void cordic(int16_t angle, int16_t *sine, int16_t *cosine, uint8_t n);
 
-#define CORDIC_1K_M             (0x000026DD)
-#define HALF_PI_M               (0x00006487)
+#define CORDIC_1K_M             (0x26DD)
+#define HALF_PI_M               (0x6487)
 #define SCALING_MULTIPLIER_M    (16384.000000f)
 #define CORDIC_ITERATIONS_MAX_M (16u) /**The more iterations we have the greater the precision, upto a point, this is that point.*/
 
@@ -29,10 +29,10 @@ void cordic(int16_t angle, int16_t *sine, int16_t *cosine, uint8_t n);
  * circa 2013.
  */
 int16_t cordic_table [CORDIC_ITERATIONS_MAX_M] = {
-  0x00003243, 0x00001DAC, 0x00000FAD, 0x000007F5, 
-  0x000003FE, 0x000001FF, 0x000000FF, 0x0000007F, 
-  0x0000003F, 0x0000001F, 0x0000000F, 0x00000007, 
-  0x00000003, 0x00000001, 0x00000000, 0x00000000
+  0x3243, 0x1DAC, 0x0FAD, 0x07F5, 
+  0x03FE, 0x01FF, 0x00FF, 0x007F, 
+  0x003F, 0x001F, 0x000F, 0x0007, 
+  0x0003, 0x0001, 0x0000, 0x0000
 };
 
 /** Calculate CORDIC*/
@@ -72,7 +72,11 @@ int main(void){
   for(i = 0; i < TEST_X_VALUES; i++){
     p = (i / (double) TEST_X_VALUES) * M_PI/2; 
     cordic(p * SCALING_MULTIPLIER_M, &s, &c, CORDIC_ITERATIONS_MAX_M);
-    printf("a(%f) s(%f:%f) c(%f:%f)\n",p, sin(p), ((double)s/SCALING_MULTIPLIER_M), cos(p), ((double)c/SCALING_MULTIPLIER_M));
+    printf("a(%f) s(%f:%f) c(%f:%f) i(%04x) o(%04x %04x)\n",
+        p, sin(p), ((double)s/SCALING_MULTIPLIER_M), cos(p), 
+        ((double)c/SCALING_MULTIPLIER_M),(int16_t)(p * SCALING_MULTIPLIER_M), 
+        s,c
+        );
   }
 
   return 0;

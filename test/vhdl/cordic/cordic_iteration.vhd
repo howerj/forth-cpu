@@ -28,16 +28,27 @@ entity cordic_iteration is
 end entity;
 
 architecture behav of cordic_iteration is
-  signal d:   signed(15 downto 0):= (others => '1'); -- -1
-  signal x_n: signed(15 downto 0):= (others => '0');
-  signal y_n: signed(15 downto 0):= (others => '0');
-  signal z_n: signed(15 downto 0):= (others => '0');
+  signal d:    signed(15 downto 0):= (others => '1'); -- -1
+  signal x_n:  signed(15 downto 0):= (others => '0');
+  signal y_n:  signed(15 downto 0):= (others => '0');
+  signal z_n:  signed(15 downto 0):= (others => '0');
+  signal xtmp: signed(15 downto 0):= (others => '0');
+  signal ytmp: signed(15 downto 0):= (others => '0');
+  signal tvaltmp: signed(15 downto 0):= (others => '0');
 begin
   d <= (others => '0') when zin(15) = '0' else (others => '1');
 
-  x_n <= xin - (((yin srl shiftr) xor d) - d);
-  y_n <= yin + (((xin srl shiftr) xor d) - d);
-  z_n <= zin - (((tval srl shiftr) xor d) - d);
+--  x_n <= xin - (((yin srl shiftr) xor d) - d);
+--  y_n <= yin + (((xin srl shiftr) xor d) - d);
+--  z_n <= zin - (((tval srl shiftr) xor d) - d);
+
+  xtmp <= xin(15) & xin(15 downto 1);
+  ytmp <= yin(15) & yin(15 downto 1);
+  tvaltmp <= tval(15) & tval(15 downto 1);
+
+  x_n <= xin - (((ytmp) xor d) - d);
+  y_n <= yin + (((xtmp) xor d) - d);
+  z_n <= zin - (((tvaltmp) xor d) - d);
 
   xout <= x_n;
   yout <= y_n;

@@ -16,11 +16,11 @@ help:
 	@echo ""
 	@echo "Simulation:"
 	@echo ""
-	@echo "make simulation     		- simulate design (VHDL)"
+	@echo "make simulation        - simulate design (VHDL)"
 	@echo "make ccordic           - C Cordic algorithm for comparison"
-	@echo "make viewer         		- start waveform viewer for simulation results"
+	@echo "make viewer            - start waveform viewer for simulation results"
 	@echo ""
-	@echo "make clean"						- Clean up working directory
+	@echo "make clean             - Clean up working directory"
 	@echo ""
 
 
@@ -47,7 +47,7 @@ simulation: cordic.o  cordic_test_bench.vhd
 ## Simulation ==============================================================
 
 viewer:
-	gtkwave dac_test_bench.ghw &>/dev/null&
+	gtkwave cordic_test_bench.ghw &>/dev/null&
 
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."
