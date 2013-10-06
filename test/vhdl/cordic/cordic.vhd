@@ -27,6 +27,7 @@ end entity;
 
 architecture behav of cordic is
   type signed_array_16x16 is array (0 to 15) of signed(15 downto 0);
+  type signed_array_15x16 is array (0 to 14) of signed(15 downto 0);
 
   --! Array initialization functions: CORDIC Table
   function init_tval return signed_array_16x16 is
@@ -51,19 +52,19 @@ architecture behav of cordic is
     return tval_array_var;
   end function;
 
-  function init_arrZero return signed_array_16x16 is
-    variable zero_array: signed_array_16x16;
+  function init_arrZero return signed_array_15x16 is
+    variable zero_array: signed_array_15x16;
   begin
-    for i in 0 to 15 loop
+    for i in 0 to 14 loop
       zero_array(i) := signed'(X"0000");
     end loop;
     return zero_array;
   end function;
 
   signal tval_array: signed_array_16x16 := init_tval;
-  signal x_sig:      signed_array_16x16 := init_arrZero;
-  signal y_sig:      signed_array_16x16 := init_arrZero;
-  signal z_sig:      signed_array_16x16 := init_arrZero;
+  signal x_sig:      signed_array_15x16 := init_arrZero;
+  signal y_sig:      signed_array_15x16 := init_arrZero;
+  signal z_sig:      signed_array_15x16 := init_arrZero;
 
 begin
   cordic_iteration_generator: for i in 1 to 16 generate 
@@ -80,9 +81,9 @@ begin
         yin  => sin_in,
         zin  => ang_in,
 
-        xout => x_sig(1),
-        yout => y_sig(1),
-        zout => z_sig(1)
+        xout => x_sig(0),
+        yout => y_sig(0),
+        zout => z_sig(0)
               );
     end generate;
 
@@ -94,13 +95,13 @@ begin
                  )
       port map(
         tval => tval_array(i-1),
-        xin  => x_sig(i-1),
-        yin  => y_sig(i-1),
-        zin  => z_sig(i-1),
+        xin  => x_sig(i-2),
+        yin  => y_sig(i-2),
+        zin  => z_sig(i-2),
 
-        xout => x_sig(i),
-        yout => y_sig(i),
-        zout => z_sig(i)
+        xout => x_sig(i-1),
+        yout => y_sig(i-1),
+        zout => z_sig(i-1)
               );
     end generate;
 
@@ -112,9 +113,9 @@ begin
                  )
       port map(
         tval => tval_array(i-1),
-        xin  => x_sig(i-1),
-        yin  => y_sig(i-1),
-        zin  => z_sig(i-1),
+        xin  => x_sig(i-2),
+        yin  => y_sig(i-2),
+        zin  => z_sig(i-2),
 
         xout => cos_out,
         yout => sin_out,

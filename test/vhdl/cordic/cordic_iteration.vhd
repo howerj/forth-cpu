@@ -28,13 +28,42 @@ entity cordic_iteration is
 end entity;
 
 architecture behav of cordic_iteration is
-  signal d:    signed(15 downto 0):= (others => '1'); -- -1
+  signal d:    signed(15 downto 0):= (others => '0'); 
   signal x_n:  signed(15 downto 0):= (others => '0');
   signal y_n:  signed(15 downto 0):= (others => '0');
   signal z_n:  signed(15 downto 0):= (others => '0');
-  signal xtmp: signed(15 downto 0):= (others => '0');
-  signal ytmp: signed(15 downto 0):= (others => '0');
-  signal tvaltmp: signed(15 downto 0):= (others => '0');
+
+  function arithmetic_shift_right(X: signed; Y: integer) return signed is
+    variable tmp: signed(15 downto 0):=X;
+  begin
+--    if Y > 0 then
+--      for i in 1 to Y loop
+--  --      report integer'image(Y);
+--        tmp := tmp(15) & tmp(15 downto 1);
+--      end loop;
+--    end if;
+    case Y is
+      when 0 => -- do nothing
+      when 1 => tmp := tmp(15) & tmp(15 downto 1);
+      when 2 => tmp := tmp(15) & tmp(15) & tmp(15 downto 2); 
+      when 3 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 3); 
+      when 4 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 4); 
+      when 5 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 5); 
+      when 6 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 6); 
+      when 7 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 7); 
+      when 8 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 8); 
+      when 9 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 9); 
+      when 10 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 10); 
+      when 11 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 11); 
+      when 12 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 12); 
+      when 13 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 13); 
+      when 14 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 14); 
+      when 15 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 15); 
+      when others =>
+    end case;
+    return tmp;
+  end function;
+
 begin
   d <= (others => '0') when zin(15) = '0' else (others => '1');
 
@@ -42,13 +71,9 @@ begin
 --  y_n <= yin + (((xin srl shiftr) xor d) - d);
 --  z_n <= zin - (((tval srl shiftr) xor d) - d);
 
-  xtmp <= xin(15) & xin(15 downto 1);
-  ytmp <= yin(15) & yin(15 downto 1);
-  tvaltmp <= tval(15) & tval(15 downto 1);
-
-  x_n <= xin - (((ytmp) xor d) - d);
-  y_n <= yin + (((xtmp) xor d) - d);
-  z_n <= zin - (((tvaltmp) xor d) - d);
+  x_n <= xin - ((arithmetic_shift_right(yin,shiftr) xor d) - d);
+  y_n <= yin + ((arithmetic_shift_right(xin,shiftr) xor d) - d);
+  z_n <= zin - ((tval xor d) - d);
 
   xout <= x_n;
   yout <= y_n;
