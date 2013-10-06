@@ -6,3 +6,4 @@
 cordic_test_bench
 ccordic
 log.txt
+*.log
