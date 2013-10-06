@@ -38,15 +38,15 @@ architecture behav of cordic_iteration is
   begin
     case Y is
       when 0 => -- do nothing
-      when 1 => tmp := tmp(15) & tmp(15 downto 1);
-      when 2 => tmp := tmp(15) & tmp(15) & tmp(15 downto 2); 
-      when 3 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 3); 
-      when 4 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 4); 
-      when 5 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 5); 
-      when 6 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 6); 
-      when 7 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 7); 
-      when 8 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 8); 
-      when 9 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 9); 
+      when 1 =>  tmp := tmp(15) & tmp(15 downto 1);
+      when 2 =>  tmp := tmp(15) & tmp(15) & tmp(15 downto 2); 
+      when 3 =>  tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 3); 
+      when 4 =>  tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 4); 
+      when 5 =>  tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 5); 
+      when 6 =>  tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 6); 
+      when 7 =>  tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 7); 
+      when 8 =>  tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 8); 
+      when 9 =>  tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 9); 
       when 10 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 10); 
       when 11 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 11); 
       when 12 => tmp := tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15) & tmp(15 downto 12); 

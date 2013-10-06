@@ -1,5 +1,10 @@
 ## cordic.md
 
+Once the CORDIC module I have is made it would be interesting to create multiple
+variants, optimized for different things. For example a bit serial version. The
+algorithm can also be tailored to computer more than *just* sine and cosines of
+angles, a more generic version of the algorithm would be very useful.
+
 CORDIC:
 
 This module is a must because it can be used for *so* much.
