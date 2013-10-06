@@ -9,6 +9,7 @@
 library ieee,work,std;
 use ieee.std_logic_1164.all; 
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 use std.textio.all;
 
 entity cordic_test_bench is
@@ -32,8 +33,9 @@ architecture simulation of cordic_test_bench is
 
   --! Stringify a signed fixed point 2.14 format number
   function str_fix_s2_14(x: signed(15 downto 0)) return string is
+   variable scaling_factor: real := 16384.000000;
   begin
-      return integer'image(to_integer(x(15 downto 14))) & "." & integer'image(to_integer(unsigned(x(13 downto 0))));
+      return real'image(real(to_integer(x))/scaling_factor);
   end function;
 
 begin

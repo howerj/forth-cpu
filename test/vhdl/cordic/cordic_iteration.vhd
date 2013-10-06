@@ -36,12 +36,6 @@ architecture behav of cordic_iteration is
   function arithmetic_shift_right(X: signed; Y: integer) return signed is
     variable tmp: signed(15 downto 0):=X;
   begin
---    if Y > 0 then
---      for i in 1 to Y loop
---  --      report integer'image(Y);
---        tmp := tmp(15) & tmp(15 downto 1);
---      end loop;
---    end if;
     case Y is
       when 0 => -- do nothing
       when 1 => tmp := tmp(15) & tmp(15 downto 1);
@@ -69,7 +63,7 @@ begin
 
 --  x_n <= xin - (((yin srl shiftr) xor d) - d);
 --  y_n <= yin + (((xin srl shiftr) xor d) - d);
---  z_n <= zin - (((tval srl shiftr) xor d) - d);
+--  z_n <= zin - (((tval) xor d) - d);
 
   x_n <= xin - ((arithmetic_shift_right(yin,shiftr) xor d) - d);
   y_n <= yin + ((arithmetic_shift_right(xin,shiftr) xor d) - d);

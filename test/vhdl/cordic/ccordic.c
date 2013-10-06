@@ -72,11 +72,7 @@ int main(void){
   for(i = 0; i < TEST_X_VALUES; i++){
     p = (i / (double) TEST_X_VALUES) * M_PI/2; 
     cordic(p * SCALING_MULTIPLIER_M, &s, &c, CORDIC_ITERATIONS_MAX_M);
-    printf("a(%f) s(%f:%f) c(%f:%f) i(%04x) o(%04x %04x)\n",
-        p, sin(p), ((double)s/SCALING_MULTIPLIER_M), cos(p), 
-        ((double)c/SCALING_MULTIPLIER_M),(int16_t)(p * SCALING_MULTIPLIER_M), 
-        s,c
-        );
+    printf("a(%f) s(%f:%f) c(%f:%f)\n", p, sin(p), ((double)s/SCALING_MULTIPLIER_M), cos(p), ((double)c/SCALING_MULTIPLIER_M));
   }
 
   return 0;
