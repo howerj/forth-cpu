@@ -22,6 +22,15 @@ Loops and if statements
 
 ### vhdl/
 
+* VHDL
+
+  The VGA memory (font and text buffer) as well as any DAC memories
+  should be memory mapped onto the CPUs memory space.
+
+
+* I should probably have some kind of Data Pointer / Program Pointer to
+overcome address limitations.
+
 * Pseudo terminal for the system.
   - <https://groups.google.com/forum/?_escaped_fragment_=msg/comp.lang.vhdl/vu9fVTdvSP0/0mmztHvZfDsJ#!msg/comp.lang.vhdl/vu9fVTdvSP0/0mmztHvZfDsJ>
 
@@ -36,6 +45,9 @@ Loops and if statements
 * Implement simple bootloader as firmware.
 
 * top\_level.vhd
+
+* TEA/XTEA/XXTEA cryptographic primitves:
+  - Use as pseudo random number generator (non cryptographic)
 
 * VGA and UART top levels and testing.
 
