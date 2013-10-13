@@ -22,6 +22,12 @@ Loops and if statements
 
 ### vhdl/
 
+* The memory modules should be made more generic:
+
+  They should accept a file name and a word length.
+
+  There is a lot of structure that is repeated, I should try to minimize it.
+
 * VHDL
 
   The VGA memory (font and text buffer) as well as any DAC memories
