@@ -7,7 +7,6 @@
 #
 #
 
-
 ## Colors
 
 BLUE=\e[1;34m
@@ -18,8 +17,13 @@ DEFAULT=\e[0m
 ## Compiler options
 
 CC=gcc
-CCOPTS=-ansi -g -Wall -Wno-write-strings -Wshadow -Wextra -pedantic -O2 -save-temps
+CCOPTS=-ansi -Wall -g -Wno-write-strings -Wshadow -Wextra -pedantic -O2 -save-temps 
 #CCOPTS=-ansi --coverage -g -Wall -Wno-write-strings -Wshadow -Wextra -pedantic -O2
+
+## Options for clang (catch undefined behavior and trap on signed overflow)
+#CC=clang
+#CCOPTS=-ansi -Wall -g -Wno-write-strings -Wshadow -Wextra -pedantic -O2 -save-temps -ftrapv -fcatch-undefined-behavior
+
 
 ## Long strings passed to commands
 
@@ -32,7 +36,7 @@ DOXYFILE=doxygen.conf
 
 ## Help
 
-all: banner bin/forth
+all: banner bin/forth fth/auto.4th
 
 banner:
 	@/bin/echo -e "Howe Forth, GNU Makefile\n"
@@ -44,6 +48,7 @@ banner:
 	@/bin/echo -e "To compile with debug flags enable type $(BLUE)\"-DDEBUG_PRN\".$(DEFAULT)";
 	@/bin/echo -e "To compile with debug cycle counter enabled $(BLUE)\"-DRUN4X\".$(DEFAULT)";
 	@/bin/echo -e "To compile $(RED)without$(DEFAULT) bounds checking:$(BLUE) \"-DUNCHECK\".$(DEFAULT)";
+	@/bin/echo -e "-DWORD_TYPE defaults to 2 (use int32_t as default).$(DEFAULT)";
 	@/bin/echo -e "\n"
 
 help:
@@ -68,6 +73,12 @@ help:
 	@/bin/echo "     Run program with valgrind on start up forth file only."
 
 ## Main forth program
+
+fth/auto.4th: bin/forth
+	@/bin/echo "Automatically generating a list of constants using:"
+	@/bin/echo "  bin/./forth -E > fth/auto.4th"
+	@bin/./forth -E > fth/auto.4th
+	@/bin/echo "Autogen done!"
 
 # The Forth interpreter top level
 bin/forth: main.c bin/forth.o bin/hosted.o
@@ -124,7 +135,7 @@ html:
 valgrind: bin/forth
 	@/bin/echo "Running valgrind on ./forth"
 	@/bin/echo "  This command needs changing in the makefile"
-	-valgrind bin/./forth << EOF
+	-cd bin/; valgrind ./forth << EOF
 
 ctags:
 	@ctags -R .
