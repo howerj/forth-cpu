@@ -94,7 +94,7 @@ void debug_print(fobj_t * fo)
  * This function sets up memory and opens the initial input files, it
  * also performs some basic sanity checks as well.
  */
-fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l, FILE *input)
+fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l, FILE * input)
 {
   /*the vm forth object */
   int i = 0;
@@ -135,10 +135,9 @@ fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l, FILE 
 
   /**initialize input file, fclose is handled elsewhere */
   fo->in_file[1]->fio = io_rd_file;
-  if (NULL != input){
+  if (NULL != input) {
     fo->in_file[1]->iou.f = input;
-  }
-  else if ((fo->in_file[1]->iou.f = fopen("forth.4th", "r")) == NULL) {
+  } else if ((fo->in_file[1]->iou.f = fopen("forth.4th", "r")) == NULL) {
     fprintf(stderr, "Unable to open initial input file!\n");
     return NULL;
   }
@@ -188,4 +187,3 @@ void forth_obj_destroy(fobj_t * fo)
   fprintf(stderr, "\tOBJECT DESTROYED.\n");
 #endif
 }
-

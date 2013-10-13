@@ -12,8 +12,9 @@
  *
  */
 
-#include <stdio.h>  /* FILE, putc(), getc(), fopen, fclose, rename... */
-#include <stdlib.h> /* system() */
+#include <stdio.h>              /* FILE, putc(), getc(), fopen, fclose, rename... */
+#include <stdlib.h>             /* system() */
+#include <stdint.h>
 #include "forth.h"
 
 /*internal function prototypes*/
@@ -30,14 +31,15 @@ static char *my_itoa(mw value, int base);
 static void print_string(const char *s, const mw max, fio_t * out_file);
 static void print_line_file(int line, const char *file, fio_t * err_file);
 static mw find_word(fobj_t * fo);
-static void my_strcpy(char *destination, char *source);
-static mw compile_word(forth_primitives_e fp, fobj_t * fo, enum bool flag, char *prim);
-static mw compile_word_prim(fobj_t * fo, char *prim);
+static void my_strcpy(char *destination, const char *source);
+static mw compile_word(forth_primitives_e fp, fobj_t * fo, enum bool flag, const char *prim);
+static mw compile_word_prim(fobj_t * fo, const char *prim);
 static mw forth_initialize(fobj_t * fo);
 static void on_err(fobj_t * fo);
 static mw forth_system_calls(fobj_t * fo, mw enum_syscall);
 static void report_error(forth_errors_e e);
 
+/*****************************************************************************/
 /*X-Macro definition of error strings*/
 #define X(a, b, c) b
 static const char *forth_error_str[] = {
@@ -53,6 +55,16 @@ static const forth_error_action_e f_error_action[] = {
 };
 
 #undef X
+
+/**X-Macro definition of the names of primitives*/
+#define X(a, b) b
+static const char *forth_primitives_str[] = {
+  FORTH_PRIMITIVE_XMACRO_M
+};
+
+#undef X
+
+/*****************************************************************************/
 
 /* IO wrappers*/
 
@@ -282,26 +294,46 @@ static void print_line_file(int line, const char *file, fio_t * err_file)
   (void)wrap_put(err_file, '\n');
 }
 
-#ifndef UNCHECK
+#ifndef UNCHECK /** define UNCHECK to stop bounds being checked */
 
 /*Error Check Bounds*/
 #define ECB(MIN,MAX,TEST,ERR,ERR_STRM)    if((TEST>(MAX-2))||(TEST<MIN)){ \
     print_line_file(__LINE__,__FILE__,ERR_STRM);                          \
     return ERR;                                                           \
 }
+
+#if (1 == SIGNED_WORD) /** Signed type, check against upper bound and < 0 */
 /*Error Check Upper (Bound) (and) Zero (Lower bound)*/
 #define ECUZ(MAX,VT,ERR,ERR_STRM) if((VT>(MAX-2))||(VT<0)){  \
     print_line_file(__LINE__,__FILE__,ERR_STRM);             \
     return ERR;                                              \
 }
+
+#else /** Do not check against less than zero as we are using and unsigned type */
+
+#define ECUZ(MAX,VT,ERR,ERR_STRM) if(VT>(MAX-2)){            \
+    print_line_file(__LINE__,__FILE__,ERR_STRM);             \
+    return ERR;                                              \
+}
+
+#endif
+
 #define ERR_LN_PRN(ERR_STRM) print_line_file(__LINE__,__FILE__,ERR_STRM);
 
-#else
+#else /** No bounds checking */
 
 #define ECB(MIN,MAX,TEST,ERR,ERR_STRM)
 #define ECUZ(MAX,VT,ERR,ERR_STRM)
 #define ERR_LN_PRN(ERR_STRM)
 
+#endif /** End bounds ifdef */
+
+/** INT_MAX / -1 is an error, we need to check for this condition
+ * if and only if the data type we are using is signed */
+#if   (1 == SIGNED_WORD)
+#define SIGNED_DIVIDE_CHECK(DIVIDEND,DIVISOR) ((WORD_MIN == (DIVISOR)) && (-1 == (DIVIDEND)))
+#else
+#define SIGNED_DIVIDE_CHECK(DIVIDEND,DIVISOR) (0)
 #endif
 
 /*****************************************************************************/
@@ -332,7 +364,7 @@ static mw find_word(fobj_t * fo)
     ECUZ(SM_maxDic, OP0, ERR_OP0, err_file);
 
     /* Sanity check, prevents loops */
-    if(WORDINX>WORDCNT){
+    if (WORDINX > WORDCNT) {
       ERR_LN_PRN(err_file);
       return ERR_PWD;
     }
@@ -343,13 +375,16 @@ static mw find_word(fobj_t * fo)
   return ERR_OK;
 }
 
-static void my_strcpy(char *destination, char *source)
+/**my_strcpy, so I would not have to import all of string.h
+ * in an embedded system
+ */
+static void my_strcpy(char *destination, const char *source)
 {
   while ('\0' != *source)
     *destination++ = *source++;
 }
 
-static mw compile_word(forth_primitives_e fp, fobj_t * fo, enum bool flag, char *prim)
+static mw compile_word(forth_primitives_e fp, fobj_t * fo, enum bool flag, const char *prim)
 {
   mw *reg = fo->reg, *dic = fo->dic;
   char *str = fo->str;
@@ -373,7 +408,7 @@ static mw compile_word(forth_primitives_e fp, fobj_t * fo, enum bool flag, char 
 }
 
 /*should add error checking.*/
-static mw compile_word_prim(fobj_t * fo, char *prim)
+static mw compile_word_prim(fobj_t * fo, const char *prim)
 {
   mw *reg = fo->reg, *dic = fo->dic, ret;
   ret = compile_word(COMPILE, fo, true, prim);
@@ -389,6 +424,7 @@ static mw forth_initialize(fobj_t * fo)
 {
   mw *reg = fo->reg, *dic = fo->dic, *ret = fo->ret;
   fio_t *err_file = fo->err_file;
+  unsigned int i;
 
   if (SM_maxReg < MIN_REG)
     return ERR_MINIMUM_MEM;
@@ -442,53 +478,10 @@ static mw forth_initialize(fobj_t * fo)
     return ERR_FAILURE;
   }
   OP0 = EXIT;
-  COMPILE_PRIM("exit");
-  COMPILE_PRIM("br");
-  COMPILE_PRIM("?br");
-  COMPILE_PRIM("+");
-  COMPILE_PRIM("-");
-  COMPILE_PRIM("*");
-  COMPILE_PRIM("mod");
-  COMPILE_PRIM("/");
-  COMPILE_PRIM("lshift");
-  COMPILE_PRIM("rshift");
-  COMPILE_PRIM("and");
-  COMPILE_PRIM("or");
-  COMPILE_PRIM("invert");
-  COMPILE_PRIM("xor");
-  COMPILE_PRIM("1+");
-  COMPILE_PRIM("1-");
-  COMPILE_PRIM("=");
-  COMPILE_PRIM("<");
-  COMPILE_PRIM(">");
-  COMPILE_PRIM("@reg");
-  COMPILE_PRIM("@");
-  COMPILE_PRIM("pick");
-  COMPILE_PRIM("@str");
-  COMPILE_PRIM("!reg");
-  COMPILE_PRIM("!");
-  COMPILE_PRIM("!var");
-  COMPILE_PRIM("!str");
-  COMPILE_PRIM("key");
-  COMPILE_PRIM("emit");
-  COMPILE_PRIM("dup");
-  COMPILE_PRIM("drop");
-  COMPILE_PRIM("swap");
-  COMPILE_PRIM("over");
-  COMPILE_PRIM(">r");
-  COMPILE_PRIM("r>");
-  COMPILE_PRIM("tail");
-  COMPILE_PRIM("'");
-  COMPILE_PRIM(",");
-  COMPILE_PRIM("printnum");
-  COMPILE_PRIM("getword");
-  COMPILE_PRIM("strlen");
-  COMPILE_PRIM("isnumber");
-  COMPILE_PRIM("strnequ");
-  COMPILE_PRIM("find");
-  COMPILE_PRIM("execute");
-  COMPILE_PRIM("kernel");
-  COMPILE_PRIM("error");
+
+  for (i = EXIT; i < LAST_PRIMITIVE; i++) {
+    COMPILE_PRIM(forth_primitives_str[i]);
+  }
 
   ECUZ(SM_maxRet, RET, ERR_RET, err_file);
   RET++;
@@ -546,10 +539,8 @@ static mw forth_system_calls(fobj_t * fo, mw enum_syscall)
   case SYS_FOPEN:
     switch (TOS) {
     case SYS_OPT_IN:
-      if ((IN_STRM < 0) || (IN_STRM > MAX_INSTRM)) {
-        ERR_LN_PRN(err_file);
-        return ERR_SYSCALL;
-      }
+
+      ECUZ(MAX_INSTRM, IN_STRM, ERR_SYSCALL, err_file);
       ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
       TOS = var[VAR];
       VAR--;
@@ -593,10 +584,9 @@ static mw forth_system_calls(fobj_t * fo, mw enum_syscall)
   case SYS_FCLOSE:
     switch (TOS) {
     case SYS_OPT_IN:
-      if ((IN_STRM < 1) || (IN_STRM > MAX_INSTRM)) {
-        ERR_LN_PRN(err_file);
-        return ERR_SYSCALL;
-      }
+
+      ECB(1, MAX_INSTRM, IN_STRM, ERR_SYSCALL, err_file);
+
       if (fo->in_file[IN_STRM]->fio != io_rd_file) {
         ERR_LN_PRN(err_file);
         return ERR_SYSCALL;
@@ -676,7 +666,7 @@ static mw forth_system_calls(fobj_t * fo, mw enum_syscall)
       return ERR_SYSCALL_OPTIONS;
     }
   case SYS_SYSTEM:
-    system(str+TOS);
+    system(str + TOS);
     ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
     TOS = var[VAR];
     VAR--;
@@ -703,7 +693,7 @@ mw forth_interpreter(fobj_t * fo)
   }
 
   /*VM*/ while (true) {
-    ECB(0, SM_maxDic, PC, ERR_PC, err_file);
+    ECUZ(SM_maxDic, PC, ERR_PC, err_file);
     NEXT = dic[PC];
     PC++;
 
@@ -722,10 +712,10 @@ mw forth_interpreter(fobj_t * fo)
     ECUZ(SM_maxDic, NEXT, ERR_NEXT, err_file);
     switch (dic[NEXT]) {
     case PUSH_INT:
-      ECB(0, SM_maxVar, VAR, ERR_VAR, err_file);
+      ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
       VAR++;
       var[VAR] = TOS;
-      ECB(0, SM_maxDic, PC, ERR_PC, err_file);
+      ECUZ(SM_maxDic, PC, ERR_PC, err_file);
       TOS = dic[PC];
       PC++;
       break;
@@ -813,7 +803,7 @@ mw forth_interpreter(fobj_t * fo)
       break;
     case NBRANCH:
       if (0 == TOS) {
-        ECB(0, SM_maxDic, PC, ERR_PC, err_file);
+        ECUZ(SM_maxDic, PC, ERR_PC, err_file);
         PC += dic[PC];
       } else {
         PC++;
@@ -839,31 +829,37 @@ mw forth_interpreter(fobj_t * fo)
       VAR--;
       break;
     case MOD:
-      if (0 != TOS) {
-        ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
+      ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
+      if ((0 == TOS) || SIGNED_DIVIDE_CHECK(TOS, var[VAR])) {
+        ERR_LN_PRN(err_file);
+        return ERR_MOD0;
+      } else {
         TOS = var[VAR] % TOS;
         VAR--;
         break;
       }
-      ERR_LN_PRN(err_file);
-      return ERR_MOD0;
     case DIV:
-      if (0 != TOS) {
-        ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
+      ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
+      if ((0 == TOS) || SIGNED_DIVIDE_CHECK(TOS, var[VAR])) {
+        ERR_LN_PRN(err_file);
+        return ERR_DIV0;
+      } else {
         TOS = var[VAR] / TOS;
         VAR--;
         break;
       }
-      ERR_LN_PRN(err_file);
-      return ERR_DIV0;
     case LS:
       ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
-      TOS = (mw) ((unsigned)var[VAR] << (unsigned)TOS);
+      /** Unsigned shifts only and only by BIT_SIZE - 1 to avoid
+       * undefined behavior */
+      TOS = (mw) ((unsigned)var[VAR] << ((unsigned)TOS & (BIT_SIZE - 1)));
       VAR--;
       break;
     case RS:
       ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
-      TOS = (mw) ((unsigned)var[VAR] >> (unsigned)TOS);
+      /** Unsigned shifts only and only by BIT_SIZE - 1 to avoid
+       * undefined behavior */
+      TOS = (mw) ((unsigned)var[VAR] >> (unsigned)TOS & (BIT_SIZE - 1));
       VAR--;
       break;
     case AND:
@@ -1020,7 +1016,7 @@ mw forth_interpreter(fobj_t * fo)
       ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
       VAR++;
       var[VAR] = TOS;
-      ECB(0, SM_maxDic, PC, ERR_PC, err_file);
+      ECUZ(SM_maxDic, PC, ERR_PC, err_file);
       TOS = dic[PC];
       PC++;
       break;
@@ -1079,8 +1075,8 @@ mw forth_interpreter(fobj_t * fo)
         ERR_LN_PRN(err_file);
         return ERR_WORD;
       }
-      ECB(0, SM_maxVar, VAR, ERR_VAR, err_file);
-      ECB(0, SM_maxDic - 3, VAR, ERR_OP0, err_file);
+      ECUZ(SM_maxVar, VAR, ERR_VAR, err_file);
+      ECUZ(SM_maxDic - 3, VAR, ERR_OP0, err_file);
       OP0 += 2;                 /*advance over pointers */
       if (COMPILE == dic[OP0]) {
         ++OP0;
@@ -1125,7 +1121,7 @@ mw forth_monitor(fobj_t * fo)
   mw fo_returned_val;
   mw *reg;
 
-  /*pointer checks*/
+  /*pointer checks */
   NULLCHK_M(fo);
 
   reg = fo->reg;
@@ -1137,7 +1133,7 @@ mw forth_monitor(fobj_t * fo)
   NULLCHK_M(fo->str);
   NULLCHK_M(fo->err_file);
 
-  /*point and sanity checks of the in and output files*/
+  /*point and sanity checks of the in and output files */
   if (NULL == fo->in_file) {
     report_error(ERR_NULL);
     return ERR_FAILURE;
@@ -1164,44 +1160,46 @@ mw forth_monitor(fobj_t * fo)
   }
 
   /* I should check that EXF is potentially valid, ie. Not zero */
- RESTART:
-  fo_returned_val = forth_interpreter(fo);
-  if (fo_returned_val >= LAST_ERROR) {
-    print_string(forth_error_str[LAST_ERROR], MAX_ERR_STR, fo->err_file);
-    return fo_returned_val;
-  } else if (onerr_goto_restart_e == f_error_action[fo_returned_val]) {
-    print_string(forth_error_str[fo_returned_val], MAX_ERR_STR, fo->err_file);
-    on_err(fo);
-    goto RESTART;
-  } else if (onerr_break_e == f_error_action[fo_returned_val]) {
-    print_string(forth_error_str[ERR_IO], MAX_ERR_STR, fo->err_file);
-    return fo_returned_val;
-  } else if (onerr_special_e == f_error_action[fo_returned_val]) {
-    if (fo_returned_val == ERR_EOF) {   /*Some EOF situations might not be handled correctly */
-      if ((IN_STRM > 0) && (IN_STRM < MAX_INSTRM)) {
-        if (io_rd_file == fo->in_file[IN_STRM]->fio) {
-          if (NULL != fo->in_file[IN_STRM]->iou.f) {
-            (void)fclose(fo->in_file[IN_STRM]->iou.f);
-            fo->in_file[IN_STRM]->iou.f = NULL;
-          }
-        } 
-        IN_STRM--;
-        print_string(forth_error_str[ERR_NEXT_STRM], MAX_ERR_STR, fo->err_file);
-        goto RESTART;
-      }
-      print_string(forth_error_str[ERR_EOF], MAX_ERR_STR, fo->err_file);
-      return ERR_EOF;
-    } else if (ERR_WORD == fo_returned_val) {   /*Special action: Print out word */
-      print_string(fo->str, MAX_ERR_STR, fo->err_file);
-      (void)wrap_put(fo->err_file, '\n');
-      print_string(forth_error_str[ERR_WORD], MAX_ERR_STR, fo->err_file);
+  while(true){
+    fo_returned_val = forth_interpreter(fo);
+    if (fo_returned_val >= LAST_ERROR) {
+      print_string(forth_error_str[LAST_ERROR], MAX_ERR_STR, fo->err_file);
+      return fo_returned_val;
+    } else if (onerr_goto_restart_e == f_error_action[fo_returned_val]) {
+      print_string(forth_error_str[fo_returned_val], MAX_ERR_STR, fo->err_file);
       on_err(fo);
-      goto RESTART;
-    } else {                    /*No special action defined */
-      print_string(forth_error_str[ERR_SPECIAL_ERROR], MAX_ERR_STR, fo->err_file);
-      return ERR_SPECIAL_ERROR;
+      continue;
+    } else if (onerr_break_e == f_error_action[fo_returned_val]) {
+      print_string(forth_error_str[fo_returned_val], MAX_ERR_STR, fo->err_file);
+      return fo_returned_val;
+    } else if (onerr_special_e == f_error_action[fo_returned_val]) {
+      if (fo_returned_val == ERR_EOF) {   /*Some EOF situations might not be handled correctly */
+        if ((0 < IN_STRM) && (MAX_INSTRM > IN_STRM)) {
+          if (io_rd_file == fo->in_file[IN_STRM]->fio) {
+            if (NULL != fo->in_file[IN_STRM]->iou.f) {
+              (void)fclose(fo->in_file[IN_STRM]->iou.f);
+              fo->in_file[IN_STRM]->iou.f = NULL;
+            }
+          }
+          IN_STRM--;
+          print_string(forth_error_str[ERR_NEXT_STRM], MAX_ERR_STR, fo->err_file);
+          continue;
+        }
+        print_string(forth_error_str[ERR_EOF], MAX_ERR_STR, fo->err_file);
+        return ERR_EOF;
+      } else if (ERR_WORD == fo_returned_val) {   /*Special action: Print out word */
+        print_string(fo->str, MAX_ERR_STR, fo->err_file);
+        (void)wrap_put(fo->err_file, '\n');
+        print_string(forth_error_str[ERR_WORD], MAX_ERR_STR, fo->err_file);
+        on_err(fo);
+        continue;
+      } else {                    /*No special action defined */
+        print_string(forth_error_str[ERR_SPECIAL_ERROR], MAX_ERR_STR, fo->err_file);
+        return ERR_SPECIAL_ERROR;
+      }
     }
   }
   return ERR_ABNORMAL_END;
 }
+
 #undef NULLCHK_M

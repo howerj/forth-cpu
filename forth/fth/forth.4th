@@ -62,6 +62,9 @@ find on_err exf !reg    \ Write the executable token for on_err into the diction
 : ')' 41 ;
 
 : 0= 0 = ;
+: 0< 0 < ;
+: 0> 0 > ;
+
 
 : space 32 emit ;
 : cr 10 emit ;
@@ -82,7 +85,10 @@ find on_err exf !reg    \ Write the executable token for on_err into the diction
 : 2swap rot >r rot r> ;
 
 : 2+ 1+ 1+ ;
+: 2* 2 * ;
+: 2/ 2 / ; 
 : 2- 1- 1- ;
+
 
 : if immediate 
 	' ?br , 
@@ -303,6 +309,10 @@ str @reg dup iobl @reg + str !reg constant filename
   here - ,
 ;
 
+: break ( break out of a do ... loop )
+  j@ i!
+;
+
 : gcd ( a b -- n ) ( greatest common divisor )
   begin
     dup
@@ -320,8 +330,11 @@ str @reg dup iobl @reg + str !reg constant filename
 \ : vocabulary create pwd @reg , does> @ pwd !reg ;
 \ vocabulary forth
 
-finput ../fth/debug.4th
-finput ../fth/real.4th
+finput ../fth/debug.4th    ( Debugging operations )
+finput ../fth/rational.4th ( Real type )
+finput ../fth/math.4th     ( Math functions )
+finput ../fth/auto.4th     ( Auto generated constants )
+finput ../fth/memory.4th   ( Memory allocation and manipulation )
 finput ../fth/assembler.4th
 foutput ../../vhdl/mem_h2.binary \ Output closed by h2.4th
 finput ../fth/h2.4th

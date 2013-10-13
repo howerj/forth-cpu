@@ -9,7 +9,7 @@
  * @email          howe.r.j.89@gmail.com
  *
  */
-#ifndef hosted_h_header_guard    /* begin header guard for hosted.h */
+#ifndef hosted_h_header_guard   /* begin header guard for hosted.h */
 #define hosted_h_header_guard
 
 /**This macro is meant to be used within a large function for error handling*/
@@ -20,7 +20,7 @@
       }
 
 void debug_print(fobj_t * fo);
-fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l, FILE *input);
+fobj_t *forth_obj_create(mw reg_l, mw dic_l, mw var_l, mw ret_l, mw str_l, FILE * input);
 void forth_obj_destroy(fobj_t * fo);
 
 #endif                          /*end header guard for hosted.h */

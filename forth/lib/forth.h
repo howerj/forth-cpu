@@ -1,7 +1,8 @@
 /** Howe Forth.
  *
  * @file forth.h
- * @brief Configuration file and interface API
+ * @brief Configuration file and interface API, it requires
+ * stdio.h and stdint.h to be included before it is..
  *
  * @author         Richard James Howe.
  * @copyright      Copyright 2013 Richard James Howe.
@@ -10,24 +11,28 @@
  *
  */
 
-/*#define RUN4X*/
+#include <stdint.h>
 
 #ifndef forth_h_header_guard    /* begin header guard for forth.h */
 #define forth_h_header_guard
 
-#define MAX_PRN_STR    64
-#define MAX_ERR_STR    64
-#define MAX_STRLEN     32
-#define MAX_INSTRM     32
+#ifndef WORD_TYPE     /** Used to select what type of integer VM uses as default */
+#define WORD_TYPE (2) /** Default: Signed 32 bit */
+#endif
+
+#define MAX_PRN_STR    (64)
+#define MAX_ERR_STR    (64)
+#define MAX_STRLEN     (32)
+#define MAX_INSTRM     (32)
 
 /*minimum memory requirements*/
-#define MIN_REG        32
-#define MIN_DIC        512
-#define MIN_RET        32
-#define MIN_VAR        32
-#define MIN_STR        512
-#define MIN_INBUF      16
-#define MIN_DIC_OFF    4
+#define MIN_REG        (32)
+#define MIN_DIC        (512)
+#define MIN_RET        (32)
+#define MIN_VAR        (32)
+#define MIN_STR        (512)
+#define MIN_INBUF      (16)
+#define MIN_DIC_OFF    (4)
 
 /* Enums */
 enum bool { false, true };
@@ -42,27 +47,89 @@ typedef enum {
   io_rd_str                     /*read from a string (null terminated!) */
 } forth_io_e;
 
-typedef enum {
-  PUSH_INT, COMPILE, RUN, DEFINE, IMMEDIATE, READ, COMMENT, EXIT,
-  BRANCH, NBRANCH, PLUS, MINUS, MUL, MOD, DIV,
-  LS, RS, AND, OR, INV, XOR, INC, DEC, EQ, LESS, MORE,
-  FETCH_REG, FETCH_DIC, PICK, FETCH_STR,
-  STORE_REG, STORE_DIC, STORE_VAR, STORE_STR,
-  KEY, EMIT, DUP, DROP, SWAP, OVER, TOR, FROMR,
-  TAIL, QUOTE, COMMA, PRINTNUM, GET_WORD, STRLEN, ISNUMBER, STRNEQU, FIND,
-  EXECUTE,
-  KERNEL,
-  ERROR,
-  LAST_PRIMITIVE
-} forth_primitives_e;
+/********************************************************************************/
+#define FORTH_PRIMITIVE_XMACRO_M \
+  X(PUSH_INT,       "_push_int"),\
+  X(COMPILE,        "_compile"),\
+  X(RUN,            "_run"),\
+  X(DEFINE,         ":"),\
+  X(IMMEDIATE,      "immediate"),\
+  X(READ,           "read"),\
+  X(COMMENT,        "\\"),\
+  X(EXIT,           "exit"),\
+  X(BRANCH,         "br"),\
+  X(NBRANCH,        "?br"),\
+  X(PLUS,           "+"),\
+  X(MINUS,          "-"),\
+  X(MUL,            "*"),\
+  X(MOD,            "mod"),\
+  X(DIV,            "/"),\
+  X(LS,             "lshift"),\
+  X(RS,             "rshift"),\
+  X(AND,            "and"),\
+  X(OR,             "or"),\
+  X(INV,            "invert"),\
+  X(XOR,            "xor"),\
+  X(INC,            "1+"),\
+  X(DEC,            "1-"),\
+  X(EQ,             "="),\
+  X(LESS,           "<"),\
+  X(MORE,           ">"),\
+  X(FETCH_REG,      "@reg"),\
+  X(FETCH_DIC,      "@"),\
+  X(PICK,           "pick"),\
+  X(FETCH_STR,      "@str"),\
+  X(STORE_REG,      "!reg"),\
+  X(STORE_DIC,      "!"),\
+  X(STORE_VAR,      "!var"),\
+  X(STORE_STR,      "!str"),\
+  X(KEY,            "key"),\
+  X(EMIT,           "emit"),\
+  X(DUP,            "dup"),\
+  X(DROP,           "drop"),\
+  X(SWAP,           "swap"),\
+  X(OVER,           "over"),\
+  X(TOR,            ">r"),\
+  X(FROMR,          "r>"),\
+  X(TAIL,           "tail"),\
+  X(QUOTE,          "'"),\
+  X(COMMA,          ","),\
+  X(PRINTNUM,       "printnum"),\
+  X(GET_WORD,       "getword"),\
+  X(STRLEN,         "strlen"),\
+  X(ISNUMBER,       "isnumber"),\
+  X(STRNEQU,        "strnequ"),\
+  X(FIND,           "find"),\
+  X(EXECUTE,        "execute"),\
+  X(KERNEL,         "kernel"),\
+  X(ERROR,          "error"),\
+  X(LAST_PRIMITIVE, "THIS IS NOT A PRIMITIVE")
 
-/*forth_interpreter() return calls*/
+#define X(a, b) a
 typedef enum {
-  SYS_RESET,
-  SYS_FOPEN, SYS_FCLOSE, SYS_FLUSH,SYS_REMOVE, SYS_RENAME, SYS_REWIND,/*stdio.h*/
-  SYS_SYSTEM, /*stdlib.h*/
-  LAST_ERROR_CALL
+  FORTH_PRIMITIVE_XMACRO_M
+} forth_primitives_e;
+#undef X
+
+/********************************************************************************/
+
+#define FORTH_SYSTEM_CALLS_XMACRO_M \
+  X(SYS_RESET,        "reset"),\
+  X(SYS_FOPEN,        "fopen"),\
+  X(SYS_FCLOSE,       "fclose"),\
+  X(SYS_FLUSH,        "fflush"),\
+  X(SYS_REMOVE,       "remove"),\
+  X(SYS_RENAME,       "rename"),\
+  X(SYS_REWIND,       "rewind"),\
+  X(SYS_SYSTEM,       "system"),\
+  X(LAST_ERROR_CALL,  "NOT A SYSTEM CALL")
+
+/**forth_interpreter() return calls*/
+#define X(a, b) a
+typedef enum {
+  FORTH_SYSTEM_CALLS_XMACRO_M
 } forth_syscall_e;
+#undef X
 
 /*Options passed to system call*/
 typedef enum {
@@ -76,7 +143,8 @@ typedef enum {
   onerr_return_e
 } forth_error_action_e;
 
-/* X macro X(The error code, the error string, which action to take)*/
+/********************************************************************************/
+/** X macro X(The error code, the error string, which action to take)*/
 #define FORTH_ERROR_XMACRO \
   X(ERR_OK,               "OK!\n",                                            onerr_goto_restart_e),\
   X(ERR_FAILURE,          "General Failure? Unknown cause.\n",                onerr_goto_restart_e),\
@@ -113,7 +181,7 @@ typedef enum {
   X(ERR_NEXT_STRM,        "EOF -> Next Stream.\n",                            onerr_special_e),\
   X(ERR_NULL,             "(Internal), Null not expected\n",                  onerr_break_e),\
   X(ERR_SPECIAL_ERROR,    "(Internal), Special error handler not defined!\n", onerr_break_e),\
-  X(LAST_ERROR,             "Fatal Err: Incorrect error code or call!\n",       onerr_return_e)
+  X(LAST_ERROR,           "Fatal Err: Incorrect error code or call!\n",       onerr_return_e)
 
 #define X(a, b, c) a
 typedef enum {
@@ -121,37 +189,45 @@ typedef enum {
 } forth_errors_e;
 #undef X
 
+/********************************************************************************/
+/** X Macro, This one is optional apart from the ENUM (ie. For debugging)*/
+#define FORTH_REGISTER_ENUM_XMACRO_M \
+    X(ENUM_NEXT,              "NEXT"),\
+    X(ENUM_PC,                "PC"),\
+    X(ENUM_TOS,               "TOS"),\
+    X(ENUM_RET,               "RET"),\
+    X(ENUM_VAR,               "VAR"),\
+    X(ENUM_DIC,               "DIC"),\
+    X(ENUM_STR,               "STR"),\
+    X(ENUM_PWD,               "PWD"),\
+    X(ENUM_OP0,               "OP0"),\
+    X(ENUM_OP1,               "OP1"),\
+    X(ENUM_A,                 "A"),\
+    X(ENUM_B,                 "B"),\
+    X(ENUM_C,                 "C"),\
+    X(ENUM_CPF,               "CPF"),\
+    X(ENUM_EXF,               "EXF"),\
+    X(ENUM_INI,               "INI"),\
+    X(ENUM_maxReg,            "maxReg"),\
+    X(ENUM_maxDic,            "maxDic"),\
+    X(ENUM_maxRet,            "maxRet"),\
+    X(ENUM_maxVar,            "maxVar"),\
+    X(ENUM_maxStr,            "maxStr"),\
+    X(ENUM_inputBufLen,       "inputBufLen"),\
+    X(ENUM_dictionaryOffset,  "dictionaryOffset"),\
+    X(ENUM_sizeOfMW,          "sizeOfMW"),\
+    X(ENUM_cycles,            "cycles"),\
+    X(ENUM_ccount,            "ccount"),\
+    X(ENUM_inStrm,            "inStrm"),\
+    X(ENUM_wordCount,         "wordCount"),\
+    X(ENUM_wordIndex,         "wordIndex"),\
+    X(ENUM_LAST_REGISTER,     "THIS IS NOT A REGISTER")
+
+#define X(a, b) a
 typedef enum {
-  ENUM_NEXT,
-  ENUM_PC,
-  ENUM_TOS,
-  ENUM_RET,
-  ENUM_VAR,
-  ENUM_DIC,
-  ENUM_STR,
-  ENUM_PWD,
-  ENUM_OP0,
-  ENUM_OP1,
-  ENUM_A,
-  ENUM_B,
-  ENUM_C,
-  ENUM_CPF,
-  ENUM_EXF,
-  ENUM_INI,
-  ENUM_maxReg,
-  ENUM_maxDic,
-  ENUM_maxRet,
-  ENUM_maxVar,
-  ENUM_maxStr,
-  ENUM_inputBufLen,
-  ENUM_dictionaryOffset,
-  ENUM_sizeOfMW,
-  ENUM_cycles,
-  ENUM_ccount,
-  ENUM_inStrm,
-  ENUM_wordCount,
-  ENUM_wordIndex
+  FORTH_REGISTER_ENUM_XMACRO_M
 } forth_registers_e;
+#undef X
 
 /*vm macros*/
 #define NEXT    reg[ENUM_NEXT]
@@ -190,8 +266,63 @@ typedef enum {
 #define IN_STRM reg[ENUM_inStrm]
 #define WORDCNT reg[ENUM_wordCount]
 #define WORDINX reg[ENUM_wordIndex]
+/********************************************************************************/
 
-typedef signed int mw;
+#if   (0 == WORD_TYPE)          /* signed 16 bit */
+
+typedef int16_t mw;
+#define SIGNED_WORD (1)
+#define BIT_SIZE    (16)
+#define WORD_MIN    (INT16_MIN)
+#define WORD_MAX    (INT16_MAX)
+#define WORD_STRING "int16_t"
+
+#elif (1 == WORD_TYPE)          /* unsigned 16 bit */
+
+typedef uint16_t mw;
+#define SIGNED_WORD (0)
+#define BIT_SIZE    (16)
+#define WORD_MIN    (0)
+#define WORD_MAX    (UINT16_MAX)
+#define WORD_STRING "uint16_t"
+
+#elif (2 == WORD_TYPE)          /* signed 32 bit, default */
+
+typedef int32_t mw;
+#define SIGNED_WORD (1)
+#define BIT_SIZE    (32)
+#define WORD_MIN    (INT32_MIN)
+#define WORD_MAX    (INT32_MAX)
+#define WORD_STRING "int32_t"
+
+#elif (3 == WORD_TYPE)          /* unsigned 32 bit */
+
+typedef uint32_t mw;
+#define SIGNED_WORD (0)
+#define BIT_SIZE    (32)
+#define WORD_MIN    (0)
+#define WORD_MAX    (UINT32_MAX)
+#define WORD_STRING "uint32_t"
+
+#elif (4 == WORD_TYPE)          /* signed 64 bit */
+
+typedef int64_t mw;
+#define SIGNED_WORD (1)
+#define BIT_SIZE    (64)
+#define WORD_MIN    (INT64_MIN)
+#define WORD_MAX    (INT64_MAX)
+#define WORD_STRING "int64_t"
+
+#elif (5 == WORD_TYPE)          /* unsigned 64 bit */
+
+typedef uint64_t mw;
+#define SIGNED_WORD (0)
+#define BIT_SIZE    (64)
+#define WORD_MIN    (0)
+#define WORD_MAX    (UINT64_MAX)
+#define WORD_STRING "uint64_t"
+
+#endif
 
 /*if input or output is a file or string, store point to it*/
 union io_u {

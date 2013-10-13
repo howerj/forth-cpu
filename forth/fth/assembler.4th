@@ -155,5 +155,5 @@
 ;
 
 : halt
- 30 error
+ 31 error
 ;
