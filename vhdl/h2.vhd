@@ -88,8 +88,8 @@ architecture rtl of h2 is
     signal irc_c, irc_n:        std_logic_vector(3 downto 0)  :=  (others => '0');
 
     -- Top of stack, and next on stack.
-    signal tos_c:               std_logic_vector(15 downto 0) := (others => '0');
-    signal tos_n:               std_logic_vector(15 downto 0) := (others => '0');
+    signal tos_c:               std_logic_vector(16 downto 0) := (others => '0');
+    signal tos_n:               std_logic_vector(16 downto 0) := (others => '0');
     signal nos:                 std_logic_vector(15 downto 0) := (others => '0');
     -- Top of return stack.
     signal rtos_c:              std_logic_vector(15 downto 0) := (others => '0');
@@ -113,11 +113,11 @@ begin
     irq_n <= '1' when irq = '1' else '0';
     irc_n <= irc when irq = '1' else (others => '0');
 
-    comp_more_signed    <= '1' when signed(tos_c) > signed(nos) else '0';
-    comp_more           <= '1' when tos_c > nos else '0';
-    comp_equal          <= '1' when tos_c = nos else '0';
+    comp_more_signed    <= '1' when signed(tos_c(15 downto 0)) > signed(nos) else '0';
+    comp_more           <= '1' when tos_c(15 downto 0) > nos else '0';
+    comp_equal          <= '1' when tos_c(15 downto 0) = nos else '0';
     comp_negative       <= tos_c(15);
-    comp_zero           <= '1' when unsigned(tos_c) = 0 else '0';
+    comp_zero           <= '1' when unsigned(tos_c(15 downto 0)) = 0 else '0';
 
     -- Stack assignments
     nos                 <=  vstk_ram(to_integer(unsigned(vstkp_c)));
@@ -133,7 +133,7 @@ begin
     --  this makes things slower but we have
     --  run out of instruction bits to use.
     io_dout             <=  nos;
-    io_daddr            <=  tos_c;
+    io_daddr            <=  tos_c(15 downto 0);
     io_wr               <=  insn(5) when is_instr_alu = '1' and tos_c(13) = '1' else '0';
 
     -- misc
@@ -152,7 +152,7 @@ begin
     begin        
         if rising_edge(clk) then
             if dstkW = '1' then
-                    vstk_ram(to_integer(unsigned(vstkp_n))) <=  tos_c;
+                    vstk_ram(to_integer(unsigned(vstkp_n))) <=  tos_c(15 downto 0);
             end if;
 
             if rstkW = '1' then
@@ -195,22 +195,22 @@ begin
         tos_n       <=  tos_c;
         int_en_n       <=  int_en_c;
         if is_instr_lit = '1' then
-            tos_n   <=  "0" & insn(14 downto 0);
+            tos_n   <=  "00" & insn(14 downto 0);
         else 
             case aluop is -- ALU operation, 12 downto 8
                 when "00000" =>  tos_n  <=  tos_c;
-                when "00001" =>  tos_n  <=  nos;
-                when "00010" =>  tos_n  <=  rtos_c;
+                when "00001" =>  tos_n  <=  tos_c(16) & nos;
+                when "00010" =>  tos_n  <=  tos_c(16) & rtos_c;
                 when "00011" =>  
                   -- Anything greater than 8191 (ie. 13th bit set) means
                   -- We're accessing a periphal and not CPU memory.
                   if tos_c(13) = '1' then 
-                    tos_n <= io_din; 
+                    tos_n <= "0" & io_din; 
                   else 
-                    tos_n  <=  din;  
+                    tos_n <= "0" & din;  
                   end if;
                 when "00100" =>  
-                  tos_n  <=  vstkp_c & rstkp_c & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
+                  tos_n  <=  tos_c(16) & vstkp_c & rstkp_c & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
                 when "00101" =>  tos_n  <=  tos_c or nos;
                 when "00110" =>  tos_n  <=  tos_c and nos;
                 when "00111" =>  tos_n  <=  tos_c xor nos;
@@ -220,26 +220,26 @@ begin
                 when "01011" =>  tos_n  <=  std_logic_vector(unsigned(nos)-unsigned(tos_c));
 -- SLOW Instructions: These instructions are slow to execute so have been commented out ---
                 when "01100" =>
---                    tos_n   <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
+--                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
                 when "01101" =>  
---                    tos_n   <=  std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
+--                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
                 when "01110" => 
---                    tos_n   <=  std_logic_vector(unsigned(nos) rol to_integer(unsigned(tos_c(3 downto 0))));
+--                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) rol to_integer(unsigned(tos_c(3 downto 0))));
                 when "01111" =>
---                    tos_n   <=  std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
+--                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
                 when "10000" => 
---                    tos_n   <=  std_logic_vector(unsigned(nos(7 downto 0)) * to_integer(unsigned(tos_c(7 downto 0))));
+--                    tos_n   <=  "0" & std_logic_vector(unsigned(nos(7 downto 0)) * to_integer(unsigned(tos_c(7 downto 0))));
 -- SLOW Instructions ---
                 when "10001" => tos_n  <=  (0 => comp_more_signed, others => '0');
                 when "10010" => tos_n  <=  (0 => comp_more, others => '0');
                 when "10011" => tos_n  <=  (0 => comp_equal, others => '0');
                 when "10100" => tos_n  <=  (0 => comp_negative, others => '0');
                 when "10101" => tos_n  <=  (0 => comp_zero, others => '0');
-                when "10110" => tos_n  <=  tos_c(7 downto 0) & tos_c(15 downto 8);
+                when "10110" => tos_n  <=  tos_c(16) & tos_c(7 downto 0) & tos_c(15 downto 8);
                 when "10111" => int_en_n <= int_en_c xor '1'; -- toggle interrupts
                 when "11000" => tos_n   <=  std_logic_vector(unsigned(tos_c)-1); 
-                when "11001" =>
-                when "11010" =>
+                when "11001" => tos_n  <=  (0 => tos_c(16), others => '0');
+                when "11010" => tos_n(16) <= tos_c(0);
                 when "11011" =>
                 when "11100" =>
                 when "11101" =>
@@ -297,7 +297,7 @@ begin
             rstkD   <=  "000" & pc_plus_one; 
         elsif is_instr_alu = '1' then 
             rstkW   <=  insn(6);
-            rstkD   <=  tos_c;
+            rstkD   <=  tos_c(15 downto 0);
             -- Signed addition, trust me, it's signed.
             vstkp_n <=  std_logic_vector(unsigned(vstkp_c) + unsigned(dd));
             rstkp_n <=  std_logic_vector(unsigned(rstkp_c) + unsigned(rd));
