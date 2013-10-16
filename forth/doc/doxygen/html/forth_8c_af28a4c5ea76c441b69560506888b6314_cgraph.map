@@ -1,6 +1,0 @@
-<map id="find_word" name="find_word">
-<area shape="rect" id="node3" href="$forth_8c.html#a2c0ce48d9e9e447226bc0a0917345814" title="get_word" alt="" coords="133,32,208,61"/>
-<area shape="rect" id="node9" href="$forth_8c.html#a57f4bfac4b5d7444fa81f64f54a08d17" title="strnequ" alt="" coords="139,85,203,115"/>
-<area shape="rect" id="node5" href="$forth_8c.html#a22e0ba08ea2327a665ce7134fd57c9f8" title="wrap_get" alt="" coords="265,5,340,35"/>
-<area shape="rect" id="node7" href="$forth_8c.html#a607bd2b5f8c12913b9bb6f02548df5a0" title="my_isspace" alt="" coords="257,59,348,88"/>
-</map>

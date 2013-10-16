@@ -1,9 +1,0 @@
-<map id="get_word" name="get_word">
-<area shape="rect" id="node3" href="$forth_8c.html#a02c1a33b9cadbbe239d8729d6076693d" title="compile_word" alt="" coords="129,84,231,113"/>
-<area shape="rect" id="node9" href="$forth_8h.html#a15f31b521cd9bd4783605bb16598cce2" title="forth_interpreter" alt="" coords="465,136,577,165"/>
-<area shape="rect" id="node16" href="$forth_8c.html#af28a4c5ea76c441b69560506888b6314" title="find_word" alt="" coords="141,213,219,243"/>
-<area shape="rect" id="node5" href="$forth_8c.html#ad59675794996fc8ec3a10e5fdec563e1" title="compile_word_prim" alt="" coords="281,5,415,35"/>
-<area shape="rect" id="node7" href="$forth_8c.html#ad62155ee34b2fe1075f7a207b4add8c9" title="forth_initialize" alt="" coords="297,59,399,88"/>
-<area shape="rect" id="node11" href="$forth_8h.html#ab7483c43ac03c2f24c684b22eaee9275" title="forth_monitor" alt="" coords="627,136,725,165"/>
-<area shape="rect" id="node13" href="$main_8c.html#a0ddf1224851353fc92bfbff6f499fa97" title="main" alt="" coords="773,136,824,165"/>
-</map>
