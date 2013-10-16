@@ -15,6 +15,7 @@
 --!  * Interrupts, Test them
 --!  * Interrupt handling needs to be improved, ie - simultaneous interrupts
 --!  * Carry Flag: Test it and move around instructions.
+--!  * Rotate through carry?
 --!  * Make CPU more generic:
 --!    - instead of (15 downto 0) have (15_bit downto 0_bit)
 --!      where 15_bit and 0_bit are constants that can be moved
@@ -220,13 +221,13 @@ begin
                 when "01011" =>  tos_n  <=  std_logic_vector(unsigned(nos)-unsigned(tos_c));
 -- SLOW Instructions: These instructions are slow to execute so have been commented out ---
                 when "01100" =>
---                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
+                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
                 when "01101" =>  
---                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
+                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
                 when "01110" => 
---                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) rol to_integer(unsigned(tos_c(3 downto 0))));
+                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) rol to_integer(unsigned(tos_c(3 downto 0))));
                 when "01111" =>
---                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
+                    tos_n   <=  "0" & std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
                 when "10000" => 
 --                    tos_n   <=  "0" & std_logic_vector(unsigned(nos(7 downto 0)) * to_integer(unsigned(tos_c(7 downto 0))));
 -- SLOW Instructions ---
