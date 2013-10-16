@@ -32,7 +32,7 @@ RMSTR=bin/forth bin/*.o memory.txt *.log *.swo *.swp *.o lib/*~ *~ *.gcov *.gcda
 INDENTSTR=-v -linux -nut -i2 -l120 -lc120 lib/*.h lib/*.c main.c
 SPLINTSTR=-forcehint main.c lib/*.h lib/*.c
 
-DOXYFILE=doxygen.conf
+DOXYFILE=doc/doxygen.conf
 
 ## Help
 

@@ -1,3 +1,7 @@
+doxy/
+doxy/*
+doxy/html/*
+doxy/latex/*
 *.swp
 *.swo
 *.o
@@ -93,3 +97,4 @@ xlnx_auto_0_xdb/
 xst/
 _ngo/
 _xmsgs/
+

@@ -1,0 +1,8 @@
+<map id="forth_initialize" name="forth_initialize">
+<area shape="rect" id="node3" href="$forth_8c.html#a02c1a33b9cadbbe239d8729d6076693d" title="compile_word" alt="" coords="159,85,260,115"/>
+<area shape="rect" id="node5" href="$forth_8c.html#a2c0ce48d9e9e447226bc0a0917345814" title="get_word" alt="" coords="313,32,388,61"/>
+<area shape="rect" id="node11" href="$forth_8c.html#a316f83edfad9d72f086762c545b6e45e" title="my_strcpy" alt="" coords="309,85,392,115"/>
+<area shape="rect" id="node13" href="$forth_8c.html#a081cdb70712b1d349cd768c2ca8ab699" title="my_strlen" alt="" coords="312,139,389,168"/>
+<area shape="rect" id="node7" href="$forth_8c.html#a22e0ba08ea2327a665ce7134fd57c9f8" title="wrap_get" alt="" coords="449,5,524,35"/>
+<area shape="rect" id="node9" href="$forth_8c.html#a607bd2b5f8c12913b9bb6f02548df5a0" title="my_isspace" alt="" coords="441,59,532,88"/>
+</map>

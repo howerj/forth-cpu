@@ -73,6 +73,16 @@ start
   _togglei _depth \ Set interrupt enable to '1'.
   _swapbytes
 
+
+  32767 lit
+  _dup
+  _dup
+  _dup
+
+  _+
+  _+
+  _+
+
   1 lit
   1 lit
   _=

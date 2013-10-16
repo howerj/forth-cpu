@@ -6,6 +6,7 @@
 # @License		LGPL
 #
 
+DOXYFILE=doxygen.conf
 
 ## Remember to update the synthesis section as well
 SOURCES = \
@@ -42,6 +43,8 @@ all:
 	@echo "Cleanup:"
 	@echo ""
 	@echo "make clean          - delete temporary files and cleanup directory"
+	@echo ""
+	@echo "make doxygen"       - make doxygen documentation
 	@echo ""
 
 ##
@@ -200,6 +203,9 @@ upload:
 
 design: clean simulation synthesis implementation bifile
 
+doxygen: $(DOXYFILE)
+	@doxygen $(DOXYFILE)
+
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."
 	@rm -vf *~ *.o trace.dat test_bench test_bench.ghw work-obj93.cf top_level.ngc top_level.ngd top_level_map.ngm \
@@ -208,4 +214,6 @@ clean:
 	      top_level_map.map top_level_map.xrpt par_usage_statistics.html top_level.ptwx top_level.pad top_level_pad.csv \
 	      top_level.unroutes top_level.xpi top_level_par.xrpt top_level.twx top_level.nlf design.bit top_level_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
+	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
+	@rm -vrf doxy/
 	@rm -vf usage_statistics_webtalk.html

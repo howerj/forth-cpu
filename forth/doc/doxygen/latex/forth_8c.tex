@@ -1,0 +1,2265 @@
+\hypertarget{forth_8c}{\section{lib/forth.c File Reference}
+\label{forth_8c}\index{lib/forth.\-c@{lib/forth.\-c}}
+}
+
+
+A portable forth interpreter written in C. It can be used as a library and is {\itshape very} easy to port to different platforms being written in A\-N\-S\-I C.  
+
+
+{\ttfamily \#include $<$stdio.\-h$>$}\\*
+{\ttfamily \#include $<$stdlib.\-h$>$}\\*
+{\ttfamily \#include $<$stdint.\-h$>$}\\*
+{\ttfamily \#include \char`\"{}forth.\-h\char`\"{}}\\*
+Include dependency graph for forth.\-c\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=292pt]{forth_8c__incl}
+\end{center}
+\end{figure}
+\subsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \hyperlink{forth_8c_ad8021f5002052c30327d455bbaba45f6}{X}(a, b, c)~b
+\item 
+\#define \hyperlink{forth_8c_ad8021f5002052c30327d455bbaba45f6}{X}(a, b, c)~c
+\item 
+\#define \hyperlink{forth_8c_a8a0d2d602acb24d74237c3f310e935cd}{X}(a, b)~b
+\item 
+\#define \hyperlink{forth_8c_a32503ae89f3881e280be79eefc4da0d7}{M\-A\-X\-\_\-\-B\-A\-S\-E}~16
+\item 
+\#define \hyperlink{forth_8c_abc35d798db60993a79e9c2bba8d4517a}{E\-C\-B}(M\-I\-N, M\-A\-X, T\-E\-S\-T, E\-R\-R, E\-R\-R\-\_\-\-S\-T\-R\-M)
+\item 
+\#define \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{E\-C\-U\-Z}(M\-A\-X, V\-T, E\-R\-R, E\-R\-R\-\_\-\-S\-T\-R\-M)
+\item 
+\#define \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{E\-R\-R\-\_\-\-L\-N\-\_\-\-P\-R\-N}(E\-R\-R\-\_\-\-S\-T\-R\-M)~\hyperlink{forth_8c_a9c0d8916c2fd2c72650a5011b858d662}{print\-\_\-line\-\_\-file}(\-\_\-\-\_\-\-L\-I\-N\-E\-\_\-\-\_\-,\-\_\-\-\_\-\-F\-I\-L\-E\-\_\-\-\_\-,E\-R\-R\-\_\-\-S\-T\-R\-M);
+\item 
+\#define \hyperlink{forth_8c_ac7127970f482448895d8b1277e076fff}{S\-I\-G\-N\-E\-D\-\_\-\-D\-I\-V\-I\-D\-E\-\_\-\-C\-H\-E\-C\-K}(D\-I\-V\-I\-D\-E\-N\-D, D\-I\-V\-I\-S\-O\-R)~((\hyperlink{forth_8h_a74ecda97cea13471a5cad03161d03b2c}{W\-O\-R\-D\-\_\-\-M\-I\-N} == (D\-I\-V\-I\-S\-O\-R)) \&\& (-\/1 == (D\-I\-V\-I\-D\-E\-N\-D)))
+\item 
+\#define \hyperlink{forth_8c_aa36f1b6072dd69776049d747811a3868}{C\-O\-M\-P\-I\-L\-E\-\_\-\-P\-R\-I\-M}(\hyperlink{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{X})~if(\hyperlink{forth_8c_ad59675794996fc8ec3a10e5fdec563e1}{compile\-\_\-word\-\_\-prim}(fo,(\hyperlink{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{X}))!=E\-R\-R\-\_\-\-O\-K)\{ return E\-R\-R\-\_\-\-F\-A\-I\-L\-U\-R\-E; \}
+\item 
+\#define \hyperlink{forth_8c_a10e3c21bf53b34955783bd91accea2ec}{N\-U\-L\-L\-C\-H\-K\-\_\-\-M}(\hyperlink{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{X})~if(N\-U\-L\-L == (\hyperlink{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{X}))\{ \hyperlink{forth_8c_a1c112c5917517e45cecf37c24a807ad3}{report\-\_\-error}(E\-R\-R\-\_\-\-N\-U\-L\-L); return E\-R\-R\-\_\-\-F\-A\-I\-L\-U\-R\-E; \}
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+static enum \hyperlink{forth_8h_af6a258d8f3ee5206d682d799316314b1}{bool} \hyperlink{forth_8c_a607bd2b5f8c12913b9bb6f02548df5a0}{my\-\_\-isspace} (char x)
+\item 
+static enum \hyperlink{forth_8h_af6a258d8f3ee5206d682d799316314b1}{bool} \hyperlink{forth_8c_a66b6ee337b798835fd5586827a994f8a}{my\-\_\-isdigit} (char x)
+\item 
+static int \hyperlink{forth_8c_a22e0ba08ea2327a665ce7134fd57c9f8}{wrap\-\_\-get} (\hyperlink{forth_8h_a56e674ed4ad39d3d497ca51d35fc9861}{fio\-\_\-t} $\ast$in\-\_\-file)
+\item 
+static int \hyperlink{forth_8c_aaf0a04db2927d3e52b821327d8c7c5cd}{wrap\-\_\-put} (\hyperlink{forth_8h_a56e674ed4ad39d3d497ca51d35fc9861}{fio\-\_\-t} $\ast$out\-\_\-file, char c)
+\item 
+static \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_a2c0ce48d9e9e447226bc0a0917345814}{get\-\_\-word} (char $\ast$str, const \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} str\-\_\-len, \hyperlink{forth_8h_a56e674ed4ad39d3d497ca51d35fc9861}{fio\-\_\-t} $\ast$io\-\_\-file)
+\item 
+static \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_ae4d1df7fcacd0d685704494fe29cc3ef}{isnumber} (const char s\mbox{[}$\,$\mbox{]})
+\item 
+static \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_a57f4bfac4b5d7444fa81f64f54a08d17}{strnequ} (const char str1\mbox{[}$\,$\mbox{]}, const char str2\mbox{[}$\,$\mbox{]}, const \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} lim1, const \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} lim2)
+\item 
+static \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_a081cdb70712b1d349cd768c2ca8ab699}{my\-\_\-strlen} (const char s\mbox{[}$\,$\mbox{]}, const int maxlen)
+\item 
+static \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_add50d3b02ac22080c240801698cdfd40}{kr\-\_\-atoi} (const char s\mbox{[}$\,$\mbox{]})
+\item 
+static char $\ast$ \hyperlink{forth_8c_a1ea5632b1de4c8f52ade798756f62c78}{my\-\_\-itoa} (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} value, int base)
+\item 
+static void \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\-\_\-string} (const char $\ast$s, const \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} max, \hyperlink{forth_8h_a56e674ed4ad39d3d497ca51d35fc9861}{fio\-\_\-t} $\ast$out\-\_\-file)
+\item 
+static void \hyperlink{forth_8c_a9c0d8916c2fd2c72650a5011b858d662}{print\-\_\-line\-\_\-file} (int line, const char $\ast$file, \hyperlink{forth_8h_a56e674ed4ad39d3d497ca51d35fc9861}{fio\-\_\-t} $\ast$err\-\_\-file)
+\item 
+static \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_af28a4c5ea76c441b69560506888b6314}{find\-\_\-word} (\hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$fo)
+\item 
+static void \hyperlink{forth_8c_a316f83edfad9d72f086762c545b6e45e}{my\-\_\-strcpy} (char $\ast$destination, const char $\ast$source)
+\item 
+static \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_a02c1a33b9cadbbe239d8729d6076693d}{compile\-\_\-word} (\hyperlink{forth_8h_a7c6d60f89f63bc3d21ce2e1b1933f9b4}{forth\-\_\-primitives\-\_\-e} fp, \hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$fo, enum \hyperlink{forth_8h_af6a258d8f3ee5206d682d799316314b1}{bool} flag, const char $\ast$prim)
+\item 
+static \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_ad59675794996fc8ec3a10e5fdec563e1}{compile\-\_\-word\-\_\-prim} (\hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$fo, const char $\ast$prim)
+\item 
+static \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_ad62155ee34b2fe1075f7a207b4add8c9}{forth\-\_\-initialize} (\hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$fo)
+\item 
+static void \hyperlink{forth_8c_a5b6d7f9feea1e251c83be8ccea305b9b}{on\-\_\-err} (\hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$fo)
+\item 
+static \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_aa8fc14d61a957afb232974cd71b1d911}{forth\-\_\-system\-\_\-calls} (\hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$fo, \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} enum\-\_\-syscall)
+\item 
+static void \hyperlink{forth_8c_a1c112c5917517e45cecf37c24a807ad3}{report\-\_\-error} (\hyperlink{forth_8h_a14a35d5745798f9b629c0c7679564e56}{forth\-\_\-errors\-\_\-e} e)
+\item 
+\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_a15f31b521cd9bd4783605bb16598cce2}{forth\-\_\-interpreter} (\hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$fo)
+\item 
+\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} \hyperlink{forth_8c_ab7483c43ac03c2f24c684b22eaee9275}{forth\-\_\-monitor} (\hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$fo)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+static const char $\ast$ \hyperlink{forth_8c_ad93160a995325171d8786ccb79581034}{forth\-\_\-error\-\_\-str} \mbox{[}$\,$\mbox{]}
+\item 
+static const \hyperlink{forth_8h_a258cc49b01bd3eba18bfecb300ac2b64}{forth\-\_\-error\-\_\-action\-\_\-e} \hyperlink{forth_8c_a373ba9f62b95705d174e3c813af0f980}{f\-\_\-error\-\_\-action} \mbox{[}$\,$\mbox{]}
+\item 
+static const char $\ast$ \hyperlink{forth_8c_a9b1fedc225635da50917e473e785dabe}{forth\-\_\-primitives\-\_\-str} \mbox{[}$\,$\mbox{]}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+A portable forth interpreter written in C. It can be used as a library and is {\itshape very} easy to port to different platforms being written in A\-N\-S\-I C. Howe Forth.
+
+\begin{DoxyAuthor}{Author}
+Richard James Howe. 
+\end{DoxyAuthor}
+\begin{DoxyCopyright}{Copyright}
+Copyright 2013 Richard James Howe. 
+\end{DoxyCopyright}
+\begin{DoxyParagraph}{License\-:}
+L\-G\-P\-L 
+\end{DoxyParagraph}
+\begin{DoxyParagraph}{Email\-:}
+\href{mailto:howe.r.j.89@gmail.com}{\tt howe.\-r.\-j.\-89@gmail.\-com} 
+\end{DoxyParagraph}
+
+
+Definition in file \hyperlink{forth_8c_source}{forth.\-c}.
+
+
+
+\subsection{Macro Definition Documentation}
+\hypertarget{forth_8c_aa36f1b6072dd69776049d747811a3868}{\index{forth.\-c@{forth.\-c}!C\-O\-M\-P\-I\-L\-E\-\_\-\-P\-R\-I\-M@{C\-O\-M\-P\-I\-L\-E\-\_\-\-P\-R\-I\-M}}
+\index{C\-O\-M\-P\-I\-L\-E\-\_\-\-P\-R\-I\-M@{C\-O\-M\-P\-I\-L\-E\-\_\-\-P\-R\-I\-M}!forth.c@{forth.\-c}}
+\subsubsection[{C\-O\-M\-P\-I\-L\-E\-\_\-\-P\-R\-I\-M}]{\setlength{\rightskip}{0pt plus 5cm}\#define C\-O\-M\-P\-I\-L\-E\-\_\-\-P\-R\-I\-M(
+\begin{DoxyParamCaption}
+\item[{}]{{\bf X}}
+\end{DoxyParamCaption}
+)~if({\bf compile\-\_\-word\-\_\-prim}(fo,({\bf X}))!=E\-R\-R\-\_\-\-O\-K)\{ return E\-R\-R\-\_\-\-F\-A\-I\-L\-U\-R\-E; \}}}\label{forth_8c_aa36f1b6072dd69776049d747811a3868}
+
+
+Definition at line 422 of file forth.\-c.
+
+
+
+Referenced by forth\-\_\-initialize().
+
+\hypertarget{forth_8c_abc35d798db60993a79e9c2bba8d4517a}{\index{forth.\-c@{forth.\-c}!E\-C\-B@{E\-C\-B}}
+\index{E\-C\-B@{E\-C\-B}!forth.c@{forth.\-c}}
+\subsubsection[{E\-C\-B}]{\setlength{\rightskip}{0pt plus 5cm}\#define E\-C\-B(
+\begin{DoxyParamCaption}
+\item[{}]{M\-I\-N, }
+\item[{}]{M\-A\-X, }
+\item[{}]{T\-E\-S\-T, }
+\item[{}]{E\-R\-R, }
+\item[{}]{E\-R\-R\-\_\-\-S\-T\-R\-M}
+\end{DoxyParamCaption}
+)}}\label{forth_8c_abc35d798db60993a79e9c2bba8d4517a}
+{\bfseries Value\-:}
+\begin{DoxyCode}
+\textcolor{keywordflow}{if}((TEST>(MAX-2))||(TEST<MIN))\{ \(\backslash\)
+    print\_line\_file(\_\_LINE\_\_,\_\_FILE\_\_,ERR\_STRM);                          \(\backslash\)
+    return ERR;                                                           \(\backslash\)
+\}
+\end{DoxyCode}
+define U\-N\-C\-H\-E\-C\-K to stop bounds being checked 
+
+Definition at line 300 of file forth.\-c.
+
+
+
+Referenced by forth\-\_\-interpreter(), and forth\-\_\-system\-\_\-calls().
+
+\hypertarget{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{\index{forth.\-c@{forth.\-c}!E\-C\-U\-Z@{E\-C\-U\-Z}}
+\index{E\-C\-U\-Z@{E\-C\-U\-Z}!forth.c@{forth.\-c}}
+\subsubsection[{E\-C\-U\-Z}]{\setlength{\rightskip}{0pt plus 5cm}\#define E\-C\-U\-Z(
+\begin{DoxyParamCaption}
+\item[{}]{M\-A\-X, }
+\item[{}]{V\-T, }
+\item[{}]{E\-R\-R, }
+\item[{}]{E\-R\-R\-\_\-\-S\-T\-R\-M}
+\end{DoxyParamCaption}
+)}}\label{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}
+{\bfseries Value\-:}
+\begin{DoxyCode}
+\textcolor{keywordflow}{if}((VT>(MAX-2))||(VT<0))\{  \(\backslash\)
+    print\_line\_file(\_\_LINE\_\_,\_\_FILE\_\_,ERR\_STRM);             \(\backslash\)
+    return ERR;                                              \(\backslash\)
+\}
+\end{DoxyCode}
+Signed type, check against upper bound and $<$ 0 
+
+Definition at line 307 of file forth.\-c.
+
+
+
+Referenced by compile\-\_\-word(), find\-\_\-word(), forth\-\_\-initialize(), forth\-\_\-interpreter(), and forth\-\_\-system\-\_\-calls().
+
+\hypertarget{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{\index{forth.\-c@{forth.\-c}!E\-R\-R\-\_\-\-L\-N\-\_\-\-P\-R\-N@{E\-R\-R\-\_\-\-L\-N\-\_\-\-P\-R\-N}}
+\index{E\-R\-R\-\_\-\-L\-N\-\_\-\-P\-R\-N@{E\-R\-R\-\_\-\-L\-N\-\_\-\-P\-R\-N}!forth.c@{forth.\-c}}
+\subsubsection[{E\-R\-R\-\_\-\-L\-N\-\_\-\-P\-R\-N}]{\setlength{\rightskip}{0pt plus 5cm}\#define E\-R\-R\-\_\-\-L\-N\-\_\-\-P\-R\-N(
+\begin{DoxyParamCaption}
+\item[{}]{E\-R\-R\-\_\-\-S\-T\-R\-M}
+\end{DoxyParamCaption}
+)~{\bf print\-\_\-line\-\_\-file}(\-\_\-\-\_\-\-L\-I\-N\-E\-\_\-\-\_\-,\-\_\-\-\_\-\-F\-I\-L\-E\-\_\-\-\_\-,E\-R\-R\-\_\-\-S\-T\-R\-M);}}\label{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}
+
+
+Definition at line 321 of file forth.\-c.
+
+
+
+Referenced by find\-\_\-word(), forth\-\_\-interpreter(), and forth\-\_\-system\-\_\-calls().
+
+\hypertarget{forth_8c_a32503ae89f3881e280be79eefc4da0d7}{\index{forth.\-c@{forth.\-c}!M\-A\-X\-\_\-\-B\-A\-S\-E@{M\-A\-X\-\_\-\-B\-A\-S\-E}}
+\index{M\-A\-X\-\_\-\-B\-A\-S\-E@{M\-A\-X\-\_\-\-B\-A\-S\-E}!forth.c@{forth.\-c}}
+\subsubsection[{M\-A\-X\-\_\-\-B\-A\-S\-E}]{\setlength{\rightskip}{0pt plus 5cm}\#define M\-A\-X\-\_\-\-B\-A\-S\-E~16}}\label{forth_8c_a32503ae89f3881e280be79eefc4da0d7}
+T\-O\-D\-O buf needs replacing with an external pointer Refactor code 
+
+Definition at line 252 of file forth.\-c.
+
+
+
+Referenced by forth\-\_\-interpreter(), and my\-\_\-itoa().
+
+\hypertarget{forth_8c_a10e3c21bf53b34955783bd91accea2ec}{\index{forth.\-c@{forth.\-c}!N\-U\-L\-L\-C\-H\-K\-\_\-\-M@{N\-U\-L\-L\-C\-H\-K\-\_\-\-M}}
+\index{N\-U\-L\-L\-C\-H\-K\-\_\-\-M@{N\-U\-L\-L\-C\-H\-K\-\_\-\-M}!forth.c@{forth.\-c}}
+\subsubsection[{N\-U\-L\-L\-C\-H\-K\-\_\-\-M}]{\setlength{\rightskip}{0pt plus 5cm}\#define N\-U\-L\-L\-C\-H\-K\-\_\-\-M(
+\begin{DoxyParamCaption}
+\item[{}]{{\bf X}}
+\end{DoxyParamCaption}
+)~if(N\-U\-L\-L == ({\bf X}))\{ {\bf report\-\_\-error}(E\-R\-R\-\_\-\-N\-U\-L\-L); return E\-R\-R\-\_\-\-F\-A\-I\-L\-U\-R\-E; \}}}\label{forth_8c_a10e3c21bf53b34955783bd91accea2ec}
+
+
+Definition at line 1118 of file forth.\-c.
+
+
+
+Referenced by forth\-\_\-monitor().
+
+\hypertarget{forth_8c_ac7127970f482448895d8b1277e076fff}{\index{forth.\-c@{forth.\-c}!S\-I\-G\-N\-E\-D\-\_\-\-D\-I\-V\-I\-D\-E\-\_\-\-C\-H\-E\-C\-K@{S\-I\-G\-N\-E\-D\-\_\-\-D\-I\-V\-I\-D\-E\-\_\-\-C\-H\-E\-C\-K}}
+\index{S\-I\-G\-N\-E\-D\-\_\-\-D\-I\-V\-I\-D\-E\-\_\-\-C\-H\-E\-C\-K@{S\-I\-G\-N\-E\-D\-\_\-\-D\-I\-V\-I\-D\-E\-\_\-\-C\-H\-E\-C\-K}!forth.c@{forth.\-c}}
+\subsubsection[{S\-I\-G\-N\-E\-D\-\_\-\-D\-I\-V\-I\-D\-E\-\_\-\-C\-H\-E\-C\-K}]{\setlength{\rightskip}{0pt plus 5cm}\#define S\-I\-G\-N\-E\-D\-\_\-\-D\-I\-V\-I\-D\-E\-\_\-\-C\-H\-E\-C\-K(
+\begin{DoxyParamCaption}
+\item[{}]{D\-I\-V\-I\-D\-E\-N\-D, }
+\item[{}]{D\-I\-V\-I\-S\-O\-R}
+\end{DoxyParamCaption}
+)~(({\bf W\-O\-R\-D\-\_\-\-M\-I\-N} == (D\-I\-V\-I\-S\-O\-R)) \&\& (-\/1 == (D\-I\-V\-I\-D\-E\-N\-D)))}}\label{forth_8c_ac7127970f482448895d8b1277e076fff}
+End bounds ifdef I\-N\-T\-\_\-\-M\-A\-X / -\/1 is an error, we need to check for this condition if and only if the data type we are using is signed 
+
+Definition at line 334 of file forth.\-c.
+
+
+
+Referenced by forth\-\_\-interpreter().
+
+\hypertarget{forth_8c_ad8021f5002052c30327d455bbaba45f6}{\index{forth.\-c@{forth.\-c}!X@{X}}
+\index{X@{X}!forth.c@{forth.\-c}}
+\subsubsection[{X}]{\setlength{\rightskip}{0pt plus 5cm}\#define X(
+\begin{DoxyParamCaption}
+\item[{}]{a, }
+\item[{}]{b, }
+\item[{}]{c}
+\end{DoxyParamCaption}
+)~b}}\label{forth_8c_ad8021f5002052c30327d455bbaba45f6}
+X-\/\-Macro definition of actions to take on error
+
+X-\/\-Macro definition of the names of primitives 
+
+Definition at line 60 of file forth.\-c.
+
+\hypertarget{forth_8c_ad8021f5002052c30327d455bbaba45f6}{\index{forth.\-c@{forth.\-c}!X@{X}}
+\index{X@{X}!forth.c@{forth.\-c}}
+\subsubsection[{X}]{\setlength{\rightskip}{0pt plus 5cm}\#define X(
+\begin{DoxyParamCaption}
+\item[{}]{a, }
+\item[{}]{b, }
+\item[{}]{c}
+\end{DoxyParamCaption}
+)~c}}\label{forth_8c_ad8021f5002052c30327d455bbaba45f6}
+X-\/\-Macro definition of actions to take on error
+
+X-\/\-Macro definition of the names of primitives 
+
+Definition at line 60 of file forth.\-c.
+
+\hypertarget{forth_8c_a8a0d2d602acb24d74237c3f310e935cd}{\index{forth.\-c@{forth.\-c}!X@{X}}
+\index{X@{X}!forth.c@{forth.\-c}}
+\subsubsection[{X}]{\setlength{\rightskip}{0pt plus 5cm}\#define X(
+\begin{DoxyParamCaption}
+\item[{}]{a, }
+\item[{}]{b}
+\end{DoxyParamCaption}
+)~b}}\label{forth_8c_a8a0d2d602acb24d74237c3f310e935cd}
+X-\/\-Macro definition of actions to take on error
+
+X-\/\-Macro definition of the names of primitives 
+
+Definition at line 60 of file forth.\-c.
+
+
+
+\subsection{Function Documentation}
+\hypertarget{forth_8c_a02c1a33b9cadbbe239d8729d6076693d}{\index{forth.\-c@{forth.\-c}!compile\-\_\-word@{compile\-\_\-word}}
+\index{compile\-\_\-word@{compile\-\_\-word}!forth.c@{forth.\-c}}
+\subsubsection[{compile\-\_\-word}]{\setlength{\rightskip}{0pt plus 5cm}static {\bf mw} compile\-\_\-word (
+\begin{DoxyParamCaption}
+\item[{{\bf forth\-\_\-primitives\-\_\-e}}]{fp, }
+\item[{{\bf fobj\-\_\-t} $\ast$}]{fo, }
+\item[{enum {\bf bool}}]{flag, }
+\item[{const char $\ast$}]{prim}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a02c1a33b9cadbbe239d8729d6076693d}
+
+
+Definition at line 387 of file forth.\-c.
+
+
+
+References D\-I\-C, forth\-\_\-obj\-::dic, E\-C\-U\-Z, forth\-\_\-obj\-::err\-\_\-file, get\-\_\-word(), forth\-\_\-obj\-::in\-\_\-file, I\-N\-\_\-\-S\-T\-R\-M, M\-A\-X\-\_\-\-S\-T\-R\-L\-E\-N, my\-\_\-strcpy(), my\-\_\-strlen(), P\-W\-D, forth\-\_\-obj\-::reg, S\-M\-\_\-input\-Buf\-Len, S\-M\-\_\-max\-Dic, S\-T\-R, forth\-\_\-obj\-::str, and W\-O\-R\-D\-C\-N\-T.
+
+
+
+Referenced by compile\-\_\-word\-\_\-prim(), forth\-\_\-initialize(), and forth\-\_\-interpreter().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} *\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg} = fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}, *\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic} = fo->\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic};
+  \textcolor{keywordtype}{char} *\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str} = fo->\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str};
+  \hyperlink{structfio__s}{fio\_t} *\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file} = fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}], *\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file}
+       = fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file};
+
+  \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic} - 3, \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}, ERR\_DIC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+  \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = \hyperlink{forth_8h_a0699c38e3c7f214f5c13ffe750e1f0ab}{PWD};
+  \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+  \hyperlink{forth_8h_a0699c38e3c7f214f5c13ffe750e1f0ab}{PWD} = \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC} - 1;
+  \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = \hyperlink{forth_8h_a87f23f9d76e3a2d5658da8dae25f38c4}{STR};
+  \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+  \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = fp;
+  \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+  \textcolor{keywordflow}{if} (flag)
+    \hyperlink{forth_8c_a316f83edfad9d72f086762c545b6e45e}{my\_strcpy}(str + \hyperlink{forth_8h_a87f23f9d76e3a2d5658da8dae25f38c4}{STR}, prim);
+  \textcolor{keywordflow}{else} \textcolor{keywordflow}{if} (ERR\_OK != \hyperlink{forth_8c_a2c0ce48d9e9e447226bc0a0917345814}{get\_word}(str + \hyperlink{forth_8h_a87f23f9d76e3a2d5658da8dae25f38c4}{STR}, \hyperlink{forth_8h_ac1ba278c41574f5a567be76396b3457b}{SM\_inputBufLen}
+      , in\_file))
+    \textcolor{keywordflow}{return} ERR\_FAILURE;
+  \hyperlink{forth_8h_a87f23f9d76e3a2d5658da8dae25f38c4}{STR} += \hyperlink{forth_8c_a081cdb70712b1d349cd768c2ca8ab699}{my\_strlen}(str + \hyperlink{forth_8h_a87f23f9d76e3a2d5658da8dae25f38c4}{STR}, \hyperlink{forth_8h_ae381522e1d10c3730b356f1ac5d2dccb}{MAX\_STRLEN}) + 1;
+  \hyperlink{forth_8h_a2d044d60d67e92d181ee634368f4c94c}{WORDCNT}++;
+  \textcolor{keywordflow}{return} ERR\_OK;
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a02c1a33b9cadbbe239d8729d6076693d_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a02c1a33b9cadbbe239d8729d6076693d_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_ad59675794996fc8ec3a10e5fdec563e1}{\index{forth.\-c@{forth.\-c}!compile\-\_\-word\-\_\-prim@{compile\-\_\-word\-\_\-prim}}
+\index{compile\-\_\-word\-\_\-prim@{compile\-\_\-word\-\_\-prim}!forth.c@{forth.\-c}}
+\subsubsection[{compile\-\_\-word\-\_\-prim}]{\setlength{\rightskip}{0pt plus 5cm}static {\bf mw} compile\-\_\-word\-\_\-prim (
+\begin{DoxyParamCaption}
+\item[{{\bf fobj\-\_\-t} $\ast$}]{fo, }
+\item[{const char $\ast$}]{prim}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_ad59675794996fc8ec3a10e5fdec563e1}
+
+
+Definition at line 411 of file forth.\-c.
+
+
+
+References compile\-\_\-word(), D\-I\-C, forth\-\_\-obj\-::dic, O\-P0, and forth\-\_\-obj\-::reg.
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} *\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg} = fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}, *\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic} = fo->\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}, \hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret};
+  \hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret} = \hyperlink{forth_8c_a02c1a33b9cadbbe239d8729d6076693d}{compile\_word}(COMPILE, fo, \textcolor{keyword}{true}, prim);
+  \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0};
+  \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+  \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0}++;
+  \textcolor{comment}{/*Here in case I want to return error codes instead. */}
+  \textcolor{keywordflow}{return} \hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret};
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_ad59675794996fc8ec3a10e5fdec563e1_cgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_af28a4c5ea76c441b69560506888b6314}{\index{forth.\-c@{forth.\-c}!find\-\_\-word@{find\-\_\-word}}
+\index{find\-\_\-word@{find\-\_\-word}!forth.c@{forth.\-c}}
+\subsubsection[{find\-\_\-word}]{\setlength{\rightskip}{0pt plus 5cm}static {\bf mw} find\-\_\-word (
+\begin{DoxyParamCaption}
+\item[{{\bf fobj\-\_\-t} $\ast$}]{fo}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_af28a4c5ea76c441b69560506888b6314}
+
+
+Definition at line 344 of file forth.\-c.
+
+
+
+References forth\-\_\-obj\-::dic, E\-C\-U\-Z, forth\-\_\-obj\-::err\-\_\-file, E\-R\-R\-\_\-\-L\-N\-\_\-\-P\-R\-N, get\-\_\-word(), forth\-\_\-obj\-::in\-\_\-file, I\-N\-\_\-\-S\-T\-R\-M, O\-P0, O\-P1, P\-W\-D, forth\-\_\-obj\-::reg, S\-M\-\_\-input\-Buf\-Len, S\-M\-\_\-max\-Dic, S\-M\-\_\-max\-Str, forth\-\_\-obj\-::str, strnequ(), W\-O\-R\-D\-C\-N\-T, and W\-O\-R\-D\-I\-N\-X.
+
+
+
+Referenced by forth\-\_\-interpreter().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} *\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg} = fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}, *\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic} = fo->\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic};
+  \textcolor{keywordtype}{char} *\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str} = fo->\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str};
+  \hyperlink{structfio__s}{fio\_t} *\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file} = fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}], *\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file}
+       = fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file};
+
+  \textcolor{keywordflow}{if} (ERR\_FAILURE == \hyperlink{forth_8c_a2c0ce48d9e9e447226bc0a0917345814}{get\_word}(str, \hyperlink{forth_8h_ac1ba278c41574f5a567be76396b3457b}{SM\_inputBufLen}, 
+      in\_file)) \{
+    \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+    \textcolor{keywordflow}{return} ERR\_EOF;
+  \}
+  \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} = \hyperlink{forth_8h_a0699c38e3c7f214f5c13ffe750e1f0ab}{PWD};
+  \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} + 1, ERR\_OP0, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+  \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a0346ea3c27c5e264e231a66fca2550a4}{SM\_maxStr}, \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} + 1], ERR\_DIC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+
+  \hyperlink{forth_8h_a9e2701f131f0d17e24e2b49c00413ed3}{WORDINX} = 0;
+  \textcolor{keywordflow}{while} ((\hyperlink{forth_8h_a822773627f2e426014392d689ddd146e}{OP1} = \hyperlink{forth_8c_a57f4bfac4b5d7444fa81f64f54a08d17}{strnequ}(str, &str[\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} + 1]], \hyperlink{forth_8h_ac1ba278c41574f5a567be76396b3457b}{SM\_inputBufLen}
+      , \hyperlink{forth_8h_a0346ea3c27c5e264e231a66fca2550a4}{SM\_maxStr})) != 0) \{
+    \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a822773627f2e426014392d689ddd146e}{OP1} == 2) \{             \textcolor{comment}{/*2 signifies string limited exceeded. */}
+      \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{return} ERR\_IO;
+    \}
+    \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0}, ERR\_OP0, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+
+    \textcolor{comment}{/* Sanity check, prevents loops */}
+    \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a9e2701f131f0d17e24e2b49c00413ed3}{WORDINX} > \hyperlink{forth_8h_a2d044d60d67e92d181ee634368f4c94c}{WORDCNT}) \{
+      \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{return} ERR\_PWD;
+    \}
+    \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} = \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0}];
+    \hyperlink{forth_8h_a9e2701f131f0d17e24e2b49c00413ed3}{WORDINX}++;
+  \}
+
+  \textcolor{keywordflow}{return} ERR\_OK;
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=338pt]{forth_8c_af28a4c5ea76c441b69560506888b6314_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_af28a4c5ea76c441b69560506888b6314_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_ad62155ee34b2fe1075f7a207b4add8c9}{\index{forth.\-c@{forth.\-c}!forth\-\_\-initialize@{forth\-\_\-initialize}}
+\index{forth\-\_\-initialize@{forth\-\_\-initialize}!forth.c@{forth.\-c}}
+\subsubsection[{forth\-\_\-initialize}]{\setlength{\rightskip}{0pt plus 5cm}static {\bf mw} forth\-\_\-initialize (
+\begin{DoxyParamCaption}
+\item[{{\bf fobj\-\_\-t} $\ast$}]{fo}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_ad62155ee34b2fe1075f7a207b4add8c9}
+
+
+Definition at line 423 of file forth.\-c.
+
+
+
+References C\-O\-M\-P\-I\-L\-E\-\_\-\-P\-R\-I\-M, compile\-\_\-word(), C\-P\-F, D\-I\-C, forth\-\_\-obj\-::dic, E\-C\-U\-Z, forth\-\_\-obj\-::err\-\_\-file, forth\-\_\-primitives\-\_\-str, I\-N\-I, M\-I\-N\-\_\-\-D\-I\-C, M\-I\-N\-\_\-\-D\-I\-C\-\_\-\-O\-F\-F, M\-I\-N\-\_\-\-I\-N\-B\-U\-F, M\-I\-N\-\_\-\-R\-E\-G, M\-I\-N\-\_\-\-R\-E\-T, M\-I\-N\-\_\-\-S\-T\-R, M\-I\-N\-\_\-\-V\-A\-R, O\-P0, P\-C, P\-W\-D, forth\-\_\-obj\-::reg, R\-E\-T, forth\-\_\-obj\-::ret, S\-M\-\_\-dictionary\-Offset, S\-M\-\_\-input\-Buf\-Len, S\-M\-\_\-max\-Dic, S\-M\-\_\-max\-Reg, S\-M\-\_\-max\-Ret, S\-M\-\_\-max\-Str, S\-M\-\_\-max\-Var, and S\-T\-R.
+
+
+
+Referenced by forth\-\_\-interpreter().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} *\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg} = fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}, *\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic} = fo->\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}, *\hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret} = fo->\hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret};
+  \hyperlink{structfio__s}{fio\_t} *\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file} = fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file};
+  \textcolor{keywordtype}{unsigned} \textcolor{keywordtype}{int} i;
+
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8h_ac357f2e000b4058d1d25fef72c999ab6}{SM\_maxReg} < \hyperlink{forth_8h_aa925c97939f2fae2bab06b7932990ef5}{MIN\_REG})
+    \textcolor{keywordflow}{return} ERR\_MINIMUM\_MEM;
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic} < \hyperlink{forth_8h_a892f10fbddc6ab7e2f1eccf66241f6c8}{MIN\_DIC})
+    \textcolor{keywordflow}{return} ERR\_MINIMUM\_MEM;
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8h_af94aaf2e251861138e740f40229fe318}{SM\_maxRet} < \hyperlink{forth_8h_a43c6520d0a8db775f549fe96e6f9e8c6}{MIN\_RET})
+    \textcolor{keywordflow}{return} ERR\_MINIMUM\_MEM;
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar} < \hyperlink{forth_8h_a24df039d7d5710aa0188c2f21d241130}{MIN\_VAR})
+    \textcolor{keywordflow}{return} ERR\_MINIMUM\_MEM;
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a0346ea3c27c5e264e231a66fca2550a4}{SM\_maxStr} < \hyperlink{forth_8h_aebb7c45d250d3e870216030451765d7f}{MIN\_STR})
+    \textcolor{keywordflow}{return} ERR\_MINIMUM\_MEM;
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8h_ac1ba278c41574f5a567be76396b3457b}{SM\_inputBufLen} < \hyperlink{forth_8h_a3b86f0d4dbb471ba4d7d9b9edba8e691}{MIN\_INBUF})
+    \textcolor{keywordflow}{return} ERR\_MINIMUM\_MEM;
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a2421f06b25b200a8291955eee68f867a}{SM\_dictionaryOffset} < \hyperlink{forth_8h_ab52794db58dea5966fa91b890b1acad2}{MIN\_DIC\_OFF})
+    \textcolor{keywordflow}{return} ERR\_MINIMUM\_MEM;
+
+  \textcolor{comment}{/*Set up the dictionary */}
+  \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC} = \hyperlink{forth_8h_a2421f06b25b200a8291955eee68f867a}{SM\_dictionaryOffset};
+  \hyperlink{forth_8h_a87f23f9d76e3a2d5658da8dae25f38c4}{STR} = \hyperlink{forth_8h_ac1ba278c41574f5a567be76396b3457b}{SM\_inputBufLen};
+  \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC} = 0;
+  \hyperlink{forth_8h_a0699c38e3c7f214f5c13ffe750e1f0ab}{PWD} = 1;
+
+  \textcolor{comment}{/*immediate words */}
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8c_a02c1a33b9cadbbe239d8729d6076693d}{compile\_word}(DEFINE, fo, \textcolor{keyword}{true}, \textcolor{stringliteral}{":"}) != ERR\_OK) \{
+    \textcolor{keywordflow}{return} ERR\_FAILURE;
+  \}
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8c_a02c1a33b9cadbbe239d8729d6076693d}{compile\_word}(IMMEDIATE, fo, \textcolor{keyword}{true}, \textcolor{stringliteral}{"immediate"}) != ERR\_OK) \{
+    \textcolor{keywordflow}{return} ERR\_FAILURE;
+  \}
+
+  \textcolor{comment}{/*define a special word (read) */}
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8c_a02c1a33b9cadbbe239d8729d6076693d}{compile\_word}(COMPILE, fo, \textcolor{keyword}{true}, \textcolor{stringliteral}{"read"}) != ERR\_OK) \{
+    \textcolor{keywordflow}{return} ERR\_FAILURE;
+  \}
+  \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} = \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC};
+  \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic} - 2, \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}, ERR\_DIC, err\_file);
+  \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = READ;
+  \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+  \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = RUN;
+  \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+  \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC} = \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC};
+  \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic} - 2, \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}, ERR\_DIC, err\_file);
+  \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0};
+  \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+  \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC} - 1;
+  \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+  \textcolor{comment}{/*...end special word definition */}
+
+  \textcolor{comment}{/*more immediate words */}
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8c_a02c1a33b9cadbbe239d8729d6076693d}{compile\_word}(COMMENT, fo, \textcolor{keyword}{true}, \textcolor{stringliteral}{"\(\backslash\)\(\backslash\)"}) != ERR\_OK) \{
+    \textcolor{keywordflow}{return} ERR\_FAILURE;
+  \}
+  \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} = EXIT;
+
+  \textcolor{keywordflow}{for} (i = EXIT; i < LAST\_PRIMITIVE; i++) \{
+    \hyperlink{forth_8c_aa36f1b6072dd69776049d747811a3868}{COMPILE\_PRIM}(\hyperlink{forth_8c_a9b1fedc225635da50917e473e785dabe}{forth\_primitives\_str}[i]);
+  \}
+
+  \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_af94aaf2e251861138e740f40229fe318}{SM\_maxRet}, \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}, ERR\_RET, err\_file);
+  \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}++;
+  \hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret}[\hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}] = \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC};
+  \hyperlink{forth_8h_ac872290e70cb6bf2b018d9e6b441216b}{CPF} = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) \textcolor{keyword}{true};
+  \hyperlink{forth_8h_ab3d6f7cc7deaab046f7412f5b52b25f7}{INI} = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) \textcolor{keyword}{false};
+
+  \textcolor{keywordflow}{return} ERR\_OK;
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_ad62155ee34b2fe1075f7a207b4add8c9_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_ad62155ee34b2fe1075f7a207b4add8c9_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a15f31b521cd9bd4783605bb16598cce2}{\index{forth.\-c@{forth.\-c}!forth\-\_\-interpreter@{forth\-\_\-interpreter}}
+\index{forth\-\_\-interpreter@{forth\-\_\-interpreter}!forth.c@{forth.\-c}}
+\subsubsection[{forth\-\_\-interpreter}]{\setlength{\rightskip}{0pt plus 5cm}{\bf mw} forth\-\_\-interpreter (
+\begin{DoxyParamCaption}
+\item[{{\bf fobj\-\_\-t} $\ast$}]{fo}
+\end{DoxyParamCaption}
+)}}\label{forth_8c_a15f31b521cd9bd4783605bb16598cce2}
+Unsigned shifts only and only by B\-I\-T\-\_\-\-S\-I\-Z\-E -\/ 1 to avoid undefined behavior
+
+Unsigned shifts only and only by B\-I\-T\-\_\-\-S\-I\-Z\-E -\/ 1 to avoid undefined behavior 
+
+Definition at line 680 of file forth.\-c.
+
+
+
+References B\-I\-T\-\_\-\-S\-I\-Z\-E, C\-C\-O\-U\-N\-T, compile\-\_\-word(), C\-P\-F, C\-Y\-C\-L\-E\-S, D\-I\-C, forth\-\_\-obj\-::dic, E\-C\-B, E\-C\-U\-Z, forth\-\_\-obj\-::err\-\_\-file, E\-R\-R\-\_\-\-L\-N\-\_\-\-P\-R\-N, find\-\_\-word(), forth\-\_\-initialize(), forth\-\_\-system\-\_\-calls(), get\-\_\-word(), forth\-\_\-obj\-::in\-\_\-file, I\-N\-\_\-\-S\-T\-R\-M, I\-N\-I, isnumber(), kr\-\_\-atoi(), M\-A\-X\-\_\-\-B\-A\-S\-E, M\-A\-X\-\_\-\-E\-R\-R\-\_\-\-S\-T\-R, M\-A\-X\-\_\-\-S\-T\-R\-L\-E\-N, my\-\_\-itoa(), my\-\_\-strlen(), N\-E\-X\-T, O\-P0, O\-P1, forth\-\_\-obj\-::out\-\_\-file, P\-C, print\-\_\-string(), forth\-\_\-obj\-::reg, R\-E\-T, forth\-\_\-obj\-::ret, S\-I\-G\-N\-E\-D\-\_\-\-D\-I\-V\-I\-D\-E\-\_\-\-C\-H\-E\-C\-K, S\-M\-\_\-input\-Buf\-Len, S\-M\-\_\-max\-Dic, S\-M\-\_\-max\-Reg, S\-M\-\_\-max\-Ret, S\-M\-\_\-max\-Str, S\-M\-\_\-max\-Var, forth\-\_\-obj\-::str, strnequ(), T\-O\-S, V\-A\-R, forth\-\_\-obj\-::var, wrap\-\_\-get(), and wrap\-\_\-put().
+
+
+
+Referenced by forth\-\_\-monitor().
+
+
+\begin{DoxyCode}
+\{
+
+  \textcolor{comment}{/*copy pointers, removes level of indirection */}
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} *\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg} = fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}, *\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic} = fo->\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}, *\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var} = fo->\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}, *\hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret}
+       = fo->\hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret};
+  \textcolor{keywordtype}{char} *\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str} = fo->\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str};
+  \hyperlink{structfio__s}{fio\_t} *\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file} = fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file}, *\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file} = fo->
+      \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file};
+
+  \textcolor{comment}{/*Initialization */}
+  \textcolor{keywordflow}{if} (\hyperlink{forth_8h_ab3d6f7cc7deaab046f7412f5b52b25f7}{INI} == (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) \textcolor{keyword}{true}) \{
+    \textcolor{keywordflow}{if} ((\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} = \hyperlink{forth_8c_ad62155ee34b2fe1075f7a207b4add8c9}{forth\_initialize}(fo)) != ERR\_OK) \{
+      \textcolor{keywordflow}{return} \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0};
+    \}
+  \}
+
+  \textcolor{comment}{/*VM*/} \textcolor{keywordflow}{while} (\textcolor{keyword}{true}) \{
+    \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}, ERR\_PC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+    \hyperlink{forth_8h_a2be29dbf95b4a2c822f307a5b8141184}{NEXT} = \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}];
+    \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}++;
+
+ TAIL\_RECURSE:
+\textcolor{preprocessor}{#ifdef RUN4X}
+\textcolor{preprocessor}{}    \textcolor{keywordflow}{if} (\hyperlink{forth_8h_aefaa39b3964e67a75caa022616289781}{CYCLES}) \{
+      \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a9078f53e58c1ac3623ca30fb49873d54}{CCOUNT} > 0) \{
+        \hyperlink{forth_8h_a9078f53e58c1ac3623ca30fb49873d54}{CCOUNT}--;
+      \} \textcolor{keywordflow}{else} \{
+        \textcolor{keywordflow}{return} ERR\_CYCLES;
+      \}
+    \}
+\textcolor{preprocessor}{#endif}
+\textcolor{preprocessor}{}
+    \textcolor{comment}{/*simple trace macros */}
+    \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_a2be29dbf95b4a2c822f307a5b8141184}{NEXT}, ERR\_NEXT, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+    \textcolor{keywordflow}{switch} (\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a2be29dbf95b4a2c822f307a5b8141184}{NEXT}]) \{
+    \textcolor{keywordflow}{case} PUSH\_INT:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}++;
+      \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}, ERR\_PC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS} = \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}];
+      \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}++;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} COMPILE:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}, ERR\_DIC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = NEXT + 1;
+      \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} RUN:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_af94aaf2e251861138e740f40229fe318}{SM\_maxRet}, \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}, ERR\_RET, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}++;
+      \hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret}[\hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}] = \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC};
+      \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC} = NEXT + 1;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} DEFINE:
+      \hyperlink{forth_8h_ac872290e70cb6bf2b018d9e6b441216b}{CPF} = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) \textcolor{keyword}{true};
+      \textcolor{keywordflow}{if} (\hyperlink{forth_8c_a02c1a33b9cadbbe239d8729d6076693d}{compile\_word}(COMPILE, fo, \textcolor{keyword}{false}, NULL) != ERR\_OK) \{
+        \textcolor{keywordflow}{return} ERR\_FAILURE;
+      \}
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}, ERR\_DIC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = RUN;
+      \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} IMMEDIATE:
+      \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC} -= 2;
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}, ERR\_DIC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = RUN;
+      \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} READ:
+      \textcolor{comment}{/* I should split this read case into several}
+\textcolor{comment}{       * simpler functions, these simpler functions}
+\textcolor{comment}{       * could be used by the VM as extra primitives */}
+      \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}--;
+      \textcolor{keywordflow}{if} (ERR\_OK != (\hyperlink{forth_8h_a822773627f2e426014392d689ddd146e}{OP1} = \hyperlink{forth_8c_af28a4c5ea76c441b69560506888b6314}{find\_word}(fo)))      \textcolor{comment}{/*fo contains OP0 
+      */}
+        \textcolor{keywordflow}{return} \hyperlink{forth_8h_a822773627f2e426014392d689ddd146e}{OP1};
+      \textcolor{keywordflow}{if} (0 != (\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} - 1)) \{
+        NEXT = \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} + 2;         \textcolor{comment}{/*Advance over pointers */}
+        \textcolor{keywordflow}{if} (0 == \hyperlink{forth_8h_ac872290e70cb6bf2b018d9e6b441216b}{CPF}) \{
+          \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, NEXT, ERR\_NEXT, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+          \textcolor{keywordflow}{if} (COMPILE == \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[NEXT]) \{
+            NEXT++;
+          \}
+        \}
+        \textcolor{keywordflow}{goto} TAIL\_RECURSE;
+      \}
+      \textcolor{keywordflow}{if} (0 != \hyperlink{forth_8c_ae4d1df7fcacd0d685704494fe29cc3ef}{isnumber}(str)) \{
+        \textcolor{keywordflow}{if} (0 != \hyperlink{forth_8h_ac872290e70cb6bf2b018d9e6b441216b}{CPF}) \{
+          \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic} - 1, \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}, ERR\_DIC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+          \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = PUSH\_INT;
+          \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+          \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = \hyperlink{forth_8c_add50d3b02ac22080c240801698cdfd40}{kr\_atoi}(str);
+          \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+        \} \textcolor{keywordflow}{else} \{
+          \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+          \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}++;
+          \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+          \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS} = \hyperlink{forth_8c_add50d3b02ac22080c240801698cdfd40}{kr\_atoi}(str);
+        \}
+      \} \textcolor{keywordflow}{else} \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_WORD;
+      \}
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} COMMENT:
+      \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} = 0;
+      \textcolor{keywordflow}{while} (\textcolor{keyword}{true}) \{
+        \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} = \hyperlink{forth_8c_a22e0ba08ea2327a665ce7134fd57c9f8}{wrap\_get}(fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]);
+        \textcolor{keywordflow}{if} (\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} == (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) \textcolor{charliteral}{'\(\backslash\)n'}) \{
+          \textcolor{keywordflow}{break};
+        \} \textcolor{keywordflow}{else} \textcolor{keywordflow}{if} (\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} == (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) EOF) \{
+          \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+          \textcolor{keywordflow}{return} ERR\_EOF;
+        \}
+      \}
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} EXIT:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_af94aaf2e251861138e740f40229fe318}{SM\_maxRet}, \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}, ERR\_RET, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC} = \hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret}[\hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}];
+      \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} BRANCH:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}, ERR\_PC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC} += \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}];
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} NBRANCH:
+      \textcolor{keywordflow}{if} (0 == \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}) \{
+        \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}, ERR\_PC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC} += \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}];
+      \} \textcolor{keywordflow}{else} \{
+        \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}++;
+      \}
+      \textcolor{comment}{/*ECUZ(SM\_maxDic, PC, ERR\_PC); */}
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_PC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS} = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} PLUS:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS} = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] + \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} MINUS:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] - \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} MUL:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] * \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} MOD:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{if} ((0 == TOS) || \hyperlink{forth_8c_ac7127970f482448895d8b1277e076fff}{SIGNED\_DIVIDE\_CHECK}(TOS, \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}
+      ])) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_MOD0;
+      \} \textcolor{keywordflow}{else} \{
+        TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] % \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+        VAR--;
+        \textcolor{keywordflow}{break};
+      \}
+    \textcolor{keywordflow}{case} DIV:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{if} ((0 == TOS) || \hyperlink{forth_8c_ac7127970f482448895d8b1277e076fff}{SIGNED\_DIVIDE\_CHECK}(TOS, \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[VAR]
+      )) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_DIV0;
+      \} \textcolor{keywordflow}{else} \{
+        TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] / \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+        VAR--;
+        \textcolor{keywordflow}{break};
+      \}
+    \textcolor{keywordflow}{case} LS:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});\textcolor{comment}{}
+\textcolor{comment}{      /** Unsigned shifts only and only by BIT\_SIZE - 1 to avoid}
+\textcolor{comment}{       * undefined behavior */}
+      TOS = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) ((\textcolor{keywordtype}{unsigned})\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] << ((unsigned)TOS & (\hyperlink{forth_8h_a6f90ba84959e4dd71225187b8630fe79}{BIT\_SIZE}
+       - 1)));
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} RS:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});\textcolor{comment}{}
+\textcolor{comment}{      /** Unsigned shifts only and only by BIT\_SIZE - 1 to avoid}
+\textcolor{comment}{       * undefined behavior */}
+      TOS = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) ((\textcolor{keywordtype}{unsigned})\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] >> (unsigned)TOS & (\hyperlink{forth_8h_a6f90ba84959e4dd71225187b8630fe79}{BIT\_SIZE}
+       - 1));
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} AND:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] & \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} OR:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] | \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} INV:
+      TOS = ~TOS;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} XOR:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] ^ \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} INC:
+      TOS++;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} DEC:
+      TOS--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} EQ:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) (\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[VAR] == TOS);
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} LESS:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) (\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[VAR] < TOS);
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} MORE:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) (\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[VAR] > TOS);
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} FETCH\_REG:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_ac357f2e000b4058d1d25fef72c999ab6}{SM\_maxReg}, TOS, ERR\_TOS\_REG, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = reg[\hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}];
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} FETCH\_DIC:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, TOS, ERR\_TOS\_DIC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}];
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} FETCH\_STR:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a0346ea3c27c5e264e231a66fca2550a4}{SM\_maxStr}, TOS, ERR\_TOS\_STR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) str[TOS];
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} PICK:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR - TOS, ERR\_TOS\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[VAR - \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}];
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} STORE\_REG:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_ac357f2e000b4058d1d25fef72c999ab6}{SM\_maxReg}, TOS, ERR\_TOS\_REG, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_abc35d798db60993a79e9c2bba8d4517a}{ECB}(1, \hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      reg[\hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}] = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} STORE\_DIC:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, TOS, ERR\_TOS\_DIC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_abc35d798db60993a79e9c2bba8d4517a}{ECB}(1, \hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}] = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} STORE\_STR:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a0346ea3c27c5e264e231a66fca2550a4}{SM\_maxStr}, TOS, ERR\_TOS\_STR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_abc35d798db60993a79e9c2bba8d4517a}{ECB}(1, \hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      str[\hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}] = (char)\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[VAR];
+      VAR--;
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} STORE\_VAR:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, TOS, ERR\_TOS\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_abc35d798db60993a79e9c2bba8d4517a}{ECB}(1, \hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}] = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} KEY:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      VAR++;
+      \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      TOS = \hyperlink{forth_8c_a22e0ba08ea2327a665ce7134fd57c9f8}{wrap\_get}(fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]);
+      \textcolor{keywordflow}{if} ((\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) EOF == TOS) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_EOF;
+      \}
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} EMIT:
+      \textcolor{comment}{/*need to check if putchar is winning or not */}
+      \textcolor{keywordflow}{if} (EOF == \hyperlink{forth_8c_aaf0a04db2927d3e52b821327d8c7c5cd}{wrap\_put}(out\_file, (\textcolor{keywordtype}{char})TOS)) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_EOF;
+      \}
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} DROP:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} DUP:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      VAR++;
+      \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} SWAP:
+      \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] = \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0};
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} OVER:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      VAR++;
+      \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[VAR - 1];
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} TOR:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_af94aaf2e251861138e740f40229fe318}{SM\_maxRet} - 1, \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}, ERR\_RET, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret}[\hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET} + 1] = \hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret}[\hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}];
+      \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}++;
+      \hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret}[\hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}] = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} FROMR:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar} - 1, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      VAR++;
+      \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_af94aaf2e251861138e740f40229fe318}{SM\_maxRet}, \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}, ERR\_RET, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret}[\hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}];
+      \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} TAIL:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_af94aaf2e251861138e740f40229fe318}{SM\_maxRet}, VAR, ERR\_RET, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET}--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} QUOTE:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      VAR++;
+      \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}, ERR\_PC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}];
+      \hyperlink{forth_8h_a600721f0222b857dc8a3ae59e5077347}{PC}++;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} COMMA:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic}, \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}, ERR\_DIC, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}] = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \hyperlink{forth_8h_a3893f22ff2ffb60bb96886f6d4cb3404}{DIC}++;
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} PRINTNUM:
+      \hyperlink{forth_8c_abc35d798db60993a79e9c2bba8d4517a}{ECB}(2, \hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{if} (\hyperlink{forth_8c_a32503ae89f3881e280be79eefc4da0d7}{MAX\_BASE} < \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[VAR]) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_BASE;
+      \}
+      \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      \hyperlink{forth_8h_a822773627f2e426014392d689ddd146e}{OP1} = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\hyperlink{forth_8c_a1ea5632b1de4c8f52ade798756f62c78}{my\_itoa}(\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0}, \hyperlink{forth_8h_a822773627f2e426014392d689ddd146e}{OP1}), \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}
+      , out\_file);
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} GET\_WORD:
+      \hyperlink{forth_8c_abc35d798db60993a79e9c2bba8d4517a}{ECB}(1, \hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a0346ea3c27c5e264e231a66fca2550a4}{SM\_maxStr}, VAR, ERR\_TOS\_STR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{if} (\hyperlink{forth_8c_a2c0ce48d9e9e447226bc0a0917345814}{get\_word}(str + TOS, \hyperlink{forth_8h_ac1ba278c41574f5a567be76396b3457b}{SM\_inputBufLen}, fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}
+      [\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]) == ERR\_FAILURE) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_EOF;
+      \}
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} STRLEN:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a0346ea3c27c5e264e231a66fca2550a4}{SM\_maxStr}, TOS, ERR\_TOS\_STR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{forth_8c_a081cdb70712b1d349cd768c2ca8ab699}{my\_strlen}(TOS + str, \hyperlink{forth_8h_ae381522e1d10c3730b356f1ac5d2dccb}{MAX\_STRLEN});
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} ISNUMBER:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a0346ea3c27c5e264e231a66fca2550a4}{SM\_maxStr}, TOS, ERR\_TOS\_STR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{forth_8c_ae4d1df7fcacd0d685704494fe29cc3ef}{isnumber}(TOS + str);
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} STRNEQU:
+      \hyperlink{forth_8c_abc35d798db60993a79e9c2bba8d4517a}{ECB}(1, \hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a0346ea3c27c5e264e231a66fca2550a4}{SM\_maxStr}, TOS, ERR\_TOS\_STR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a0346ea3c27c5e264e231a66fca2550a4}{SM\_maxStr}, \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[VAR], ERR\_TOS\_STR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      TOS = \hyperlink{forth_8c_a57f4bfac4b5d7444fa81f64f54a08d17}{strnequ}(str + TOS, str + \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[VAR], \hyperlink{forth_8h_ae381522e1d10c3730b356f1ac5d2dccb}{MAX\_STRLEN}, 
+      \hyperlink{forth_8h_ae381522e1d10c3730b356f1ac5d2dccb}{MAX\_STRLEN});
+      VAR--;
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} FIND:
+      \textcolor{comment}{/*fo contains OP0 */}
+      \textcolor{keywordflow}{if} (ERR\_OK != (\hyperlink{forth_8h_a822773627f2e426014392d689ddd146e}{OP1} = \hyperlink{forth_8c_af28a4c5ea76c441b69560506888b6314}{find\_word}(fo)))
+        \textcolor{keywordflow}{return} \hyperlink{forth_8h_a822773627f2e426014392d689ddd146e}{OP1};
+      \textcolor{comment}{/*Check if word found */}
+      \textcolor{keywordflow}{if} (0 == (\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} - 1)) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_WORD;
+      \}
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a1dcdb120d4169d9c81eeb05f6f1b8b24}{SM\_maxDic} - 3, VAR, ERR\_OP0, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0} += 2;                 \textcolor{comment}{/*advance over pointers */}
+      \textcolor{keywordflow}{if} (COMPILE == \hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}[\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0}]) \{
+        ++\hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0};
+      \}
+      VAR++;
+      \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}] = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      TOS = \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0};
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} EXECUTE:
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      NEXT = \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+      TOS = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      VAR--;
+      \textcolor{keywordflow}{goto} TAIL\_RECURSE;
+    \textcolor{keywordflow}{case} KERNEL:
+      \textcolor{keywordflow}{if} (ERR\_OK != (OP0 = \hyperlink{forth_8c_aa8fc14d61a957afb232974cd71b1d911}{forth\_system\_calls}(fo, TOS))) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} \hyperlink{forth_8h_ad296c6001249739d1057071ee39866c8}{OP0};
+      \}
+      \textcolor{keywordflow}{break};
+    \textcolor{keywordflow}{case} ERROR:
+      \textcolor{keywordflow}{return} \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS};
+    \textcolor{keywordflow}{default}:
+      \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{return} ERR\_INSTRUCTION;
+    \}
+  \}
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a15f31b521cd9bd4783605bb16598cce2_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a15f31b521cd9bd4783605bb16598cce2_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_ab7483c43ac03c2f24c684b22eaee9275}{\index{forth.\-c@{forth.\-c}!forth\-\_\-monitor@{forth\-\_\-monitor}}
+\index{forth\-\_\-monitor@{forth\-\_\-monitor}!forth.c@{forth.\-c}}
+\subsubsection[{forth\-\_\-monitor}]{\setlength{\rightskip}{0pt plus 5cm}{\bf mw} forth\-\_\-monitor (
+\begin{DoxyParamCaption}
+\item[{{\bf fobj\-\_\-t} $\ast$}]{fo}
+\end{DoxyParamCaption}
+)}}\label{forth_8c_ab7483c43ac03c2f24c684b22eaee9275}
+
+
+Definition at line 1119 of file forth.\-c.
+
+
+
+References forth\-\_\-obj\-::dic, forth\-\_\-obj\-::err\-\_\-file, io\-\_\-u\-::f, f\-\_\-error\-\_\-action, fio\-\_\-s\-::fio, forth\-\_\-error\-\_\-str, forth\-\_\-interpreter(), forth\-\_\-obj\-::in\-\_\-file, I\-N\-\_\-\-S\-T\-R\-M, io\-\_\-rd\-\_\-file, io\-\_\-stderr, io\-\_\-stdin, io\-\_\-stdout, fio\-\_\-s\-::iou, M\-A\-X\-\_\-\-E\-R\-R\-\_\-\-S\-T\-R, M\-A\-X\-\_\-\-I\-N\-S\-T\-R\-M, N\-U\-L\-L\-C\-H\-K\-\_\-\-M, on\-\_\-err(), onerr\-\_\-break\-\_\-e, onerr\-\_\-goto\-\_\-restart\-\_\-e, onerr\-\_\-special\-\_\-e, forth\-\_\-obj\-::out\-\_\-file, print\-\_\-string(), forth\-\_\-obj\-::reg, report\-\_\-error(), forth\-\_\-obj\-::ret, forth\-\_\-obj\-::str, forth\-\_\-obj\-::var, and wrap\-\_\-put().
+
+
+
+Referenced by main().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} fo\_returned\_val;
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} *\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg};
+
+  \textcolor{comment}{/*pointer checks */}
+  \hyperlink{forth_8c_a10e3c21bf53b34955783bd91accea2ec}{NULLCHK\_M}(fo);
+
+  reg = fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg};
+
+  \hyperlink{forth_8c_a10e3c21bf53b34955783bd91accea2ec}{NULLCHK\_M}(fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg});
+  \hyperlink{forth_8c_a10e3c21bf53b34955783bd91accea2ec}{NULLCHK\_M}(fo->\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic});
+  \hyperlink{forth_8c_a10e3c21bf53b34955783bd91accea2ec}{NULLCHK\_M}(fo->\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var});
+  \hyperlink{forth_8c_a10e3c21bf53b34955783bd91accea2ec}{NULLCHK\_M}(fo->\hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret});
+  \hyperlink{forth_8c_a10e3c21bf53b34955783bd91accea2ec}{NULLCHK\_M}(fo->\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str});
+  \hyperlink{forth_8c_a10e3c21bf53b34955783bd91accea2ec}{NULLCHK\_M}(fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+
+  \textcolor{comment}{/*point and sanity checks of the in and output files */}
+  \textcolor{keywordflow}{if} (NULL == fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}) \{
+    \hyperlink{forth_8c_a1c112c5917517e45cecf37c24a807ad3}{report\_error}(ERR\_NULL);
+    \textcolor{keywordflow}{return} ERR\_FAILURE;
+  \} \textcolor{keywordflow}{else} \{
+    \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a59e5094bc91726c1d5aae2041cd65471}{io\_stdin} != fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio}) \{
+      \textcolor{keywordflow}{if} (NULL == fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f}) \{
+        \hyperlink{forth_8c_a1c112c5917517e45cecf37c24a807ad3}{report\_error}(ERR\_NULL);
+        \textcolor{keywordflow}{return} ERR\_FAILURE;
+      \}
+    \}
+  \}
+
+  \textcolor{keywordflow}{if} (NULL == fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file}) \{
+    \hyperlink{forth_8c_a1c112c5917517e45cecf37c24a807ad3}{report\_error}(ERR\_NULL);
+    \textcolor{keywordflow}{return} ERR\_FAILURE;
+  \} \textcolor{keywordflow}{else} \{
+    \textcolor{keywordflow}{if} ((\hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686acd63b18f81b7a9f3ea7c6168711f3cd3}{io\_stdout} != fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file}->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio})
+        && (\hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a9c9763549425e6d230977c5f0e81f6eb}{io\_stderr} != fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file}->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio})) \{
+      \textcolor{keywordflow}{if} (NULL == fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file}->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f}) \{
+        \hyperlink{forth_8c_a1c112c5917517e45cecf37c24a807ad3}{report\_error}(ERR\_NULL);
+        \textcolor{keywordflow}{return} ERR\_FAILURE;
+      \}
+    \}
+  \}
+
+  \textcolor{comment}{/* I should check that EXF is potentially valid, ie. Not zero */}
+  \textcolor{keywordflow}{while}(\textcolor{keyword}{true})\{
+    fo\_returned\_val = \hyperlink{forth_8c_a15f31b521cd9bd4783605bb16598cce2}{forth\_interpreter}(fo);
+    \textcolor{keywordflow}{if} (fo\_returned\_val >= LAST\_ERROR) \{
+      \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\hyperlink{forth_8c_ad93160a995325171d8786ccb79581034}{forth\_error\_str}[LAST\_ERROR], 
+      \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}, fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{return} fo\_returned\_val;
+    \} \textcolor{keywordflow}{else} \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a258cc49b01bd3eba18bfecb300ac2b64abfa7de9efa32f563337f48f7f850f06b}{onerr\_goto\_restart\_e} == \hyperlink{forth_8c_a373ba9f62b95705d174e3c813af0f980}{f\_error\_action}
+      [fo\_returned\_val]) \{
+      \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\hyperlink{forth_8c_ad93160a995325171d8786ccb79581034}{forth\_error\_str}[fo\_returned\_val],
+       \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}, fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_a5b6d7f9feea1e251c83be8ccea305b9b}{on\_err}(fo);
+      \textcolor{keywordflow}{continue};
+    \} \textcolor{keywordflow}{else} \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a258cc49b01bd3eba18bfecb300ac2b64affc0e45881d75cc02c51e90212e02bb4}{onerr\_break\_e} == \hyperlink{forth_8c_a373ba9f62b95705d174e3c813af0f980}{f\_error\_action}[
+      fo\_returned\_val]) \{
+      \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\hyperlink{forth_8c_ad93160a995325171d8786ccb79581034}{forth\_error\_str}[fo\_returned\_val],
+       \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}, fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{return} fo\_returned\_val;
+    \} \textcolor{keywordflow}{else} \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a258cc49b01bd3eba18bfecb300ac2b64a9630f03b1a77654cd28ec615088374ae}{onerr\_special\_e} == \hyperlink{forth_8c_a373ba9f62b95705d174e3c813af0f980}{f\_error\_action}[
+      fo\_returned\_val]) \{
+      \textcolor{keywordflow}{if} (fo\_returned\_val == ERR\_EOF) \{   \textcolor{comment}{/*Some EOF situations might not be
+       handled correctly */}
+        \textcolor{keywordflow}{if} ((0 < \hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}) && (\hyperlink{forth_8h_a29b3a2f9e308270f3d5e1634c7835678}{MAX\_INSTRM} > \hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM})) \{
+          \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a284a51423fa74ee718436c52ca6a7a2d}{io\_rd\_file} == fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio}
+      ) \{
+            \textcolor{keywordflow}{if} (NULL != fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f}) \{
+              (void)fclose(fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f});
+              fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f} = NULL;
+            \}
+          \}
+          \hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}--;
+          \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\hyperlink{forth_8c_ad93160a995325171d8786ccb79581034}{forth\_error\_str}[ERR\_NEXT\_STRM
+      ], \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}, fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+          \textcolor{keywordflow}{continue};
+        \}
+        \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\hyperlink{forth_8c_ad93160a995325171d8786ccb79581034}{forth\_error\_str}[ERR\_EOF], 
+      \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}, fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_EOF;
+      \} \textcolor{keywordflow}{else} \textcolor{keywordflow}{if} (ERR\_WORD == fo\_returned\_val) \{   \textcolor{comment}{/*Special action: Print out
+       word */}
+        \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(fo->\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str}, \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}, fo->
+      \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        (void)\hyperlink{forth_8c_aaf0a04db2927d3e52b821327d8c7c5cd}{wrap\_put}(fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file}, \textcolor{charliteral}{'\(\backslash\)n'});
+        \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\hyperlink{forth_8c_ad93160a995325171d8786ccb79581034}{forth\_error\_str}[ERR\_WORD], 
+      \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}, fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \hyperlink{forth_8c_a5b6d7f9feea1e251c83be8ccea305b9b}{on\_err}(fo);
+        \textcolor{keywordflow}{continue};
+      \} \textcolor{keywordflow}{else} \{                    \textcolor{comment}{/*No special action defined */}
+        \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\hyperlink{forth_8c_ad93160a995325171d8786ccb79581034}{forth\_error\_str}[
+      ERR\_SPECIAL\_ERROR], \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}, fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_SPECIAL\_ERROR;
+      \}
+    \}
+  \}
+  \textcolor{keywordflow}{return} ERR\_ABNORMAL\_END;
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_ab7483c43ac03c2f24c684b22eaee9275_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=228pt]{forth_8c_ab7483c43ac03c2f24c684b22eaee9275_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_aa8fc14d61a957afb232974cd71b1d911}{\index{forth.\-c@{forth.\-c}!forth\-\_\-system\-\_\-calls@{forth\-\_\-system\-\_\-calls}}
+\index{forth\-\_\-system\-\_\-calls@{forth\-\_\-system\-\_\-calls}!forth.c@{forth.\-c}}
+\subsubsection[{forth\-\_\-system\-\_\-calls}]{\setlength{\rightskip}{0pt plus 5cm}static {\bf mw} forth\-\_\-system\-\_\-calls (
+\begin{DoxyParamCaption}
+\item[{{\bf fobj\-\_\-t} $\ast$}]{fo, }
+\item[{{\bf mw}}]{enum\-\_\-syscall}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_aa8fc14d61a957afb232974cd71b1d911}
+
+
+Definition at line 525 of file forth.\-c.
+
+
+
+References E\-C\-B, E\-C\-U\-Z, forth\-\_\-obj\-::err\-\_\-file, E\-R\-R\-\_\-\-L\-N\-\_\-\-P\-R\-N, io\-\_\-u\-::f, fio\-\_\-s\-::fio, forth\-\_\-obj\-::in\-\_\-file, I\-N\-\_\-\-S\-T\-R\-M, io\-\_\-rd\-\_\-file, io\-\_\-rd\-\_\-str, io\-\_\-stdin, io\-\_\-stdout, io\-\_\-wr\-\_\-file, io\-\_\-wr\-\_\-str, fio\-\_\-s\-::iou, M\-A\-X\-\_\-\-E\-R\-R\-\_\-\-S\-T\-R, M\-A\-X\-\_\-\-I\-N\-S\-T\-R\-M, on\-\_\-err(), forth\-\_\-obj\-::out\-\_\-file, print\-\_\-string(), forth\-\_\-obj\-::reg, io\-\_\-u\-::s, S\-M\-\_\-max\-Var, forth\-\_\-obj\-::str, fio\-\_\-s\-::str\-\_\-index, S\-Y\-S\-\_\-\-O\-P\-T\-\_\-\-E\-R\-R, S\-Y\-S\-\_\-\-O\-P\-T\-\_\-\-I\-N, S\-Y\-S\-\_\-\-O\-P\-T\-\_\-\-O\-U\-T, T\-O\-S, V\-A\-R, and forth\-\_\-obj\-::var.
+
+
+
+Referenced by forth\-\_\-interpreter().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} *\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg} = fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}, *\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var} = fo->\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var};
+  \textcolor{keywordtype}{char} *\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str} = fo->\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str};
+  \hyperlink{structfio__s}{fio\_t} *\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file} = fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file}, *\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file} = fo->
+      \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file};
+
+  \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+  \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS} = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];               \textcolor{comment}{/* Get rid of top of stack, it's just
+       been used. */}
+  \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}--;
+
+  \textcolor{keywordflow}{switch} (enum\_syscall) \{
+  \textcolor{keywordflow}{case} SYS\_RESET:
+    \hyperlink{forth_8c_a5b6d7f9feea1e251c83be8ccea305b9b}{on\_err}(fo);
+    \textcolor{keywordflow}{return} ERR\_OK;
+  \textcolor{keywordflow}{case} SYS\_FOPEN:
+    \textcolor{keywordflow}{switch} (\hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}) \{
+    \textcolor{keywordflow}{case} \hyperlink{forth_8h_a1b36e92f52e7c09ff8aa5c1c33b2b629a825433a1ce67261e21b9549ac9dcd57d}{SYS\_OPT\_IN}:
+
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a29b3a2f9e308270f3d5e1634c7835678}{MAX\_INSTRM}, \hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}, ERR\_SYSCALL, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file}
+      );
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS} = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}--;
+
+      \hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}++;
+      \textcolor{keywordflow}{if} (NULL == (fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f} = fopen(str + 
+      \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}, \textcolor{stringliteral}{"r"}))) \{
+        \hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}--;
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_SYSCALL;
+      \} \textcolor{keywordflow}{else} \{
+        fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a284a51423fa74ee718436c52ca6a7a2d}{io\_rd\_file};
+      \}
+      \textcolor{keywordflow}{return} ERR\_OK;
+    \textcolor{keywordflow}{case} \hyperlink{forth_8h_a1b36e92f52e7c09ff8aa5c1c33b2b629a431e7df4ca248170bf7ab08683544108}{SYS\_OPT\_OUT}:
+      \textcolor{keywordflow}{if} (out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} == \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a59e5094bc91726c1d5aae2041cd65471}{io\_stdin} || out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} == \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a56f70544dd1174b1c8bbe22bf94caa30}{io\_rd\_str}
+       || out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} == \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a284a51423fa74ee718436c52ca6a7a2d}{io\_rd\_file}) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_SYSCALL;
+      \}
+      \textcolor{keywordflow}{if} (out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} != \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686acd63b18f81b7a9f3ea7c6168711f3cd3}{io\_stdout}) \{
+        (void)fflush(out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f});
+        (void)fclose(out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f});
+      \}
+      \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS} = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+      \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}--;
+      \textcolor{keywordflow}{if} (NULL == (out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f} = fopen(str + \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}, \textcolor{stringliteral}{"w"}))) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686acd63b18f81b7a9f3ea7c6168711f3cd3}{io\_stdout};
+        \textcolor{keywordflow}{return} ERR\_SYSCALL;
+      \} \textcolor{keywordflow}{else} \{
+        out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a29f5a738b1322488c5afb45a82625dcd}{io\_wr\_file};
+      \}
+      \textcolor{keywordflow}{return} ERR\_OK;
+    \textcolor{keywordflow}{case} \hyperlink{forth_8h_a1b36e92f52e7c09ff8aa5c1c33b2b629a1df10190c4284a3b0918ff8a5ed38f6d}{SYS\_OPT\_ERR}:
+      \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{return} ERR\_SYSCALL\_OPTIONS;
+    \textcolor{keywordflow}{default}:
+      \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{return} ERR\_SYSCALL\_OPTIONS;
+    \}
+  \textcolor{keywordflow}{case} SYS\_FCLOSE:
+    \textcolor{keywordflow}{switch} (\hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}) \{
+    \textcolor{keywordflow}{case} \hyperlink{forth_8h_a1b36e92f52e7c09ff8aa5c1c33b2b629a825433a1ce67261e21b9549ac9dcd57d}{SYS\_OPT\_IN}:
+
+      \hyperlink{forth_8c_abc35d798db60993a79e9c2bba8d4517a}{ECB}(1, \hyperlink{forth_8h_a29b3a2f9e308270f3d5e1634c7835678}{MAX\_INSTRM}, \hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}, ERR\_SYSCALL, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file}
+      );
+
+      \textcolor{keywordflow}{if} (fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} != \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a284a51423fa74ee718436c52ca6a7a2d}{io\_rd\_file}) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_SYSCALL;
+      \}
+      fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a59e5094bc91726c1d5aae2041cd65471}{io\_stdin};
+      (void)fclose(fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f});
+      \hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}--;
+      \textcolor{keywordflow}{return} ERR\_OK;
+    \textcolor{keywordflow}{case} \hyperlink{forth_8h_a1b36e92f52e7c09ff8aa5c1c33b2b629a431e7df4ca248170bf7ab08683544108}{SYS\_OPT\_OUT}:
+      \textcolor{keywordflow}{if} (out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} == \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a59e5094bc91726c1d5aae2041cd65471}{io\_stdin} || out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} == \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a56f70544dd1174b1c8bbe22bf94caa30}{io\_rd\_str}
+       || out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} == \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a284a51423fa74ee718436c52ca6a7a2d}{io\_rd\_file}) \{
+        \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+        \textcolor{keywordflow}{return} ERR\_SYSCALL;
+      \}
+      \textcolor{keywordflow}{if} (NULL != out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f})
+        \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686acd63b18f81b7a9f3ea7c6168711f3cd3}{io\_stdout} != out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio}) \{
+          (void)fclose(out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f});
+          out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f} = NULL;
+        \}
+      out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686acd63b18f81b7a9f3ea7c6168711f3cd3}{io\_stdout};
+      \textcolor{keywordflow}{return} ERR\_OK;
+    \textcolor{keywordflow}{case} \hyperlink{forth_8h_a1b36e92f52e7c09ff8aa5c1c33b2b629a1df10190c4284a3b0918ff8a5ed38f6d}{SYS\_OPT\_ERR}:
+      \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{return} ERR\_SYSCALL\_OPTIONS;
+    \textcolor{keywordflow}{default}:
+      \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{return} ERR\_SYSCALL\_OPTIONS;
+    \}
+  \textcolor{keywordflow}{case} SYS\_FLUSH:
+    (void)fflush(NULL);         \textcolor{comment}{/* Flush all streams for ease of use. */}
+    \textcolor{keywordflow}{return} ERR\_OK;
+  \textcolor{keywordflow}{case} SYS\_REMOVE:
+    \textcolor{keywordflow}{if} (0 != \textcolor{keyword}{remove}(str + \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS})) \{
+      \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\textcolor{stringliteral}{"Could not remove file.\(\backslash\)n"}, \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}
+      , fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+    \}
+    \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+    \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS} = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+    \hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}--;
+    \textcolor{keywordflow}{return} ERR\_OK;
+  \textcolor{keywordflow}{case} SYS\_RENAME:
+    \textcolor{keywordflow}{if} (0 != rename(str + \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}, str + \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}])) \{
+      VAR--;
+      \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\textcolor{stringliteral}{"Could not rename file.\(\backslash\)n"}, \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}
+      , fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+    \}
+    VAR--;
+    \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS} = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+    VAR--;
+    \textcolor{keywordflow}{return} ERR\_OK;
+  \textcolor{keywordflow}{case} SYS\_REWIND:
+    \textcolor{keywordflow}{switch} (\hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS}) \{
+    \textcolor{keywordflow}{case} \hyperlink{forth_8h_a1b36e92f52e7c09ff8aa5c1c33b2b629a825433a1ce67261e21b9549ac9dcd57d}{SYS\_OPT\_IN}:
+      \textcolor{keywordflow}{if} (NULL != fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f}) \{
+        \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a284a51423fa74ee718436c52ca6a7a2d}{io\_rd\_file} == fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio})
+       \{
+          rewind(fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f});
+        \}
+      \} \textcolor{keywordflow}{else} \textcolor{keywordflow}{if} (NULL != fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_af2ba735a875960b4c28a64b204f8951d}{s}) \{
+        \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a56f70544dd1174b1c8bbe22bf94caa30}{io\_rd\_str} == fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio}) \{
+          fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[\hyperlink{forth_8h_a9086a85e70878cfb0675a3344d16a98c}{IN\_STRM}]->\hyperlink{structfio__s_a6a40f69645ccdcc90111dd97c9e98027}{str\_index} = 0;
+        \}
+      \}
+      \textcolor{keywordflow}{return} ERR\_OK;
+    \textcolor{keywordflow}{case} \hyperlink{forth_8h_a1b36e92f52e7c09ff8aa5c1c33b2b629a431e7df4ca248170bf7ab08683544108}{SYS\_OPT\_OUT}:
+      \textcolor{keywordflow}{if} (NULL != out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f}) \{
+        \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a29f5a738b1322488c5afb45a82625dcd}{io\_wr\_file} == out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio}) \{
+          rewind(out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f});
+        \}
+      \} \textcolor{keywordflow}{else} \textcolor{keywordflow}{if} (NULL != out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_af2ba735a875960b4c28a64b204f8951d}{s}) \{
+        \textcolor{keywordflow}{if} (\hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686ae220222e2fd6d75bb2d6c05a800e2e1a}{io\_wr\_str} == out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio}) \{
+          out\_file->\hyperlink{structfio__s_a6a40f69645ccdcc90111dd97c9e98027}{str\_index} = 0;
+        \}
+      \}
+      \textcolor{keywordflow}{return} ERR\_OK;
+    \textcolor{keywordflow}{case} \hyperlink{forth_8h_a1b36e92f52e7c09ff8aa5c1c33b2b629a1df10190c4284a3b0918ff8a5ed38f6d}{SYS\_OPT\_ERR}:
+    \textcolor{keywordflow}{default}:
+      \hyperlink{forth_8c_a2530160bd16b877b5a0d80d24e1ab434}{ERR\_LN\_PRN}(\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+      \textcolor{keywordflow}{return} ERR\_SYSCALL\_OPTIONS;
+    \}
+  \textcolor{keywordflow}{case} SYS\_SYSTEM:
+    system(str + \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS});
+    \hyperlink{forth_8c_a3ed0937efe2b5a788f68047048d6a7e2}{ECUZ}(\hyperlink{forth_8h_a845c7b5743ac3df087e73247bb1189e9}{SM\_maxVar}, VAR, ERR\_VAR, \hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+    \hyperlink{forth_8h_a7ee1e26ca2891997f2b51dacefa3f475}{TOS} = \hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}[\hyperlink{forth_8h_abca8dfa78652bc61165262af4fade766}{VAR}];
+    VAR--;
+    \textcolor{keywordflow}{return} ERR\_OK;
+  \textcolor{keywordflow}{default}:
+    \textcolor{keywordflow}{return} ERR\_NOTSYSCALL;
+  \}
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_aa8fc14d61a957afb232974cd71b1d911_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_aa8fc14d61a957afb232974cd71b1d911_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a2c0ce48d9e9e447226bc0a0917345814}{\index{forth.\-c@{forth.\-c}!get\-\_\-word@{get\-\_\-word}}
+\index{get\-\_\-word@{get\-\_\-word}!forth.c@{forth.\-c}}
+\subsubsection[{get\-\_\-word}]{\setlength{\rightskip}{0pt plus 5cm}static {\bf mw} get\-\_\-word (
+\begin{DoxyParamCaption}
+\item[{char $\ast$}]{str, }
+\item[{const {\bf mw}}]{str\-\_\-len, }
+\item[{{\bf fio\-\_\-t} $\ast$}]{io\-\_\-file}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a2c0ce48d9e9e447226bc0a0917345814}
+This gets a space delimited F\-O\-R\-T\-H word memset 
+
+Definition at line 166 of file forth.\-c.
+
+
+
+References my\-\_\-isspace(), and wrap\-\_\-get().
+
+
+
+Referenced by compile\-\_\-word(), find\-\_\-word(), and forth\-\_\-interpreter().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} i;
+  \textcolor{keywordtype}{int} c;
+\textcolor{comment}{}
+\textcolor{comment}{  /**memset */}
+  \textcolor{keywordflow}{for} (i = 0; i < str\_len; i++)
+    \hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str}[i] = \textcolor{charliteral}{'\(\backslash\)0'};
+
+  \textcolor{comment}{/*discard spaces */}
+  \textcolor{keywordflow}{for} (c = \hyperlink{forth_8c_a22e0ba08ea2327a665ce7134fd57c9f8}{wrap\_get}(io\_file); \hyperlink{forth_8c_a607bd2b5f8c12913b9bb6f02548df5a0}{my\_isspace}((\textcolor{keywordtype}{char})c); c = 
+      \hyperlink{forth_8c_a22e0ba08ea2327a665ce7134fd57c9f8}{wrap\_get}(io\_file))
+    \textcolor{keywordflow}{if} (EOF == c)
+      \textcolor{keywordflow}{return} ERR\_FAILURE;
+
+  \textcolor{comment}{/*copy word */}
+  \textcolor{keywordflow}{for} (i = 0; (i < str\_len) && (!\hyperlink{forth_8c_a607bd2b5f8c12913b9bb6f02548df5a0}{my\_isspace}((\textcolor{keywordtype}{char})c)); i++, c = 
+      \hyperlink{forth_8c_a22e0ba08ea2327a665ce7134fd57c9f8}{wrap\_get}(io\_file)) \{
+    \hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str}[i] = (char)c;
+    \textcolor{keywordflow}{if} (EOF == c)
+      \textcolor{keywordflow}{return} ERR\_FAILURE;
+  \}
+
+  \textcolor{comment}{/*fail if word is too long */}
+  \textcolor{keywordflow}{if} (i >= str\_len)
+    \textcolor{keywordflow}{return} ERR\_FAILURE;
+
+  \textcolor{comment}{/*null terminate */}
+  \hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str}[++i] = \textcolor{charliteral}{'\(\backslash\)0'};
+  \textcolor{keywordflow}{return} ERR\_OK;                \textcolor{comment}{/*success! */}
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=242pt]{forth_8c_a2c0ce48d9e9e447226bc0a0917345814_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a2c0ce48d9e9e447226bc0a0917345814_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_ae4d1df7fcacd0d685704494fe29cc3ef}{\index{forth.\-c@{forth.\-c}!isnumber@{isnumber}}
+\index{isnumber@{isnumber}!forth.c@{forth.\-c}}
+\subsubsection[{isnumber}]{\setlength{\rightskip}{0pt plus 5cm}static {\bf mw} isnumber (
+\begin{DoxyParamCaption}
+\item[{const char}]{s\mbox{[}$\,$\mbox{]}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_ae4d1df7fcacd0d685704494fe29cc3ef}
+Basic Utils 
+
+Definition at line 197 of file forth.\-c.
+
+
+
+References my\-\_\-isdigit().
+
+
+
+Referenced by forth\-\_\-interpreter().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} x = 0;
+  \textcolor{keywordflow}{if} (((\textcolor{charliteral}{'-'} == s[x]) || (\textcolor{charliteral}{'+'} == s[x])) && \hyperlink{forth_8c_a66b6ee337b798835fd5586827a994f8a}{my\_isdigit}(s[x + 1]))
+    x++;
+  \textcolor{keywordflow}{for} (; \textcolor{charliteral}{'\(\backslash\)0'} != s[x]; x++) \{
+    \textcolor{keywordflow}{if} (!\hyperlink{forth_8c_a66b6ee337b798835fd5586827a994f8a}{my\_isdigit}(s[x])) \{
+      \textcolor{keywordflow}{return} \textcolor{keyword}{false};
+    \}
+  \}
+  \textcolor{keywordflow}{return} (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) \textcolor{keyword}{true};
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=234pt]{forth_8c_ae4d1df7fcacd0d685704494fe29cc3ef_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_ae4d1df7fcacd0d685704494fe29cc3ef_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_add50d3b02ac22080c240801698cdfd40}{\index{forth.\-c@{forth.\-c}!kr\-\_\-atoi@{kr\-\_\-atoi}}
+\index{kr\-\_\-atoi@{kr\-\_\-atoi}!forth.c@{forth.\-c}}
+\subsubsection[{kr\-\_\-atoi}]{\setlength{\rightskip}{0pt plus 5cm}static {\bf mw} kr\-\_\-atoi (
+\begin{DoxyParamCaption}
+\item[{const char}]{s\mbox{[}$\,$\mbox{]}}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_add50d3b02ac22080c240801698cdfd40}
+K\&R atoi, slighty modified 
+
+Definition at line 236 of file forth.\-c.
+
+
+
+References my\-\_\-isdigit(), and my\-\_\-isspace().
+
+
+
+Referenced by forth\-\_\-interpreter().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} i, n, sign;
+  \textcolor{keywordflow}{for} (i = 0; \hyperlink{forth_8c_a607bd2b5f8c12913b9bb6f02548df5a0}{my\_isspace}(s[i]); i++) ;
+
+  sign = (s[i] == \textcolor{charliteral}{'-'}) ? -1 : 1;
+  \textcolor{keywordflow}{if} ((s[i] == \textcolor{charliteral}{'+'}) || (s[i] == \textcolor{charliteral}{'-'}))
+    i++;
+  \textcolor{keywordflow}{for} (n = 0; \hyperlink{forth_8c_a66b6ee337b798835fd5586827a994f8a}{my\_isdigit}(s[i]); i++) \{
+    n = 10 * n + (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) (s[i] - \textcolor{charliteral}{'0'});
+  \}
+  \textcolor{keywordflow}{return} sign * n;
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=232pt]{forth_8c_add50d3b02ac22080c240801698cdfd40_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_add50d3b02ac22080c240801698cdfd40_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a66b6ee337b798835fd5586827a994f8a}{\index{forth.\-c@{forth.\-c}!my\-\_\-isdigit@{my\-\_\-isdigit}}
+\index{my\-\_\-isdigit@{my\-\_\-isdigit}!forth.c@{forth.\-c}}
+\subsubsection[{my\-\_\-isdigit}]{\setlength{\rightskip}{0pt plus 5cm}static enum {\bf bool} my\-\_\-isdigit (
+\begin{DoxyParamCaption}
+\item[{char}]{x}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a66b6ee337b798835fd5586827a994f8a}
+Like my\-\_\-isspace, my\-\_\-isspace is here so we can customize what is treated as a digit. 
+
+Definition at line 89 of file forth.\-c.
+
+
+
+Referenced by isnumber(), and kr\-\_\-atoi().
+
+
+\begin{DoxyCode}
+\{
+  \textcolor{keywordflow}{switch} (x) \{
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'0'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'1'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'2'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'3'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'4'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'5'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'6'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'7'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'8'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'9'}:
+    \textcolor{keywordflow}{return} \textcolor{keyword}{true};
+  \textcolor{keywordflow}{default}:
+    \textcolor{keywordflow}{return} \textcolor{keyword}{false};
+  \}
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a66b6ee337b798835fd5586827a994f8a_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a607bd2b5f8c12913b9bb6f02548df5a0}{\index{forth.\-c@{forth.\-c}!my\-\_\-isspace@{my\-\_\-isspace}}
+\index{my\-\_\-isspace@{my\-\_\-isspace}!forth.c@{forth.\-c}}
+\subsubsection[{my\-\_\-isspace}]{\setlength{\rightskip}{0pt plus 5cm}static enum {\bf bool} my\-\_\-isspace (
+\begin{DoxyParamCaption}
+\item[{char}]{x}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a607bd2b5f8c12913b9bb6f02548df5a0}
+my\-\_\-isspace, here so we can customize what is treated as a space or not 
+
+Definition at line 72 of file forth.\-c.
+
+
+
+Referenced by get\-\_\-word(), and kr\-\_\-atoi().
+
+
+\begin{DoxyCode}
+\{
+  \textcolor{keywordflow}{switch} (x) \{
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'\(\backslash\)n'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'\(\backslash\)r'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'\(\backslash\)t'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'\(\backslash\)v'}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{' '}:
+  \textcolor{keywordflow}{case} \textcolor{charliteral}{'\(\backslash\)f'}:
+    \textcolor{keywordflow}{return} \textcolor{keyword}{true};
+  \textcolor{keywordflow}{default}:
+    \textcolor{keywordflow}{return} \textcolor{keyword}{false};
+  \}
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a607bd2b5f8c12913b9bb6f02548df5a0_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a1ea5632b1de4c8f52ade798756f62c78}{\index{forth.\-c@{forth.\-c}!my\-\_\-itoa@{my\-\_\-itoa}}
+\index{my\-\_\-itoa@{my\-\_\-itoa}!forth.c@{forth.\-c}}
+\subsubsection[{my\-\_\-itoa}]{\setlength{\rightskip}{0pt plus 5cm}static char $\ast$ my\-\_\-itoa (
+\begin{DoxyParamCaption}
+\item[{{\bf mw}}]{value, }
+\item[{int}]{base}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a1ea5632b1de4c8f52ade798756f62c78}
+
+
+Definition at line 253 of file forth.\-c.
+
+
+
+References M\-A\-X\-\_\-\-B\-A\-S\-E, and M\-A\-X\-\_\-\-E\-R\-R\-\_\-\-S\-T\-R.
+
+
+
+Referenced by forth\-\_\-interpreter(), and print\-\_\-line\-\_\-file().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} v = value, i = 0;
+  \textcolor{keyword}{static} \textcolor{keywordtype}{char} buf[\hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}];
+
+  \textcolor{keywordflow}{for} (i = 0; i < \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}; i++)
+    buf[i] = \textcolor{charliteral}{'\(\backslash\)0'};
+
+  i = MAX\_ERR\_STR - 2;
+
+  \textcolor{keywordflow}{if} (0 == value) \{
+    buf[i] = \textcolor{charliteral}{'0'};
+    \textcolor{keywordflow}{return} buf + i;
+  \}
+  \textcolor{keywordflow}{if} ((\textcolor{keywordtype}{signed})value < 0)
+    v *= -1;
+  \textcolor{keywordflow}{if} ((base > 1) && (base <= \hyperlink{forth_8c_a32503ae89f3881e280be79eefc4da0d7}{MAX\_BASE}))
+    \textcolor{keywordflow}{for} (; (0 != v) && (0 != i); --i, v /= base)
+      buf[i] = \textcolor{stringliteral}{"0123456789abcdef"}[v % base];
+  \textcolor{keywordflow}{if} ((\textcolor{keywordtype}{signed})value < 0) \{
+    buf[i] = \textcolor{charliteral}{'-'};
+    \textcolor{keywordflow}{return} buf + i;
+  \}
+  \textcolor{keywordflow}{return} buf + i + 1;
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a1ea5632b1de4c8f52ade798756f62c78_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a316f83edfad9d72f086762c545b6e45e}{\index{forth.\-c@{forth.\-c}!my\-\_\-strcpy@{my\-\_\-strcpy}}
+\index{my\-\_\-strcpy@{my\-\_\-strcpy}!forth.c@{forth.\-c}}
+\subsubsection[{my\-\_\-strcpy}]{\setlength{\rightskip}{0pt plus 5cm}static void my\-\_\-strcpy (
+\begin{DoxyParamCaption}
+\item[{char $\ast$}]{destination, }
+\item[{const char $\ast$}]{source}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a316f83edfad9d72f086762c545b6e45e}
+my\-\_\-strcpy, so I would not have to import all of string.\-h in an embedded system 
+
+Definition at line 381 of file forth.\-c.
+
+
+
+Referenced by compile\-\_\-word().
+
+
+\begin{DoxyCode}
+\{
+  \textcolor{keywordflow}{while} (\textcolor{charliteral}{'\(\backslash\)0'} != *source)
+    *destination++ = *source++;
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a316f83edfad9d72f086762c545b6e45e_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a081cdb70712b1d349cd768c2ca8ab699}{\index{forth.\-c@{forth.\-c}!my\-\_\-strlen@{my\-\_\-strlen}}
+\index{my\-\_\-strlen@{my\-\_\-strlen}!forth.c@{forth.\-c}}
+\subsubsection[{my\-\_\-strlen}]{\setlength{\rightskip}{0pt plus 5cm}static {\bf mw} my\-\_\-strlen (
+\begin{DoxyParamCaption}
+\item[{const char}]{s\mbox{[}$\,$\mbox{]}, }
+\item[{const int}]{maxlen}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a081cdb70712b1d349cd768c2ca8ab699}
+
+
+Definition at line 226 of file forth.\-c.
+
+
+
+Referenced by compile\-\_\-word(), and forth\-\_\-interpreter().
+
+
+\begin{DoxyCode}
+\{
+  \textcolor{keywordtype}{int} i = 0;
+  \textcolor{keywordtype}{char} *p = (\textcolor{keywordtype}{char} *)s;
+  \textcolor{keywordflow}{while} ((\textcolor{charliteral}{'\(\backslash\)0'} != (*p)) && (i++ < maxlen))
+    p++;
+  \textcolor{keywordflow}{return} p - s;
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a081cdb70712b1d349cd768c2ca8ab699_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a5b6d7f9feea1e251c83be8ccea305b9b}{\index{forth.\-c@{forth.\-c}!on\-\_\-err@{on\-\_\-err}}
+\index{on\-\_\-err@{on\-\_\-err}!forth.c@{forth.\-c}}
+\subsubsection[{on\-\_\-err}]{\setlength{\rightskip}{0pt plus 5cm}static void on\-\_\-err (
+\begin{DoxyParamCaption}
+\item[{{\bf fobj\-\_\-t} $\ast$}]{fo}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a5b6d7f9feea1e251c83be8ccea305b9b}
+
+
+Definition at line 500 of file forth.\-c.
+
+
+
+References forth\-\_\-obj\-::err\-\_\-file, forth\-\_\-obj\-::in\-\_\-file, io\-\_\-stderr, io\-\_\-stdin, io\-\_\-stdout, and forth\-\_\-obj\-::out\-\_\-file.
+
+
+
+Referenced by forth\-\_\-monitor(), and forth\-\_\-system\-\_\-calls().
+
+
+\begin{DoxyCode}
+\{
+  (void)fflush(NULL);
+  fo->CPF = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) \textcolor{keyword}{false};
+  fo->VAR = 0;
+  fo->TOS = 0;
+  fo->RET = 1;
+  fo->PC = fo->EXF;
+  fo->IN\_STRM = 0;
+  (fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[0])->fio = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a59e5094bc91726c1d5aae2041cd65471}{io\_stdin};
+  (fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file})->fio = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686acd63b18f81b7a9f3ea7c6168711f3cd3}{io\_stdout};
+  (fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file})->fio = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a9c9763549425e6d230977c5f0e81f6eb}{io\_stderr};
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a5b6d7f9feea1e251c83be8ccea305b9b_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a9c0d8916c2fd2c72650a5011b858d662}{\index{forth.\-c@{forth.\-c}!print\-\_\-line\-\_\-file@{print\-\_\-line\-\_\-file}}
+\index{print\-\_\-line\-\_\-file@{print\-\_\-line\-\_\-file}!forth.c@{forth.\-c}}
+\subsubsection[{print\-\_\-line\-\_\-file}]{\setlength{\rightskip}{0pt plus 5cm}static void print\-\_\-line\-\_\-file (
+\begin{DoxyParamCaption}
+\item[{int}]{line, }
+\item[{const char $\ast$}]{file, }
+\item[{{\bf fio\-\_\-t} $\ast$}]{err\-\_\-file}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a9c0d8916c2fd2c72650a5011b858d662}
+print a line and a file 
+
+Definition at line 289 of file forth.\-c.
+
+
+
+References M\-A\-X\-\_\-\-E\-R\-R\-\_\-\-S\-T\-R, my\-\_\-itoa(), print\-\_\-string(), and wrap\-\_\-put().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\hyperlink{forth_8c_a1ea5632b1de4c8f52ade798756f62c78}{my\_itoa}(line, 10), \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}, 
+      err\_file);
+  (void)\hyperlink{forth_8c_aaf0a04db2927d3e52b821327d8c7c5cd}{wrap\_put}(err\_file, \textcolor{charliteral}{'\(\backslash\)t'});
+  \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(file, \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}, err\_file);
+  (void)\hyperlink{forth_8c_aaf0a04db2927d3e52b821327d8c7c5cd}{wrap\_put}(err\_file, \textcolor{charliteral}{'\(\backslash\)n'});
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=348pt]{forth_8c_a9c0d8916c2fd2c72650a5011b858d662_cgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{\index{forth.\-c@{forth.\-c}!print\-\_\-string@{print\-\_\-string}}
+\index{print\-\_\-string@{print\-\_\-string}!forth.c@{forth.\-c}}
+\subsubsection[{print\-\_\-string}]{\setlength{\rightskip}{0pt plus 5cm}static void print\-\_\-string (
+\begin{DoxyParamCaption}
+\item[{const char $\ast$}]{s, }
+\item[{const {\bf mw}}]{max, }
+\item[{{\bf fio\-\_\-t} $\ast$}]{out\-\_\-file}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}
+print a string, nothing special, Error handling needed! 
+
+Definition at line 280 of file forth.\-c.
+
+
+
+References wrap\-\_\-put().
+
+
+
+Referenced by forth\-\_\-interpreter(), forth\-\_\-monitor(), forth\-\_\-system\-\_\-calls(), print\-\_\-line\-\_\-file(), and report\-\_\-error().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} i;
+  \textcolor{keywordflow}{for} (i = 0; (i < max) && (\textcolor{charliteral}{'\(\backslash\)0'} != s[i]); i++) \{
+    (void)\hyperlink{forth_8c_aaf0a04db2927d3e52b821327d8c7c5cd}{wrap\_put}(out\_file, s[i]);
+  \}
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=238pt]{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a1c112c5917517e45cecf37c24a807ad3}{\index{forth.\-c@{forth.\-c}!report\-\_\-error@{report\-\_\-error}}
+\index{report\-\_\-error@{report\-\_\-error}!forth.c@{forth.\-c}}
+\subsubsection[{report\-\_\-error}]{\setlength{\rightskip}{0pt plus 5cm}static void report\-\_\-error (
+\begin{DoxyParamCaption}
+\item[{{\bf forth\-\_\-errors\-\_\-e}}]{e}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a1c112c5917517e45cecf37c24a807ad3}
+
+
+Definition at line 1109 of file forth.\-c.
+
+
+
+References fio\-\_\-s\-::fio, forth\-\_\-error\-\_\-str, io\-\_\-stderr, M\-A\-X\-\_\-\-E\-R\-R\-\_\-\-S\-T\-R, and print\-\_\-string().
+
+
+
+Referenced by forth\-\_\-monitor().
+
+
+\begin{DoxyCode}
+\{
+  \hyperlink{structfio__s}{fio\_t} err\_file\_local;
+  err\_file\_local.\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a9c9763549425e6d230977c5f0e81f6eb}{io\_stderr};
+  \hyperlink{forth_8c_a5d4cf23120e19d6a2b0e1f3b1c383552}{print\_string}(\hyperlink{forth_8c_ad93160a995325171d8786ccb79581034}{forth\_error\_str}[e], \hyperlink{forth_8h_ae0c19fea1020465d2d8fdc260e0191af}{MAX\_ERR\_STR}
+      , &err\_file\_local);
+  \textcolor{keywordflow}{return};
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=340pt]{forth_8c_a1c112c5917517e45cecf37c24a807ad3_cgraph}
+\end{center}
+\end{figure}
+
+
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=330pt]{forth_8c_a1c112c5917517e45cecf37c24a807ad3_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a57f4bfac4b5d7444fa81f64f54a08d17}{\index{forth.\-c@{forth.\-c}!strnequ@{strnequ}}
+\index{strnequ@{strnequ}!forth.c@{forth.\-c}}
+\subsubsection[{strnequ}]{\setlength{\rightskip}{0pt plus 5cm}static {\bf mw} strnequ (
+\begin{DoxyParamCaption}
+\item[{const char}]{str1\mbox{[}$\,$\mbox{]}, }
+\item[{const char}]{str2\mbox{[}$\,$\mbox{]}, }
+\item[{const {\bf mw}}]{lim1, }
+\item[{const {\bf mw}}]{lim2}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a57f4bfac4b5d7444fa81f64f54a08d17}
+1 if not equal, 0 if equal, 2 means string limit exceeded 
+
+Definition at line 211 of file forth.\-c.
+
+
+
+Referenced by find\-\_\-word(), and forth\-\_\-interpreter().
+
+
+\begin{DoxyCode}
+\{
+
+  \textcolor{keywordtype}{char} *s1 = (\textcolor{keywordtype}{char} *)str1, *s2 = (\textcolor{keywordtype}{char} *)str2;
+
+  \textcolor{keywordflow}{for} (; (*s1 == *s2) && (s1 < str1 + lim1) && (s2 < str2 + lim2); s1++, s2++)
+    \textcolor{keywordflow}{if} (\textcolor{charliteral}{'\(\backslash\)0'} == (*s1))
+      \textcolor{keywordflow}{return} 0;
+
+  \textcolor{keywordflow}{if} ((s1 >= str1 + lim1) || (s2 >= str2 + lim2)) \{
+    \textcolor{keywordflow}{return} 2;
+  \}
+  \textcolor{keywordflow}{return} 1;
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a57f4bfac4b5d7444fa81f64f54a08d17_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_a22e0ba08ea2327a665ce7134fd57c9f8}{\index{forth.\-c@{forth.\-c}!wrap\-\_\-get@{wrap\-\_\-get}}
+\index{wrap\-\_\-get@{wrap\-\_\-get}!forth.c@{forth.\-c}}
+\subsubsection[{wrap\-\_\-get}]{\setlength{\rightskip}{0pt plus 5cm}static int wrap\-\_\-get (
+\begin{DoxyParamCaption}
+\item[{{\bf fio\-\_\-t} $\ast$}]{in\-\_\-file}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a22e0ba08ea2327a665ce7134fd57c9f8}
+Either get input from stdin, a string or a file 
+
+Definition at line 109 of file forth.\-c.
+
+
+
+References io\-\_\-u\-::f, fio\-\_\-s\-::fio, io\-\_\-rd\-\_\-file, io\-\_\-rd\-\_\-str, io\-\_\-stdin, fio\-\_\-s\-::iou, io\-\_\-u\-::s, fio\-\_\-s\-::str\-\_\-index, and fio\-\_\-s\-::str\-\_\-max\-\_\-len.
+
+
+
+Referenced by forth\-\_\-interpreter(), and get\-\_\-word().
+
+
+\begin{DoxyCode}
+\{
+  \textcolor{keywordtype}{char} tmp;
+  \textcolor{keywordflow}{switch} (in\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio}) \{
+  \textcolor{keywordflow}{case} \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a59e5094bc91726c1d5aae2041cd65471}{io\_stdin}:
+    \textcolor{keywordflow}{return} getc(stdin);
+  \textcolor{keywordflow}{case} \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a284a51423fa74ee718436c52ca6a7a2d}{io\_rd\_file}:
+    \textcolor{keywordflow}{if} (NULL != in\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f})
+      \textcolor{keywordflow}{return} fgetc(in\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f});
+    \textcolor{keywordflow}{else}
+      \textcolor{keywordflow}{return} EOF;
+  \textcolor{keywordflow}{case} \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a56f70544dd1174b1c8bbe22bf94caa30}{io\_rd\_str}:
+    \textcolor{keywordflow}{if} (NULL != in\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_af2ba735a875960b4c28a64b204f8951d}{s}) \{
+      \textcolor{keywordflow}{if} (in\_file->\hyperlink{structfio__s_a6a40f69645ccdcc90111dd97c9e98027}{str\_index} > in\_file->\hyperlink{structfio__s_ad6ec0b91021e511e2e9df2c068858c74}{str\_max\_len})
+        \textcolor{keywordflow}{return} EOF;
+      tmp = in\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_af2ba735a875960b4c28a64b204f8951d}{s}[++in\_file->\hyperlink{structfio__s_a6a40f69645ccdcc90111dd97c9e98027}{str\_index}];
+      \textcolor{keywordflow}{if} (tmp != \textcolor{charliteral}{'\(\backslash\)0'})
+        \textcolor{keywordflow}{return} (\textcolor{keywordtype}{int})tmp;
+      \textcolor{keywordflow}{else}
+        \textcolor{keywordflow}{return} EOF;
+    \} \textcolor{keywordflow}{else}
+      \textcolor{keywordflow}{return} EOF;
+  \textcolor{keywordflow}{default}:
+    \textcolor{keywordflow}{return} EOF;
+  \}
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_a22e0ba08ea2327a665ce7134fd57c9f8_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{forth_8c_aaf0a04db2927d3e52b821327d8c7c5cd}{\index{forth.\-c@{forth.\-c}!wrap\-\_\-put@{wrap\-\_\-put}}
+\index{wrap\-\_\-put@{wrap\-\_\-put}!forth.c@{forth.\-c}}
+\subsubsection[{wrap\-\_\-put}]{\setlength{\rightskip}{0pt plus 5cm}static int wrap\-\_\-put (
+\begin{DoxyParamCaption}
+\item[{{\bf fio\-\_\-t} $\ast$}]{out\-\_\-file, }
+\item[{char}]{c}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_aaf0a04db2927d3e52b821327d8c7c5cd}
+Either put output to a stdout, stderr, a string or a file 
+
+Definition at line 137 of file forth.\-c.
+
+
+
+References io\-\_\-u\-::f, fio\-\_\-s\-::fio, io\-\_\-stderr, io\-\_\-stdout, io\-\_\-wr\-\_\-file, io\-\_\-wr\-\_\-str, fio\-\_\-s\-::iou, io\-\_\-u\-::s, fio\-\_\-s\-::str\-\_\-index, and fio\-\_\-s\-::str\-\_\-max\-\_\-len.
+
+
+
+Referenced by forth\-\_\-interpreter(), forth\-\_\-monitor(), print\-\_\-line\-\_\-file(), and print\-\_\-string().
+
+
+\begin{DoxyCode}
+\{
+  \textcolor{keywordflow}{switch} (out\_file->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio}) \{
+  \textcolor{keywordflow}{case} \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686acd63b18f81b7a9f3ea7c6168711f3cd3}{io\_stdout}:
+    \textcolor{keywordflow}{return} putc(c, stdout);
+  \textcolor{keywordflow}{case} \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a9c9763549425e6d230977c5f0e81f6eb}{io\_stderr}:
+    \textcolor{keywordflow}{return} putc(c, stderr);
+  \textcolor{keywordflow}{case} \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a29f5a738b1322488c5afb45a82625dcd}{io\_wr\_file}:
+    \textcolor{keywordflow}{if} (NULL != out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f})
+      \textcolor{keywordflow}{return} fputc(c, out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f});
+    \textcolor{keywordflow}{else}
+      \textcolor{keywordflow}{return} EOF;
+  \textcolor{keywordflow}{case} \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686ae220222e2fd6d75bb2d6c05a800e2e1a}{io\_wr\_str}:
+    \textcolor{keywordflow}{if} (NULL != out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_af2ba735a875960b4c28a64b204f8951d}{s}) \{
+      \textcolor{keywordflow}{if} (out\_file->\hyperlink{structfio__s_a6a40f69645ccdcc90111dd97c9e98027}{str\_index} > out\_file->\hyperlink{structfio__s_ad6ec0b91021e511e2e9df2c068858c74}{str\_max\_len})
+        \textcolor{keywordflow}{return} EOF;
+      out\_file->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_af2ba735a875960b4c28a64b204f8951d}{s}[++(out\_file->\hyperlink{structfio__s_a6a40f69645ccdcc90111dd97c9e98027}{str\_index})] = c;
+    \} \textcolor{keywordflow}{else} \{
+      \textcolor{keywordflow}{return} EOF;
+    \}
+    \textcolor{keywordflow}{return} ERR\_OK;
+  \textcolor{keywordflow}{default}:
+    \textcolor{keywordflow}{return} EOF;
+  \}
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{forth_8c_aaf0a04db2927d3e52b821327d8c7c5cd_icgraph}
+\end{center}
+\end{figure}
+
+
+
+
+\subsection{Variable Documentation}
+\hypertarget{forth_8c_a373ba9f62b95705d174e3c813af0f980}{\index{forth.\-c@{forth.\-c}!f\-\_\-error\-\_\-action@{f\-\_\-error\-\_\-action}}
+\index{f\-\_\-error\-\_\-action@{f\-\_\-error\-\_\-action}!forth.c@{forth.\-c}}
+\subsubsection[{f\-\_\-error\-\_\-action}]{\setlength{\rightskip}{0pt plus 5cm}const {\bf forth\-\_\-error\-\_\-action\-\_\-e} f\-\_\-error\-\_\-action\mbox{[}$\,$\mbox{]}\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a373ba9f62b95705d174e3c813af0f980}
+{\bfseries Initial value\-:}
+\begin{DoxyCode}
+ \{
+  \hyperlink{forth_8h_a14a35d5745798f9b629c0c7679564e56a58f999c481af6395977d30dcf1caea29}{FORTH\_ERROR\_XMACRO}
+\}
+\end{DoxyCode}
+
+
+Definition at line 53 of file forth.\-c.
+
+
+
+Referenced by forth\-\_\-monitor().
+
+\hypertarget{forth_8c_ad93160a995325171d8786ccb79581034}{\index{forth.\-c@{forth.\-c}!forth\-\_\-error\-\_\-str@{forth\-\_\-error\-\_\-str}}
+\index{forth\-\_\-error\-\_\-str@{forth\-\_\-error\-\_\-str}!forth.c@{forth.\-c}}
+\subsubsection[{forth\-\_\-error\-\_\-str}]{\setlength{\rightskip}{0pt plus 5cm}const char$\ast$ forth\-\_\-error\-\_\-str\mbox{[}$\,$\mbox{]}\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_ad93160a995325171d8786ccb79581034}
+{\bfseries Initial value\-:}
+\begin{DoxyCode}
+ \{
+  \hyperlink{forth_8h_a14a35d5745798f9b629c0c7679564e56a58f999c481af6395977d30dcf1caea29}{FORTH\_ERROR\_XMACRO}
+\}
+\end{DoxyCode}
+
+
+Definition at line 45 of file forth.\-c.
+
+
+
+Referenced by forth\-\_\-monitor(), and report\-\_\-error().
+
+\hypertarget{forth_8c_a9b1fedc225635da50917e473e785dabe}{\index{forth.\-c@{forth.\-c}!forth\-\_\-primitives\-\_\-str@{forth\-\_\-primitives\-\_\-str}}
+\index{forth\-\_\-primitives\-\_\-str@{forth\-\_\-primitives\-\_\-str}!forth.c@{forth.\-c}}
+\subsubsection[{forth\-\_\-primitives\-\_\-str}]{\setlength{\rightskip}{0pt plus 5cm}const char$\ast$ forth\-\_\-primitives\-\_\-str\mbox{[}$\,$\mbox{]}\hspace{0.3cm}{\ttfamily [static]}}}\label{forth_8c_a9b1fedc225635da50917e473e785dabe}
+{\bfseries Initial value\-:}
+\begin{DoxyCode}
+ \{
+  \hyperlink{forth_8h_a7c6d60f89f63bc3d21ce2e1b1933f9b4a065f23e64816ee10e0bccc6821d8e33d}{FORTH\_PRIMITIVE\_XMACRO\_M}
+\}
+\end{DoxyCode}
+
+
+Definition at line 61 of file forth.\-c.
+
+
+
+Referenced by forth\-\_\-initialize().
+

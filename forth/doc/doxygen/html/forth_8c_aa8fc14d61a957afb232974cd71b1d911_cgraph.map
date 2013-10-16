@@ -1,0 +1,5 @@
+<map id="forth_system_calls" name="forth_system_calls">
+<area shape="rect" id="node3" href="$forth_8c.html#a5b6d7f9feea1e251c83be8ccea305b9b" title="on_err" alt="" coords="201,5,260,35"/>
+<area shape="rect" id="node5" href="$forth_8c.html#a5d4cf23120e19d6a2b0e1f3b1c383552" title="print_string" alt="" coords="188,59,273,88"/>
+<area shape="rect" id="node7" href="$forth_8c.html#aaf0a04db2927d3e52b821327d8c7c5cd" title="wrap_put" alt="" coords="323,59,397,88"/>
+</map>

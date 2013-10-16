@@ -22,6 +22,10 @@ Loops and if statements
 
 ### vhdl/
 
+* PS/2 Keyboard
+
+* 16 bit floating point unit? Half float.
+
 * The memory modules should be made more generic:
 
   They should accept a file name and a word length.

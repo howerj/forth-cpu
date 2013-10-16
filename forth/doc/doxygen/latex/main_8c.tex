@@ -1,0 +1,408 @@
+\hypertarget{main_8c}{\section{main.\-c File Reference}
+\label{main_8c}\index{main.\-c@{main.\-c}}
+}
+
+
+Wrapper/\-Top Level.  
+
+
+{\ttfamily \#include $<$stdio.\-h$>$}\\*
+{\ttfamily \#include $<$stdlib.\-h$>$}\\*
+{\ttfamily \#include $<$string.\-h$>$}\\*
+{\ttfamily \#include $<$stdint.\-h$>$}\\*
+{\ttfamily \#include \char`\"{}lib/forth.\-h\char`\"{}}\\*
+{\ttfamily \#include \char`\"{}lib/hosted.\-h\char`\"{}}\\*
+Include dependency graph for main.\-c\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{main_8c__incl}
+\end{center}
+\end{figure}
+\subsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \hyperlink{main_8c_a90041df447240c9713db37f9516cc1f9}{M\-A\-X\-\_\-\-R\-E\-G}~(32)
+\item 
+\#define \hyperlink{main_8c_a9138233dde45c3e497b61ebe39beac3b}{M\-A\-X\-\_\-\-D\-I\-C}~(1024$\ast$1024)
+\item 
+\#define \hyperlink{main_8c_adf2d7fec5bf033328e64fdedea22e341}{M\-A\-X\-\_\-\-V\-A\-R}~(8192)
+\item 
+\#define \hyperlink{main_8c_acadecc5aeb110d654c2c4ccb20eeb731}{M\-A\-X\-\_\-\-R\-E\-T}~(8192)
+\item 
+\#define \hyperlink{main_8c_a8b6d77865140befe3a9bc16132d2e696}{M\-A\-X\-\_\-\-S\-T\-R}~(1024$\ast$1024)
+\item 
+\#define \hyperlink{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{X}(a, b)~b
+\item 
+\#define \hyperlink{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{X}(a, b)~b
+\item 
+\#define \hyperlink{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{X}(a, b)~b
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+static void \hyperlink{main_8c_a4cf7742ce24d7506c04cf319dbe74582}{print\-\_\-enums} (F\-I\-L\-E $\ast$output)
+\item 
+int \hyperlink{main_8c_a0ddf1224851353fc92bfbff6f499fa97}{main} (int argc, char $\ast$argv\mbox{[}$\,$\mbox{]})
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+static const char \hyperlink{main_8c_a8cf6818d84493b539c0ade5e20677179}{versionmsg} \mbox{[}$\,$\mbox{]} = \char`\"{}\textbackslash{}n\char`\"{}
+\item 
+static const char \hyperlink{main_8c_a98a1e8bfc4befd710710bf0c40ab17ea}{helpmsg} \mbox{[}$\,$\mbox{]}
+\item 
+static const char $\ast$ \hyperlink{main_8c_a8bd8667998c45c897f1b3eab99552817}{forth\-\_\-primitives\-\_\-str\-\_\-print\-\_\-me} \mbox{[}$\,$\mbox{]}
+\item 
+static const char $\ast$ \hyperlink{main_8c_ae6ce0c59ddc7a4ffadd95260cdce98d7}{forth\-\_\-system\-\_\-calls\-\_\-str\-\_\-print\-\_\-me} \mbox{[}$\,$\mbox{]}
+\item 
+static const char $\ast$ \hyperlink{main_8c_abc473d7c8e2d53f5feaeabe214da6f90}{forth\-\_\-register\-\_\-str\-\_\-print\-\_\-me} \mbox{[}$\,$\mbox{]}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Wrapper/\-Top Level. Howe Forth
+
+\begin{DoxyAuthor}{Author}
+Richard James Howe. 
+\end{DoxyAuthor}
+\begin{DoxyCopyright}{Copyright}
+Copyright 2013 Richard James Howe. 
+\end{DoxyCopyright}
+\begin{DoxyParagraph}{License\-:}
+L\-G\-P\-L 
+\end{DoxyParagraph}
+\begin{DoxyParagraph}{Email\-:}
+\href{mailto:howe.r.j.89@gmail.com}{\tt howe.\-r.\-j.\-89@gmail.\-com} 
+\end{DoxyParagraph}
+
+
+Definition in file \hyperlink{main_8c_source}{main.\-c}.
+
+
+
+\subsection{Macro Definition Documentation}
+\hypertarget{main_8c_a9138233dde45c3e497b61ebe39beac3b}{\index{main.\-c@{main.\-c}!M\-A\-X\-\_\-\-D\-I\-C@{M\-A\-X\-\_\-\-D\-I\-C}}
+\index{M\-A\-X\-\_\-\-D\-I\-C@{M\-A\-X\-\_\-\-D\-I\-C}!main.c@{main.\-c}}
+\subsubsection[{M\-A\-X\-\_\-\-D\-I\-C}]{\setlength{\rightskip}{0pt plus 5cm}\#define M\-A\-X\-\_\-\-D\-I\-C~(1024$\ast$1024)}}\label{main_8c_a9138233dde45c3e497b61ebe39beac3b}
+
+
+Definition at line 21 of file main.\-c.
+
+
+
+Referenced by main().
+
+\hypertarget{main_8c_a90041df447240c9713db37f9516cc1f9}{\index{main.\-c@{main.\-c}!M\-A\-X\-\_\-\-R\-E\-G@{M\-A\-X\-\_\-\-R\-E\-G}}
+\index{M\-A\-X\-\_\-\-R\-E\-G@{M\-A\-X\-\_\-\-R\-E\-G}!main.c@{main.\-c}}
+\subsubsection[{M\-A\-X\-\_\-\-R\-E\-G}]{\setlength{\rightskip}{0pt plus 5cm}\#define M\-A\-X\-\_\-\-R\-E\-G~(32)}}\label{main_8c_a90041df447240c9713db37f9516cc1f9}
+
+
+Definition at line 20 of file main.\-c.
+
+
+
+Referenced by main().
+
+\hypertarget{main_8c_acadecc5aeb110d654c2c4ccb20eeb731}{\index{main.\-c@{main.\-c}!M\-A\-X\-\_\-\-R\-E\-T@{M\-A\-X\-\_\-\-R\-E\-T}}
+\index{M\-A\-X\-\_\-\-R\-E\-T@{M\-A\-X\-\_\-\-R\-E\-T}!main.c@{main.\-c}}
+\subsubsection[{M\-A\-X\-\_\-\-R\-E\-T}]{\setlength{\rightskip}{0pt plus 5cm}\#define M\-A\-X\-\_\-\-R\-E\-T~(8192)}}\label{main_8c_acadecc5aeb110d654c2c4ccb20eeb731}
+
+
+Definition at line 23 of file main.\-c.
+
+
+
+Referenced by main().
+
+\hypertarget{main_8c_a8b6d77865140befe3a9bc16132d2e696}{\index{main.\-c@{main.\-c}!M\-A\-X\-\_\-\-S\-T\-R@{M\-A\-X\-\_\-\-S\-T\-R}}
+\index{M\-A\-X\-\_\-\-S\-T\-R@{M\-A\-X\-\_\-\-S\-T\-R}!main.c@{main.\-c}}
+\subsubsection[{M\-A\-X\-\_\-\-S\-T\-R}]{\setlength{\rightskip}{0pt plus 5cm}\#define M\-A\-X\-\_\-\-S\-T\-R~(1024$\ast$1024)}}\label{main_8c_a8b6d77865140befe3a9bc16132d2e696}
+
+
+Definition at line 24 of file main.\-c.
+
+
+
+Referenced by main().
+
+\hypertarget{main_8c_adf2d7fec5bf033328e64fdedea22e341}{\index{main.\-c@{main.\-c}!M\-A\-X\-\_\-\-V\-A\-R@{M\-A\-X\-\_\-\-V\-A\-R}}
+\index{M\-A\-X\-\_\-\-V\-A\-R@{M\-A\-X\-\_\-\-V\-A\-R}!main.c@{main.\-c}}
+\subsubsection[{M\-A\-X\-\_\-\-V\-A\-R}]{\setlength{\rightskip}{0pt plus 5cm}\#define M\-A\-X\-\_\-\-V\-A\-R~(8192)}}\label{main_8c_adf2d7fec5bf033328e64fdedea22e341}
+
+
+Definition at line 22 of file main.\-c.
+
+
+
+Referenced by main().
+
+\hypertarget{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{\index{main.\-c@{main.\-c}!X@{X}}
+\index{X@{X}!main.c@{main.\-c}}
+\subsubsection[{X}]{\setlength{\rightskip}{0pt plus 5cm}\#define X(
+\begin{DoxyParamCaption}
+\item[{}]{a, }
+\item[{}]{b}
+\end{DoxyParamCaption}
+)~b}}\label{main_8c_a8a0d2d602acb24d74237c3f310e935cd}
+only for printing out 
+
+Definition at line 62 of file main.\-c.
+
+\hypertarget{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{\index{main.\-c@{main.\-c}!X@{X}}
+\index{X@{X}!main.c@{main.\-c}}
+\subsubsection[{X}]{\setlength{\rightskip}{0pt plus 5cm}\#define X(
+\begin{DoxyParamCaption}
+\item[{}]{a, }
+\item[{}]{b}
+\end{DoxyParamCaption}
+)~b}}\label{main_8c_a8a0d2d602acb24d74237c3f310e935cd}
+only for printing out 
+
+Definition at line 62 of file main.\-c.
+
+\hypertarget{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{\index{main.\-c@{main.\-c}!X@{X}}
+\index{X@{X}!main.c@{main.\-c}}
+\subsubsection[{X}]{\setlength{\rightskip}{0pt plus 5cm}\#define X(
+\begin{DoxyParamCaption}
+\item[{}]{a, }
+\item[{}]{b}
+\end{DoxyParamCaption}
+)~b}}\label{main_8c_a8a0d2d602acb24d74237c3f310e935cd}
+only for printing out 
+
+Definition at line 62 of file main.\-c.
+
+
+
+\subsection{Function Documentation}
+\hypertarget{main_8c_a0ddf1224851353fc92bfbff6f499fa97}{\index{main.\-c@{main.\-c}!main@{main}}
+\index{main@{main}!main.c@{main.\-c}}
+\subsubsection[{main}]{\setlength{\rightskip}{0pt plus 5cm}int main (
+\begin{DoxyParamCaption}
+\item[{int}]{argc, }
+\item[{char $\ast$}]{argv\mbox{[}$\,$\mbox{]}}
+\end{DoxyParamCaption}
+)}}\label{main_8c_a0ddf1224851353fc92bfbff6f499fa97}
+main, where the magic happens, well is called from. process command line arguments 
+
+Definition at line 100 of file main.\-c.
+
+
+
+References C\-A\-L\-L\-O\-C\-\_\-\-F\-A\-I\-L, forth\-\_\-monitor(), forth\-\_\-obj\-\_\-create(), forth\-\_\-obj\-\_\-destroy(), helpmsg, M\-A\-X\-\_\-\-D\-I\-C, M\-A\-X\-\_\-\-R\-E\-G, M\-A\-X\-\_\-\-R\-E\-T, M\-A\-X\-\_\-\-S\-T\-R, M\-A\-X\-\_\-\-V\-A\-R, print\-\_\-enums(), versionmsg, and W\-O\-R\-D\-\_\-\-S\-T\-R\-I\-N\-G.
+
+
+\begin{DoxyCode}
+\{
+  FILE *input = NULL;
+  \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} forth\_return;
+  \hyperlink{structforth__obj}{fobj\_t} *fo;
+
+  \textcolor{keywordflow}{if} (argc > 1) \{\textcolor{comment}{}
+\textcolor{comment}{                /**process command line arguments*/}
+    \textcolor{keywordflow}{if} ((!strcmp(\textcolor{stringliteral}{"-h"}, argv[1])) || (!strcmp(\textcolor{stringliteral}{"--help"}, argv[1]))) \{
+      fprintf(stdout, \textcolor{stringliteral}{"%s using: %s\(\backslash\)n%s\(\backslash\)n"}, \hyperlink{main_8c_a8cf6818d84493b539c0ade5e20677179}{versionmsg}, \hyperlink{forth_8h_aa6b64e7047ddcd8c2b2d6648eb995fe7}{WORD\_STRING}
+      , \hyperlink{main_8c_a98a1e8bfc4befd710710bf0c40ab17ea}{helpmsg});
+      \textcolor{keywordflow}{return} 0;
+    \}
+
+    \textcolor{keywordflow}{if} ((!strcmp(\textcolor{stringliteral}{"-V"}, argv[1])) || (!strcmp(\textcolor{stringliteral}{"--version"}, argv[1]))) \{
+      fprintf(stdout, \textcolor{stringliteral}{"%s using: %s\(\backslash\)n"}, \hyperlink{main_8c_a8cf6818d84493b539c0ade5e20677179}{versionmsg}, \hyperlink{forth_8h_aa6b64e7047ddcd8c2b2d6648eb995fe7}{WORD\_STRING}
+      );
+      \textcolor{keywordflow}{return} 0;
+    \}
+
+    \textcolor{keywordflow}{if} ((!strcmp(\textcolor{stringliteral}{"-E"}, argv[1])) || (!strcmp(\textcolor{stringliteral}{"--enum"}, argv[1]))) \{
+      \hyperlink{main_8c_a4cf7742ce24d7506c04cf319dbe74582}{print\_enums}(stdout);
+      \textcolor{keywordflow}{return} 0;
+    \}
+    \textcolor{comment}{/*}
+\textcolor{comment}{       if((!strcmp("-",argv[1]))||(!strcmp("--stdin",argv[1])))\{}
+\textcolor{comment}{       \} */}
+    \textcolor{keywordflow}{if} (NULL == (input = fopen(argv[1], \textcolor{stringliteral}{"r"}))) \{
+      fprintf(stderr, \textcolor{stringliteral}{"Could not open \(\backslash\)"%s\(\backslash\)" for reading.\(\backslash\)n"}, argv[1]);
+      \textcolor{keywordflow}{return} 1;
+    \}
+  \}
+  fo = \hyperlink{hosted_8c_a2ae4f2af4d64761c08c95f78cc71491a}{forth\_obj\_create}(\hyperlink{main_8c_a90041df447240c9713db37f9516cc1f9}{MAX\_REG}, \hyperlink{main_8c_a9138233dde45c3e497b61ebe39beac3b}{MAX\_DIC}, \hyperlink{main_8c_adf2d7fec5bf033328e64fdedea22e341}{MAX\_VAR}
+      , \hyperlink{main_8c_acadecc5aeb110d654c2c4ccb20eeb731}{MAX\_RET}, \hyperlink{main_8c_a8b6d77865140befe3a9bc16132d2e696}{MAX\_STR}, input);
+  \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo, -1);          \textcolor{comment}{/*memory might not be free()'d on
+       error. */}
+  forth\_return = \hyperlink{forth_8c_ab7483c43ac03c2f24c684b22eaee9275}{forth\_monitor}(fo);
+  fprintf(stderr, \textcolor{stringliteral}{"(returned %X)\(\backslash\)n"}, (\textcolor{keywordtype}{unsigned} \textcolor{keywordtype}{int})forth\_return);
+  \hyperlink{hosted_8c_ad5203ecf3d6d164c59c2d84442fa7758}{forth\_obj\_destroy}(fo);
+  \textcolor{keywordflow}{return} 0;
+\}
+\end{DoxyCode}
+
+
+Here is the call graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{main_8c_a0ddf1224851353fc92bfbff6f499fa97_cgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{main_8c_a4cf7742ce24d7506c04cf319dbe74582}{\index{main.\-c@{main.\-c}!print\-\_\-enums@{print\-\_\-enums}}
+\index{print\-\_\-enums@{print\-\_\-enums}!main.c@{main.\-c}}
+\subsubsection[{print\-\_\-enums}]{\setlength{\rightskip}{0pt plus 5cm}static void print\-\_\-enums (
+\begin{DoxyParamCaption}
+\item[{F\-I\-L\-E $\ast$}]{output}
+\end{DoxyParamCaption}
+)\hspace{0.3cm}{\ttfamily [static]}}}\label{main_8c_a4cf7742ce24d7506c04cf319dbe74582}
+Print out all of the defined enumerations that might be useful for the interpreter when it is running to have print out registers
+
+print out system calls
+
+print out defined primitives 
+
+Definition at line 71 of file main.\-c.
+
+
+
+References forth\-\_\-primitives\-\_\-str\-\_\-print\-\_\-me, forth\-\_\-register\-\_\-str\-\_\-print\-\_\-me, and forth\-\_\-system\-\_\-calls\-\_\-str\-\_\-print\-\_\-me.
+
+
+
+Referenced by main().
+
+
+\begin{DoxyCode}
+\{
+  \textcolor{keywordtype}{int} i;
+
+  fprintf(output, \textcolor{stringliteral}{"\(\backslash\)\(\backslash\) Auto generated file, do not edit \(\backslash\)n"});
+  fprintf(output, \textcolor{stringliteral}{"\(\backslash\)\(\backslash\) This file contains a list of useful constants\(\backslash\)n\(\backslash\)n"});
+\textcolor{comment}{}
+\textcolor{comment}{  /**print out registers*/}
+  fprintf(output, \textcolor{stringliteral}{"\(\backslash\)\(\backslash\) register locations\(\backslash\)n"});
+  \textcolor{keywordflow}{for} (i = 0; i < ENUM\_LAST\_REGISTER; i++) \{
+    fprintf(output, \textcolor{stringliteral}{"%d constant R\_%s\(\backslash\)n"}, i, \hyperlink{main_8c_abc473d7c8e2d53f5feaeabe214da6f90}{forth\_register\_str\_print\_me}
+      [i]);
+  \}
+\textcolor{comment}{}
+\textcolor{comment}{  /**print out system calls*/}
+  fprintf(output, \textcolor{stringliteral}{"\(\backslash\)\(\backslash\) system calls for kernel keyword\(\backslash\)n"});
+  \textcolor{keywordflow}{for} (i = 0; i < LAST\_ERROR\_CALL; i++) \{
+    fprintf(output, \textcolor{stringliteral}{"%d constant S\_%s\(\backslash\)n"}, i, \hyperlink{main_8c_ae6ce0c59ddc7a4ffadd95260cdce98d7}{forth\_system\_calls\_str\_print\_me}
+      [i]);
+  \}
+\textcolor{comment}{}
+\textcolor{comment}{  /**print out defined primitives*/}
+  fprintf(output, \textcolor{stringliteral}{"\(\backslash\)\(\backslash\) primitives\(\backslash\)n"});
+  \textcolor{keywordflow}{for} (i = 0; i < LAST\_PRIMITIVE; i++) \{
+    fprintf(output, \textcolor{stringliteral}{"%d constant P\_%s\(\backslash\)n"}, i, \hyperlink{main_8c_a8bd8667998c45c897f1b3eab99552817}{forth\_primitives\_str\_print\_me}
+      [i]);
+  \}
+
+  \textcolor{keywordflow}{return};
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=224pt]{main_8c_a4cf7742ce24d7506c04cf319dbe74582_icgraph}
+\end{center}
+\end{figure}
+
+
+
+
+\subsection{Variable Documentation}
+\hypertarget{main_8c_a8bd8667998c45c897f1b3eab99552817}{\index{main.\-c@{main.\-c}!forth\-\_\-primitives\-\_\-str\-\_\-print\-\_\-me@{forth\-\_\-primitives\-\_\-str\-\_\-print\-\_\-me}}
+\index{forth\-\_\-primitives\-\_\-str\-\_\-print\-\_\-me@{forth\-\_\-primitives\-\_\-str\-\_\-print\-\_\-me}!main.c@{main.\-c}}
+\subsubsection[{forth\-\_\-primitives\-\_\-str\-\_\-print\-\_\-me}]{\setlength{\rightskip}{0pt plus 5cm}const char$\ast$ forth\-\_\-primitives\-\_\-str\-\_\-print\-\_\-me\mbox{[}$\,$\mbox{]}\hspace{0.3cm}{\ttfamily [static]}}}\label{main_8c_a8bd8667998c45c897f1b3eab99552817}
+{\bfseries Initial value\-:}
+\begin{DoxyCode}
+ \{
+  \hyperlink{forth_8h_a7c6d60f89f63bc3d21ce2e1b1933f9b4a065f23e64816ee10e0bccc6821d8e33d}{FORTH\_PRIMITIVE\_XMACRO\_M}
+\}
+\end{DoxyCode}
+
+
+Definition at line 47 of file main.\-c.
+
+
+
+Referenced by print\-\_\-enums().
+
+\hypertarget{main_8c_abc473d7c8e2d53f5feaeabe214da6f90}{\index{main.\-c@{main.\-c}!forth\-\_\-register\-\_\-str\-\_\-print\-\_\-me@{forth\-\_\-register\-\_\-str\-\_\-print\-\_\-me}}
+\index{forth\-\_\-register\-\_\-str\-\_\-print\-\_\-me@{forth\-\_\-register\-\_\-str\-\_\-print\-\_\-me}!main.c@{main.\-c}}
+\subsubsection[{forth\-\_\-register\-\_\-str\-\_\-print\-\_\-me}]{\setlength{\rightskip}{0pt plus 5cm}const char$\ast$ forth\-\_\-register\-\_\-str\-\_\-print\-\_\-me\mbox{[}$\,$\mbox{]}\hspace{0.3cm}{\ttfamily [static]}}}\label{main_8c_abc473d7c8e2d53f5feaeabe214da6f90}
+{\bfseries Initial value\-:}
+\begin{DoxyCode}
+ \{
+  \hyperlink{forth_8h_a75b0838b71635be538214c8a6ae914f5a0b3426b2c45502427073be9bad076887}{FORTH\_REGISTER\_ENUM\_XMACRO\_M}
+\}
+\end{DoxyCode}
+
+
+Definition at line 63 of file main.\-c.
+
+
+
+Referenced by print\-\_\-enums().
+
+\hypertarget{main_8c_ae6ce0c59ddc7a4ffadd95260cdce98d7}{\index{main.\-c@{main.\-c}!forth\-\_\-system\-\_\-calls\-\_\-str\-\_\-print\-\_\-me@{forth\-\_\-system\-\_\-calls\-\_\-str\-\_\-print\-\_\-me}}
+\index{forth\-\_\-system\-\_\-calls\-\_\-str\-\_\-print\-\_\-me@{forth\-\_\-system\-\_\-calls\-\_\-str\-\_\-print\-\_\-me}!main.c@{main.\-c}}
+\subsubsection[{forth\-\_\-system\-\_\-calls\-\_\-str\-\_\-print\-\_\-me}]{\setlength{\rightskip}{0pt plus 5cm}const char$\ast$ forth\-\_\-system\-\_\-calls\-\_\-str\-\_\-print\-\_\-me\mbox{[}$\,$\mbox{]}\hspace{0.3cm}{\ttfamily [static]}}}\label{main_8c_ae6ce0c59ddc7a4ffadd95260cdce98d7}
+{\bfseries Initial value\-:}
+\begin{DoxyCode}
+ \{
+  \hyperlink{forth_8h_a8d2cd8cba9c5f9a439c9d47ce80bdd54a5149096aa71c44fa33078ddaaa4de048}{FORTH\_SYSTEM\_CALLS\_XMACRO\_M}
+\}
+\end{DoxyCode}
+
+
+Definition at line 55 of file main.\-c.
+
+
+
+Referenced by print\-\_\-enums().
+
+\hypertarget{main_8c_a98a1e8bfc4befd710710bf0c40ab17ea}{\index{main.\-c@{main.\-c}!helpmsg@{helpmsg}}
+\index{helpmsg@{helpmsg}!main.c@{main.\-c}}
+\subsubsection[{helpmsg}]{\setlength{\rightskip}{0pt plus 5cm}const char helpmsg\mbox{[}$\,$\mbox{]}\hspace{0.3cm}{\ttfamily [static]}}}\label{main_8c_a98a1e8bfc4befd710710bf0c40ab17ea}
+{\bfseries Initial value\-:}
+\begin{DoxyCode}
+\textcolor{stringliteral}{"\(\backslash\)}
+\textcolor{stringliteral}{Usage: forth [OPTION/FILE]\(\backslash\)n\(\backslash\)}
+\textcolor{stringliteral}{Run the Howe Forth interpreter.\(\backslash\)n\(\backslash\)}
+\textcolor{stringliteral}{  -h, --help      Display this help message and exit.\(\backslash\)n\(\backslash\)}
+\textcolor{stringliteral}{  -V, --version   Display the version number and exit.\(\backslash\)n\(\backslash\)}
+\textcolor{stringliteral}{  -E, --enum      Print out a list of all enums and exit.\(\backslash\)n\(\backslash\)}
+\textcolor{stringliteral}{\(\backslash\)n\(\backslash\)}
+\textcolor{stringliteral}{With no OPTION or FILE given Howe Forth will attempt to read the\(\backslash\)n\(\backslash\)}
+\textcolor{stringliteral}{input file \(\backslash\)"forth.4th\(\backslash\)", otherwise if a valid file name is given\(\backslash\)n\(\backslash\)}
+\textcolor{stringliteral}{that will be read in. Once it has it finished it will continue\(\backslash\)n\(\backslash\)}
+\textcolor{stringliteral}{reading from stdin.\(\backslash\)n\(\backslash\)}
+\textcolor{stringliteral}{"}
+\end{DoxyCode}
+The help message! 
+
+Definition at line 32 of file main.\-c.
+
+
+
+Referenced by main().
+
+\hypertarget{main_8c_a8cf6818d84493b539c0ade5e20677179}{\index{main.\-c@{main.\-c}!versionmsg@{versionmsg}}
+\index{versionmsg@{versionmsg}!main.c@{main.\-c}}
+\subsubsection[{versionmsg}]{\setlength{\rightskip}{0pt plus 5cm}const char versionmsg\mbox{[}$\,$\mbox{]} = \char`\"{}\textbackslash{}n\char`\"{}\hspace{0.3cm}{\ttfamily [static]}}}\label{main_8c_a8cf6818d84493b539c0ade5e20677179}
+versionmsg, used for a primitive version control 
+
+Definition at line 29 of file main.\-c.
+
+
+
+Referenced by main().
+

@@ -1,0 +1,253 @@
+\hypertarget{hosted_8h}{\section{lib/hosted.h File Reference}
+\label{hosted_8h}\index{lib/hosted.\-h@{lib/hosted.\-h}}
+}
+
+
+Desktop Interface, header.  
+
+
+This graph shows which files directly or indirectly include this file\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=210pt]{hosted_8h__dep__incl}
+\end{center}
+\end{figure}
+\subsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{C\-A\-L\-L\-O\-C\-\_\-\-F\-A\-I\-L}(\hyperlink{main_8c_a8a0d2d602acb24d74237c3f310e935cd}{X}, \hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{R\-E\-T})
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \hyperlink{hosted_8h_a5ed4620e65a57200a088edb12775398a}{debug\-\_\-print} (\hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$fo)
+\item 
+\hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$ \hyperlink{hosted_8h_a2ae4f2af4d64761c08c95f78cc71491a}{forth\-\_\-obj\-\_\-create} (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} reg\-\_\-l, \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} dic\-\_\-l, \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} var\-\_\-l, \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} ret\-\_\-l, \hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw} str\-\_\-l, F\-I\-L\-E $\ast$input)
+\item 
+void \hyperlink{hosted_8h_ad5203ecf3d6d164c59c2d84442fa7758}{forth\-\_\-obj\-\_\-destroy} (\hyperlink{forth_8h_a1680197ce3853c075acb93c190991f3e}{fobj\-\_\-t} $\ast$fo)
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Desktop Interface, header. Howe Forth.
+
+\begin{DoxyAuthor}{Author}
+Richard James Howe. 
+\end{DoxyAuthor}
+\begin{DoxyCopyright}{Copyright}
+Copyright 2013 Richard James Howe. 
+\end{DoxyCopyright}
+\begin{DoxyParagraph}{License\-:}
+L\-G\-P\-L 
+\end{DoxyParagraph}
+\begin{DoxyParagraph}{Email\-:}
+\href{mailto:howe.r.j.89@gmail.com}{\tt howe.\-r.\-j.\-89@gmail.\-com} 
+\end{DoxyParagraph}
+
+
+Definition in file \hyperlink{hosted_8h_source}{hosted.\-h}.
+
+
+
+\subsection{Macro Definition Documentation}
+\hypertarget{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{\index{hosted.\-h@{hosted.\-h}!C\-A\-L\-L\-O\-C\-\_\-\-F\-A\-I\-L@{C\-A\-L\-L\-O\-C\-\_\-\-F\-A\-I\-L}}
+\index{C\-A\-L\-L\-O\-C\-\_\-\-F\-A\-I\-L@{C\-A\-L\-L\-O\-C\-\_\-\-F\-A\-I\-L}!hosted.h@{hosted.\-h}}
+\subsubsection[{C\-A\-L\-L\-O\-C\-\_\-\-F\-A\-I\-L}]{\setlength{\rightskip}{0pt plus 5cm}\#define C\-A\-L\-L\-O\-C\-\_\-\-F\-A\-I\-L(
+\begin{DoxyParamCaption}
+\item[{}]{{\bf X}, }
+\item[{}]{{\bf R\-E\-T}}
+\end{DoxyParamCaption}
+)}}\label{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}
+{\bfseries Value\-:}
+\begin{DoxyCode}
+\textcolor{keywordflow}{if}((\hyperlink{forth_8c_ad8021f5002052c30327d455bbaba45f6}{X})==NULL)\{\(\backslash\)
+          fprintf(stderr,\textcolor{stringliteral}{"calloc() failed <%s:%d>\(\backslash\)n"}, \_\_FILE\_\_,\_\_LINE\_\_);\(\backslash\)
+          return (\hyperlink{forth_8h_ac2544c8b4fe3113b0d6bb62530692c21}{RET});\(\backslash\)
+      \}
+\end{DoxyCode}
+This macro is meant to be used within a large function for error handling 
+
+Definition at line 16 of file hosted.\-h.
+
+
+
+Referenced by forth\-\_\-obj\-\_\-create(), and main().
+
+
+
+\subsection{Function Documentation}
+\hypertarget{hosted_8h_a5ed4620e65a57200a088edb12775398a}{\index{hosted.\-h@{hosted.\-h}!debug\-\_\-print@{debug\-\_\-print}}
+\index{debug\-\_\-print@{debug\-\_\-print}!hosted.h@{hosted.\-h}}
+\subsubsection[{debug\-\_\-print}]{\setlength{\rightskip}{0pt plus 5cm}void debug\-\_\-print (
+\begin{DoxyParamCaption}
+\item[{{\bf fobj\-\_\-t} $\ast$}]{fo}
+\end{DoxyParamCaption}
+)}}\label{hosted_8h_a5ed4620e65a57200a088edb12775398a}
+\hypertarget{hosted_8h_a2ae4f2af4d64761c08c95f78cc71491a}{\index{hosted.\-h@{hosted.\-h}!forth\-\_\-obj\-\_\-create@{forth\-\_\-obj\-\_\-create}}
+\index{forth\-\_\-obj\-\_\-create@{forth\-\_\-obj\-\_\-create}!hosted.h@{hosted.\-h}}
+\subsubsection[{forth\-\_\-obj\-\_\-create}]{\setlength{\rightskip}{0pt plus 5cm}{\bf fobj\-\_\-t}$\ast$ forth\-\_\-obj\-\_\-create (
+\begin{DoxyParamCaption}
+\item[{{\bf mw}}]{reg\-\_\-l, }
+\item[{{\bf mw}}]{dic\-\_\-l, }
+\item[{{\bf mw}}]{var\-\_\-l, }
+\item[{{\bf mw}}]{ret\-\_\-l, }
+\item[{{\bf mw}}]{str\-\_\-l, }
+\item[{F\-I\-L\-E $\ast$}]{input}
+\end{DoxyParamCaption}
+)}}\label{hosted_8h_a2ae4f2af4d64761c08c95f78cc71491a}
+forth\-\_\-obj\-\_\-create initializes the Forth environment. This function sets up memory and opens the initial input files, it also performs some basic sanity checks as well. memories of the interpreter
+
+initialize input file, fclose is handled elsewhere
+
+initializing memory 
+
+Definition at line 97 of file hosted.\-c.
+
+
+
+References C\-A\-L\-L\-O\-C\-\_\-\-F\-A\-I\-L, forth\-\_\-obj\-::dic, D\-I\-C\-T\-I\-O\-N\-A\-R\-Y\-\_\-\-O\-F\-F\-S\-E\-T\-\_\-\-M, forth\-\_\-obj\-::err\-\_\-file, io\-\_\-u\-::f, fio\-\_\-s\-::fio, forth\-\_\-obj\-::in\-\_\-file, io\-\_\-rd\-\_\-file, io\-\_\-stderr, io\-\_\-stdin, io\-\_\-stdout, I\-O\-B\-U\-F\-F\-E\-R\-\_\-\-L\-E\-N\-G\-T\-H\-\_\-\-M, fio\-\_\-s\-::iou, M\-A\-X\-\_\-\-I\-N\-S\-T\-R\-M, forth\-\_\-obj\-::out\-\_\-file, forth\-\_\-obj\-::reg, forth\-\_\-obj\-::ret, forth\-\_\-obj\-::str, and forth\-\_\-obj\-::var.
+
+
+
+Referenced by main().
+
+
+\begin{DoxyCode}
+\{
+  \textcolor{comment}{/*the vm forth object */}
+  \textcolor{keywordtype}{int} i = 0;
+  \hyperlink{structforth__obj}{fobj\_t} *fo = calloc(1, \textcolor{keyword}{sizeof}(\hyperlink{structforth__obj}{fobj\_t}));
+
+  \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo, NULL);
+
+  \textcolor{comment}{/*setting i/o streams */}
+  \textcolor{keywordflow}{for} (i = 0; i < \hyperlink{forth_8h_a29b3a2f9e308270f3d5e1634c7835678}{MAX\_INSTRM}; i++) \{
+    fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[i] = calloc(1, \textcolor{keyword}{sizeof}(\hyperlink{structfio__s}{fio\_t}));
+    \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[i], NULL);
+    fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[i]->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a59e5094bc91726c1d5aae2041cd65471}{io\_stdin};
+  \}
+
+  fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file} = calloc(1, \textcolor{keyword}{sizeof}(\hyperlink{structfio__s}{fio\_t}));
+  fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file} = calloc(1, \textcolor{keyword}{sizeof}(\hyperlink{structfio__s}{fio\_t}));
+
+  \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}, NULL);
+  \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file}, NULL);
+  \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file}, NULL);
+
+  fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[0]->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a59e5094bc91726c1d5aae2041cd65471}{io\_stdin};
+  fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file}->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686acd63b18f81b7a9f3ea7c6168711f3cd3}{io\_stdout};
+  fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file}->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a9c9763549425e6d230977c5f0e81f6eb}{io\_stderr};
+\textcolor{comment}{}
+\textcolor{comment}{  /**memories of the interpreter */}
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg} = calloc((\textcolor{keywordtype}{unsigned})reg\_l, \textcolor{keyword}{sizeof}(\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}));
+  fo->\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic} = calloc((\textcolor{keywordtype}{unsigned})dic\_l, \textcolor{keyword}{sizeof}(\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}));
+  fo->\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var} = calloc((\textcolor{keywordtype}{unsigned})var\_l, \textcolor{keyword}{sizeof}(\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}));
+  fo->\hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret} = calloc((\textcolor{keywordtype}{unsigned})ret\_l, \textcolor{keyword}{sizeof}(\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}));
+  fo->\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str} = calloc((\textcolor{keywordtype}{unsigned})str\_l, \textcolor{keyword}{sizeof}(\textcolor{keywordtype}{char}));
+
+  \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}, NULL);
+  \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo->\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic}, NULL);
+  \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo->\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var}, NULL);
+  \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo->\hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret}, NULL);
+  \hyperlink{hosted_8h_a48d0c47410e414a166f7a60cff591e5f}{CALLOC\_FAIL}(fo->\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str}, NULL);
+\textcolor{comment}{}
+\textcolor{comment}{  /**initialize input file, fclose is handled elsewhere */}
+  fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[1]->\hyperlink{structfio__s_acbbc17cdfcfc9190ed0af199670fba33}{fio} = \hyperlink{forth_8h_a06a05e94493d8896c9a2ff6385f1e686a284a51423fa74ee718436c52ca6a7a2d}{io\_rd\_file};
+  \textcolor{keywordflow}{if} (NULL != input) \{
+    fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[1]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f} = input;
+  \} \textcolor{keywordflow}{else} \textcolor{keywordflow}{if} ((fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[1]->\hyperlink{structfio__s_a3f24ec109b199f9500d313a19b62b304}{iou}.\hyperlink{unionio__u_a20295527afdca25a562f0e94b8eb7372}{f} = fopen(\textcolor{stringliteral}{"forth.4th"}, \textcolor{stringliteral}{"r"})) == 
+      NULL) \{
+    fprintf(stderr, \textcolor{stringliteral}{"Unable to open initial input file!\(\backslash\)n"});
+    \textcolor{keywordflow}{return} NULL;
+  \}
+\textcolor{comment}{}
+\textcolor{comment}{  /**initializing memory */}
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_maxReg] = reg\_l;
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_maxDic] = dic\_l;
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_maxVar] = var\_l;
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_maxRet] = ret\_l;
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_maxStr] = str\_l;
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_inputBufLen] = \hyperlink{hosted_8c_ab56db94d26767976d8bb3d0b14b2de55}{IOBUFFER\_LENGTH\_M};
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_dictionaryOffset] = \hyperlink{hosted_8c_a6c5d8d50dc32b9028a89a7fcab24b0b8}{DICTIONARY\_OFFSET\_M};
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_sizeOfMW] = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) \textcolor{keyword}{sizeof}(\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw});
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_INI] = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) \textcolor{keyword}{true};
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_cycles] = (\hyperlink{forth_8h_aaec58f87481f4ec34b44a1db3e622ddc}{mw}) \textcolor{keyword}{false};    \textcolor{comment}{/*Run for X amount of cycles
+       turned off by default. */}
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_ccount] = 0;     \textcolor{comment}{/*Run for X amount of cycles turned off by
+       default. */}
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_inStrm] = 1;
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_wordCount] = 0;
+  fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg}[ENUM\_wordIndex] = 0;
+
+\textcolor{preprocessor}{#ifdef DEBUG\_PRN}
+\textcolor{preprocessor}{}  fprintf(stderr, \textcolor{stringliteral}{"\(\backslash\)tOBJECT INITIALIZED.\(\backslash\)n"});
+\textcolor{preprocessor}{#endif}
+\textcolor{preprocessor}{}  \textcolor{keywordflow}{return} fo;
+\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=240pt]{hosted_8h_a2ae4f2af4d64761c08c95f78cc71491a_icgraph}
+\end{center}
+\end{figure}
+
+
+\hypertarget{hosted_8h_ad5203ecf3d6d164c59c2d84442fa7758}{\index{hosted.\-h@{hosted.\-h}!forth\-\_\-obj\-\_\-destroy@{forth\-\_\-obj\-\_\-destroy}}
+\index{forth\-\_\-obj\-\_\-destroy@{forth\-\_\-obj\-\_\-destroy}!hosted.h@{hosted.\-h}}
+\subsubsection[{forth\-\_\-obj\-\_\-destroy}]{\setlength{\rightskip}{0pt plus 5cm}void forth\-\_\-obj\-\_\-destroy (
+\begin{DoxyParamCaption}
+\item[{{\bf fobj\-\_\-t} $\ast$}]{fo}
+\end{DoxyParamCaption}
+)}}\label{hosted_8h_ad5203ecf3d6d164c59c2d84442fa7758}
+forth\-\_\-obj\-\_\-destroy, the converse of forth\-\_\-obj\-\_\-create. This frees up any memory allocated (or assigned from a static pool) and closes any open files. 
+
+Definition at line 171 of file hosted.\-c.
+
+
+
+References forth\-\_\-obj\-::dic, forth\-\_\-obj\-::err\-\_\-file, forth\-\_\-obj\-::in\-\_\-file, M\-A\-X\-\_\-\-I\-N\-S\-T\-R\-M, forth\-\_\-obj\-::out\-\_\-file, forth\-\_\-obj\-::reg, forth\-\_\-obj\-::ret, forth\-\_\-obj\-::str, and forth\-\_\-obj\-::var.
+
+
+
+Referenced by main().
+
+
+\begin{DoxyCode}
+\{
+  \textcolor{keywordtype}{int} i = 0;
+  \textcolor{keywordflow}{if} (NULL != fo) \{
+    free(fo->\hyperlink{structforth__obj_aec82f9aa14ed1b88f71ca04ea1027dfa}{reg});
+    free(fo->\hyperlink{structforth__obj_a12eb705e425898a44f0f4ad087e48768}{dic});
+    free(fo->\hyperlink{structforth__obj_a7e44fb7a44a10b0acbfdce4c919db914}{var});
+    free(fo->\hyperlink{structforth__obj_a3fbef0ce707c544c528376b2c9788dbc}{ret});
+    free(fo->\hyperlink{structforth__obj_a7214c1e818fea38be42080ddf2d3406f}{str});
+    \textcolor{keywordflow}{for} (i = 0; i < \hyperlink{forth_8h_a29b3a2f9e308270f3d5e1634c7835678}{MAX\_INSTRM}; i++)
+      free(fo->\hyperlink{structforth__obj_affea97aff17e933a7d4e97a1fb9bac3c}{in\_file}[i]);
+    free(fo->\hyperlink{structforth__obj_a4350825bc239e615e506b0e049bae2e2}{out\_file});
+    free(fo->\hyperlink{structforth__obj_a46cd12633b331e5dd923a0bcab6b5e4a}{err\_file});
+    free(fo);
+  \}
+\textcolor{preprocessor}{#ifdef DEBUG\_PRN}
+\textcolor{preprocessor}{}  fprintf(stderr, \textcolor{stringliteral}{"\(\backslash\)tOBJECT DESTROYED.\(\backslash\)n"});
+\textcolor{preprocessor}{#endif}
+\textcolor{preprocessor}{}\}
+\end{DoxyCode}
+
+
+Here is the caller graph for this function\-:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=246pt]{hosted_8h_ad5203ecf3d6d164c59c2d84442fa7758_icgraph}
+\end{center}
+\end{figure}
+
+

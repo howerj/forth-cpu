@@ -1,0 +1,19 @@
+<map id="forth_interpreter" name="forth_interpreter">
+<area shape="rect" id="node3" href="$forth_8c.html#a02c1a33b9cadbbe239d8729d6076693d" title="compile_word" alt="" coords="351,79,452,109"/>
+<area shape="rect" id="node5" href="$forth_8c.html#a2c0ce48d9e9e447226bc0a0917345814" title="get_word" alt="" coords="505,207,580,237"/>
+<area shape="rect" id="node9" href="$forth_8c.html#a22e0ba08ea2327a665ce7134fd57c9f8" title="wrap_get" alt="" coords="641,182,716,211"/>
+<area shape="rect" id="node13" href="$forth_8c.html#a081cdb70712b1d349cd768c2ca8ab699" title="my_strlen" alt="" coords="504,14,581,43"/>
+<area shape="rect" id="node15" href="$forth_8c.html#af28a4c5ea76c441b69560506888b6314" title="find_word" alt="" coords="196,258,273,287"/>
+<area shape="rect" id="node18" href="$forth_8c.html#a57f4bfac4b5d7444fa81f64f54a08d17" title="strnequ" alt="" coords="369,309,433,338"/>
+<area shape="rect" id="node20" href="$forth_8c.html#ad62155ee34b2fe1075f7a207b4add8c9" title="forth_initialize" alt="" coords="184,103,285,133"/>
+<area shape="rect" id="node23" href="$forth_8c.html#aa8fc14d61a957afb232974cd71b1d911" title="forth_system_calls" alt="" coords="169,413,300,442"/>
+<area shape="rect" id="node27" href="$forth_8c.html#a5d4cf23120e19d6a2b0e1f3b1c383552" title="print_string" alt="" coords="359,466,444,495"/>
+<area shape="rect" id="node29" href="$forth_8c.html#aaf0a04db2927d3e52b821327d8c7c5cd" title="wrap_put" alt="" coords="505,414,580,443"/>
+<area shape="rect" id="node32" href="$forth_8c.html#ae4d1df7fcacd0d685704494fe29cc3ef" title="isnumber" alt="" coords="197,517,272,546"/>
+<area shape="rect" id="node36" href="$forth_8c.html#add50d3b02ac22080c240801698cdfd40" title="kr_atoi" alt="" coords="204,570,265,599"/>
+<area shape="rect" id="node40" href="$forth_8c.html#a1ea5632b1de4c8f52ade798756f62c78" title="my_itoa" alt="" coords="201,623,268,653"/>
+<area shape="rect" id="node11" href="$forth_8c.html#a316f83edfad9d72f086762c545b6e45e" title="my_strcpy" alt="" coords="501,79,584,109"/>
+<area shape="rect" id="node7" href="$forth_8c.html#a607bd2b5f8c12913b9bb6f02548df5a0" title="my_isspace" alt="" coords="633,390,724,419"/>
+<area shape="rect" id="node25" href="$forth_8c.html#a5b6d7f9feea1e251c83be8ccea305b9b" title="on_err" alt="" coords="372,413,431,442"/>
+<area shape="rect" id="node34" href="$forth_8c.html#a66b6ee337b798835fd5586827a994f8a" title="my_isdigit" alt="" coords="361,519,441,549"/>
+</map>
