@@ -17,6 +17,7 @@ end entity;
 architecture simulation of queue_test_bench is
   constant clk_freq:      positive                        :=   1000000000;
   constant tb_bufxsignals:positive                        :=   4;
+  constant tb_queuelen:   positive                        :=   4;
   constant clk_period:    time                            :=   1000 ms / clk_freq;
 
   signal   wait_flag:     std_logic                       :=  '0';
