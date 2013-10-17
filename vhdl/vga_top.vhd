@@ -152,8 +152,11 @@ begin
     vsync     => vsync
   );
 
-  -- 80x40 Text buffer 
-  u_text: entity work.mem_text 
+
+--! @brief This RAM module holds the text we want to
+--!  display on to the monitor. The text buffer
+--!  holds at least 80*40 characters.
+  u_text: entity work.memory
   generic map(
         addr_bitlen   => addr_bitlen,
         data_bitlen   => data_bitlen,

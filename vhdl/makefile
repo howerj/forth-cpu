@@ -12,14 +12,13 @@ DOXYFILE=doxygen.conf
 SOURCES = \
 	gptimer.vhd \
 	mem_font.vhd \
-	mem_text.vhd \
+	memory.vhd \
 	uart.vhd \
 	ctrm.vhd \
 	losr.vhd \
 	vga80x40.vhd \
 	vga_top.vhd \
 	h2.vhd \
-	mem_h2.vhd \
 	cpu.vhd \
 #	io.vhd
 
@@ -57,9 +56,9 @@ mem_font.o: mem_font.vhd mem_font.binary
 	@echo "ghdl -a mem_font.vhd"
 	@ghdl -a mem_font.vhd
 
-mem_text.o: mem_text.vhd mem_text.binary
-	@echo "ghdl -a mem_text.vhd"
-	@ghdl -a mem_text.vhd
+memory.o: memory.vhd 
+	@echo "ghdl -a memory.vhd"
+	@ghdl -a memory.vhd
 
 ctrm.o: ctrm.vhd
 	@echo "ghdl -a ctrm.vhd"
@@ -73,7 +72,7 @@ vga80x40.o: ctrm.o losr.o vga80x40.vhd
 	@echo "ghdl -a vga80x40.vhd"
 	@ghdl -a vga80x40.vhd
 
-vga_top.o: mem_font.o mem_text.o vga80x40.o vga_top.vhd
+vga_top.o: mem_font.o memory.o vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
 	@echo "ghdl -a vga_top.vhd"
 	@ghdl -a vga_top.vhd
 
@@ -85,11 +84,7 @@ h2.o: h2.vhd
 	@echo "ghdl -a h2.vhd"
 	@ghdl -a h2.vhd
 
-mem_h2.o: mem_h2.vhd mem_h2.binary
-	@echo "ghdl -a mem_h2.vhd"
-	@ghdl -a mem_h2.vhd
-
-cpu.o: h2.o mem_h2.o cpu.vhd
+cpu.o: h2.o memory.o cpu.vhd mem_h2.binary
 	@echo "ghdl -a cpu.vhd"
 	@ghdl -a cpu.vhd
 

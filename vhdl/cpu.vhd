@@ -31,17 +31,22 @@ entity cpu is
 end;
 
 architecture behav of cpu is
+  --! CPU, Internal Memory interface to RAM/ROM
+  ----! This should interface with some dual port RAM, it forms the
+  ----! brains of the system; a CPU with some RAM that should contain
+  ----! the bootloader (or the entire system).
 
-  -- CPU, Internal Memory interface to RAM/ROM
-  ---- This should interface with some dual port RAM, it forms the
-  ---- brain of the system a CPU with some RAM that should contain
-  ---- the bootloader (or the entire system).
-  signal  pc:                       std_logic_vector(12 downto 0):= (others => '0'); -- Program counter
-  signal  insn:                     std_logic_vector(15 downto 0):= (others => '0'); -- Instruction issued by program counter
+  --! memory constants
+  constant addr_bitlen: positive := 13;
+  constant data_bitlen: positive := 16;
+  constant filename:    string   := "mem_h2.binary";
+  --! memory <-> cpu signals
+  signal  pc:                       std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0'); -- Program counter
+  signal  insn:                     std_logic_vector(data_bitlen - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
   signal  mem_dwe:                  std_logic:= '0';   -- Read/Write toggle, 0=Read, 1=Write
-  signal  mem_din:                  std_logic_vector(15 downto 0):= (others => '0');
-  signal  mem_dout:                 std_logic_vector(15 downto 0):= (others => '0');
-  signal  mem_daddr:                std_logic_vector(12 downto 0):= (others => '0');
+  signal  mem_din:                  std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
+  signal  mem_dout:                 std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
+  signal  mem_daddr:                std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0');
 begin
 
   -- The actual CPU instance (H2)
@@ -69,15 +74,20 @@ begin
           daddr     =>    mem_daddr
       );
 
-  -- Dual port RAM for the CPU, acts as bootloader or
-  -- contains the full system software
-  mem_h2_instance: entity work.mem_h2
+  --! Dual port RAM for the CPU, acts as bootloader or
+  --! contains the full system software
+  mem_h2_instance: entity work.memory
+  generic map(
+        addr_bitlen   => addr_bitlen,
+        data_bitlen   => data_bitlen,
+        filename      => filename
+  )
   port map(
           -- Port A, Read only, CPU instruction/address
           a_clk   =>    clk,
           a_dwe   =>    '0',
           a_addr  =>    pc,
-          a_din   =>    X"0000",
+          a_din   =>    (others => '0'),
           a_dout  =>    insn,
           -- Port B, Read/Write controlled by CPU instructions
           b_clk   =>    clk,

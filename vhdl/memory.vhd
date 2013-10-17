@@ -1,8 +1,9 @@
 --------------------------------------------------------------------------------- 
---! @file mem_text.vhd
---! @brief This RAM module holds the text we want to
---!  display on to the monitor. The text buffer
---!  holds at least 80*40 characters.
+--! @file memory.vhd
+--! @brief memory.vhd implements a generic dual port block RAM
+--! which according to Xilinx's XST guide will synthesize with
+--! a file you can specify with a string as the RAMs initial
+--! value, stored in ASCII encoded binary
 --!
 --! @author         Richard James Howe.
 --! @copyright      Copyright 2013 Richard James Howe.
@@ -14,32 +15,38 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use std.textio.all;
 
-entity mem_text is
+entity memory is
     generic(
-        addr_bitlen: positive := 12;
-        data_bitlen: positive := 8;
-        filename:    string:= "mem_text.binary"
+        --! addr_bitlen and data_bitlen are chosen to be the values they
+        --! are as the Spartan 3 has a block RAM size of 18k which this
+        --! pretty much fills.
+        addr_bitlen: positive := 12;              --! address bit length 
+        data_bitlen: positive := 16;              --! data bit length
+        filename:    string   := "memory.binary"  --! initial RAM contents
     );
     port(
+    --! Port A of dual port RAM
         a_clk:    in  std_logic;
         a_dwe:    in  std_logic;
         a_addr:   in  std_logic_vector(addr_bitlen - 1 downto 0);
         a_din:    in  std_logic_vector(data_bitlen - 1 downto 0);
         a_dout:   out std_logic_vector(data_bitlen - 1 downto 0) := (others => '0');
-
+    --! Port B of dual port RAM
         b_clk:    in  std_logic;
         b_dwe:    in  std_logic;
         b_addr:   in  std_logic_vector(addr_bitlen - 1 downto 0);
         b_din:    in  std_logic_vector(data_bitlen - 1 downto 0);
         b_dout:   out std_logic_vector(data_bitlen - 1 downto 0) := (others => '0')
     );
-end mem_text;
+end memory;
 
-architecture rtl of mem_text is
+architecture rtl of memory is
     constant ramSz  : positive := 2 ** addr_bitlen;
 
-    type ramArray_t is array ((ramSz - 1 ) downto 0) of std_logic_vector(7 downto 0);
+    type ramArray_t is array ((ramSz - 1 ) downto 0) of std_logic_vector(data_bitlen - 1 downto 0);
 
+    --! @brief This function will initial the RAM, it reads from
+    --! a file that can be specified in a generic way
     function initRam(fileName: in string) return ramArray_t is
         variable ramData: ramArray_t;
         file     inFile: text is in fileName;
@@ -78,5 +85,4 @@ begin
             b_dout <= ram(to_integer(unsigned(b_addr)));
         end if;
     end process;
-
 end architecture;
