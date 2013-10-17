@@ -43,6 +43,9 @@ entity vga_top is
 end;
 
 architecture behav of vga_top is
+  constant addr_bitlen: positive := 12;
+  constant data_bitlen: positive := 8;
+  constant filename:    string   := "mem_text.binary";
 
   -- Internal signals for mapping ouput<-->VGA module
   signal  R_internal:      std_logic:= '0';
@@ -150,7 +153,13 @@ begin
   );
 
   -- 80x40 Text buffer 
-  u_text: entity work.mem_text port map (
+  u_text: entity work.mem_text 
+  generic map(
+        addr_bitlen   => addr_bitlen,
+        data_bitlen   => data_bitlen,
+        filename      => filename
+  )
+  port map (
     a_clk  => clk, 
     -- External interface
     a_dwe  => vga_we_ram,

@@ -15,23 +15,28 @@ use ieee.numeric_std.all;
 use std.textio.all;
 
 entity mem_text is
+    generic(
+        addr_bitlen: positive := 12;
+        data_bitlen: positive := 8;
+        filename:    string:= "mem_text.binary"
+    );
     port(
         a_clk:    in  std_logic;
         a_dwe:    in  std_logic;
-        a_addr:   in  std_logic_vector(11 downto 0);
-        a_din:    in  std_logic_vector(7 downto 0);
-        a_dout:   out std_logic_vector(7 downto 0) := (others => '0');
+        a_addr:   in  std_logic_vector(addr_bitlen - 1 downto 0);
+        a_din:    in  std_logic_vector(data_bitlen - 1 downto 0);
+        a_dout:   out std_logic_vector(data_bitlen - 1 downto 0) := (others => '0');
 
         b_clk:    in  std_logic;
         b_dwe:    in  std_logic;
-        b_addr:   in  std_logic_vector(11 downto 0);
-        b_din:    in  std_logic_vector(7 downto 0);
-        b_dout:   out std_logic_vector(7 downto 0) := (others => '0')
+        b_addr:   in  std_logic_vector(addr_bitlen - 1 downto 0);
+        b_din:    in  std_logic_vector(data_bitlen - 1 downto 0);
+        b_dout:   out std_logic_vector(data_bitlen - 1 downto 0) := (others => '0')
     );
 end mem_text;
 
 architecture rtl of mem_text is
-    constant ramSz  : positive := 4096;
+    constant ramSz  : positive := 2 ** addr_bitlen;
 
     type ramArray_t is array ((ramSz - 1 ) downto 0) of std_logic_vector(7 downto 0);
 
@@ -39,7 +44,7 @@ architecture rtl of mem_text is
         variable ramData: ramArray_t;
         file     inFile: text is in fileName;
         variable inputLine:     line;
-        variable tmpVar:    bit_vector(7 downto 0);
+        variable tmpVar:    bit_vector(data_bitlen - 1 downto 0);
     begin
         for i in 0 to ramSz - 1 loop
             if not endfile(inFile) then
@@ -52,7 +57,7 @@ architecture rtl of mem_text is
         end loop;
         return ramData;
     end function;
-    shared variable ram: ramArray_t:= initRam("mem_text.binary");
+    shared variable ram: ramArray_t:= initRam(filename);
 begin
     a_ram:process(a_clk)
     begin
