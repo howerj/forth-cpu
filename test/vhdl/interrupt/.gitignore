@@ -1,0 +1,6 @@
+*.o
+*.cf
+interrupt_test_bench
+*.swo
+*.swp
+*.ghw
