@@ -21,21 +21,21 @@ help:
 ##
 ## Simulation ==============================================================
 
-interrupt.o: interrupt.vhd
-	@echo "ghdl -a interrupt.vhd"
-	@ghdl -a interrupt.vhd
+queue.o: queue.vhd
+	@echo "ghdl -a queue.vhd"
+	@ghdl -a queue.vhd
 
-simulation: interrupt.o interrupt_test_bench.vhd
-	ghdl -a interrupt_test_bench.vhd
-	ghdl -e interrupt_test_bench
-	ghdl -r interrupt_test_bench --wave=interrupt_test_bench.ghw 
+simulation: queue.o queue_test_bench.vhd
+	ghdl -a queue_test_bench.vhd
+	ghdl -e queue_test_bench
+	ghdl -r queue_test_bench --wave=queue_test_bench.ghw 
 ## Simulation ==============================================================
 
 viewer:
-	gtkwave interrupt_test_bench.ghw &>/dev/null&
+	gtkwave queue_test_bench.ghw &>/dev/null&
 
 ## Second simulation of sub component
 
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."
-	@rm -vf *.o *.cf *.ghw interrupt_test_bench 
+	@rm -vf *.o *.cf *.ghw queue_test_bench 

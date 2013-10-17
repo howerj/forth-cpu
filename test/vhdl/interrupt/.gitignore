@@ -1,6 +1,6 @@
 *.o
 *.cf
-interrupt_test_bench
+queue_test_bench
 *.swo
 *.swp
 *.ghw
