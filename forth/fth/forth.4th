@@ -336,7 +336,7 @@ finput ../fth/math.4th     ( Math functions )
 finput ../fth/auto.4th     ( Auto generated constants )
 finput ../fth/memory.4th   ( Memory allocation and manipulation )
 finput ../fth/assembler.4th
-foutput ../../vhdl/mem_h2.binary \ Output closed by h2.4th
+foutput ../../vhd/mem_h2.binary \ Output closed by h2.4th
 finput ../fth/h2.4th
 finput ../fth/welcome.4th
 

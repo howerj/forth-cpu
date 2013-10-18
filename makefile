@@ -30,4 +30,4 @@ _doxygen:
 clean:
 	@rm -rf doxy/
 	@make -C forth/ clean
-	@make -C vhdl/ clean
+	@make -C vhd/ clean
