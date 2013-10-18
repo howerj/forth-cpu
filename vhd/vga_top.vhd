@@ -25,6 +25,9 @@ entity vga_top is
     vga_din:    in  std_logic_vector(7 downto 0);
     vga_addr:   in  std_logic_vector(11 downto 0);
 
+    -- VGA Font inteface
+    vga_font_dout:   out std_logic_vector(7 downto 0):= (others => '0');
+
     -- VGA control registers
     crx_we:   in  std_logic; -- Write enable
     ctl_we:   in  std_logic; -- ...
@@ -43,9 +46,14 @@ entity vga_top is
 end;
 
 architecture behav of vga_top is
-  constant addr_bitlen: positive := 12;
-  constant data_bitlen: positive := 8;
-  constant filename:    string   := "mem_text.binary";
+  -- Setup for text buffer memory
+  constant text_addr_bitlen: positive := 12;
+  constant text_data_bitlen: positive := 8;
+  constant text_filename:    string   := "mem_text.binary";
+  -- Setup for font buffer memory
+  constant font_addr_bitlen: positive := 12;
+  constant font_data_bitlen: positive := 8;
+  constant font_filename:    string   := "mem_font.binary";
 
   -- Internal signals for mapping ouput<-->VGA module
   signal  R_internal:      std_logic:= '0';
@@ -60,7 +68,7 @@ architecture behav of vga_top is
 
   -- Font ROM signals, ROM<-->VGA module
   signal  font_addr:       std_logic_vector(11 downto 0):= (others => '0');
-  signal  font_data:       std_logic_vector(7 downto 0):=  (others => '0');
+  signal  font_dout:       std_logic_vector(7 downto 0):=  (others => '0');
 
   -- Internal control registers
   signal  ocrx_c, ocrx_n:  std_logic_vector(6 downto 0):=  (others => '0');
@@ -139,7 +147,7 @@ begin
     text_d    => text_dout,
 
     font_a    => font_addr,
-    font_d    => font_data,
+    font_d    => font_dout,
 
     ocrx    => ocrx_c,
     ocry    => ocry_c,
@@ -153,14 +161,14 @@ begin
   );
 
 
---! @brief This RAM module holds the text we want to
---!  display on to the monitor. The text buffer
---!  holds at least 80*40 characters.
+  --! @brief This RAM module holds the text we want to
+  --!  display on to the monitor. The text buffer
+  --!  holds at least 80*40 characters.
   u_text: entity work.memory
   generic map(
-        addr_bitlen   => addr_bitlen,
-        data_bitlen   => data_bitlen,
-        filename      => filename
+        addr_bitlen   => text_addr_bitlen,
+        data_bitlen   => text_data_bitlen,
+        filename      => text_filename
   )
   port map (
     a_clk  => clk, 
@@ -170,7 +178,6 @@ begin
     a_din  => din_c,
     a_dout => vga_dout,
     -- Internal interface 
-
     b_clk  => clk25MHz,
     b_dwe  => '0',
     b_addr => text_addr,
@@ -178,11 +185,26 @@ begin
     b_dout => text_dout
   );
 
-  -- Font memory
-  u_font: entity work.mem_font port map (
-    a_clk => clk25MHz,
-    a_addr => font_addr,
-    a_dout => font_data
+  --! VGA Font memory
+  u_font: entity work.memory 
+  generic map(
+        addr_bitlen   => font_addr_bitlen,
+        data_bitlen   => font_data_bitlen,
+        filename      => font_filename
+  )
+  port map (
+    -- External interface
+    a_clk => clk,
+    a_dwe  => '0',
+    a_addr => (others => '0'),
+    a_din  => (others => '0'),
+    a_dout => vga_font_dout,
+    -- Internal interface 
+    b_clk  => clk25MHz,
+    b_dwe  => '0',
+    b_addr => font_addr,
+    b_din  => (others => '0'),
+    b_dout => font_dout
   );
    
 end architecture;
