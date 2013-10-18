@@ -5,3 +5,5 @@ doxy/
 doxy/*
 vhdl/doxy/*
 forth/doc/doxygen/*
+doc/doxy/
+doc/doxy/*
