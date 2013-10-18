@@ -23,21 +23,32 @@ it is or was!
 
 ### Programs used in the build (links only)
 
-* LaTeX
-* Make
+* LaTeX, texlive
+  - <http://www.tug.org/texlive/>
+* GNU Make
+  - <https://www.gnu.org/software/make/>
 * Xilinx Webpack
+  - <http://www.xilinx.com/products/design-tools/ise-design-suite/ise-webpack.htm>
 * GTKwave
-* TCL
+  - <http://gtkwave.sourceforge.net/>
+* Tool Command Language
+  - <http://www.tcl.tk/>
 * Doxygen
+  - <http://www.doxygen.org/>
 * markdown
+  - <http://daringfireball.net/projects/markdown/>
 * perl
+  - <http://www.perl.org/>
 * valgrind
+  - <http://valgrind.org/>
 * bash
-* pdflatex
+  - <http://www.gnu.org/software/bash/manual/bashref.html>
 * GNU Indent
+  - <https://www.gnu.org/software/indent/>
 * Splint
-* GCC
-* gcov
+  - <http://www.splint.org/>
+* gcc
+  - <http://gcc.gnu.org/>
 
 ### Algorithms
 
@@ -48,6 +59,9 @@ it is or was!
 
 * Tiny Forth-like interpreter
   - <http://www.ioccc.org/1992/1992.tar.bz2>
+
+* Starting Forth
+  - <http://www.forth.com/starting-forth/>
 
 ### Other languages
 
