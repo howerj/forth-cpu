@@ -21,6 +21,15 @@ it is or was!
 * VGA
   - <http://opencores.org/project,interface_vga80x40>
 
+### Hardware
+
+* Nexys3 development board
+  - <http://www.digilentinc.com/Products/Detail.cfm?NavPath=2,400,897&Prod=NEXYS3>
+* AD5641 DAC
+  - <http://www.analog.com/en/digital-to-analog-converters/da-converters/ad5641/products/product.html>
+* Xilinx Spartan6 XC6LX16-CS324
+  
+
 ### Programs used in the build (links only)
 
 * LaTeX, texlive
