@@ -16,18 +16,18 @@ _welcome:
 
 _forth:
 	@echo "Assembling H2 Source";
-	@make -C forth/
-	@make -C forth/ run
+	@make -C fth/
+	@make -C fth/ run
 
 _vhdl:
 	@echo "Making the VHDL simulation and bitfile for the device";
-	@make -C vhdl/ simulation synthesis implementation bitfile
+	@make -C vhd/ simulation synthesis implementation bitfile
 
 _doxygen:
 	@echo "Generating system documentation";
 	@doxygen $(DOXYFILE)
 
 clean:
-	@rm -rf doxy/
-	@make -C forth/ clean
+	@rm -rf doc/doxy/
+	@make -C fth/ clean
 	@make -C vhd/ clean
