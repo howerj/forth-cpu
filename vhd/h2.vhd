@@ -219,7 +219,6 @@ begin
                 when "01001" =>  tos_n  <=  not tos_c;
                 when "01010" =>  tos_n  <=  std_logic_vector(unsigned(tos_c)+unsigned(nos));
                 when "01011" =>  tos_n  <=  std_logic_vector(unsigned(nos)-unsigned(tos_c));
--- SLOW Instructions: These instructions are slow to execute so have been commented out ---
                 when "01100" =>
                     tos_n   <=  "0" & std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
                 when "01101" =>  
@@ -229,8 +228,9 @@ begin
                 when "01111" =>
                     tos_n   <=  "0" & std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
                 when "10000" => 
---                    tos_n   <=  "0" & std_logic_vector(unsigned(nos(7 downto 0)) * to_integer(unsigned(tos_c(7 downto 0))));
--- SLOW Instructions ---
+                -- SLOW Instructions: These (This) instruction(s) (are/is) slow to execute so (it has / have) been commented out ---
+                --  tos_n   <=  "0" & std_logic_vector(unsigned(nos(7 downto 0)) * to_integer(unsigned(tos_c(7 downto 0))));
+                -- SLOW Instructions ---
                 when "10001" => tos_n  <=  (0 => comp_more_signed, others => '0');
                 when "10010" => tos_n  <=  (0 => comp_more, others => '0');
                 when "10011" => tos_n  <=  (0 => comp_equal, others => '0');
@@ -240,7 +240,7 @@ begin
                 when "10111" => int_en_n <= int_en_c xor '1'; -- toggle interrupts
                 when "11000" => tos_n   <=  std_logic_vector(unsigned(tos_c)-1); 
                 when "11001" => tos_n  <=  (0 => tos_c(16), others => '0');
-                when "11010" => tos_n(16) <= tos_c(0);
+                when "11010" => tos_n(16) <= tos_c(0); -- carry flag, set
                 when "11011" =>
                 when "11100" =>
                 when "11101" =>

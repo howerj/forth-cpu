@@ -11,7 +11,6 @@ DOXYFILE=doxygen.conf
 ## Remember to update the synthesis section as well
 SOURCES = \
 	gptimer.vhd \
-	mem_font.vhd \
 	memory.vhd \
 	uart.vhd \
 	ctrm.vhd \
@@ -52,10 +51,6 @@ gptimer.o: gptimer.vhd
 	@echo "ghdl -a gptimer.vhd"
 	@ghdl -a gptimer.vhd
 
-mem_font.o: mem_font.vhd mem_font.binary
-	@echo "ghdl -a mem_font.vhd"
-	@ghdl -a mem_font.vhd
-
 memory.o: memory.vhd 
 	@echo "ghdl -a memory.vhd"
 	@ghdl -a memory.vhd
@@ -72,7 +67,7 @@ vga80x40.o: ctrm.o losr.o vga80x40.vhd
 	@echo "ghdl -a vga80x40.vhd"
 	@ghdl -a vga80x40.vhd
 
-vga_top.o: mem_font.o memory.o vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
+vga_top.o: memory.o vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
 	@echo "ghdl -a vga_top.vhd"
 	@ghdl -a vga_top.vhd
 

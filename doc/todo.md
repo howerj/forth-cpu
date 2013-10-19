@@ -4,9 +4,19 @@
 
 Bring everything in line with the same coding standards.
 
-* Doxygen
+* Automatic test bench generation:
 
-Set up Doxygen
+  - Create a fast virtual machine in C.
+  - Run a constrained random set of instructions on that processor.
+  - Save the random input and the virtual machines state
+  - Feed the state and the random input into a VHDL test bench.
+  - Compare the results with assertions, they should be equal.
+
+* PTTY testbench:
+
+  - A Pseudo Terminal driven test bench that the user can type
+  into, and the H2 Core will process the results fed in over a
+  simulated UART
 
 ### forth/
 
