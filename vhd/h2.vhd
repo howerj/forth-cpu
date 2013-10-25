@@ -210,8 +210,7 @@ begin
                   else 
                     tos_n <= "0" & din;  
                   end if;
-                when "00100" =>  
-                  tos_n  <=  tos_c(16) & vstkp_c & rstkp_c & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
+                when "00100" =>  tos_n  <=  tos_c(16) & vstkp_c & "000000" & rstkp_c;
                 when "00101" =>  tos_n  <=  tos_c or nos;
                 when "00110" =>  tos_n  <=  tos_c and nos;
                 when "00111" =>  tos_n  <=  tos_c xor nos;
@@ -238,10 +237,13 @@ begin
                 when "10101" => tos_n  <=  (0 => comp_zero, others => '0');
                 when "10110" => tos_n  <=  tos_c(16) & tos_c(7 downto 0) & tos_c(15 downto 8);
                 when "10111" => int_en_n <= int_en_c xor '1'; -- toggle interrupts
-                when "11000" => tos_n   <=  std_logic_vector(unsigned(tos_c)-1); 
-                when "11001" => tos_n  <=  (0 => tos_c(16), others => '0');
+                when "11000" => tos_n  <=  std_logic_vector(unsigned(tos_c)-1); 
+                when "11001" => tos_n  <=  (others => '0'); -- clear all
                 when "11010" => tos_n(16) <= tos_c(0); -- carry flag, set
-                when "11011" =>
+                when "11011" => 
+                                tos_n(6 downto 0) <= tos_c(16) & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
+                                tos_n(15 downto 7) <= (others => '0');
+                                tos_n(16) <= tos_c(16);
                 when "11100" =>
                 when "11101" =>
                 when "11110" =>
