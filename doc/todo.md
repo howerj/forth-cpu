@@ -32,6 +32,8 @@ Loops and if statements
 
 ### vhdl/
 
+* Add instruction to set depth
+
 * PS/2 Keyboard
 
 * 16 bit floating point unit? Half float.

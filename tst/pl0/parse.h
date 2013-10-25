@@ -1,3 +1,12 @@
+/* @file parse.h
+ * @brief Parser/Compiler that will target a dialect of Forth of my own devising,
+ * header only.
+ *
+ * @author    Richard James Howe
+ * @copyright Copyright 2013 Richard James Howe.
+ * @license   LGPL
+ * @email     howe.r.j.89@gmail.com
+ */
 /*===========================================================================*/
 #define SYMBOL_TABLE \
   XMAC_SYM(ident, "ident") /*implicit definition checked later*/\

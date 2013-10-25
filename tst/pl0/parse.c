@@ -1,5 +1,10 @@
-/*
- * Parser/Compiler that will target a dialect of Forth of my own devising
+/* @file parse.c
+ * @brief Parser/Compiler that will target a dialect of Forth of my own devising
+ *
+ * @author    Richard James Howe
+ * @copyright Copyright 2013 Richard James Howe.
+ * @license   LGPL
+ * @email     howe.r.j.89@gmail.com
  */
 #include <stdint.h>
 #include <stdio.h>
