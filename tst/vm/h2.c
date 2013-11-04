@@ -29,6 +29,9 @@ int h2_cpu(h2_state_t * st)
   mw insn;                      /*the instruction or ram[pc] */
   mw is_x;                      /*is_alu,is_jmp,is_call,is_cjmp */
   mw alu_op;
+  uint32_t carry;               /** guess what? it's the carry flag!*/
+
+  /**note on carry. x=y+z, a=lower(x), c=(higher(x)>>tolower) & 1 */
 
   /*
      if (st == NULL){
