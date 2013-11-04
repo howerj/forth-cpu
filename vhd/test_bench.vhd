@@ -41,9 +41,16 @@ architecture behavior of test_bench is
     constant    clk_freq:        positive                     :=  1000000000;
     constant    clk_period:      time                         :=  1000 ms / clk_freq;
 
-    signal      wait_flag:       std_logic                    :=  '0';
-    signal      tb_sim_irq:      std_logic                    :=  '0';
-    signal      tb_sim_irc:      std_logic_vector(3 downto 0) := (others => '0');
+    signal      wait_flag:          std_logic                    :=  '0';
+    signal      tb_debug_irq:       std_logic                    :=  '0';
+    signal      tb_debug_irc:       std_logic_vector(3 downto 0) := (others => '0');
+    signal      tb_debug_pc:        std_logic_vector(12 downto 0);
+    signal      tb_debug_insn:      std_logic_vector(15 downto 0);
+    signal      tb_debug_mem_dwe:   std_logic:= '0';   
+    signal      tb_debug_mem_din:   std_logic_vector(15 downto 0);
+    signal      tb_debug_mem_dout:  std_logic_vector(15 downto 0);
+    signal      tb_debug_mem_daddr: std_logic_vector(12 downto 0);
+
     signal      tb_clk:          std_logic                    :=  '0';
     signal      tb_rst:          std_logic;
 
@@ -70,8 +77,14 @@ begin
     top_level_uut: entity work.top_level
     port map(
       -- Remove me{{
-        sim_irq => tb_sim_irq,
-        sim_irc => tb_sim_irc,
+        debug_irq       => tb_debug_irq,
+        debug_irc       => tb_debug_irc,
+        debug_pc        => tb_debug_pc,
+        debug_insn      => tb_debug_insn,
+        debug_mem_dwe   => tb_debug_mem_dwe,
+        debug_mem_din   => tb_debug_mem_din,
+        debug_mem_dout  => tb_debug_mem_dout,
+        debug_mem_daddr => tb_debug_mem_daddr,
       -- }}
         clk => tb_clk,
         btnu => tb_btnu,
@@ -112,18 +125,18 @@ begin
         wait for clk_period * 2;
         tb_rst <= '0';
         wait for clk_period * 256;
-        tb_sim_irq <= '1';
-        tb_sim_irc <= X"4";
+        tb_debug_irq <= '1';
+        tb_debug_irc <= X"4";
         wait for clk_period * 1;
-        tb_sim_irc <= X"0";
-        tb_sim_irq <= '0';
+        tb_debug_irc <= X"0";
+        tb_debug_irq <= '0';
         wait for clk_period * 64;
-        tb_sim_irq <= '1';
-        tb_sim_irc <= X"8";
+        tb_debug_irq <= '1';
+        tb_debug_irc <= X"8";
         wait for clk_period * 1;
-        tb_sim_irc <= X"4";
+        tb_debug_irc <= X"4";
         wait for clk_period * 1;
-        tb_sim_irq <= '0';
+        tb_debug_irq <= '0';
         wait for clk_period * 64;
         wait_flag   <=  '1';
         wait;

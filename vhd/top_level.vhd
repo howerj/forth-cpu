@@ -17,17 +17,20 @@ use ieee.numeric_std.all;
 entity top_level is
   port
   (
--- pragma translate_off
 -- synthesis translate_off
--- synopsys translate_off
 
   -- This should be removed once testing is done in the interests of
   -- portability.
-   sim_irq:   in  std_logic;
-   sim_irc:   in  std_logic_vector(3 downto 0);
--- synopsys translate_on
+   debug_irq:        in  std_logic;
+   debug_irc:        in  std_logic_vector(3 downto 0);
+
+   debug_pc:         out std_logic_vector(12 downto 0);
+   debug_insn:       out std_logic_vector(15 downto 0);
+   debug_mem_dwe:    out std_logic:= '0';   
+   debug_mem_din:    out std_logic_vector(15 downto 0);
+   debug_mem_dout:   out std_logic_vector(15 downto 0);
+   debug_mem_daddr:  out std_logic_vector(12 downto 0);
 -- synthesis translate_on
--- pragma translate_on
 
     clk:      in  std_logic                    :=      'X';  -- clock
     -- Buttons
@@ -132,21 +135,23 @@ begin
 -- The Main components
 -------------------------------------------------------------------------------
 
--- pragma translate_off
 -- synthesis translate_off
--- synopsys translate_off
-
-  -- This should be removed once testing is done in the interests of
-  -- portability.
-  cpu_irq <= sim_irq;
-  cpu_irc <= sim_irc;
--- synopsys translate_on
+  cpu_irq <= debug_irq;
+  cpu_irc <= debug_irc;
 -- synthesis translate_on
--- pragma translate_on
 
 
   cpu_instance: entity work.cpu
   port map(
+-- synthesis translate_off
+    debug_pc => debug_pc,
+    debug_insn => debug_insn,
+    debug_mem_dwe => debug_mem_dwe,
+    debug_mem_din => debug_mem_din,
+    debug_mem_dout => debug_mem_dout,
+    debug_mem_daddr => debug_mem_daddr,
+-- synthesis translate_on
+
     clk       => clk,
     rst       => rst,
 

@@ -16,6 +16,16 @@ use ieee.numeric_std.all;
 
 entity cpu is
   port(
+    -- synthesis translate_off
+    debug_pc:         out std_logic_vector(12 downto 0);
+    debug_insn:       out std_logic_vector(15 downto 0);
+    debug_mem_dwe:    out std_logic:= '0';   
+    debug_mem_din:    out std_logic_vector(15 downto 0);
+    debug_mem_dout:   out std_logic_vector(15 downto 0);
+    debug_mem_daddr:  out std_logic_vector(12 downto 0);
+    -- synthesis translate_on
+
+
     clk:        in   std_logic;
     rst:        in   std_logic;
 
@@ -48,6 +58,14 @@ architecture behav of cpu is
   signal  mem_dout:                 std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
   signal  mem_daddr:                std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0');
 begin
+  -- synthesis translate_off
+  debug_pc          <= pc;
+  debug_insn        <= insn;
+  debug_mem_dwe     <= mem_dwe;
+  debug_mem_din     <= mem_din;
+  debug_mem_dout    <= mem_dout;
+  debug_mem_daddr   <= mem_daddr;
+  -- synthesis translate_on
 
   -- The actual CPU instance (H2)
   h2_instance: entity work.h2

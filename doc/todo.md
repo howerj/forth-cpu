@@ -1,5 +1,15 @@
 ### General
 
+* Instead of:
+
+    -- synthesis translate_on
+      ... debugging code
+    -- synthesis translate_off
+
+  Could I find something more portable, or go all the way and use
+  a preprocessor (which would also solve the "locally static" restriction
+  problem in making my code *very* generic.
+
 * Drastically improve the VM so it can be used to implement a test
 interpreter.
 
