@@ -18,24 +18,26 @@
 122 constant o_vgaCtrlDefault \ 01111010, VGA control register set to this.
 
 \ Outputs
-0  1 13 lshift or constant o_7seg
-1  1 13 lshift or constant o_ledS
-2  1 13 lshift or constant o_vgaCursor
-3  1 13 lshift or constant o_vgaCtrl
-4  1 13 lshift or constant o_vgaTxtAddr
-5  1 13 lshift or constant o_vgaTxtDin
-6  1 13 lshift or constant o_vgaWrite
-7  1 13 lshift or constant o_uartWrite
-8  1 13 lshift or constant o_uartStbWrite
-9  1 13 lshift or constant o_uartAckDout
+\ 0x6000 - 0x7FFF
+0  3 13 lshift or constant o_7seg
+1  3 13 lshift or constant o_ledS
+2  3 13 lshift or constant o_vgaCursor
+3  3 13 lshift or constant o_vgaCtrl
+4  3 13 lshift or constant o_vgaTxtAddr
+5  3 13 lshift or constant o_vgaTxtDin
+6  3 13 lshift or constant o_vgaWrite
+7  3 13 lshift or constant o_uartWrite
+8  3 13 lshift or constant o_uartStbWrite
+9  3 13 lshift or constant o_uartAckDout
 
 \ Inputs
-0  1 13 lshift or constant i_buttons
-1  1 13 lshift or constant i_switches
-2  1 13 lshift or constant i_vgaTxtDout
-3  1 13 lshift or constant i_uartRead
-4  1 13 lshift or constant i_uartAckWrite
-5  1 13 lshift or constant i_uartStbDout
+\ 0x6000 - 0x7FFF
+0  3 13 lshift or constant i_buttons
+1  3 13 lshift or constant i_switches
+2  3 13 lshift or constant i_vgaTxtDout
+3  3 13 lshift or constant i_uartRead
+4  3 13 lshift or constant i_uartAckWrite
+5  3 13 lshift or constant i_uartStbDout
 
 \ ==============================================================================
 \ Word definitions.

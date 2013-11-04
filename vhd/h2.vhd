@@ -128,14 +128,14 @@ begin
     pco                 <=  pc_n;
     dout                <=  nos;
     daddr               <=  tos_c(12 downto 0);
-    dwe                 <=  insn(5) when is_instr_alu = '1' and tos_c(13) = '0' else '0';
+    dwe                 <=  insn(5) when is_instr_alu = '1' and tos_c(14 downto 13) /= "11" else '0';
 
     -- io_wr are handled in the ALU, 
     --  this makes things slower but we have
     --  run out of instruction bits to use.
     io_dout             <=  nos;
     io_daddr            <=  tos_c(15 downto 0);
-    io_wr               <=  insn(5) when is_instr_alu = '1' and tos_c(13) = '1' else '0';
+    io_wr               <=  insn(5) when is_instr_alu = '1' and tos_c(14 downto 13) = "11" else '0';
 
     -- misc
     pc_plus_one         <=  std_logic_vector(unsigned(pc_c) + 1);
@@ -203,9 +203,8 @@ begin
                 when "00001" =>  tos_n  <=  tos_c(16) & nos;
                 when "00010" =>  tos_n  <=  tos_c(16) & rtos_c;
                 when "00011" =>  
-                  -- Anything greater than 8191 (ie. 13th bit set) means
-                  -- We're accessing a periphal and not CPU memory.
-                  if tos_c(13) = '1' then 
+                  -- 0x6000 - 0x7FFF is external input
+                  if tos_c(14 downto 13) = "11" then 
                     tos_n <= "0" & io_din; 
                   else 
                     tos_n <= "0" & din;  
