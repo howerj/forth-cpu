@@ -1,5 +1,8 @@
 ### General
 
+* Drastically improve the VM so it can be used to implement a test
+interpreter.
+
 * Coding standards
 
 Bring everything in line with the same coding standards.

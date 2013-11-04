@@ -1,4 +1,4 @@
-/* @file parse.h
+/** @file parse.h
  * @brief Parser/Compiler that will target a dialect of Forth of my own devising,
  * header only.
  *

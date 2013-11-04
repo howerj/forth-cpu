@@ -1,4 +1,4 @@
-/* @file parse.c
+/** @file parse.c
  * @brief Parser/Compiler that will target a dialect of Forth of my own devising
  *
  * @author    Richard James Howe
