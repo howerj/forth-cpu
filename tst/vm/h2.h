@@ -15,70 +15,75 @@
 #define VAR_SZ 32
 #define RET_SZ 32
 
-enum boolean{
+enum boolean {
   false,
   true
 };
 
 typedef uint16_t mw;
 
-enum vm_err {
-        err_ok,
-        err_malloc,
-        err_cycles,
-        err_instruction
-};
+typedef enum {
+  err_ok,
+  err_malloc,
+  err_cycles,
+  err_instruction
+} vm_err;
 
+#define XMACRO_ALU_INSTRUCTIONS\
+  X(alu_tos,              "T"),\
+  X(alu_nos,              "N"),\
+  X(alu_rtos,             "R"),\
+  X(alu_din,              "[T]"),\
+  X(alu_depth,            "depth"),\
+  X(alu_or,               "T|N"),\
+  X(alu_and,              "T&N"),\
+  X(alu_xor,              "T^N"),\
+  X(alu_xnor,             "~(T^N)"),\
+  X(alu_not,              "~T"),\
+  X(alu_add,              "T+N"),\
+  X(alu_sub,              "N-T"),\
+  X(alu_sll,              "N<<T"),\
+  X(alu_srl,              "N>>T"),\
+  X(alu_rol,              "NrolT"),\
+  X(alu_ror,              "NrorT"),\
+  X(alu_mul,              "L(N)*L(T)"),\
+  X(alu_sLT,              "Nu<T"),\
+  X(alu_uLT,              "N<T"),\
+  X(alu_equ,              "N=T"),\
+  X(alu_neg,              "T<0"),\
+  X(alu_eqz,              "T=0"),\
+  X(alu_swapbyte,         "swapbytes"),\
+  X(alu_togglei,          "togglei"),\
+  X(alu_decrement,        "T-1"),\
+  X(alu_clear,            "clr"),\
+  X(alu_setcarry,         "setcarry"),\
+  X(alu_flags,            "flags"),\
+  X(alu_I,                ""),\
+  X(alu_J,                ""),\
+  X(alu_K,                ""),\
+  X(alu_L,                ""),\
+  X(LAST_ALU,             "NOT AN ALU INSTRUCTION, THIS IS AN ERROR!")\
 
-enum h2_alu {
-        alu_tos,
-        alu_nos,
-        alu_rtos,
-        alu_din,
-        alu_depth,
-        alu_or,
-        alu_and,
-        alu_xor,
-        alu_xnor,
-        alu_not,
-        alu_add,
-        alu_sub,
-        alu_sll,
-        alu_srl,
-        alu_rol,
-        alu_ror,
-        alu_mul,
-        alu_sLT,
-        alu_equ,
-        alu_uLT,
-        alu_A,
-        alu_B,
-        alu_C,
-        alu_D,
-        alu_E,
-        alu_F,
-        alu_G,
-        alu_H,
-        alu_I,
-        alu_dec,
-        alu_ioDin,
-        alu_ioW
-};
+#define X(a, b) a
+typedef enum {
+  XMACRO_ALU_INSTRUCTIONS
+} h2_alu;
+#undef X
 
 struct h2_state {
-        int error;              /*Any error code returned */
-        int cycles;             /*Number of cycles to run for */
-        /* Need to sort out IO, should it be a 2D array or an array of FILE *ptr?
-        FILE *input;            //Input to processor
-        FILE *output;           //Output of processor
-        */
-        mw ram[RAM_SZ];         /*Main RAM */
-        mw tos;                 /*Top of data stack */
-        mw data[VAR_SZ];        /*Data stack */
-        mw retn[RET_SZ];        /*Return stack */
-        mw pc;                  /*Program counter */
-        mw datap;               /*Data stack pointer */
-        mw retnp;               /*Return stack pointer */
+  int error;                    /*Any error code returned */
+  int cycles;                   /*Number of cycles to run for */
+  /* Need to sort out IO, should it be a 2D array or an array of FILE *ptr?
+     FILE *input;            //Input to processor
+     FILE *output;           //Output of processor
+   */
+  mw ram[RAM_SZ];               /*Main RAM */
+  mw tos;                       /*Top of data stack */
+  mw data[VAR_SZ];              /*Data stack */
+  mw retn[RET_SZ];              /*Return stack */
+  mw pc;                        /*Program counter */
+  mw datap;                     /*Data stack pointer */
+  mw retnp;                     /*Return stack pointer */
 };
 
 typedef struct h2_state h2_state_t;
