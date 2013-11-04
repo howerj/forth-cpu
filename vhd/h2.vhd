@@ -243,9 +243,9 @@ begin
                 when "11001" => tos_n  <=  (others => '0'); -- clear all
                 when "11010" => tos_n(16) <= tos_c(0); -- carry flag, set
                 when "11011" => 
---                                tos_n(7 downto 0) <= tos_c(16) & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
---                                tos_n(15 downto 7) <= (others => '0');
---                                tos_n(16) <= tos_c(16);
+                                tos_n(7 downto 0) <= "0" & tos_c(16) & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
+                                tos_n(15 downto 8) <= (others => '0');
+                                tos_n(16) <= tos_c(16);
                 when "11100" =>
                 when "11101" =>
                 when "11110" =>
