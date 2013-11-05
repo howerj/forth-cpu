@@ -32,7 +32,7 @@ int main(void)
 
   st->cycles = CYCLES;
 
-  if ((ram_init = fopen("../vhdl/mem_h2.binary", "r")) == NULL) {
+  if ((ram_init = fopen("mem_h2.binary", "r")) == NULL) {
     fprintf(stdout, "(error \"Could not open inital H2 CPU RAM file.\")\n");
     goto FAIL;
   }
