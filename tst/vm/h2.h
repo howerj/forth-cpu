@@ -77,15 +77,15 @@ typedef struct {
      FILE *input;            //Input to processor
      FILE *output;           //Output of processor
    */
-  uint16_t ram[RAM_SZ];               /*Main RAM */
-  uint16_t tos;                       /*Top of data stack */
-  uint16_t data[VAR_SZ];              /*Data stack */
-  uint16_t retn[RET_SZ];              /*Return stack */
-  uint16_t pc;                        /*Program counter */
-  uint16_t datap;                     /*Data stack pointer */
-  uint16_t retnp;                     /*Return stack pointer */
+  uint16_t ram[RAM_SZ];         /*Main RAM */
+  uint16_t tos;                 /*Top of data stack */
+  uint16_t data[VAR_SZ];        /*Data stack */
+  uint16_t retn[RET_SZ];        /*Return stack */
+  uint16_t pc;                  /*Program counter */
+  uint16_t datap;               /*Data stack pointer */
+  uint16_t retnp;               /*Return stack pointer */
 
-  uint16_t interrupt_enable;          /*Interrupt enable flag!*/
+  uint16_t interrupt_enable;    /*Interrupt enable flag! */
 
   uint32_t carry;
 } h2_state_t;

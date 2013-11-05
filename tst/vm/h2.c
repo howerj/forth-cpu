@@ -36,58 +36,60 @@ static char *aluop_str[] = {
 #undef X
 
 /**print out a number in binary*/
-void printbinary(uint16_t a, uint16_t bits, FILE *f){
+void printbinary(uint16_t a, uint16_t bits, FILE * f)
+{
   int i;
-  for(i = 0; i<bits; i++){
-    if(a&(1<<(bits-1-i)))
-        putc('1',f);
+  for (i = 0; i < bits; i++) {
+    if (a & (1 << (bits - 1 - i)))
+      putc('1', f);
     else
-        putc('0',f);
+      putc('0', f);
   }
-  putc(' ',f);
+  putc(' ', f);
 }
 
 /**This will print out the test data for the VHDL implementation
  * to be compared against, it will generate a pletheora of files
  * with a common prefix and suffix. */
-void print_test_data(h2_state_t *st, FILE *logfile){
-    uint16_t insn;
-    printbinary(st->pc,PC_BITLEN,logfile);
-    printbinary(st->tos,TOS_BITLEN,logfile);
-    printbinary(st->datap,DATAP_BITLEN,logfile);
-    printbinary(st->retnp,RETNP_BITLEN,logfile);
-    insn = (st->ram[st->pc % RAM_SZ]);
-    printbinary(insn,INSN_BITLEN,logfile);
-    putc('\n',logfile);
+void print_test_data(h2_state_t * st, FILE * logfile)
+{
+  uint16_t insn;
+  printbinary(st->pc, PC_BITLEN, logfile);
+  printbinary(st->tos, TOS_BITLEN, logfile);
+  printbinary(st->datap, DATAP_BITLEN, logfile);
+  printbinary(st->retnp, RETNP_BITLEN, logfile);
+  insn = (st->ram[st->pc % RAM_SZ]);
+  printbinary(insn, INSN_BITLEN, logfile);
+  putc('\n', logfile);
 }
 
 /** print out the column headings neatly.*/
-void print_column(FILE *logfile, char *s, unsigned int bitlen){
+void print_column(FILE * logfile, char *s, unsigned int bitlen)
+{
   char buf[BUFLEN];
-  memset(buf,'\0',BUFLEN); 
-  memset(buf,' ',bitlen+1); 
-  strncpy(buf,s,strlen(s));
-  fprintf(logfile,buf);
+  memset(buf, '\0', BUFLEN);
+  memset(buf, ' ', bitlen + 1);
+  strncpy(buf, s, strlen(s));
+  fprintf(logfile, buf);
 }
 
 int h2_cpu(h2_state_t * st)
 {
   uint16_t insn;    /**the instruction or ram[pc] */
   uint16_t is_x;    /**is_alu,is_jmp,is_call,is_cjmp */
-  uint16_t alu_op;  /**which ALU operation are we executing (if it is one)*/           
+  uint16_t alu_op;  /**which ALU operation are we executing (if it is one)*/
   uint16_t temp;
-  FILE* logfile; 
+  FILE *logfile;
 
   /**note on carry. x=y+z, a=lower(x), c=(higher(x)>>tolower) & 1 */
 
-  if(NULL == st){
+  if (NULL == st) {
     fprintf(stdout, "    (error \"Passed NULL pointer.\")\n  )\n");
     ST_ERROR(err_file);
   }
 
-  if(NULL == (logfile=fopen(LOGFILE, "w"))){
-    fprintf(stdout, "    (error \"Could not open <%s> for writing.\")\n  )\n",
-        LOGFILE);
+  if (NULL == (logfile = fopen(LOGFILE, "w"))) {
+    fprintf(stdout, "    (error \"Could not open <%s> for writing.\")\n  )\n", LOGFILE);
     ST_ERROR(err_file);
   }
 
@@ -96,7 +98,7 @@ int h2_cpu(h2_state_t * st)
   print_column(logfile, "datap", DATAP_BITLEN);
   print_column(logfile, "retnp", RETNP_BITLEN);
   print_column(logfile, "insn", INSN_BITLEN);
-  fputc('\n',logfile);
+  fputc('\n', logfile);
 
   while (true) {
     fprintf(stdout,
@@ -151,12 +153,12 @@ int h2_cpu(h2_state_t * st)
         fprintf(stdout, "    (alu\n");
 
         /** output */
-        if(insn & (1<<5)){
-            if((st->tos & 0x6000) == 0x6000){ /** fputc() or io access */
-              fprintf(stdout, "        (output io)\n");
-            } else { /** normal memory access output */
-              fprintf(stdout, "        (output mem)\n");
-            }
+        if (insn & (1 << 5)) {
+          if ((st->tos & 0x6000) == 0x6000) { /** fputc() or io access */
+            fprintf(stdout, "        (output io)\n");
+          } else {   /** normal memory access output */
+            fprintf(stdout, "        (output mem)\n");
+          }
         }
 
         alu_op = (insn & 0x1F00) >> 8;
@@ -171,7 +173,8 @@ int h2_cpu(h2_state_t * st)
         case alu_rtos:
           break;
         case alu_din:
-          if((st->tos & 0x6000) == 0x6000){ /** fgetc() or io access */
+          if ((st->tos & 0x6000) == 0x6000) {
+                                            /** fgetc() or io access */
             fprintf(stdout, "        (aluop %d %s io)\n", alu_op, aluop_str[alu_op]);
           } else { /** normal memory access */
             fprintf(stdout, "        (aluop %d %s mem)\n", alu_op, aluop_str[alu_op]);
@@ -215,7 +218,7 @@ int h2_cpu(h2_state_t * st)
           st->tos = (uint16_t) ((st->data[(st->datap - 1u) % VAR_SZ] & 0x00FF) * (st->tos & 0x00FF));
           break;
         case alu_sLT:
-          st->tos = (int16_t)st->data[(st->datap - 1u) % VAR_SZ] < (int16_t)st->tos;
+          st->tos = (int16_t) st->data[(st->datap - 1u) % VAR_SZ] < (int16_t) st->tos;
           break;
         case alu_uLT:
           st->tos = st->data[(st->datap - 1u) % VAR_SZ] < st->tos;
@@ -229,7 +232,7 @@ int h2_cpu(h2_state_t * st)
         case alu_eqz:
           st->tos = st->tos == 0;
           break;
-        case alu_swapbyte: /** swap high and low bytes in a 16-bit word*/
+        case alu_swapbyte:/** swap high and low bytes in a 16-bit word*/
           temp = (st->tos & 0xFF00) >> 8u;
           st->tos = (st->tos << 8u) & 0xFF00;
           st->tos |= temp;
@@ -249,18 +252,22 @@ int h2_cpu(h2_state_t * st)
           break;
         case alu_flags:
           break;
-        case alu_I:/** no instruction implemented*/
+        case alu_I:
+                   /** no instruction implemented*/
           break;
-        case alu_J:/** no instruction implemented*/
+        case alu_J:
+                   /** no instruction implemented*/
           break;
-        case alu_K:/** no instruction implemented*/
+        case alu_K:
+                   /** no instruction implemented*/
           break;
-        case alu_L:/** no instruction implemented*/
+        case alu_L:
+                   /** no instruction implemented*/
           break;
         case LAST_ALU:
           break;
 
-#if 0   /*not implemented yet*/
+#if 0                           /*not implemented yet */
         case alu_rtos:
           break;
         case alu_din:
