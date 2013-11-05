@@ -15,12 +15,10 @@
 #define VAR_SZ 32
 #define RET_SZ 32
 
-enum boolean {
+typedef enum {
   false,
   true
-};
-
-typedef uint16_t mw;
+} bool;
 
 typedef enum {
   err_ok,
@@ -70,22 +68,24 @@ typedef enum {
 } h2_alu;
 #undef X
 
-struct h2_state {
+typedef struct {
   int error;                    /*Any error code returned */
   int cycles;                   /*Number of cycles to run for */
   /* Need to sort out IO, should it be a 2D array or an array of FILE *ptr?
      FILE *input;            //Input to processor
      FILE *output;           //Output of processor
    */
-  mw ram[RAM_SZ];               /*Main RAM */
-  mw tos;                       /*Top of data stack */
-  mw data[VAR_SZ];              /*Data stack */
-  mw retn[RET_SZ];              /*Return stack */
-  mw pc;                        /*Program counter */
-  mw datap;                     /*Data stack pointer */
-  mw retnp;                     /*Return stack pointer */
-};
+  uint16_t ram[RAM_SZ];               /*Main RAM */
+  uint16_t tos;                       /*Top of data stack */
+  uint16_t data[VAR_SZ];              /*Data stack */
+  uint16_t retn[RET_SZ];              /*Return stack */
+  uint16_t pc;                        /*Program counter */
+  uint16_t datap;                     /*Data stack pointer */
+  uint16_t retnp;                     /*Return stack pointer */
 
-typedef struct h2_state h2_state_t;
+  uint16_t interrupt_enable;          /*Interrupt enable flag!*/
+
+  uint32_t carry;
+} h2_state_t;
 
 int h2_cpu(h2_state_t * st);

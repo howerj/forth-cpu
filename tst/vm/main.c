@@ -47,7 +47,7 @@ int main(void)
 
     for (j = 0; j < LIN_SZ; j++) {
       if (s[j] == '\n' || s[j] == '\0') {
-        if (j >= (sizeof(mw) * 8)) {
+        if (j >= (sizeof(uint16_t) * 8)) {
           break;
         } else {
           fprintf(stdout, "(error \"Too few characters on line %d for ram_init.\")\n", i);

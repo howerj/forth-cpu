@@ -26,17 +26,17 @@ static char *aluop_str[] = {
 
 int h2_cpu(h2_state_t * st)
 {
-  mw insn;                      /*the instruction or ram[pc] */
-  mw is_x;                      /*is_alu,is_jmp,is_call,is_cjmp */
-  mw alu_op;
-  uint32_t carry;               /** guess what? it's the carry flag!*/
+  uint16_t insn;    /**the instruction or ram[pc] */
+  uint16_t is_x;    /**is_alu,is_jmp,is_call,is_cjmp */
+  uint16_t alu_op;  /**which ALU operation are we executing (if it is one)*/           
+  uint16_t temp;
 
   /**note on carry. x=y+z, a=lower(x), c=(higher(x)>>tolower) & 1 */
 
-  /*
-     if (st == NULL){
-     fprintf(stdout,"(initializing)\n");
-     } */
+  if(NULL == st){
+    fprintf(stdout, "    (error \"Passed NULL pointer.\")\n  )\n");
+    return err_malloc;
+  }
 
   while (true) {
 
@@ -96,153 +96,109 @@ int h2_cpu(h2_state_t * st)
         case alu_tos:
           break;
         case alu_nos:
+          st->tos = st->data[(st->datap - 1u) % VAR_SZ];
           break;
         case alu_rtos:
           break;
         case alu_din:
+          if((st->tos & 0x6000) == 0x6000){ /** fgetc() or io access */
+            fprintf(stdout, "        (aluop %d %s fget)\n", alu_op, aluop_str[alu_op]);
+          } else { /** normal memory access */
+            fprintf(stdout, "        (aluop %d %s mem)\n", alu_op, aluop_str[alu_op]);
+          }
           break;
         case alu_depth:
+          st->tos = (uint16_t) ((st->datap << 11u) | (st->retnp));
           break;
         case alu_or:
+          st->tos = st->data[st->datap - 1u] | st->tos;
           break;
         case alu_and:
+          st->tos = st->data[st->datap - 1u] & st->tos;
           break;
         case alu_xor:
+          st->tos = st->data[st->datap - 1u] ^ st->tos;
           break;
         case alu_xnor:
-          break;
-        case alu_not:
-          break;
-        case alu_add:
-          break;
-        case alu_sub:
-          break;
-        case alu_sll:
-          break;
-        case alu_srl:
-          break;
-        case alu_rol:
-          break;
-        case alu_ror:
-          break;
-        case alu_mul:
-          break;
-        case alu_sLT:
-          break;
-        case alu_uLT:
-          break;
-        case alu_equ:
-          break;
-        case alu_neg:
-          break;
-        case alu_eqz:
-          break;
-        case alu_swapbyte:
-          break;
-        case alu_togglei:
-          break;
-        case alu_decrement:
-          break;
-        case alu_clear:
-          break;
-        case alu_setcarry:
-          break;
-        case alu_flags:
-          break;
-        case alu_I:
-          break;
-        case alu_J:
-          break;
-        case alu_K:
-          break;
-        case alu_L:
-          break;
-        case LAST_ALU:
-          break;
-
-#if 0
-        case alu_tos:          /* tos = tos */
-          break;
-        case alu_nos:
-          st->tos = st->data[(st->datap - 1) % VAR_SZ];
-          break;
-        case alu_rtos:
-          break;
-        case alu_din:
-          st->tos = st->ram[st->tos % RAM_SZ];
-          break;
-        case alu_depth:
-          st->tos = (mw) ((st->datap << 11) | (st->retnp));
-          break;
-        case alu_or:
-          st->tos = st->data[st->datap - 1] | st->tos;
-          break;
-        case alu_and:
-          st->tos = st->data[st->datap - 1] & st->tos;
-          break;
-        case alu_xor:
-          st->tos = st->data[st->datap - 1] ^ st->tos;
-          break;
-        case alu_xnor:
-          st->tos = ~(st->data[st->datap - 1] ^ st->tos);
+          st->tos = ~(st->data[st->datap - 1u] ^ st->tos);
           break;
         case alu_not:
           st->tos = ~st->tos;
           break;
         case alu_add:
-          st->tos = st->data[st->datap - 1] + st->tos;
+          st->tos = st->data[st->datap - 1u] + st->tos;
           break;
         case alu_sub:
-          st->tos = st->data[st->datap - 1] - st->tos;
+          st->tos = st->data[st->datap - 1u] - st->tos;
           break;
         case alu_sll:
-          st->tos = st->data[(st->datap - 1) % VAR_SZ] << (st->tos & 0x000F);
+          st->tos = st->data[(st->datap - 1u) % VAR_SZ] << (st->tos & 0x000F);
           break;
         case alu_srl:
-          st->tos = st->data[(st->datap - 1) % VAR_SZ] >> (st->tos & 0x000F);
+          st->tos = st->data[(st->datap - 1u) % VAR_SZ] >> (st->tos & 0x000F);
           break;
         case alu_rol:
           break;
         case alu_ror:
           break;
         case alu_mul:
-          st->tos = (mw) ((st->data[(st->datap - 1) % VAR_SZ] & 0x00FF) * (st->tos & 0x00FF));
+          st->tos = (uint16_t) ((st->data[(st->datap - 1u) % VAR_SZ] & 0x00FF) * (st->tos & 0x00FF));
           break;
         case alu_sLT:
-          st->tos = (signed)st->data[(st->datap - 1) % VAR_SZ] < (signed)st->tos;
-          break;
-        case alu_equ:
-          st->tos = st->data[(st->datap - 1) % VAR_SZ] == st->tos;
+          st->tos = (int16_t)st->data[(st->datap - 1u) % VAR_SZ] < (int16_t)st->tos;
           break;
         case alu_uLT:
-          st->tos = st->data[(st->datap - 1) % VAR_SZ] < st->tos;
+          st->tos = st->data[(st->datap - 1u) % VAR_SZ] < st->tos;
           break;
-        case alu_A:
+        case alu_equ:
+          st->tos = st->data[(st->datap - 1u) % VAR_SZ] == st->tos;
           break;
-        case alu_B:
+        case alu_neg:
+          st->tos = (st->tos & 0x8000) >> 15u;
           break;
-        case alu_C:
+        case alu_eqz:
+          st->tos = st->tos == 0;
           break;
-        case alu_D:
+        case alu_swapbyte: /** swap high and low bytes in a 16-bit word*/
+          temp = (st->tos & 0xFF00) >> 8u;
+          st->tos = (st->tos << 8u) & 0xFF00;
+          st->tos |= temp;
           break;
-        case alu_E:
+        case alu_togglei:
+          st->interrupt_enable = (st->interrupt_enable ^ 0x0001) & 0x0001;
           break;
-        case alu_F:
-          break;
-        case alu_G:
-          break;
-        case alu_H:
-          break;
-        case alu_I:
-          break;
-        case alu_dec:
+        case alu_decrement:
           st->tos--;
           break;
-        case alu_ioDin:
-          /*fgetc */
+        case alu_clear:
+          st->tos = 0;
+          st->carry = 0;
           break;
-        case alu_ioW:
-          /*fputc */
+        case alu_setcarry:
+          st->carry = st->tos & 0x0001;
+          break;
+        case alu_flags:
+          break;
+        case alu_I:/** no instruction implemented*/
+          break;
+        case alu_J:/** no instruction implemented*/
+          break;
+        case alu_K:/** no instruction implemented*/
+          break;
+        case alu_L:/** no instruction implemented*/
+          break;
+        case LAST_ALU:
+          break;
+
+#if 0
+        case alu_rtos:
+          break;
+        case alu_din:
+          st->tos = st->ram[st->tos % RAM_SZ];
+          break;
+        case alu_rol:
+          break;
+        case alu_ror:
           break;
 #endif
         default:
