@@ -16,6 +16,8 @@
 
 #define ST_ERROR(X) do{ st->error = (X); return (X); }while(1)
 #define ST_CATCH(X) do{ if((X)!=err_ok) return st->err; }while(1)
+#define LOGFILE "testbench.binary"
+
 
 #define X(a, b) b
 static char *aluop_str[] = {
@@ -24,30 +26,63 @@ static char *aluop_str[] = {
 
 #undef X
 
+void printbinary(uint16_t a, FILE *f){
+  int i;
+  for(i = 0; i<16; i++){
+    if(a&(1<<(15-i)))
+        putc('1',f);
+    else
+        putc('0',f);
+  }
+  putc(' ',f);
+}
+
+/**This will print out the test data for the VHDL implementation
+ * to be compared against, it will generate a pletheora of files
+ * with a common prefix and suffix. */
+void print_test_data(h2_state_t *st, FILE *logfile){
+    uint16_t insn;
+    printbinary(st->pc,logfile);
+    printbinary(st->tos,logfile);
+    printbinary(st->datap,logfile);
+    printbinary(st->retnp,logfile);
+    insn = (st->ram[st->pc % RAM_SZ]);
+    printbinary(insn,logfile);
+    putc('\n',logfile);
+}
+
 int h2_cpu(h2_state_t * st)
 {
   uint16_t insn;    /**the instruction or ram[pc] */
   uint16_t is_x;    /**is_alu,is_jmp,is_call,is_cjmp */
   uint16_t alu_op;  /**which ALU operation are we executing (if it is one)*/           
   uint16_t temp;
+  FILE* logfile; 
 
   /**note on carry. x=y+z, a=lower(x), c=(higher(x)>>tolower) & 1 */
 
   if(NULL == st){
     fprintf(stdout, "    (error \"Passed NULL pointer.\")\n  )\n");
-    return err_malloc;
+    ST_ERROR(err_file);
+  }
+
+  if(NULL == (logfile=fopen(LOGFILE, "w"))){
+    fprintf(stdout, "    (error \"Could not open <%s> for writing.\")\n  )\n",
+        LOGFILE);
+    ST_ERROR(err_file);
   }
 
   while (true) {
-
     fprintf(stdout,
             "  (state (cycles %d) (tos %d) (pc %d) (dp %d) (rp %d)\n",
             st->cycles, st->tos, st->pc, st->datap, st->retnp);
 
     if (st->cycles > 0) {
       st->cycles--;
+      print_test_data(st, logfile);
     } else {
       fprintf(stdout, "    (error \"Ran out of cycles\")\n  )\n");
+      fclose(logfile);
       ST_ERROR(err_cycles);
     }
 
@@ -89,6 +124,17 @@ int h2_cpu(h2_state_t * st)
          */
         fprintf(stdout, "    (alu\n");
 
+        /** output */
+        if(insn & (1<<5)){
+            if((st->tos & 0x6000) == 0x6000){ /** fputc() or io access */
+              fprintf(stdout, "        (output io)\n");
+            } else { /** normal memory access output */
+              fprintf(stdout, "        (output mem)\n");
+            }
+        }
+
+
+
         alu_op = (insn & 0x1F00) >> 8;
         fprintf(stdout, "        (aluop %d %s)\n", alu_op, aluop_str[alu_op]);
 
@@ -102,7 +148,7 @@ int h2_cpu(h2_state_t * st)
           break;
         case alu_din:
           if((st->tos & 0x6000) == 0x6000){ /** fgetc() or io access */
-            fprintf(stdout, "        (aluop %d %s fget)\n", alu_op, aluop_str[alu_op]);
+            fprintf(stdout, "        (aluop %d %s io)\n", alu_op, aluop_str[alu_op]);
           } else { /** normal memory access */
             fprintf(stdout, "        (aluop %d %s mem)\n", alu_op, aluop_str[alu_op]);
           }
@@ -190,7 +236,7 @@ int h2_cpu(h2_state_t * st)
         case LAST_ALU:
           break;
 
-#if 0
+#if 0   /*not implemented yet*/
         case alu_rtos:
           break;
         case alu_din:

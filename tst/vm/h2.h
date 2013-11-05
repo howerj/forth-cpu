@@ -23,8 +23,10 @@ typedef enum {
 typedef enum {
   err_ok,
   err_malloc,
+  err_null,
   err_cycles,
-  err_instruction
+  err_instruction,
+  err_file
 } vm_err;
 
 #define XMACRO_ALU_INSTRUCTIONS\

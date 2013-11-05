@@ -8,3 +8,4 @@ vm
 *.log
 output.txt
 valgrind.txt
+*.binary
