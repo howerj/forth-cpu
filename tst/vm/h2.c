@@ -12,12 +12,21 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "h2.h"
 
 #define ST_ERROR(X) do{ st->error = (X); return (X); }while(1)
 #define ST_CATCH(X) do{ if((X)!=err_ok) return st->err; }while(1)
-#define LOGFILE "testbench.binary"
 
+#define BUFLEN        (256u)
+
+#define LOGFILE       "testbench.binary"
+
+#define PC_BITLEN     (13u)
+#define TOS_BITLEN    (16u)
+#define DATAP_BITLEN  (5u)
+#define RETNP_BITLEN  (5u)
+#define INSN_BITLEN   (16u)
 
 #define X(a, b) b
 static char *aluop_str[] = {
@@ -26,10 +35,11 @@ static char *aluop_str[] = {
 
 #undef X
 
-void printbinary(uint16_t a, FILE *f){
+/**print out a number in binary*/
+void printbinary(uint16_t a, uint16_t bits, FILE *f){
   int i;
-  for(i = 0; i<16; i++){
-    if(a&(1<<(15-i)))
+  for(i = 0; i<bits; i++){
+    if(a&(1<<(bits-1-i)))
         putc('1',f);
     else
         putc('0',f);
@@ -42,13 +52,22 @@ void printbinary(uint16_t a, FILE *f){
  * with a common prefix and suffix. */
 void print_test_data(h2_state_t *st, FILE *logfile){
     uint16_t insn;
-    printbinary(st->pc,logfile);
-    printbinary(st->tos,logfile);
-    printbinary(st->datap,logfile);
-    printbinary(st->retnp,logfile);
+    printbinary(st->pc,PC_BITLEN,logfile);
+    printbinary(st->tos,TOS_BITLEN,logfile);
+    printbinary(st->datap,DATAP_BITLEN,logfile);
+    printbinary(st->retnp,RETNP_BITLEN,logfile);
     insn = (st->ram[st->pc % RAM_SZ]);
-    printbinary(insn,logfile);
+    printbinary(insn,INSN_BITLEN,logfile);
     putc('\n',logfile);
+}
+
+/** print out the column headings neatly.*/
+void print_column(FILE *logfile, char *s, unsigned int bitlen){
+  char buf[BUFLEN];
+  memset(buf,'\0',BUFLEN); 
+  memset(buf,' ',bitlen+1); 
+  strncpy(buf,s,strlen(s));
+  fprintf(logfile,buf);
 }
 
 int h2_cpu(h2_state_t * st)
@@ -71,6 +90,13 @@ int h2_cpu(h2_state_t * st)
         LOGFILE);
     ST_ERROR(err_file);
   }
+
+  print_column(logfile, "pc", PC_BITLEN);
+  print_column(logfile, "tos", TOS_BITLEN);
+  print_column(logfile, "datap", DATAP_BITLEN);
+  print_column(logfile, "retnp", RETNP_BITLEN);
+  print_column(logfile, "insn", INSN_BITLEN);
+  fputc('\n',logfile);
 
   while (true) {
     fprintf(stdout,
@@ -132,8 +158,6 @@ int h2_cpu(h2_state_t * st)
               fprintf(stdout, "        (output mem)\n");
             }
         }
-
-
 
         alu_op = (insn & 0x1F00) >> 8;
         fprintf(stdout, "        (aluop %d %s)\n", alu_op, aluop_str[alu_op]);
