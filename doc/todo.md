@@ -1,5 +1,12 @@
 ### General
 
+* Create different test benches:
+
+  - Interactive test bench; type and input is sent to the model.
+  - Automatic verification against working model (H2 Virtual machine)
+  - Feature testing test bench; for simple tests in experimental
+  branches.
+
 * Instead of:
 
     -- synthesis translate_on

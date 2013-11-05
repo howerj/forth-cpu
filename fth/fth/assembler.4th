@@ -78,6 +78,9 @@
 22 mALU  constant swapbytes ." swapbytes = "    swapbytes prnn ." , " cr
 23 mALU  constant togglei   ." togglei = "      togglei   prnn ." , " cr
 24 mALU  constant T-1       ." TsubOne = "      T-1       prnn ." , " cr
+25 mALU  constant clr       ." clr = "          clr       prnn ." , " cr
+26 mALU  constant setcarry  ." setcarry = "     setcarry  prnn ." , " cr
+27 mALU  constant flags     ." flags = "        flags     prnn ." , " cr
 
 : mLit     1 15 lshift ;
 : T->N     1 7  lshift ;
