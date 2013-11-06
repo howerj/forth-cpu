@@ -67,7 +67,7 @@ int main(void)
 
   /*Execute h2 vm */
   ret = h2_cpu(st);
-  fprintf(stdout, "(error-returned (\"h2_cpu(st)\" %d))\n)\n", ret);
+  fprintf(stdout, "(error-returned (\"h2_cpu(st)\" %u))\n)\n", ret);
 
   if ((ram_final = fopen("ram.log", "w")) == NULL) {
     fprintf(stdout, "(error \"Could not open output file for final RAM contents.\")\n");

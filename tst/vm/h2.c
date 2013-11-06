@@ -35,11 +35,11 @@ static char *aluop_str[] = {
 #undef X
 
 /** ...starring these functions in order of appearance */
-void printbinary(uint16_t a, uint16_t bits, FILE * f);
-void print_test_data(h2_state_t * st, FILE * logfile);
-void print_column(FILE * logfile, char *s, unsigned int bitlen);
-uint16_t rotr(uint16_t value, uint16_t shift);
-uint16_t rotl(uint16_t value, uint16_t shift);
+static void printbinary(uint16_t a, uint16_t bits, FILE * f);
+static void print_test_data(h2_state_t * st, FILE * logfile);
+static void print_column(FILE * logfile, char *s, unsigned int bitlen);
+static uint16_t rotr(uint16_t value, uint16_t shift);
+static uint16_t rotl(uint16_t value, uint16_t shift);
 int h2_cpu(h2_state_t * st);
 
 /**print out a number in binary*/
@@ -83,11 +83,11 @@ void print_column(FILE * logfile, char *s, unsigned int bitlen)
 
 /** rotate left */
 uint16_t rotl(uint16_t value, uint16_t shift) {
-    return (value << (shift & 0x000F)) | (value >> ((sizeof(value) * 8 - shift) & 0x000F));
+    return (value << (shift & 0x000Fu)) | (value >> ((sizeof(value) * 8u - shift) & 0x000Fu));
 }
 /** rotate right */
 uint16_t rotr(uint16_t value, uint16_t shift) {
-    return (value >> (shift & 0x000F)) | (value << ((sizeof(value) * 8 - shift)) & 0x000F);
+    return (value >> (shift & 0x000Fu)) | (value << ((sizeof(value) * 8u - shift)) & 0x000Fu);
 }
 
 int h2_cpu(h2_state_t * st)
@@ -133,35 +133,35 @@ int h2_cpu(h2_state_t * st)
 
     insn = (st->ram[st->pc % RAM_SZ]);  /*makes sure this is in bounds */
 
-    if (insn & 0x8000) {        /*literal */
+    if (insn & 0x8000u) {        /*literal */
       fprintf(stdout, "        (literal (tos %d) (dp %d))\n", st->tos, st->datap);
       st->data[++(st->datap) % VAR_SZ] = st->tos;
-      st->tos = insn & 0x7FFF;
+      st->tos = insn & 0x7FFFu;
       (st->pc)++;
     } else {
-      is_x = insn & 0x6000;     /*mask, 0b0110 0000 0000 0000 */
+      is_x = insn & 0x6000u;     /*mask, 0b0110 0000 0000 0000 */
 
       switch (is_x) {
-      case 0x0000:             /*jmp */
-        fprintf(stdout, "    (jump (pc %d) (pc_n %d))\n", st->pc, insn & 0x1FFF);
-        st->pc = insn & 0x1FFF;
+      case 0x0000u:             /*jmp */
+        fprintf(stdout, "    (jump (pc %d) (pc_n %d))\n", st->pc, insn & 0x1FFFu);
+        st->pc = insn & 0x1FFFu;
         break;
-      case 0x2000:             /*cjmp */
+      case 0x2000u:             /*cjmp */
         fprintf(stdout, "    (cjmp (pc %d) (cond %s) (pc_n %d))\n", st->pc, st->tos ? "true" : "false",
-                st->tos ? insn & 0x1FFF : st->pc + 1);
-        if (st->tos == 0) {
-          st->pc = insn & 0x1FFF;
+                st->tos ? insn & 0x1FFFu : st->pc + 1u);
+        if (0u == st->tos) {
+          st->pc = insn & 0x1FFFu;
           st->tos = st->data[(st->datap)-- % VAR_SZ];
         } else {
           (st->pc)++;
         }
         break;
-      case 0x4000:             /*call */
+      case 0x4000u:             /*call */
         fprintf(stdout, "    (call (pc %d) (pc_n %d))\n", st->pc, insn & 0x1FFF);
         st->retn[++(st->retnp) % RET_SZ] = st->pc;
-        st->pc = insn & 0x1FFF;
+        st->pc = insn & 0x1FFFu;
         break;
-      case 0x6000:             /*alu */
+      case 0x6000u:             /*alu */
         /*This is the most complex section */
         /* insn & 0x0003 , stack delta data
          * insn & 0x000C , stack delta return
@@ -171,14 +171,14 @@ int h2_cpu(h2_state_t * st)
 
         /** output */
         if (insn & (1 << 5)) {
-          if ((st->tos & 0x6000) == 0x6000) { /** fputc() or io access */
+          if ((st->tos & 0x6000u) == 0x6000u) { /** fputc() or io access */
             fprintf(stdout, "        (output io)\n");
           } else {   /** normal memory access output */
             fprintf(stdout, "        (output mem)\n");
           }
         }
 
-        alu_op = (insn & 0x1F00) >> 8;
+        alu_op = (insn & 0x1F00u) >> 8u;
         fprintf(stdout, "        (aluop %d %s)\n", alu_op, aluop_str[alu_op]);
 
         switch (alu_op) {
@@ -188,9 +188,10 @@ int h2_cpu(h2_state_t * st)
           st->tos = st->data[(st->datap - 1u) % VAR_SZ];
           break;
         case alu_rtos:
+          st->tos = st->retn[(st->retnp) % RET_SZ];
           break;
         case alu_din:
-          if ((st->tos & 0x6000) == 0x6000) {
+          if ((st->tos & 0x6000u) == 0x6000u) {
                                             /** fgetc() or io access */
             fprintf(stdout, "        (aluop %d %s io)\n", alu_op, aluop_str[alu_op]);
           } else { /** normal memory access */
@@ -222,10 +223,10 @@ int h2_cpu(h2_state_t * st)
           st->tos = st->data[st->datap - 1u] - st->tos;
           break;
         case alu_sll:
-          st->tos = st->data[(st->datap - 1u) % VAR_SZ] << (st->tos & 0x000F);
+          st->tos = st->data[(st->datap - 1u) % VAR_SZ] << (st->tos & 0x000Fu);
           break;
         case alu_srl:
-          st->tos = st->data[(st->datap - 1u) % VAR_SZ] >> (st->tos & 0x000F);
+          st->tos = st->data[(st->datap - 1u) % VAR_SZ] >> (st->tos & 0x000Fu);
           break;
         case alu_rol:
           st->tos = rotl(st->data[(st->datap - 1u) % VAR_SZ], st->tos);
@@ -234,7 +235,7 @@ int h2_cpu(h2_state_t * st)
           st->tos = rotr(st->data[(st->datap - 1u) % VAR_SZ], st->tos);
           break;
         case alu_mul:
-          st->tos = (uint16_t) ((st->data[(st->datap - 1u) % VAR_SZ] & 0x00FF) * (st->tos & 0x00FF));
+          st->tos = (uint16_t) ((st->data[(st->datap - 1u) % VAR_SZ] & 0x00FFu) * (st->tos & 0x00FFu));
           break;
         case alu_sLT:
           st->tos = (int16_t) st->data[(st->datap - 1u) % VAR_SZ] < (int16_t) st->tos;
@@ -246,28 +247,28 @@ int h2_cpu(h2_state_t * st)
           st->tos = st->data[(st->datap - 1u) % VAR_SZ] == st->tos;
           break;
         case alu_neg:
-          st->tos = (st->tos & 0x8000) >> 15u;
+          st->tos = (st->tos & 0x8000u) >> 15u;
           break;
         case alu_eqz:
-          st->tos = st->tos == 0;
+          st->tos = st->tos == 0u;
           break;
         case alu_swapbyte:/** swap high and low bytes in a 16-bit word*/
-          temp = (st->tos & 0xFF00) >> 8u;
-          st->tos = (st->tos << 8u) & 0xFF00;
+          temp = (st->tos & 0xFF00u) >> 8u;
+          st->tos = (st->tos << 8u) & 0xFF00u;
           st->tos |= temp;
           break;
         case alu_togglei:
-          st->interrupt_enable = (st->interrupt_enable ^ 0x0001) & 0x0001;
+          st->interrupt_enable = (st->interrupt_enable ^ 0x0001u) & 0x0001u;
           break;
         case alu_decrement:
           st->tos--;
           break;
         case alu_clear:
-          st->tos = 0;
-          st->carry = 0;
+          st->tos = 0u;
+          st->carry = 0u;
           break;
         case alu_setcarry:
-          st->carry = st->tos & 0x0001;
+          st->carry = st->tos & 0x0001u;
           break;
         case alu_flags:
           break;
@@ -283,78 +284,65 @@ int h2_cpu(h2_state_t * st)
         case alu_L:
                    /** no instruction implemented*/
           break;
-        case LAST_ALU:
-          break;
-
-#if 0                           /*not implemented yet */
-        case alu_rtos:
-          break;
-        case alu_din:
-          st->tos = st->ram[st->tos % RAM_SZ];
-          break;
-        case alu_rol:
-          break;
-        case alu_ror:
-          break;
-#endif
+        case LAST_ALU: /** fall through */
         default:
           fprintf(stdout, "    (error \"Incorrect ALU instruction\")\n  )\n");
           ST_ERROR(err_instruction);
         }
 
         /*Does all this go before of after the stack delta? */
-        if ((insn & 0x0010)) {  /* R->PC */
+        if ((insn & 0x0010u)) {  /* R->PC */
           fprintf(stdout, "        (R->PC true)\n");
           st->pc = st->retn[st->retnp % RET_SZ];
         } else {
           fprintf(stdout, "        (R->PC false)\n");
         }
 
-        if ((insn & 0x0020)) {  /* N->[T] */
+        if ((insn & 0x0020u)) {  /* N->[T] */
           fprintf(stdout, "        (N->[T] true)\n");
           st->ram[st->tos] = st->data[(st->datap - 1) % VAR_SZ];
         } else {
           fprintf(stdout, "        (N->[T] false)\n");
         }
 
-        if ((insn & 0x0040)) {  /* T->R */
+        if ((insn & 0x0040u)) {  /* T->R */
           fprintf(stdout, "        (T->R true)\n");
           st->retn[st->retnp % RET_SZ] = st->tos;
         } else {
           fprintf(stdout, "        (T->R false)\n");
         }
 
-        if ((insn & 0x0080)) {  /* T->N */
+        if ((insn & 0x0080u)) {  /* T->N */
           fprintf(stdout, "        (T->N true)\n");
-          st->data[(st->datap - 1) % VAR_SZ] = st->tos;
+          st->data[(st->datap - 1u) % VAR_SZ] = st->tos;
         } else {
           fprintf(stdout, "        (T->N false)\n");
         }
 
         /* dd stack delta, implements signed addition */
-        if ((insn & 0x0003) == 0x0) {
+        if ((insn & 0x0003u) == 0x0u) {
           fprintf(stdout, "        (dd +/-0)\n");
-        } else if ((insn & 0x0003) == 0x1) {
+        } else if ((insn & 0x0003u) == 0x1u) {
           fprintf(stdout, "        (dd +1)\n");
           st->datap++;
-        } else if ((insn & 0x0003) == 0x2) {
+        } else if ((insn & 0x0003u) == 0x2u) {
           fprintf(stdout, "        (dd -2)\n");
-          st->datap -= 2;
-        } else if ((insn & 0x0003) == 0x3) {
+          st->datap -= 2u;
+        } else if ((insn & 0x0003u) == 0x3u) {
           fprintf(stdout, "        (dd -1)\n");
           st->datap -= 1;
         }
 
         /* rd stack delta, implements signed addition */
-        if ((insn & 0x000C) == (0x0 << 2)) {
+        if ((insn & 0x000Cu) == (0x0u << 2u)) {
           fprintf(stdout, "        (rd +/-0)\n");
-        } else if ((insn & 0x000C) == (0x1 << 2)) {
+        } else if ((insn & 0x000Cu) == (0x1u << 2u)) {
           fprintf(stdout, "        (rd +1)\n");
           st->retnp++;
-        } else if ((insn & 0x000C) == (0x2 << 2)) {
+        } else if ((insn & 0x000Cu) == (0x2u << 2u)) {
           fprintf(stdout, "        (rd -2)\n");
           st->retnp -= 2;
-        } else if ((insn & 0x000C) == (0x3 << 2)) {
+        } else if ((insn & 0x000Cu) == (0x3u << 2u)) {
           fprintf(stdout, "        (rd -1)\n");
           st->retnp -= 1;
         }
