@@ -33,6 +33,7 @@
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use std.textio.all;
 
 entity test_bench is
 end test_bench;
@@ -119,12 +120,29 @@ begin
 
     -- I/O settings go here.
 	stimulus_process: process
+    variable rt: boolean;
+    --! Eventually the asserts will go in this function as well!
+    --! Just prints out formatted data, it is a shame a "wait"
+    --! cannot be put in here with an integer passed to it to
+    --! say for how many clock cycles to wait for.
+    --! I would like to get rid of the return type, it is not
+    --! needed.
+    function reportln(pc, insn: std_logic_vector) return boolean is
+    begin
+        report "pc("   & integer'image(to_integer(unsigned(pc)))    & ") "
+             & "insn(" & integer'image(to_integer(unsigned(insn)))  & ") "
+        ;
+      return true;
+    end reportln;
 	begin
         tb_sw <= X"A5";
         tb_rst <= '1';
         wait for clk_period * 2;
         tb_rst <= '0';
-        wait for clk_period * 256;
+        for i in 0 to 255 loop
+          rt:=reportln(tb_debug_pc, tb_debug_insn);
+          wait for clk_period * 1;
+        end loop;
         tb_debug_irq <= '1';
         tb_debug_irc <= X"4";
         wait for clk_period * 1;
