@@ -73,6 +73,15 @@ void print_column(FILE * logfile, char *s, unsigned int bitlen)
   fprintf(logfile, buf);
 }
 
+/** rotate left */
+uint16_t rotl(uint16_t value, uint16_t shift) {
+    return (value << (shift & 0x000F)) | (value >> ((sizeof(value) * 8 - shift) & 0x000F));
+}
+/** rotate right */
+uint16_t rotr(uint16_t value, uint16_t shift) {
+    return (value >> (shift & 0x000F)) | (value << ((sizeof(value) * 8 - shift)) & 0x000F);
+}
+
 int h2_cpu(h2_state_t * st)
 {
   uint16_t insn;    /**the instruction or ram[pc] */
@@ -211,8 +220,10 @@ int h2_cpu(h2_state_t * st)
           st->tos = st->data[(st->datap - 1u) % VAR_SZ] >> (st->tos & 0x000F);
           break;
         case alu_rol:
+          st->tos = rotl(st->data[(st->datap - 1u) % VAR_SZ], st->tos);
           break;
         case alu_ror:
+          st->tos = rotr(st->data[(st->datap - 1u) % VAR_SZ], st->tos);
           break;
         case alu_mul:
           st->tos = (uint16_t) ((st->data[(st->datap - 1u) % VAR_SZ] & 0x00FF) * (st->tos & 0x00FF));
