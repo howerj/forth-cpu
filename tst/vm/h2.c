@@ -32,14 +32,22 @@
 static char *aluop_str[] = {
   XMACRO_ALU_INSTRUCTIONS
 };
-
 #undef X
+
+/** ...starring these functions in order of appearance */
+void printbinary(uint16_t a, uint16_t bits, FILE * f);
+void print_test_data(h2_state_t * st, FILE * logfile);
+void print_column(FILE * logfile, char *s, unsigned int bitlen);
+uint16_t rotr(uint16_t value, uint16_t shift);
+uint16_t rotl(uint16_t value, uint16_t shift);
+int h2_cpu(h2_state_t * st);
 
 /**print out a number in binary*/
 void printbinary(uint16_t a, uint16_t bits, FILE * f)
 {
   int i;
   for (i = 0; i < bits; i++) {
+    /*without if: putc("01"[(a&(1<< (bits - 1 -i)))>>(bits - 1 - i)], f);*/
     if (a & (1 << (bits - 1 - i)))
       putc('1', f);
     else
