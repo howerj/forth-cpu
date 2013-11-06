@@ -35,7 +35,7 @@ static char *aluop_str[] = {
 #undef X
 
 /** ...starring these functions in order of appearance */
-static void printbinary(uint16_t a, uint16_t bits, FILE * f);
+static void printbinary(uint16_t a, unsigned int bits, FILE * f);
 static void print_test_data(h2_state_t * st, FILE * logfile);
 static void print_column(FILE * logfile, char *s, unsigned int bitlen);
 static uint16_t rotr(uint16_t value, uint16_t shift);
@@ -43,17 +43,17 @@ static uint16_t rotl(uint16_t value, uint16_t shift);
 int h2_cpu(h2_state_t * st);
 
 /**print out a number in binary*/
-void printbinary(uint16_t a, uint16_t bits, FILE * f)
+void printbinary(uint16_t a, unsigned int bits, FILE * f)
 {
-  int i;
+  unsigned int i;
   for (i = 0; i < bits; i++) {
     /*without if: putc("01"[(a&(1<< (bits - 1 -i)))>>(bits - 1 - i)], f);*/
     if (a & (1 << (bits - 1 - i)))
-      putc('1', f);
+      (void)putc('1', f);
     else
-      putc('0', f);
+      (void)putc('0', f);
   }
-  putc(' ', f);
+  (void)putc(' ', f);
 }
 
 /**This will print out the test data for the VHDL implementation

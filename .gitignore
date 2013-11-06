@@ -3,7 +3,9 @@
 *.o
 doxy/
 doxy/*
-vhdl/doxy/*
-forth/doc/doxygen/*
+vhd/doxy/*
+vhd/post/
+vhd/post/*
+fth/doc/doxygen/*
 doc/doxy/
 doc/doxy/*

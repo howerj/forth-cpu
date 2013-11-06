@@ -2,6 +2,8 @@ doxy/
 doxy/*
 doxy/html/*
 doxy/latex/*
+post/
+post/*
 *.swp
 *.swo
 *.o

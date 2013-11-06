@@ -7,6 +7,7 @@
 #
 
 DOXYFILE=doxygen.conf
+NETLIST=top_level
 
 ## Remember to update the synthesis section as well
 SOURCES = \
@@ -191,7 +192,13 @@ bitfile:
 upload:
 	djtgcfg prog -d Nexys3 -i 0 -f design.bit
 
-design: clean simulation synthesis implementation bifile
+design: clean simulation synthesis implementation bitfile
+
+postsyn:
+	@netgen -w -ofmt vhdl -sim $(NETLIST).ngc post_synthesis.vhd
+	@netgen -w -ofmt vhdl -sim $(NETLIST).ngd post_translate.vhd
+	@netgen  -pcf $(NETLIST).pcf -w -ofmt vhdl -sim $(NETLIST).ncd post_map.vhd
+
 
 doxygen: $(DOXYFILE)
 	@doxygen $(DOXYFILE)

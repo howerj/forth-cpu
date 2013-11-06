@@ -213,10 +213,10 @@ begin
                     tos_n <= "0" & din;  
                   end if;
                 when "00100" =>  tos_n  <=  tos_c(16) & vstkp_c & "000000" & rstkp_c;
-                when "00101" =>  tos_n  <=  tos_c or nos;
-                when "00110" =>  tos_n  <=  tos_c and nos;
-                when "00111" =>  tos_n  <=  tos_c xor nos;
-                when "01000" =>  tos_n  <=  tos_c xnor nos;
+                when "00101" =>  tos_n  <=  "0" & (tos_c(15 downto 0) or nos);
+                when "00110" =>  tos_n  <=  "0" & (tos_c(15 downto 0) and nos);
+                when "00111" =>  tos_n  <=  "0" & (tos_c(15 downto 0) xor nos);
+                when "01000" =>  tos_n  <=  "0" & (tos_c(15 downto 0) xnor nos);
                 when "01001" =>  tos_n  <=  not tos_c;
                 when "01010" =>  tos_n  <=  std_logic_vector(unsigned(tos_c)+unsigned(nos));
                 when "01011" =>  tos_n  <=  std_logic_vector(unsigned(nos)-unsigned(tos_c));
