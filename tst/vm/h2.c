@@ -27,6 +27,8 @@
 #define DATAP_BITLEN  (5u)
 #define RETNP_BITLEN  (5u)
 #define INSN_BITLEN   (16u)
+#define INPUT_BITLEN  (16u)
+#define OUTPUT_BITLEN (16u)
 
 #define X(a, b) b
 static char *aluop_str[] = {
@@ -36,7 +38,6 @@ static char *aluop_str[] = {
 
 /** ...starring these functions in order of appearance */
 static void printbinary(uint16_t a, unsigned int bits, FILE * f);
-static void print_test_data(h2_state_t * st, FILE * logfile);
 static void print_column(FILE * logfile, char *s, unsigned int bitlen);
 static uint16_t rotr(uint16_t value, uint16_t shift);
 static uint16_t rotl(uint16_t value, uint16_t shift);
@@ -54,21 +55,6 @@ void printbinary(uint16_t a, unsigned int bits, FILE * f)
       (void)putc('0', f);
   }
   (void)putc(' ', f);
-}
-
-/**This will print out the test data for the VHDL implementation
- * to be compared against, it will generate a pletheora of files
- * with a common prefix and suffix. */
-void print_test_data(h2_state_t * st, FILE * logfile)
-{
-  uint16_t insn;
-  printbinary(st->pc, PC_BITLEN, logfile);
-  printbinary(st->tos, TOS_BITLEN, logfile);
-  printbinary(st->datap, DATAP_BITLEN, logfile);
-  printbinary(st->retnp, RETNP_BITLEN, logfile);
-  insn = (st->ram[st->pc % RAM_SZ]);
-  printbinary(insn, INSN_BITLEN, logfile);
-  putc('\n', logfile);
 }
 
 /** print out the column headings neatly.*/
@@ -110,11 +96,15 @@ int h2_cpu(h2_state_t * st)
     ST_ERROR(err_file);
   }
 
-  print_column(logfile, "pc", PC_BITLEN);
-  print_column(logfile, "tos", TOS_BITLEN);
-  print_column(logfile, "datap", DATAP_BITLEN);
-  print_column(logfile, "retnp", RETNP_BITLEN);
-  print_column(logfile, "insn", INSN_BITLEN);
+  print_column(logfile, "pc_c", PC_BITLEN);
+  print_column(logfile, "tos_c", TOS_BITLEN);
+  print_column(logfile, "dp_c", DATAP_BITLEN);
+  print_column(logfile, "rp_c", RETNP_BITLEN);
+  print_column(logfile, "insn_c", INSN_BITLEN);
+  print_column(logfile, "i", 1u);
+  print_column(logfile, "d", 1u);
+  print_column(logfile, "output", OUTPUT_BITLEN);
+  print_column(logfile, "input", INPUT_BITLEN);
   fputc('\n', logfile);
 
   while (true) {
@@ -124,20 +114,28 @@ int h2_cpu(h2_state_t * st)
 
     if (st->cycles > 0) {
       st->cycles--;
-      print_test_data(st, logfile);
     } else {
       fprintf(stdout, "    (error \"Ran out of cycles\")\n  )\n");
       fclose(logfile);
       ST_ERROR(err_cycles);
     }
 
+    printbinary(st->pc, PC_BITLEN, logfile);
+    printbinary(st->tos, TOS_BITLEN, logfile);
+    printbinary(st->datap, DATAP_BITLEN, logfile);
+    printbinary(st->retnp, RETNP_BITLEN, logfile);
     insn = (st->ram[st->pc % RAM_SZ]);  /*makes sure this is in bounds */
+    printbinary(insn, INSN_BITLEN, logfile);
 
     if (insn & 0x8000u) {        /*literal */
       fprintf(stdout, "        (literal (tos %d) (dp %d))\n", st->tos, st->datap);
       st->data[++(st->datap) % VAR_SZ] = st->tos;
       st->tos = insn & 0x7FFFu;
       (st->pc)++;
+      printbinary(0, 1, logfile);
+      printbinary(0, 1, logfile);
+      printbinary(0, OUTPUT_BITLEN, logfile);
+      printbinary(0, INPUT_BITLEN, logfile);
     } else {
       is_x = insn & 0x6000u;     /*mask, 0b0110 0000 0000 0000 */
 
@@ -145,6 +143,12 @@ int h2_cpu(h2_state_t * st)
       case 0x0000u:             /*jmp */
         fprintf(stdout, "    (jump (pc %d) (pc_n %d))\n", st->pc, insn & 0x1FFFu);
         st->pc = insn & 0x1FFFu;
+
+        printbinary(0, 1, logfile);
+        printbinary(0, 1, logfile);
+        printbinary(0, OUTPUT_BITLEN, logfile);
+        printbinary(0, INPUT_BITLEN, logfile);
+
         break;
       case 0x2000u:             /*cjmp */
         fprintf(stdout, "    (cjmp (pc %d) (cond %s) (pc_n %d))\n", st->pc, st->tos ? "true" : "false",
@@ -155,11 +159,20 @@ int h2_cpu(h2_state_t * st)
         } else {
           (st->pc)++;
         }
+        printbinary(0, 1, logfile);
+        printbinary(0, 1, logfile);
+        printbinary(0, OUTPUT_BITLEN, logfile);
+        printbinary(0, INPUT_BITLEN, logfile);
         break;
       case 0x4000u:             /*call */
         fprintf(stdout, "    (call (pc %d) (pc_n %d))\n", st->pc, insn & 0x1FFF);
         st->retn[++(st->retnp) % RET_SZ] = st->pc;
         st->pc = insn & 0x1FFFu;
+
+        printbinary(0, 1, logfile);
+        printbinary(0, 1, logfile);
+        printbinary(0, OUTPUT_BITLEN, logfile);
+        printbinary(0, INPUT_BITLEN, logfile);
         break;
       case 0x6000u:             /*alu */
         /*This is the most complex section */
@@ -172,11 +185,20 @@ int h2_cpu(h2_state_t * st)
         /** output */
         if (insn & (1 << 5)) {
           if ((st->tos & 0x6000u) == 0x6000u) { /** fputc() or io access */
-            fprintf(stdout, "        (output io)\n");
+            fprintf(stdout, "        (output io %d)\n",
+                st->data[(st->datap - 1u) % VAR_SZ]);
+            printbinary(1, 1, logfile);
+            printbinary(0, 1, logfile);
           } else {   /** normal memory access output */
             fprintf(stdout, "        (output mem)\n");
+            printbinary(0, 1, logfile);
+            printbinary(1, 1, logfile);
           }
+        } else {
+          printbinary(0, 1, logfile);
+          printbinary(1, 1, logfile);
         }
+        printbinary(st->tos, OUTPUT_BITLEN, logfile);
 
         alu_op = (insn & 0x1F00u) >> 8u;
         fprintf(stdout, "        (aluop %d %s)\n", alu_op, aluop_str[alu_op]);
@@ -194,6 +216,7 @@ int h2_cpu(h2_state_t * st)
           if ((st->tos & 0x6000u) == 0x6000u) {
                                             /** fgetc() or io access */
             fprintf(stdout, "        (aluop %d %s io)\n", alu_op, aluop_str[alu_op]);
+            printbinary(0, INPUT_BITLEN, logfile);
           } else { /** normal memory access */
             fprintf(stdout, "        (aluop %d %s mem)\n", alu_op, aluop_str[alu_op]);
           }
@@ -356,6 +379,7 @@ int h2_cpu(h2_state_t * st)
       }
 
     }
+    putc('\n', logfile);
     fprintf(stdout, "  )\n\n");
   }
 }
