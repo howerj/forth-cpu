@@ -216,10 +216,10 @@ int h2_cpu(h2_state_t * st)
           if ((st->tos & 0x6000u) == 0x6000u) {
                                             /** fgetc() or io access */
             fprintf(stdout, "        (aluop %d %s io)\n", alu_op, aluop_str[alu_op]);
-            printbinary(0, INPUT_BITLEN, logfile);
           } else { /** normal memory access */
             fprintf(stdout, "        (aluop %d %s mem)\n", alu_op, aluop_str[alu_op]);
           }
+          printbinary(0, INPUT_BITLEN, logfile);
           break;
         case alu_depth:
           st->tos = (uint16_t) ((st->datap << 11u) | (st->retnp));
@@ -312,6 +312,9 @@ int h2_cpu(h2_state_t * st)
           fprintf(stdout, "    (error \"Incorrect ALU instruction\")\n  )\n");
           ST_ERROR(err_instruction);
         }
+
+        if(alu_op!=alu_din)
+          printbinary(0, INPUT_BITLEN, logfile);
 
         /*Does all this go before of after the stack delta? */
         if ((insn & 0x0010u)) {  /* R->PC */
