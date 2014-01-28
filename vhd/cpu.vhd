@@ -51,12 +51,14 @@ architecture behav of cpu is
   constant data_bitlen: positive := 16;
   constant filename:    string   := "mem_h2.binary";
   --! memory <-> cpu signals
-  signal  pc:                       std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0'); -- Program counter
-  signal  insn:                     std_logic_vector(data_bitlen - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
-  signal  mem_dwe:                  std_logic:= '0';   -- Read/Write toggle, 0=Read, 1=Write
-  signal  mem_din:                  std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
-  signal  mem_dout:                 std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
-  signal  mem_daddr:                std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0');
+  signal  pc:           std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0'); -- Program counter
+  signal  insn:         std_logic_vector(data_bitlen - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
+  signal  mem_dwe:      std_logic:= '0';   -- Read/Write toggle, 0=Read, 1=Write
+  signal  mem_din:      std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
+  signal  mem_dout:     std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
+  signal  mem_daddr:    std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0');
+
+  signal  dptr:         std_logic_vector(15 downto 0):= (others => '0');
 begin
   -- synthesis translate_off
   debug_pc          <= pc;
@@ -89,7 +91,9 @@ begin
           dwe       =>    mem_dwe,
           din       =>    mem_din,
           dout      =>    mem_dout,
-          daddr     =>    mem_daddr
+          daddr     =>    mem_daddr,
+          -- Data pointer
+          dptr      =>    dptr
       );
 
   --! Dual port RAM for the CPU, acts as bootloader or

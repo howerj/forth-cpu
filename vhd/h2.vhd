@@ -49,7 +49,10 @@ entity h2 is
         dwe:        out std_logic; -- data write enable, read enable not need.
         din:        in  std_logic_vector(15 downto 0);
         dout:       out std_logic_vector(15 downto 0);
-        daddr:      out std_logic_vector(12 downto 0)
+        daddr:      out std_logic_vector(12 downto 0);
+
+        -- Data pointer
+        dptr:       out std_logic_vector(15 downto 0)
     );
 end;
 
@@ -105,6 +108,9 @@ architecture rtl of h2 is
     signal dstkW:               std_logic                     := '0';
     signal rstkD:               std_logic_vector(15 downto 0) := (others => '0');
     signal rstkW:               std_logic                     := '0';
+    -- data pointer
+    signal dptr_c:              std_logic_vector(15 downto 0) := (others => '0');
+    signal dptr_n:              std_logic_vector(15 downto 0) := (others => '0');
 begin
     -- is_instr_x, what kind of instruction do we have?
     is_instr_alu        <=  '1' when insn(15 downto 13) = "011" else '0';
@@ -133,6 +139,7 @@ begin
     daddr               <=  tos_c(12 downto 0);
     dwe                 <=  insn(5) when is_instr_alu = '1' and tos_c(14 downto 13) /= "11" else '0';
 
+
     -- io_wr are handled in the ALU, 
     --  this makes things slower but we have
     --  run out of instruction bits to use.
@@ -147,8 +154,12 @@ begin
     dd                  <=  insn(1) & insn(1) & insn(1) & insn(1) & insn(0);
     rd                  <=  insn(3) & insn(3) & insn(3) & insn(3) & insn(2);
 
-    dstkW   <= '1' when is_instr_lit = '1' or (is_instr_alu = '1' and insn(7) = '1') else '0';
+    dstkW               <= '1' when is_instr_lit = '1' 
+                           or (is_instr_alu = '1' 
+                           and insn(7) = '1') 
+                        else '0';
 
+    dptr                <= dptr_c;
 
     stackWrite: process(
         clk
@@ -193,11 +204,13 @@ begin
         vstkp_c, rstkp_c,
         comp_more,comp_more_signed,
         comp_equal,comp_negative,comp_zero,
+        dptr_c,
         int_en_c
     )
     begin
-        tos_n       <=  tos_c;
+        tos_n          <=  tos_c;
         int_en_n       <=  int_en_c;
+        dptr_n         <=  dptr_c;
         if is_instr_lit = '1' then
             tos_n   <=  "00" & insn(14 downto 0);
         else 
@@ -246,10 +259,10 @@ begin
                                 tos_n(7 downto 0) <= "0" & tos_c(16) & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
                                 tos_n(15 downto 8) <= (others => '0');
                                 tos_n(16) <= tos_c(16);
-                when "11100" =>
-                when "11101" =>
-                when "11110" =>
-                when "11111" =>
+                when "11100" => dptr_n <= tos_c(15 downto 0);
+                when "11101" => 
+                when "11110" => 
+                when "11111" => -- set depth
                 when others => tos_n    <=  (others => 'X');
             end case;
         end if;
