@@ -2,10 +2,10 @@
 CC=gcc
 CCOPTS=-ansi -g -Wall -Wno-write-strings -Wshadow -Wextra -pedantic -O2
 
-all: parse
+all: compile
 
-parse: parse.c
-	$(CC) $(CCOPTS) parse.c  -o parse
+compile: compile.c
+	$(CC) $(CCOPTS) compile.c  -o compile
 
 clean:
-	@rm -vf *.o parse
+	@rm -vf *.o compile

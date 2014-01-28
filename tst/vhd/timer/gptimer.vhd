@@ -1,1 +1,1 @@
-../../../vhdl/gptimer.vhd
+../../../vhd/gptimer.vhd

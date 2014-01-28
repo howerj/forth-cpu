@@ -77,28 +77,28 @@ architecture behav of top_level is
   signal  cpu_irc:                  std_logic_vector(3 downto 0):= (others => '0');
 
   -- VGA interface signals
-  signal  clk25MHz:                 std_logic:= '0';
-  signal  clk50MHz:                 std_logic:= '0';
+  signal  clk25MHz: std_logic:= '0';
+  signal  clk50MHz: std_logic:= '0';
   -- Basic IO register
   ---- LEDs/Switches
-  signal  an_c,an_n:                std_logic_vector(3 downto 0):=  (others => '0');
-  signal  ka_c,ka_n:                std_logic_vector(7 downto 0):=  (others => '0');
-  signal  ld_c,ld_n:                std_logic_vector(7 downto 0):=  (others => '0');
+  signal  an_c,an_n: std_logic_vector(3 downto 0):=  (others => '0');
+  signal  ka_c,ka_n: std_logic_vector(7 downto 0):=  (others => '0');
+  signal  ld_c,ld_n: std_logic_vector(7 downto 0):=  (others => '0');
   ---- VGA
 
-  signal  crx_we:           std_logic :=  '0';
-  signal  cry_we:           std_logic :=  '0';
-  signal  ctl_we:           std_logic :=  '0';
+  signal  crx_we: std_logic :=  '0';
+  signal  cry_we: std_logic :=  '0';
+  signal  ctl_we: std_logic :=  '0';
 
-  signal  crx:           std_logic_vector(6 downto 0):=  (others => '0');
-  signal  cry:           std_logic_vector(5 downto 0):=  (others => '0');
-  signal  ctl:           std_logic_vector(6 downto 0):=  (others => '0');
-  signal  vga_we_ram:           std_logic :=  '0';
-  signal  vga_a_we:           std_logic :=  '0';
-  signal  vga_d_we:           std_logic :=  '0';
-  signal  vga_addr:      std_logic_vector(11 downto 0):= (others => '0');
-  signal  vga_dout:      std_logic_vector(7 downto 0) := (others => '0');
-  signal  vga_din:       std_logic_vector(7 downto 0) := (others => '0');
+  signal  crx: std_logic_vector(6 downto 0):=  (others => '0');
+  signal  cry: std_logic_vector(5 downto 0):=  (others => '0');
+  signal  ctl: std_logic_vector(6 downto 0):=  (others => '0');
+  signal  vga_we_ram: std_logic :=  '0';
+  signal  vga_a_we:   std_logic :=  '0';
+  signal  vga_d_we:   std_logic :=  '0';
+  signal  vga_addr:   std_logic_vector(11 downto 0):= (others => '0');
+  signal  vga_dout:   std_logic_vector(7 downto 0) := (others => '0');
+  signal  vga_din:    std_logic_vector(7 downto 0) := (others => '0');
 
   ---- UART
   signal  uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
@@ -110,21 +110,9 @@ architecture behav of top_level is
   signal  ack_din, ack_dout:        std_logic:= '0';
   signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
 
-  signal  gpt0_timer_reset:  std_logic := '0';
   signal  gpt0_ctr_r_we:     std_logic := '0';               
-  signal  gpt0_comp1_r_we:   std_logic := '0';                
-  signal  gpt0_comp2_r_we:   std_logic := '0';                 
-  signal  gpt0_load1_r_we:   std_logic := '0';                  
-  signal  gpt0_load2_r_we:   std_logic := '0';                   
-  signal  gpt0_load_s_we:    std_logic := '0';                   
   signal  gpt0_ctr_r:        std_logic_vector(15 downto 0) := (others =>'0');
-  signal  gpt0_comp1_r:      std_logic_vector(15 downto 0) := (others =>'0');
-  signal  gpt0_comp2_r:      std_logic_vector(15 downto 0) := (others =>'0');
-  signal  gpt0_load1_r:      std_logic_vector(15 downto 0) := (others =>'0');
-  signal  gpt0_load2_r:      std_logic_vector(15 downto 0) := (others =>'0'); 
-  signal  gpt0_load_s:       std_logic_vector(15 downto 0) := (others =>'0');
   signal  gpt0_irq_comp1:    std_logic;                    
-  signal  gpt0_irq_comp2:    std_logic;                    
   signal  gpt0_q_internal:   std_logic;                    
   signal  gpt0_nq_internal:  std_logic;
 
@@ -213,12 +201,7 @@ begin
     uart_dout, stb_dout, ack_din,
     stb_dout, stb_dout_c, vga_dout,
 
-    gpt0_ctr_r_we ,
-    gpt0_comp1_r_we ,
-    gpt0_comp2_r_we ,
-    gpt0_load1_r_we ,
-    gpt0_load2_r_we ,
-    gpt0_load_s_we
+    gpt0_ctr_r_we
   )
   begin
     -- Outputs
@@ -253,19 +236,7 @@ begin
 
     -- General Purpose Timer
     gpt0_ctr_r_we <= '0';
-    gpt0_comp1_r_we <= '0';
-    gpt0_comp2_r_we <= '0';
-    gpt0_load1_r_we <= '0';
-    gpt0_load2_r_we <= '0';
-    gpt0_load_s_we <= '0';
-
-    gpt0_timer_reset <= '0';
     gpt0_ctr_r <= (others => '0');
-    gpt0_comp1_r <= (others => '0');
-    gpt0_comp2_r <= (others => '0');
-    gpt0_load1_r <= (others => '0');
-    gpt0_load2_r <= (others => '0');
-    gpt0_load_s <= (others => '0');
 
     if ack_din = '1' then
         ack_din_n <= '1';
@@ -318,22 +289,11 @@ begin
           gpt0_ctr_r_we <= '1';
           gpt0_ctr_r    <= cpu_io_dout(15 downto 0);
         when "01011" =>
-          gpt0_comp1_r_we <= '1';
-          gpt0_comp1_r    <= cpu_io_dout(15 downto 0);
         when "01100" =>
-          gpt0_comp2_r_we <= '1';
-          gpt0_comp2_r    <= cpu_io_dout(15 downto 0);
         when "01101" =>
-          gpt0_load1_r_we <= '1';
-          gpt0_load1_r    <= cpu_io_dout(15 downto 0);
         when "01110" =>
-          gpt0_load2_r_we <= '1';
-          gpt0_load2_r    <= cpu_io_dout(15 downto 0);
         when "01111" =>
-          gpt0_load_s_we <= '1';
-          gpt0_load_s    <= cpu_io_dout(15 downto 0);
         when "10000" =>
-          gpt0_timer_reset <= '1';
         when others =>
       end case;
     else
@@ -399,25 +359,13 @@ begin
   gpt0_nq <= gpt0_nq_internal;
   gptimer0_module: entity work.gptimer
   port map(
-    clk => clk,
-    rst => rst,
-    timer_reset => gpt0_timer_reset,
-    ctr_r_we => gpt0_ctr_r_we,
-    comp1_r_we => gpt0_comp1_r_we,
-    comp2_r_we => gpt0_comp2_r_we,
-    load1_r_we => gpt0_load1_r_we,
-    load2_r_we => gpt0_load2_r_we,
-    load_s_we => gpt0_load_s_we,
-    ctr_r => gpt0_ctr_r,
-    comp1_r => gpt0_comp1_r,
-    comp2_r => gpt0_comp2_r,
-    load1_r => gpt0_load1_r,
-    load2_r => gpt0_load2_r,
-    load_s => gpt0_load_s,
-    irq_comp1 => gpt0_irq_comp1,
-    irq_comp2 => gpt0_irq_comp2,
-    Q => gpt0_q_internal,
-    NQ => gpt0_nq_internal
+    clk       => clk,
+    rst       => rst,
+    ctrin_we  => gpt0_ctr_r_we,
+    ctrin     => gpt0_ctr_r,
+    irq       => gpt0_irq_comp1,
+    Q         => gpt0_q_internal,
+    NQ        => gpt0_nq_internal
           );
 
 
