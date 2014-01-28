@@ -131,6 +131,8 @@
 : _nip      alu[ T d-1 or ]alu ;
 : _drop     alu[ N d-1 or ]alu ;
 : _;        alu[ T R->PC r-1 or or ]alu ;
+: _rshift   alu[ N>>T d-1 or ]alu ;
+: _lshift   alu[ N<<T d-1 or ]alu ;
 : _>r       alu[ N T->R d-1 r+1 or or or ]alu ;
 : _r>       alu[ R T->N T->R d+1 r-1 or or or or ]alu ;
 : _r@       alu[ R T->N T->R d+1 or or or ]alu ;

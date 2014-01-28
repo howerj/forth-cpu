@@ -29,6 +29,7 @@
 7  3 13 lshift or constant o_uartWrite
 8  3 13 lshift or constant o_uartStbWrite
 9  3 13 lshift or constant o_uartAckDout
+10 3 13 lshift or constant o_timerCtrl
 
 \ Inputs
 \ 0x6000 - 0x7FFF
@@ -72,23 +73,13 @@ start
   [SETUP]
 
 \ Small test prog
-  _togglei _depth \ Set interrupt enable to '1'.
-  _swapbytes
+  _togglei \ Set interrupt enable to '1'.
 
-
-  32767 lit
-  _dup
-  _dup
-  _dup
-
-  _+
-  _+
-  _+
-
-  1 lit
-  1 lit
-  _=
-
+  1 lit 15 lit _lshift
+  1 lit 13 lit _lshift
+  101 lit
+  _or _or
+  o_timerCtrl lit _!
 
   256 lit
   label main

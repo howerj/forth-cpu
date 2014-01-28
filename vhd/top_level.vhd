@@ -57,7 +57,6 @@ entity top_level is
     -- PWM from timer
     gpt0_q:   out std_logic                    :=      '0';
     gpt0_nq:  out std_logic                    :=      '0'
-
   );
 end;
 
@@ -124,10 +123,11 @@ begin
 -------------------------------------------------------------------------------
 
 -- synthesis translate_off
-  cpu_irq <= debug_irq;
-  cpu_irc <= debug_irc;
+--  cpu_irq <= debug_irq;
+--  cpu_irc <= debug_irc;
 -- synthesis translate_on
-
+  cpu_irq    <= gpt0_irq_comp1; -- or sig_1 .. or sig_n
+  cpu_irc(0) <= gpt0_irq_comp1 ;
 
   cpu_instance: entity work.cpu
   port map(
