@@ -8,6 +8,7 @@ begin:
   2 2 +
 ten
   2 2 +
+  32768
 ten
   +
   jump begin

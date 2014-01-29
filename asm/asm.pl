@@ -21,23 +21,27 @@
 #    %ifdef %ifndef
 #   macro nesting
 #   strings?
+#   command line arguments
+#   commenting the code
+#   fix or operands bug
+#     alu << x | rstk << x | dstr << x
 #
 ###############################################################################
 
 use warnings;
 use strict;
 
-my $maxmem = 8192;
-my $entryp = 4;   # offset into memory to put program into
-my $filename = "cpu.asm";
-my @mem;
+my $maxmem = 8192;        # maximum memory of h2 cpu
+my $entryp = 4;           # offset into memory to put program into
+my $filename = "cpu.asm"; # input file name
+my @mem;                  # our CPUs memory
+
+my $pc = $entryp;         # begin assembling here
+my %labels;               # labels to jump to in program
+my %macros;               # all our macro definitions
+
 my $i = 0;
-
-my $pc = $entryp;
-my %labels;
-my %macros;
-
-my %cpuconstants = (
+my %cpuconstants = (      # ALU instruction field, 0-31, main field
 ## ALU instructions
 "T"         => $i++,
 "N"         => $i++,
@@ -90,21 +94,24 @@ my %cpuconstants = (
 sub printalu{ ## creates and prints an alu instruction
   my $i = 0;
   my $instr = 0;
-  while (defined $_[$i]){
-    if(exists $cpuconstants{$_[$i]}){
-      $instr = $instr | $cpuconstants{$_[$i]};
+  while (defined $_[$i]){ # for each argument
+    if(exists $cpuconstants{$_[$i]}){ # if this is a valid ALU instruction
+      $instr = $instr | $cpuconstants{$_[$i]}; # or it in
     } else {
       die "$_[$i] not a key\n";
     }
     $i++;
   }
-  $mem[$pc++] = $instr | 1 << 13 | 1 << 14;
+  $mem[$pc++] = $instr | 1 << 13 | 1 << 14; # put instruction into memory
 }
 
 sub unimplemented{
   print "unimplemented word\n";
 }
 
+# instructions to put into memory
+# these get called when we find a token that corresponds
+# to one of these
 sub s_dup       {&printalu("T","T->N","d+1")};
 sub s_over      {&printalu("N","T->N","d+1")};
 sub s_invert    {&printalu("~T")};
@@ -131,6 +138,8 @@ sub s_depth     {&printalu("depth","T->N","d+1")};
 sub s_togglei   {&printalu("togglei")};
 sub s_swapbytes {&printalu("swapbytes")};
 
+# associate token keywords with the functions that implement
+# that instruction
 my %keywords = (
   "dup"         => \&s_dup,
   "over"        => \&s_over,
@@ -236,11 +245,13 @@ begin:
     if (exists $keywords{$token}){
       my $func = $keywords{$token};
       &$func();
-    } elsif($token =~ /\d+/){ # print literal, special case
+    } elsif($token =~ /\d+/){ 
+      # assemble literal
       if($token < 2**15){
         $mem[$pc++] = $token | 1 << 15;
       } elsif($token >= 2**15 and $token < 2**16){
-        print "not handled yet\n";
+        $mem[$pc++] = (~$token & 0xFFFF) | 1<<15;
+        &s_invert();
       } else {
         die "number to large to handle\n";
       }
