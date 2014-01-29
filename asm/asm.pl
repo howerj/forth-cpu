@@ -23,8 +23,6 @@
 #   strings?
 #   command line arguments
 #   commenting the code
-#   fix or operands bug
-#     alu << x | rstk << x | dstr << x
 #
 ###############################################################################
 
