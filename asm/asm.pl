@@ -19,6 +19,7 @@
 #   Conditional compilation
 #    %if %elsif %else %endif
 #    %ifdef %ifndef
+#    %include
 #   macro nesting
 #   macro parameters
 #   strings?
@@ -184,13 +185,11 @@ print "first pass\n";
 open INPUT, "<", $filename or die "unable to open $filename for reading.\n";
 while(<INPUT>){
   chomp;
-  my $in = $_;
-begin_p1:
-  my @line = split('#',$in);
+  my @line = split('#',$_);
   # if($#line <= 0){ next; }
   my @tokens = split(' ', $line[0]);
   while (my $token = shift @tokens){
-    # print "$token\n" if exists $keywords{$token};
+    print "$token\n";
     if (exists $keywords{$token}){
       $pc++;
     } elsif($token =~ /\d+/){ # print literal, special case
@@ -228,10 +227,14 @@ begin_p1:
         $token =~ tr/://d; # remove labels ';'
         $labels{$token} = $pc;
     } elsif(exists $macros{$token}){
-      # TODO, expand and count tokens!
-      $in = $macros{$token};
-      $in =~ tr{\n}{ };
-      goto begin_p1;
+      my $macrostr = $macros{$token};
+      $macrostr =~ tr{\n}{ };
+      my @tmpline = split('#',$macrostr);
+      my @tmptokens = split(' ', $tmpline[0]);
+      @tmptokens = reverse @tmptokens;
+      foreach my $token (@tmptokens){
+        unshift @tokens, $token;
+      }
     } else {
       print "\"$token\" is invalid\n";
     }
@@ -250,14 +253,9 @@ open INPUT, "<", $filename or die "unable to open $filename for reading.\n";
 
 while(<INPUT>){
   chomp;
-  my $in = $_;
-begin_p2:
-  print $in, "\n";
-  my @line = split('#',$in);
-  # if($#line <= 0){ next; }
+  my @line = split('#',$_);
   my @tokens = split(' ', $line[0]);
   while (my $token = shift @tokens){
-    # print "$token\n" if exists $keywords{$token};
     if (exists $keywords{$token}){
       my $func = $keywords{$token};
       &$func();
@@ -301,9 +299,15 @@ begin_p2:
       }
     } elsif(exists $macros{$token}){
       # puts the macro into the input stream to be revaluated
-      $in = $macros{$token};
-      $in =~ tr{\n}{ };
-      goto begin_p2;
+      my $macrostr = $macros{$token};
+      $macrostr =~ tr{\n}{ };
+      my @tmpline = split('#',$macrostr);
+      my @tmptokens = split(' ', $tmpline[0]);
+      @tmptokens = reverse @tmptokens;
+      foreach my $token (@tmptokens){
+        unshift @tokens, $token;
+      }
+      #goto begin_p2;
     } else {
       die "\"$token\" is invalid\n";
     }
