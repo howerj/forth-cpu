@@ -40,6 +40,7 @@ my $pc = $entryp;         # begin assembling here
 my %labels;               # labels to jump to in program
 my %macros;               # all our macro definitions
 
+my $linecount = 0;
 my $i = 0;
 my %cpuconstants = (      # ALU instruction field, 0-31, main field
 ## ALU instructions
@@ -179,17 +180,27 @@ for my $i ( 0 .. $maxmem - 1 ){
 print "setting up interrupts\n";
 $mem[0] = $entryp;
 
+#### Parsing helper functions #################################################
+
+sub splitline($){
+  my @line = split('#',$_);
+  my @tokens = split(' ', $line[0]);
+  return @tokens;
+}
+
+
+###############################################################################
+
 #### First Pass ###############################################################
 # Get all labels
 print "first pass\n";
 open INPUT, "<", $filename or die "unable to open $filename for reading.\n";
+$linecount = 1;
 while(<INPUT>){
   chomp;
-  my @line = split('#',$_);
-  # if($#line <= 0){ next; }
-  my @tokens = split(' ', $line[0]);
+  my @tokens = &splitline($_);
   while (my $token = shift @tokens){
-    print "$token\n";
+    #print "$token\n";
     if (exists $keywords{$token}){
       $pc++;
     } elsif($token =~ /\d+/){ # print literal, special case
@@ -198,15 +209,9 @@ while(<INPUT>){
       } elsif($token >= 2**15 and $token < 2**16){
         $pc+=2;
       } else {
-        die "number to large to handle\n";
+        die "number \"$token\" to large to handle\n";
       }
-    } elsif($token eq "jump"){
-      $token = shift @tokens;
-      $pc++;
-    } elsif($token eq "jumpc"){
-      $token = shift @tokens;
-      $pc++;
-    } elsif($token eq "call"){
+    } elsif($token =~ /jumpc?|call/m){
       $token = shift @tokens;
       $pc++;
     } elsif($token eq "%macro"){ 
@@ -253,14 +258,17 @@ open INPUT, "<", $filename or die "unable to open $filename for reading.\n";
 
 while(<INPUT>){
   chomp;
-  my @line = split('#',$_);
-  my @tokens = split(' ', $line[0]);
+#  my @line = split('#',$_);
+#  my @tokens = split(' ', $line[0]);
+  my @tokens = &splitline($_);
   while (my $token = shift @tokens){
     if (exists $keywords{$token}){
+      print "$token\n";
       my $func = $keywords{$token};
       &$func();
     } elsif($token =~ /\d+/){ 
       # assemble literal
+      print "$token\n";
       if($token < 2**15){
         $mem[$pc++] = $token | 1 << 15;
       } elsif($token >= 2**15 and $token < 2**16){
@@ -269,28 +277,26 @@ while(<INPUT>){
       } else {
         die "number to large to handle\n";
       }
-    } elsif($token eq "jump"){
+    } elsif($token =~ /jumpc?|call/m){
+      my $type = $token;
       $token = shift @tokens;
+      print "$type $token\n";
       if(exists $labels{$token}){
-        $mem[$pc++] = $labels{$token};
+        if($type eq "jump"){
+          $mem[$pc++] = $labels{$token};
+        } elsif($type eq "jumpc"){
+          $mem[$pc++] = $labels{$token} | 1 << 13;
+        } elsif($type eq "call"){
+          $mem[$pc++] = $labels{$token} | 1 << 14;
+        } else{
+          die "$token should not have matched regex!\n";
+        }
       } else {
         die "label \"$token\" does not exist\n";
       }
-    } elsif($token eq "jumpc"){
-      $token = shift @tokens;
-      if(exists $labels{$token}){
-        $mem[$pc++] = $labels{$token} | 1 << 13;
-      } else {
-        die "label \"$token\" does not exist\n";
-      }
-    } elsif($token eq "call"){
-      $token = shift @tokens;
-      if(exists $labels{$token}){
-        $mem[$pc++] = $labels{$token} | 1 << 14;
-      } else {
-        die "label \"$token\" does not exist\n";
-      }
-    } elsif($token =~ /.*:/){ #label found
+    } elsif($token =~ /.*:/){ 
+      # label found, do nothing! (except print!)
+      print "$token\n";
     } elsif($token eq "%macro"){
       # adds anything in between %macro and %endmacro
       my $line = shift @tokens;
@@ -307,7 +313,6 @@ while(<INPUT>){
       foreach my $token (@tmptokens){
         unshift @tokens, $token;
       }
-      #goto begin_p2;
     } else {
       die "\"$token\" is invalid\n";
     }

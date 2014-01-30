@@ -1,7 +1,7 @@
 # this is a comment
 # as am i
 
-%macro five
+%macro five 
   5
 %endmacro
 
