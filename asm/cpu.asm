@@ -5,13 +5,16 @@
   5
 %endmacro
 
+
 %macro ten
   five five + +
 %endmacro
 
-%ifndef
-%ifdef
-%if
+%ifdef six
+  9
+%else
+  8 # lol comment
+%endif
 
 begin:
   2 2 +

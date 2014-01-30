@@ -215,11 +215,23 @@ while(<INPUT>){
         die "number \"$token\" to large to handle\n";
       }
     } elsif($token =~ /%if(n?def)?/m){
-      print "$token not implemented yet\n";
+      if($token eq "%ifdef"){
+        my $macroname = shift @tokens;
+        if(not exists $macros{$macroname}){
+          my $line = "";
+          while(not $line =~ /%endif|%else/m){
+            $line = <INPUT>;
+          }
+        }
+      }
     } elsif($token eq "%elsif"){
       print "$token not implemented yet\n";
     } elsif($token eq "%else"){
-      print "$token not implemented yet\n";
+      my $line = "";
+      while(not $line =~ /%endif/){
+        $line = <INPUT>;
+      }
+    } elsif($token eq "%endif"){
     } elsif($token =~ /jumpc?|call/m){
       $token = shift @tokens;
       $pc++;
@@ -285,11 +297,24 @@ while(<INPUT>){
         die "number to large to handle\n";
       }
     } elsif($token =~ /%if(n?def)?/m){
-      print "$token not implemented yet\n";
+      #print "$token not implemented yet\n";
+      if($token eq "%ifdef"){
+        my $macroname = shift @tokens;
+        if(not exists $macros{$macroname}){
+          my $line = "";
+          while(not $line =~ /%endif|%else/){
+            $line = <INPUT>;
+          }
+        }
+      }
     } elsif($token eq "%elsif"){
       print "$token not implemented yet\n";
     } elsif($token eq "%else"){
-      print "$token not implemented yet\n";
+      my $line = "";
+      while(not $line =~ /%endif/){
+        $line = <INPUT>;
+      }
+    } elsif($token eq "%endif"){
     } elsif($token =~ /jumpc?|call/m){
       my $type = $token;
       $token = shift @tokens;
