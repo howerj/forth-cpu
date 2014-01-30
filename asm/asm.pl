@@ -20,6 +20,7 @@
 #    %if %elsif %else %endif
 #    %ifdef %ifndef
 #   macro nesting
+#   macro parameters
 #   strings?
 #   command line arguments
 #   commenting the code
