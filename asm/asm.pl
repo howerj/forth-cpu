@@ -20,9 +20,9 @@
 #    %if %elsif %else %endif
 #    %ifdef %ifndef
 #    %include
-#   macro nesting
 #   macro parameters
 #   strings?
+#   compile time variables
 #   command line arguments
 #   commenting the code
 #
@@ -183,7 +183,10 @@ $mem[0] = $entryp;
 #### Parsing helper functions #################################################
 
 sub splitline($){
-  my @line = split('#',$_);
+  if($_[0] eq ""){
+    return;
+  }
+  my @line = split('#',$_[0]);
   my @tokens = split(' ', $line[0]);
   return @tokens;
 }
@@ -211,6 +214,12 @@ while(<INPUT>){
       } else {
         die "number \"$token\" to large to handle\n";
       }
+    } elsif($token =~ /%if(n?def)?/m){
+      print "$token not implemented yet\n";
+    } elsif($token eq "%elsif"){
+      print "$token not implemented yet\n";
+    } elsif($token eq "%else"){
+      print "$token not implemented yet\n";
     } elsif($token =~ /jumpc?|call/m){
       $token = shift @tokens;
       $pc++;
@@ -234,9 +243,7 @@ while(<INPUT>){
     } elsif(exists $macros{$token}){
       my $macrostr = $macros{$token};
       $macrostr =~ tr{\n}{ };
-      my @tmpline = split('#',$macrostr);
-      my @tmptokens = split(' ', $tmpline[0]);
-      @tmptokens = reverse @tmptokens;
+      my @tmptokens = reverse &splitline($macrostr);
       foreach my $token (@tmptokens){
         unshift @tokens, $token;
       }
@@ -245,7 +252,7 @@ while(<INPUT>){
     }
   }
 }
-print $pc - $entryp, " tokens found; $pc / $maxmem mem used\n";
+print $pc - $entryp, " instructions found; $pc / $maxmem mem used\n";
 $pc = $entryp;
 close INPUT;
 ###############################################################################
@@ -277,6 +284,12 @@ while(<INPUT>){
       } else {
         die "number to large to handle\n";
       }
+    } elsif($token =~ /%if(n?def)?/m){
+      print "$token not implemented yet\n";
+    } elsif($token eq "%elsif"){
+      print "$token not implemented yet\n";
+    } elsif($token eq "%else"){
+      print "$token not implemented yet\n";
     } elsif($token =~ /jumpc?|call/m){
       my $type = $token;
       $token = shift @tokens;
@@ -307,9 +320,7 @@ while(<INPUT>){
       # puts the macro into the input stream to be revaluated
       my $macrostr = $macros{$token};
       $macrostr =~ tr{\n}{ };
-      my @tmpline = split('#',$macrostr);
-      my @tmptokens = split(' ', $tmpline[0]);
-      @tmptokens = reverse @tmptokens;
+      my @tmptokens = reverse &splitline($macrostr);
       foreach my $token (@tmptokens){
         unshift @tokens, $token;
       }

@@ -6,13 +6,17 @@
 %endmacro
 
 %macro ten
-  5 five + +
+  five five + +
 %endmacro
+
+%ifndef
+%ifdef
+%if
 
 begin:
   2 2 +
-ten
+  ten
   2 2 +
   32768
-ten
-  jump begin
+  ten
+jump begin
