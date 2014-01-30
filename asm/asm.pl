@@ -70,6 +70,7 @@ my %cpuconstants = (      # ALU instruction field, 0-31, main field
 "clr"       => $i++ << 8,
 "setcarry"  => $i++ << 8,
 "flags"     => $i++ << 8,
+"dptr"      => $i++ << 8,
 
 ## ALU instruction, other bits
 "T->N"   => 1<<7,
@@ -136,6 +137,7 @@ sub s_multiply  {&printalu("L(T)*L(N)","d-1")};
 sub s_depth     {&printalu("depth","T->N","d+1")};
 sub s_togglei   {&printalu("togglei")};
 sub s_swapbytes {&printalu("swapbytes")};
+sub s_dptr      {&printalu("dptr", "d+1")};
 
 # associate token keywords with the functions that implement
 # that instruction
@@ -165,6 +167,7 @@ my %keywords = (
   "depth"       => \&s_depth,
   "interrupts"  => \&s_togglei,
   "swapbytes"   => \&s_swapbytes,
+  "dptr"        => \&s_dptr
 );
 
 print "initializing memory\n";
@@ -181,14 +184,23 @@ print "first pass\n";
 open INPUT, "<", $filename or die "unable to open $filename for reading.\n";
 while(<INPUT>){
   chomp;
-  my @line = split('#',$_);
+  my $in = $_;
+begin_p1:
+  my @line = split('#',$in);
+  # if($#line <= 0){ next; }
   my @tokens = split(' ', $line[0]);
   while (my $token = shift @tokens){
     # print "$token\n" if exists $keywords{$token};
     if (exists $keywords{$token}){
       $pc++;
     } elsif($token =~ /\d+/){ # print literal, special case
-      $pc++;
+      if($token < 2**15){
+        $pc++;
+      } elsif($token >= 2**15 and $token < 2**16){
+        $pc+=2;
+      } else {
+        die "number to large to handle\n";
+      }
     } elsif($token eq "jump"){
       $token = shift @tokens;
       $pc++;
@@ -216,12 +228,16 @@ while(<INPUT>){
         $token =~ tr/://d; # remove labels ';'
         $labels{$token} = $pc;
     } elsif(exists $macros{$token}){
-      # do nothing
+      # TODO, expand and count tokens!
+      $in = $macros{$token};
+      $in =~ tr{\n}{ };
+      goto begin_p1;
     } else {
       print "\"$token\" is invalid\n";
     }
   }
 }
+print $pc - $entryp, " tokens found; $pc / $maxmem mem used\n";
 $pc = $entryp;
 close INPUT;
 ###############################################################################
@@ -235,9 +251,10 @@ open INPUT, "<", $filename or die "unable to open $filename for reading.\n";
 while(<INPUT>){
   chomp;
   my $in = $_;
-begin:
+begin_p2:
   print $in, "\n";
   my @line = split('#',$in);
+  # if($#line <= 0){ next; }
   my @tokens = split(' ', $line[0]);
   while (my $token = shift @tokens){
     # print "$token\n" if exists $keywords{$token};
@@ -286,7 +303,7 @@ begin:
       # puts the macro into the input stream to be revaluated
       $in = $macros{$token};
       $in =~ tr{\n}{ };
-      goto begin;
+      goto begin_p2;
     } else {
       die "\"$token\" is invalid\n";
     }
