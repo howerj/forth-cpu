@@ -10,7 +10,7 @@
   five five + +
 %endmacro
 
-%ifdef six
+%ifndef six
   9
 %else
   8 # lol comment

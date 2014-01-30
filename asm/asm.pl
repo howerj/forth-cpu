@@ -223,7 +223,16 @@ while(<INPUT>){
             $line = <INPUT>;
           }
         }
+      } elsif ($token eq "%ifndef"){
+        my $macroname = shift @tokens;
+        if(exists $macros{$macroname}){
+          my $line = "";
+          while(not $line =~ /%endif|%else/){
+            $line = <INPUT>;
+          }
+        }
       }
+
     } elsif($token eq "%elsif"){
       print "$token not implemented yet\n";
     } elsif($token eq "%else"){
@@ -301,6 +310,14 @@ while(<INPUT>){
       if($token eq "%ifdef"){
         my $macroname = shift @tokens;
         if(not exists $macros{$macroname}){
+          my $line = "";
+          while(not $line =~ /%endif|%else/){
+            $line = <INPUT>;
+          }
+        }
+      } elsif ($token eq "%ifndef"){
+        my $macroname = shift @tokens;
+        if(exists $macros{$macroname}){
           my $line = "";
           while(not $line =~ /%endif|%else/){
             $line = <INPUT>;
