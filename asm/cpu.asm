@@ -1,25 +1,24 @@
-# this is a comment
-# as am i
+# Richard James Howe
+# h2 test program
 
-%macro five 
-  5
+%macro vga_init_val
+  122
 %endmacro
 
-
-%macro ten
-  five five + +
+# 3 | 3 << 13
+%macro vga_ctrl_reg
+  24579
 %endmacro
 
-%ifndef six
-  9
-%else
-  8 # lol comment
-%endif
+# setup routines go here
+%macro setup
+  vga_init_val 
+  vga_ctrl_reg 
+  !
+%endmacro
 
+setup
+2
 begin:
-  2 2 +
-  ten
-  2 2 +
-  32768
-  ten
+ 2 + 
 jump begin
