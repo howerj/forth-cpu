@@ -1,14 +1,8 @@
 # Richard James Howe
 # h2 test program
 
-%macro vga_init_val
-  122
-%endmacro
-
-# 3 | 3 << 13
-%macro vga_ctrl_reg
-  24579
-%endmacro
+$vga_init_val "122"
+$vga_ctrl_reg "3 13 << 3 or"
 
 # setup routines go here
 %macro setup
@@ -22,3 +16,4 @@ setup
 begin:
  2 + 
 jump begin
+

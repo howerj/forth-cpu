@@ -21,8 +21,8 @@
 #    %ifdef %ifndef
 #    %include
 #   macro parameters
+#   nested if statements
 #   strings?
-#   compile time variables
 #   command line arguments
 #   commenting the code
 #   add interrupt handling routines
@@ -34,13 +34,14 @@ use strict;
 
 my $maxmem = 8192;        # maximum memory of h2 cpu
 my $entryp = 4;           # offset into memory to put program into
-my $inputfile   = "cpu.asm"; # input file name
-my $tmpfile     = "asm.partial";
-my $outputfile  = "mem_h2.binary";
+my $inputfile   = "cpu.asm";       # input file name
+my $tmpfile     = "asm.partial";   # partially processed file
+my $outputfile  = "mem_h2.binary"; # final assembled file
 my @mem;                  # our CPUs memory
 my $pc = $entryp;         # begin assembling here
 my %labels;               # labels to jump to in program
 my %macros;               # all our macro definitions
+my %variables;            # compile time variables
 
 my $linecount = 0;
 my $i = 0;
@@ -193,12 +194,100 @@ sub splitline($){
   return @tokens;
 }
 
+sub evaluate {
+  my ($expr) = @_;
+  my @stack;
+  for my $token (split ' ', $expr) {
+    # no pops
+    if ($token =~ /^\d+$/) {
+      push @stack, $token;
+      next;
+    } elsif ($token =~ /^\$.*$/){ # implements variable assignment
+     if(exists $variables{$token}){
+      push @stack, $variables{$token};
+     } else {
+      die "token \"$token\" not a valid variable\n";
+     }
+     next;
+    }
+
+    my $x = pop @stack;
+    defined $x or die "Stack underflow\n";
+
+    ## one pop
+    if($token eq 'drop'){
+      next;
+    } elsif($token eq '.'){
+      print "$x\n";
+      next;
+    } elsif($token eq 'dup'){
+      push @stack, $x, $x;
+      next;
+    } elsif($token eq 'invert'){
+      push @stack,  ~$x;
+      next;
+    }
+    ## two pops
+    my $y = pop @stack;
+    defined $y or die "Stack underflow\n";
+
+    if ($token eq '+') {
+      push @stack, $y + $x;
+    } elsif ($token eq '-') {
+      push @stack, $y - $x;
+    } elsif ($token eq '<<') {
+      push @stack, $y << $x;
+    } elsif ($token eq '>>') {
+      push @stack, $y >> $x;
+    } elsif ($token eq 'and') {
+      push @stack, $y & $x;
+    } elsif ($token eq 'or') {
+      push @stack, $y | $x;
+    } elsif ($token eq 'xor') {
+      push @stack, $y ^ $x;
+    } elsif ($token eq '*') {
+      push @stack, $y * $x;
+    } elsif($token eq 'swap'){
+     push @stack, $x, $y;
+    } elsif ($token eq '/') {
+      push @stack, int($y / $x);
+    } else {
+      die "Invalid token:\"$token\"\n";
+    }
+  }
+
+  @stack >= 1 or $stack[0] = 0;
+  return $stack[0];
+}
+
+sub getopts(){
+  foreach my $argnum (0 .. $#ARGV){
+    print "$ARGV[$argnum]\n";
+  }
+}
+
+# numbers between 0 and 2**15 - 1 take one instruction
+# numbers between 2**15 and 2**16 take two instructions
+sub inc_by_for_number($){
+  my $number = $_[0];
+  my $incby = 0;
+  if($number < 2**15){
+    $incby++;
+  } elsif($number >= 2**15 and $number < 2**16){
+    $incby+=2;
+  } else {
+    die "number \"$number\" to large to handle\n";
+  }
+  return $incby;
+}
+
+&getopts();
 
 ###############################################################################
 
 #### First Pass ###############################################################
 # Get all labels
-print "first pass\n";
+print "First pass:\n";
 open INPUT, "<", $inputfile or die "unable to open $inputfile for reading.\n";
 open TMPOUT,">", $tmpfile or die "unable to open tmp.out for writing.\n";
 $linecount = 1;
@@ -211,13 +300,13 @@ while(<INPUT>){
       $pc++;
     } elsif($token =~ /\d+/){ # print literal, special case
       print TMPOUT "$token\n";
-      if($token < 2**15){
-        $pc++;
-      } elsif($token >= 2**15 and $token < 2**16){
-        $pc+=2;
-      } else {
-        die "number \"$token\" to large to handle\n";
-      }
+      $pc += &inc_by_for_number($token);
+    } elsif($token =~ /^\$.*$/m){
+      # compile time variables
+      my $expr = join (" ", @tokens);
+      $expr =~ s/\"//g;
+      $variables{$token} = evaluate $expr;
+      last;
     } elsif($token =~ /%if(n?def)?/m){
       if($token eq "%ifdef"){
         my $macroname = shift @tokens;
@@ -236,7 +325,6 @@ while(<INPUT>){
           }
         }
       }
-
     } elsif($token eq "%elsif"){
       print "$token not implemented yet\n";
     } elsif($token eq "%else"){
@@ -275,20 +363,25 @@ while(<INPUT>){
       foreach my $token (@tmptokens){
         unshift @tokens, $token;
       }
+    } elsif(exists $variables{ "\$" . $token}){
+      # derefence compile time variable.
+      print TMPOUT $variables{"\$".$token}, "\n";
+      $pc += &inc_by_for_number($variables{"\$" . $token});
     } else {
-      print "\"$token\" is invalid\n";
+      die "\"$token\" is invalid\n";
     }
   }
 }
-print $pc - $entryp, " instructions found; $pc / $maxmem mem used\n";
+print "\t", $pc - $entryp, " instructions found; $pc / $maxmem mem used\n";
 $pc = $entryp;
 close INPUT;
 close TMPOUT;
+print "Complete.\n";
 ###############################################################################
 
 #### Second Pass ##############################################################
 #
-print "second pass\n";
+print "Second pass:\n";
 open INPUT, "<", $tmpfile or die "unable to open tmp.out for reading.\n";
 
 while(<INPUT>){
@@ -296,12 +389,12 @@ while(<INPUT>){
   my @tokens = &splitline($_);
   while (my $token = shift @tokens){
     if (exists $keywords{$token}){
-      print "$token\n";
+      print "\t\t$token\n";
       my $func = $keywords{$token};
       &$func();
     } elsif($token =~ /\d+/){ 
       # assemble literal
-      print "$token\n";
+      print "\t\t$token\n";
       if($token < 2**15){
         $mem[$pc++] = $token | 1 << 15;
       } elsif($token >= 2**15 and $token < 2**16){
@@ -310,12 +403,12 @@ while(<INPUT>){
       } else {
         die "number to large to handle\n";
       }
-    } elsif($token =~ /%if(n?def)?|%elsif|%else|%endif/m){
+    } elsif($token =~ /%if(n?def)?|%elsif|%else|%endif|%macro/m){
       die "$token managed to make its way to the output\n";
     } elsif($token =~ /jumpc?|call/m){
       my $type = $token;
       $token = shift @tokens;
-      print "$type $token\n";
+      print "\t$type $token\n";
       if(exists $labels{$token}){
         if($type eq "jump"){
           $mem[$pc++] = $labels{$token};
@@ -331,11 +424,9 @@ while(<INPUT>){
       }
     } elsif($token =~ /.*:/){ 
       # label found, do nothing! (except print!)
-      print "$token\n";
-    } elsif($token eq "%macro"){
+      print "\t$token\n";
     } elsif(exists $macros{$token}){
-      # Shouldn't be called here!
-      # puts the macro into the input stream to be revaluated
+      die "$macros{$token} has not been expanded.";
     } else {
       die "\"$token\" is invalid\n";
     }
@@ -343,7 +434,7 @@ while(<INPUT>){
   die "program to large $pc" if $pc > ($maxmem - 1);
 }
 close INPUT;
-
+print "Complete.\n";
 ###############################################################################
 
 open OUTPUT, ">", $outputfile or die "unabled to open output\n";
