@@ -330,8 +330,8 @@ begin
 
   u_uart: entity work.uart 
   generic map(
-    BAUD_RATE => baud_rate,
-    CLOCK_FREQUENCY => clock_frequency
+    baud_rate => baud_rate,
+    clock_frequency => clock_frequency
   )
   port map(
    clock => clk,
@@ -358,6 +358,9 @@ begin
   gpt0_q <= gpt0_q_internal;
   gpt0_nq <= gpt0_nq_internal;
   gptimer0_module: entity work.gptimer
+  generic map(
+    gptimerbits => 16
+  )
   port map(
     clk       => clk,
     rst       => rst,

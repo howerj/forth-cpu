@@ -1,6 +1,8 @@
 -------------------------------------------------------------------------------
 --! @file gptimer.vhd
---! @brief General Purpose Timer, for interrupt generation
+--! @brief General Purpose Timer, for timing! It is of customizable length,
+--!        the minimum being 4-bits, one for the actual timing, the other
+--!        three for control.
 --!
 --! @author         Richard James Howe.
 --! @copyright      Copyright 2013 Richard James Howe.
@@ -15,6 +17,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity gptimer is
+  generic(
+    gptimerbits: positive := 16
+  );
   port(
     clk:          in std_logic;
     rst:          in std_logic;
@@ -23,7 +28,7 @@ entity gptimer is
     ctrin_we:     in std_logic;                     -- write enable
 
     -- Registers
-    ctrin:        in std_logic_vector(15 downto 0); -- Control register
+    ctrin:        in std_logic_vector(gptimerbits - 1 downto 0); -- Control register
 
     -- Timer interrupts
     irq:          out std_logic;                    -- Compare Interrupt
@@ -33,27 +38,36 @@ entity gptimer is
 end entity;
 
 architecture rtl of gptimer is
-  signal ctrl_c, ctrl_n: std_logic_vector(15 downto 0) := (others => '0');
-  signal q_c, q_n:       std_logic:= '0';
+  constant highest_bit:         positive := gptimerbits - 1;
+  constant control_enable_bit:  positive := highest_bit;
+  constant local_rst_bit:       positive := highest_bit - 1;
+  constant irq_enable_bit:      positive := highest_bit - 2;
+  constant timer_highest_bit:   positive := highest_bit - 3;
 
-  signal ctr_localrst: std_logic  := '0';
-  signal ctr_enabled:  std_logic  := '0';
-  signal ctr_irq_en:   std_logic  := '0';
+  signal ctrl_c, ctrl_n:  std_logic_vector(control_enable_bit downto 0) := (others => '0');
+  signal q_c, q_n:        std_logic:= '0';
 
-  signal internalrst:  std_logic  := '0';
+  signal ctr_localrst:    std_logic  := '0';
+  signal ctr_enabled:     std_logic  := '0';
+  signal ctr_irq_en:      std_logic  := '0';
 
-  signal compare:      std_logic_vector(12 downto 0) := (others => '0');
-  signal count:        unsigned(12 downto 0)         := (others => '0');
+  signal internalrst:     std_logic  := '0';
+
+  signal compare:         std_logic_vector(timer_highest_bit downto 0) := (others => '0');
+  signal count:           unsigned(timer_highest_bit downto 0)         := (others => '0');
 begin
+
+  assert (gptimerbits >= 4) report "gptimer needs to be *at least* 4 bits wide, 3 bits for control, one for the counter" severity failure;
+
   --! Output assignents not in proc
   Q  <= q_c;
   NQ <= not q_c;
 
   --! Interal assigments
-  ctr_enabled     <= ctrl_c(15);
-  ctr_localrst    <= ctrl_c(14);
-  ctr_irq_en      <= ctrl_c(13);
-  compare         <= ctrl_c(12 downto 0); 
+  ctr_enabled     <= ctrl_c(control_enable_bit);
+  ctr_localrst    <= ctrl_c(local_rst_bit);
+  ctr_irq_en      <= ctrl_c(irq_enable_bit);
+  compare         <= ctrl_c(timer_highest_bit downto 0); 
 
   --! Register current state assignment
   clockRegisters: process(clk, rst)
@@ -84,20 +98,20 @@ begin
   end process;
 
   --! Compare proc 
-  process(count, ctrin_we, ctrin, ctrl_c, compare, q_c, ctr_irq_en)
+  process(count, ctrin_we, ctrin, ctrl_c, compare, q_c, ctr_irq_en, ctr_enabled)
   begin
     irq         <= '0';
     q_n         <= q_c;
     ctrl_n      <= ctrl_c;
     internalrst <= '0';
 
-    ctrl_n(14)  <= '0'; -- reset!
+    ctrl_n(local_rst_bit)  <= '0'; -- reset!
 
     if ctrin_we = '1' then
       ctrl_n <= ctrin;
     end if;
 
-    if count = unsigned(compare) then
+    if count = unsigned(compare) and ctr_enabled = '1' then
       if ctr_irq_en = '1' then
         irq <= '1';
       end if;
