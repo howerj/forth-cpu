@@ -18,64 +18,76 @@
 # TODO:
 #   Conditional compilation
 #    %if %elsif %else %endif
+#     don't forget to handle file inclusion as well!
 #    %ifdef %ifndef
 #    %include
+#   isr instructions
 #   macro parameters
 #   nested if statements
 #   strings?
-#   command line arguments
+#   special variables, %pc
+#   variables and ifdef
 #   commenting the code
 #   add interrupt handling routines
 #
 ###############################################################################
 
+#### Includes #################################################################
+
 use warnings;
 use strict;
+
+###############################################################################
+
+#### Globals ##################################################################
 
 my $maxmem = 8192;        # maximum memory of h2 cpu
 my $entryp = 4;           # offset into memory to put program into
 my $inputfile   = "cpu.asm";       # input file name
 my $tmpfile     = "asm.partial";   # partially processed file
 my $outputfile  = "mem_h2.binary"; # final assembled file
+my $verbosity = 0;        # how verbose should we be?
+my $outputbase = 2;       # output base of assembled file, 2 or 16
 my @mem;                  # our CPUs memory
 my $pc = $entryp;         # begin assembling here
 my %labels;               # labels to jump to in program
 my %macros;               # all our macro definitions
 my %variables;            # compile time variables
+my $ifcount = 0;          # number of nested ifs
 
-my $linecount = 0;
-my $i = 0;
+my $linecount = 0;        # current line count
+my $alu = 0;              # for enumerating all alu values.
 my %cpuconstants = (      # ALU instruction field, 0-31, main field
 ## ALU instructions
-"T"         => $i++ << 8,
-"N"         => $i++ << 8,
-"R"         => $i++ << 8,
-"[T]"       => $i++ << 8,
-"depth"     => $i++ << 8,
-"T|N"       => $i++ << 8,
-"T&N"       => $i++ << 8,
-"T^N"       => $i++ << 8,
-"~(T^N)"    => $i++ << 8,
-"~T"        => $i++ << 8,
-"T+N"       => $i++ << 8,
-"N-T"       => $i++ << 8,
-"N<<T"      => $i++ << 8,
-"N>>T"      => $i++ << 8,
-"NrolT"     => $i++ << 8,
-"NrorT"     => $i++ << 8,
-"L(T)*L(N)" => $i++ << 8,
-"Nu<T"      => $i++ << 8,
-"N<T"       => $i++ << 8,
-"N=T"       => $i++ << 8,
-"T<0"       => $i++ << 8,
-"T=0"       => $i++ << 8,
-"swapbytes" => $i++ << 8,
-"togglei"   => $i++ << 8,
-"T-1"       => $i++ << 8,
-"clr"       => $i++ << 8,
-"setcarry"  => $i++ << 8,
-"flags"     => $i++ << 8,
-"dptr"      => $i++ << 8,
+"T"         => $alu++ << 8,
+"N"         => $alu++ << 8,
+"R"         => $alu++ << 8,
+"[T]"       => $alu++ << 8,
+"depth"     => $alu++ << 8,
+"T|N"       => $alu++ << 8,
+"T&N"       => $alu++ << 8,
+"T^N"       => $alu++ << 8,
+"~(T^N)"    => $alu++ << 8,
+"~T"        => $alu++ << 8,
+"T+N"       => $alu++ << 8,
+"N-T"       => $alu++ << 8,
+"N<<T"      => $alu++ << 8,
+"N>>T"      => $alu++ << 8,
+"NrolT"     => $alu++ << 8,
+"NrorT"     => $alu++ << 8,
+"L(T)*L(N)" => $alu++ << 8,
+"Nu<T"      => $alu++ << 8,
+"N<T"       => $alu++ << 8,
+"N=T"       => $alu++ << 8,
+"T<0"       => $alu++ << 8,
+"T=0"       => $alu++ << 8,
+"swapbytes" => $alu++ << 8,
+"togglei"   => $alu++ << 8,
+"T-1"       => $alu++ << 8,
+"clr"       => $alu++ << 8,
+"setcarry"  => $alu++ << 8,
+"flags"     => $alu++ << 8,
+"dptr"      => $alu++ << 8,
 
 ## ALU instruction, other bits
 "T->N"   => 1<<7,
@@ -95,6 +107,82 @@ my %cpuconstants = (      # ALU instruction field, 0-31, main field
 "r-1" => 3 << 2,
 "r-2" => 2 << 2,
 );
+
+###############################################################################
+
+#### Get opts #################################################################
+
+my $intro = 
+"H2 CPU Assembler.
+\t31/Jan/2014
+\tRichard James Howe
+\thowe.r.j.89\@gmail.com\n";
+
+
+my $helpmsg = 
+"Usage: ./asm.pl (-(h|i|o|t|x|b|v)+( +filename)*)*
+Assembler for the \"H2\" CPU architecture.
+
+  Options:
+
+  --, ignored
+  -h, print this message and quit.
+  -i, next argument the input file to be assembled.
+  -o, next argument is the output file we generate.
+  -t, next argument is a temporary file we use.
+  -x, output file in base 16 (hexadecimal).
+  -b, output file in base 2  (binary).
+  -v, increase verbosity level.
+
+Author:
+  Richard James Howe
+Email (bug reports to):
+  howe.r.j.89\@gmail.com
+For complete documentation look at \"asm.md\" which should be
+included alongside the assembler.\n";
+
+sub getopts(){
+  while (my $arg = shift @ARGV){
+    if($arg =~ /^-/m){
+      my @chars = split //, $arg;
+      foreach my $char (@chars){
+        if($char eq '-'){     # ignore
+        }elsif($char eq 'h'){ # print help
+          print $helpmsg;
+          exit;
+        }elsif($char eq 'i'){ # read from input file instead of default
+          $inputfile = shift @ARGV;
+        }elsif($char eq 'o'){ # print to output file instead of default
+          $outputfile = shift @ARGV;
+        }elsif($char eq 't'){ # temporary file to use
+          $tmpfile = shift @ARGV;
+        }elsif($char eq 'x'){ # print hex instead
+          $outputbase = 16;
+        }elsif($char eq 'b'){ # print binary (default)
+          $outputbase = 2;
+        }elsif($char eq 'v'){ # increase the verbosity, increase it!
+          $verbosity++;
+        }else{
+          die "$char is not a valid option";
+        }
+      }
+    }
+  }
+}
+&getopts();
+
+print $intro;
+print "Memory available:\t$maxmem\n"      if $verbosity > 1;
+print "Prog entry point:\t$entryp\n"      if $verbosity > 0;
+print "Input file name :\t$inputfile\n"   ;# if $verbosity > 0;
+print "Temporary file  :\t$tmpfile\n"     if $verbosity > 1;
+print "Output file name:\t$outputfile\n"  ;#if $verbosity > 0;
+print "Verbosity level :\t$verbosity\n"   if $verbosity > 2;
+print "Output base     :\t$outputbase\n"  ;#if $verbosity > 0;
+
+###############################################################################
+
+#### Instruction set encoding helper functions ################################
 
 sub printalu{ ## creates and prints an alu instruction
   my $i = 0;
@@ -175,12 +263,12 @@ my %keywords = (
   "dptr"        => \&s_dptr
 );
 
-print "initializing memory\n";
+print "Initializing memory.\n";
 for my $i ( 0 .. $maxmem - 1 ){
   $mem[$i] = 0;
 }
 
-print "setting up interrupts\n";
+print "Setting up interrupts.\n";
 $mem[0] = $entryp;
 
 #### Parsing helper functions #################################################
@@ -260,11 +348,6 @@ sub evaluate {
   return $stack[0];
 }
 
-sub getopts(){
-  foreach my $argnum (0 .. $#ARGV){
-    print "$ARGV[$argnum]\n";
-  }
-}
 
 # numbers between 0 and 2**15 - 1 take one instruction
 # numbers between 2**15 and 2**16 take two instructions
@@ -281,7 +364,6 @@ sub inc_by_for_number($){
   return $incby;
 }
 
-&getopts();
 
 ###############################################################################
 
@@ -333,6 +415,9 @@ while(<INPUT>){
         $line = <INPUT>;
       }
     } elsif($token eq "%endif"){
+      die "$token unexpected, missing %if?\n";
+    } elsif($token eq "%include"){
+      die "unimplemented as of yet";
     } elsif($token =~ /jumpc?|call/m){
       print TMPOUT "$token ";
       $token = shift @tokens;
@@ -437,8 +522,16 @@ close INPUT;
 print "Complete.\n";
 ###############################################################################
 
+#### Write output file ########################################################
 open OUTPUT, ">", $outputfile or die "unabled to open output\n";
 for (my $i = 0; $i < $maxmem ; $i++){
-  printf OUTPUT "%016b\n", $mem[$i];
+  if($outputbase eq 2){
+    printf OUTPUT "%016b\n", $mem[$i];
+  }elsif($outputbase eq 16){
+    printf OUTPUT "%04X\n", $mem[$i];
+  }else{
+    die "invalid output base of $outputbase\n";
+  }
 }
 close OUTPUT;
+###############################################################################
