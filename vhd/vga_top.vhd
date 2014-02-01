@@ -50,10 +50,12 @@ architecture behav of vga_top is
   constant text_addr_bitlen: positive := 12;
   constant text_data_bitlen: positive := 8;
   constant text_filename:    string   := "mem_text.binary";
+  constant text_filetype:    string   := "binary";
   -- Setup for font buffer memory
   constant font_addr_bitlen: positive := 12;
   constant font_data_bitlen: positive := 8;
   constant font_filename:    string   := "mem_font.binary";
+  constant font_filetype:    string   := "binary";
 
   -- Internal signals for mapping ouput<-->VGA module
   signal  R_internal:      std_logic:= '0';
@@ -168,7 +170,8 @@ begin
   generic map(
         addr_bitlen   => text_addr_bitlen,
         data_bitlen   => text_data_bitlen,
-        filename      => text_filename
+        filename      => text_filename,
+        filetype      => text_filetype
   )
   port map (
     a_clk  => clk, 
@@ -190,7 +193,8 @@ begin
   generic map(
         addr_bitlen   => font_addr_bitlen,
         data_bitlen   => font_data_bitlen,
-        filename      => font_filename
+        filename      => font_filename,
+        filetype      => font_filetype
   )
   port map (
     -- External interface

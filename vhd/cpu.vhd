@@ -26,7 +26,6 @@ entity cpu is
     debug_mem_daddr:  out std_logic_vector(12 downto 0);
     -- synthesis translate_on
 
-
     clk:        in   std_logic;
     rst:        in   std_logic;
 
@@ -50,7 +49,8 @@ architecture behav of cpu is
   --! memory constants
   constant addr_bitlen: positive := 13;
   constant data_bitlen: positive := 16;
-  constant filename:    string   := "mem_h2.binary";
+  constant filename:    string   := "mem_h2.hexadecimal";
+  constant filetype:    string   := "hexadecimal";
   --! memory <-> cpu signals
   signal  pc:           std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0'); -- Program counter
   signal  insn:         std_logic_vector(data_bitlen - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
@@ -103,7 +103,8 @@ begin
   generic map(
         addr_bitlen   => addr_bitlen,
         data_bitlen   => data_bitlen,
-        filename      => filename
+        filename      => filename,
+        filetype      => filetype
   )
   port map(
           -- Port A, Read only, CPU instruction/address

@@ -49,7 +49,8 @@ package util is
         --! pretty much fills.
         addr_bitlen: positive := 12;              --! address bit length 
         data_bitlen: positive := 16;              --! data bit length
-        filename:    string   := "memory.binary"  --! initial RAM contents
+        filename:    string   := "memory.binary"; --! initial RAM contents
+        filetype:    string   := "binary"         --! ASCII encoding used
     );
     port(
     --! Port A of dual port RAM
@@ -251,7 +252,8 @@ entity memory is
         --! pretty much fills.
         addr_bitlen: positive := 12;              --! address bit length 
         data_bitlen: positive := 16;              --! data bit length
-        filename:    string   := "memory.binary"  --! initial RAM contents
+        filename:    string   := "memory.binary"; --! initial RAM contents
+        filetype:    string   := "binary"         --! ASCII encoding used
     );
     port(
     --! Port A of dual port RAM
@@ -274,26 +276,83 @@ architecture rtl of memory is
 
     type ramArray_t is array ((ramSz - 1 ) downto 0) of std_logic_vector(data_bitlen - 1 downto 0);
 
-    --! @brief This function will initial the RAM, it reads from
-    --! a file that can be specified in a generic way
-    function initRam(fileName: in string) return ramArray_t is
-        variable ramData: ramArray_t;
-        file     inFile: text is in fileName;
-        variable inputLine:     line;
-        variable tmpVar:    bit_vector(data_bitlen - 1 downto 0);
+    function hexCharToStdLogicVector(hc: character) return std_logic_vector is
+      variable slv: std_logic_vector(3 downto 0);
     begin
+      case hc is
+        when '0' => slv := "0000";
+        when '1' => slv := "0001";
+        when '2' => slv := "0010";
+        when '3' => slv := "0011";
+        when '4' => slv := "0100";
+        when '5' => slv := "0101";
+        when '6' => slv := "0110";
+        when '7' => slv := "0111";
+        when '8' => slv := "1000";
+        when '9' => slv := "1001";
+        when 'A' => slv := "1010";
+          when 'a' => slv := "1010";
+        when 'B' => slv := "1011";
+          when 'b' => slv := "1011";
+        when 'C' => slv := "1100";
+          when 'c' => slv := "1100";
+        when 'D' => slv := "1101";
+          when 'd' => slv := "1101";
+        when 'E' => slv := "1110";
+          when 'e' => slv := "1110";
+        when 'F' => slv := "1111";
+          when 'f' => slv := "1111";
+        when others => slv := "XXXX";
+      end case;
+      assert (slv /= "XXXX") report " not a valid hex character" severity failure;
+      return slv;
+    end hexCharToStdLogicVector;
+
+  function to_string(sv: Std_Logic_Vector) return string is
+    use Std.TextIO.all;
+    variable bv: bit_vector(sv'range) := to_bitvector(sv);
+    variable lp: line;
+  begin
+    write(lp, bv);
+    return lp.all;
+  end;
+
+    --! @brief This function will initialize the RAM, it reads from
+    --! a file that can be specified in a generic way
+    --function initRam(fileName: in string, fileType: in string) return ramArray_t is
+    function initRam(fileName, fileType: in string) return ramArray_t is
+        variable ramData:   ramArray_t;
+        file     inFile:    text is in fileName;
+        variable inputLine: line;
+        variable tmpVar:    bit_vector(data_bitlen - 1 downto 0);
+        variable c:         character;
+        variable slv:       std_logic_vector(data_bitlen - 1 downto 0);
+    begin
+        assert (data_bitlen mod 4) = 0 report "(data_bitlen%4)!=0" severity failure;
         for i in 0 to ramSz - 1 loop
             if not endfile(inFile) then
                 readline(inFile,inputLine);
-                read(inputLine,tmpVar);
-                ramData(i):=to_stdlogicvector(tmpVar);
+                if fileType = "binary" then
+                  read(inputLine,tmpVar);
+                  ramData(i):=to_stdlogicvector(tmpVar);
+                elsif fileType = "hexadecimal" then
+                  for j in 1 to (data_bitlen/4) loop
+                    c:= inputLine((data_bitlen/4) - j + 1);
+                    slv((j*4)-1 downto (j*4)-4) := hexCharToStdLogicVector(c);
+                  end loop;
+                  ramData(i):= slv;
+                elsif fileType = "ascii" then
+                  assert false report "Not implemented currently, failing" severity failure;
+                else
+                  assert false report "Incorrect type given" severity failure;
+                end if;
             else
                 ramData(i):=(others => '0'); 
             end if;
         end loop;
         return ramData;
     end function;
-    shared variable ram: ramArray_t:= initRam(filename);
+    shared variable ram: ramArray_t:= initRam(filename, filetype);
 begin
     a_ram:process(a_clk)
     begin

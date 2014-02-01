@@ -49,11 +49,11 @@ use strict;
 
 my $maxmem = 8192;        # maximum memory of h2 cpu
 my $entryp = 4;           # offset into memory to put program into
-my $inputfile   = "cpu.asm";       # input file name
-my $tmpfile     = "asm.partial";   # partially processed file
-my $outputfile  = "mem_h2.binary"; # final assembled file
+my $inputfile   = "cpu.asm";            # input file name
+my $tmpfile     = "asm.partial";        # partially processed file
+my $outputfile  = "mem_h2.hexadecimal"; # final assembled file
 my $verbosity = 0;        # how verbose should we be?
-my $outputbase = 2;       # output base of assembled file, 2 or 16
+my $outputbase = 16;      # output base of assembled file, 2 or 16
 my @mem;                  # our CPUs memory
 my $pc = $entryp;         # begin assembling here
 my %labels;               # labels to jump to in program
