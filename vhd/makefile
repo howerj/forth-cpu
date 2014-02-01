@@ -11,9 +11,8 @@ NETLIST=top_level
 
 ## Remember to update the synthesis section as well
 SOURCES = \
-	gptimer.vhd \
-	uart.vhd \
 	util.vhd \
+	uart.vhd \
 	vga80x40.vhd \
 	vga_top.vhd \
 	h2.vhd \
@@ -45,10 +44,6 @@ all:
 
 ##
 ## Simulation ==============================================================
-gptimer.o: gptimer.vhd
-	@echo "ghdl -a gptimer.vhd"
-	@ghdl -a gptimer.vhd
-
 util.o: util.vhd
 	@echo "ghdl -a util.vhd"
 	@ghdl -a util.vhd
@@ -57,7 +52,7 @@ vga80x40.o: util.o vga80x40.vhd
 	@echo "ghdl -a vga80x40.vhd"
 	@ghdl -a vga80x40.vhd
 
-vga_top.o: vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
+vga_top.o: util.o vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
 	@echo "ghdl -a vga_top.vhd"
 	@ghdl -a vga_top.vhd
 
@@ -73,7 +68,7 @@ cpu.o: h2.o util.o cpu.vhd mem_h2.binary
 	@echo "ghdl -a cpu.vhd"
 	@ghdl -a cpu.vhd
 
-top_level.o: util.o gptimer.o cpu.o uart.o vga_top.o top_level.vhd
+top_level.o: util.o cpu.o uart.o vga_top.o top_level.vhd
 	@echo "ghdl -a top_level.vhd"
 	@ghdl -a top_level.vhd
 

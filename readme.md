@@ -35,6 +35,8 @@ the J1.
 
 * GCC
 
+* Perl
+
 * Bash
 
 * GHDL
