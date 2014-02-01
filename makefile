@@ -9,15 +9,10 @@
 
 DOXYFILE=doxygen.conf
 
-all: _forth _vhdl _doxygen
+all: _vhdl _doxygen
 
 _welcome:
 	@echo "H2 Computing system by Richard James Howe";
-
-_forth:
-	@echo "Assembling H2 Source";
-	@make -C fth/
-	@make -C fth/ run
 
 _vhdl:
 	@echo "Making the VHDL simulation and bitfile for the device";
