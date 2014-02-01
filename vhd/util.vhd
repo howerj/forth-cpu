@@ -1,13 +1,18 @@
 -------------------------------------------------------------------------------
 --! @file util.vhd
 --! @brief          A collection of utilities and simple components,
---!                 generic, reusable componets are listed here, they
+--!                 generic, reusable components are listed here, they
 --!                 should also be entirely self contained and ready
 --!                 to use by themselves.
 --! @author         Richard James Howe
 --! @copyright      Copyright 2014 Richad James Howe
 --! @license        LGPL version 3
 --! @email          howe.r.j.89@gmail.com
+--!
+--! Notes:
+--! * Two subsections have been written by Javier Valcarce García as part of
+--! VGA driver, which are labeled. 
+--!
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -84,10 +89,10 @@ package util is
       M : integer := 8
     );
     port (
-      reset : in  std_logic;              -- asyncronous reset
+      reset : in  std_logic;              -- asynchronous reset
       clk   : in  std_logic;
       ce    : in  std_logic;              -- enable counting
-      rs    : in  std_logic;              -- syncronous reset
+      rs    : in  std_logic;              -- synchronous reset
       do    : out integer range (M-1) downto 0 := 0
     );
   end component;
@@ -99,7 +104,7 @@ end util;
 --! @file util.vhd
 --! @brief General Purpose Timer, for timing! It is of customizable length,
 --!        the minimum being 4-bits, one for the actual timing, the other
---!        three for control.
+--!        three for control. (gptimer.vhd, original file name)
 --!
 --! @author         Richard James Howe.
 --! @copyright      Copyright 2013 Richard James Howe.
@@ -154,13 +159,15 @@ architecture rtl of gptimer is
   signal count:           unsigned(timer_highest_bit downto 0)         := (others => '0');
 begin
 
+  -- synthesis translate_off
   assert (gptimerbits >= 4) report "gptimer needs to be *at least* 4 bits wide, 3 bits for control, one for the counter" severity failure;
+  -- synthesis translate_on
 
-  --! Output assignents not in proc
+  --! Output assignments not in proc
   Q  <= q_c;
   NQ <= not q_c;
 
-  --! Interal assigments
+  --! Internal assignments
   ctr_enabled     <= ctrl_c(control_enable_bit);
   ctr_localrst    <= ctrl_c(local_rst_bit);
   ctr_irq_en      <= ctrl_c(irq_enable_bit);
@@ -224,7 +231,8 @@ end architecture;
 --! @brief "memory" implements a generic dual port block RAM
 --! which according to Xilinx's XST guide will synthesize with
 --! a file you can specify with a string as the RAMs initial
---! value, stored in ASCII encoded binary
+--! value, stored in ASCII encoded binary. (memory.vhd, original
+--! file name)
 --!
 --! @author         Richard James Howe.
 --! @copyright      Copyright 2013 Richard James Howe.
@@ -310,7 +318,8 @@ end architecture;
 
 -------------------------------------------------------------------------------
 --! @file util.vhd
---! @brief Shift register N-bit, asynchronous reset, synchronous load 
+--! @brief Shift register N-bit, asynchronous reset, synchronous load,
+--!        (losr.vhd, original file name)
 --! and enable
 --! @author         Javier Valcarce García
 --! @copyright      Copyright 2007 Javier Valcarce García
@@ -359,7 +368,8 @@ end arch;
 
 -------------------------------------------------------------------------------
 --! @file ctrm.vhd
---! @brief Counter, asyncronous *and* synchronous reset, up only.
+--! @brief Counter, asynchronous *and* synchronous reset, up only.
+--!        (ctrm.vhd, original filename)
 --! @author         Javier Valcarce García
 --! @copyright      Copyright 2007 Javier Valcarce García
 --! @license        LGPL version 3
@@ -375,10 +385,10 @@ entity ctrm is
     M : integer := 8
   );
   port (
-    reset : in  std_logic;              -- asyncronous reset
+    reset : in  std_logic;              -- asynchronous reset
     clk   : in  std_logic;
     ce    : in  std_logic;              -- enable counting
-    rs    : in  std_logic;              -- syncronous reset
+    rs    : in  std_logic;              -- synchronous reset
     do    : out integer range (M-1) downto 0 := 0
   );
 end ctrm;

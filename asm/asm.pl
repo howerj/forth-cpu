@@ -283,11 +283,15 @@ sub splitline($){
   if($_[0] eq ""){
     return;
   }
-  my @line = split('#',$_[0]);
-  my @tokens = split(' ', $line[0]);
+  my $line = $_[0];
+  $line =~ s/#.*$//g;
+  my @tokens = split(' ', $line);
   return @tokens;
 }
 
+# See http://www.perlmonks.org/?node_id=520826
+# by use "eyepopslikeamosquito" 
+# on Jan 05, 2006 at 09:23 UTC
 sub evaluate {
   my ($expr) = @_;
   my @stack;
