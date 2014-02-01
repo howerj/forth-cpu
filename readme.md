@@ -1,5 +1,4 @@
-Simple VHDL Computing System  {#mainpage}
-============================
+## Simple VHDL Computing System  {#mainpage}
 
 Author:             
 
@@ -60,12 +59,10 @@ the J1.
 
 ### Directory structure.
 
-#### forth/  
+#### asm/  
 
-Contains a Forth interpreter, this has been used in the build process
-and as an assembler.
-
-Edit the file **h2.fs** with the program you want to run on the device.
+Contains the assembler and instructions on how to use it. The assembler itself
+is written in perl, *asm.pl*.
 
 #### vhdl/
 
