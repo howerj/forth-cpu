@@ -22,6 +22,12 @@
 #    %ifdef %ifndef
 #    %include
 #   isr instructions
+#   section to load program into, which if
+#     > interrupt jmp table end is a fail
+#     = interrupt jmp table end is normal
+#     < interrupt jmp table end means the interrupt
+#       jump table is not filled in, and the assumption
+#       is made we have a bootloader already in there.
 #   macro parameters
 #   nested if statements
 #   strings?
@@ -380,7 +386,7 @@ while(<INPUT>){
     if (exists $keywords{$token}){
       print TMPOUT "$token\n";
       $pc++;
-    } elsif($token =~ /\d+/){ # print literal, special case
+    } elsif($token =~ /^\d+$/){ # print literal, special case
       print TMPOUT "$token\n";
       $pc += &inc_by_for_number($token);
     } elsif($token =~ /^\$.*$/m){
@@ -477,7 +483,7 @@ while(<INPUT>){
       print "\t\t$token\n";
       my $func = $keywords{$token};
       &$func();
-    } elsif($token =~ /\d+/){ 
+    } elsif($token =~ /^\d+$/m){ 
       # assemble literal
       print "\t\t$token\n";
       if($token < 2**15){
