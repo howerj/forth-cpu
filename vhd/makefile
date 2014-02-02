@@ -64,7 +64,7 @@ h2.o: h2.vhd
 	@echo "ghdl -a h2.vhd"
 	@ghdl -a h2.vhd
 
-cpu.o: h2.o util.o cpu.vhd mem_h2.binary
+cpu.o: h2.o util.o cpu.vhd mem_h2.hexadecimal
 	@echo "ghdl -a cpu.vhd"
 	@ghdl -a cpu.vhd
 

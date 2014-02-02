@@ -7,7 +7,7 @@
 #### System variables #########################################################
 
 $vga_init_val   "122"
-$clock_init_val " 65535"
+$clock_init_val " 1 15 << 1 13 << or 40 or "
 
 # When or'ed with a value, moves it into the
 # I/O address range.
@@ -75,9 +75,12 @@ $isr_unused02   "3 "
 
 #### program entry point ######################################################
 setup
+  2
 begin:
 #  read_SWITCHES
 #  write_LED
+  2
+  add
 jump begin
 
 ###############################################################################

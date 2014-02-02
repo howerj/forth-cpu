@@ -19,17 +19,17 @@ entity top_level is
   (
 -- synthesis translate_off
 
-  -- This should be removed once testing is done in the interests of
-  -- portability.
-   debug_irq:        in  std_logic;
-   debug_irc:        in  std_logic_vector(3 downto 0);
+    -- This should be removed once testing is done in the interests of
+    -- portability.
+    debug_irq:        in  std_logic;
+    debug_irc:        in  std_logic_vector(3 downto 0);
 
-   debug_pc:         out std_logic_vector(12 downto 0);
-   debug_insn:       out std_logic_vector(15 downto 0);
-   debug_mem_dwe:    out std_logic:= '0';   
-   debug_mem_din:    out std_logic_vector(15 downto 0);
-   debug_mem_dout:   out std_logic_vector(15 downto 0);
-   debug_mem_daddr:  out std_logic_vector(12 downto 0);
+    debug_pc:         out std_logic_vector(12 downto 0);
+    debug_insn:       out std_logic_vector(15 downto 0);
+    debug_mem_dwe:    out std_logic:= '0';   
+    debug_mem_din:    out std_logic_vector(15 downto 0);
+    debug_mem_dout:   out std_logic_vector(15 downto 0);
+    debug_mem_daddr:  out std_logic_vector(12 downto 0);
 -- synthesis translate_on
 
     clk:      in  std_logic                    :=      'X';  -- clock
@@ -56,7 +56,15 @@ entity top_level is
     vsync:    out std_logic                    :=      '0';
     -- PWM from timer
     gpt0_q:   out std_logic                    :=      '0';
-    gpt0_nq:  out std_logic                    :=      '0'
+    gpt0_nq:  out std_logic                    :=      '0';
+    -- PS/2 Interface
+    ps2_keyboard_data:  in std_logic           :=      '0'; 
+    ps2_keyboard_clk:   in std_logic           :=      '0'; 
+
+    ps2_mouse_data:     in std_logic           :=      '0'; 
+    ps2_mouse_clk:      in std_logic           :=      '0'; 
+
+    pic_gpio:           in std_logic_vector(1 downto 0):= (others => 'X')
   );
 end;
 
@@ -127,7 +135,7 @@ begin
 --  cpu_irc <= debug_irc;
 -- synthesis translate_on
   cpu_irq    <= gpt0_irq_comp1; -- or sig_1 .. or sig_n
-  cpu_irc(0) <= gpt0_irq_comp1;
+  cpu_irc(1) <= gpt0_irq_comp1;
 
   cpu_instance: entity work.cpu
   port map(

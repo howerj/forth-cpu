@@ -91,3 +91,13 @@ TIMESPEC TS_sys_clk_pin = PERIOD sys_clk_pin 100000 kHz;
 Net "gpt0_q" LOC = T12 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L19P, Sch name = JA1
 Net "gpt0_nq" LOC = V12 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L19N, Sch name = JA2
 
+## Pic USB-HID interface
+NET "ps2_keyboard_data" LOC = "J13" | IOSTANDARD = "LVCMOS33";  #Bank = 1, Pin name = IO_L39P_M1A3,                      Sch name = PIC-SDI1
+NET "ps2_keyboard_clk"  LOC = "L12" | IOSTANDARD = "LVCMOS33";  #Bank = 1, Pin name = IO_L40P_GCLK11_M1A5,               Sch name = PIC-SCK1
+
+NET "ps2_mouse_data"   LOC = "K14" | IOSTANDARD = "LVCMOS33";   #Bank = 1, Pin name = IO_L39N_M1ODT,                     Sch name = PIC-SDO1
+NET "ps2_mouse_clk"    LOC = "L13" | IOSTANDARD = "LVCMOS33";   #Bank = 1, Pin name = IO_L40N_GCLK10_M1A6,               Sch name = PIC-SS1
+
+NET "pic_gpio<0>"     LOC = "L16" | IOSTANDARD = "LVCMOS33";   #Bank = 1, Pin name = IO_L42N_GCLK6_TRDY1_M1LDM,         Sch name = PIC-GPIO0
+NET "pic_gpio<1>"     LOC = "H17" | IOSTANDARD = "LVCMOS33";   #Bank = 1, Pin name = IO_L43P_GCLK5_M1DQ4,               Sch name = PIC-GPIO1
+
