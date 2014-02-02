@@ -16,6 +16,7 @@ SOURCES = \
 	vga80x40.vhd \
 	vga_top.vhd \
 	h2.vhd \
+	ps2.vhd \
 	cpu.vhd 
 
 all:
@@ -56,6 +57,10 @@ vga_top.o: util.o vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
 	@echo "ghdl -a vga_top.vhd"
 	@ghdl -a vga_top.vhd
 
+ps2.o: ps2.vhd
+	@echo "ghdl -a ps2.vhd"
+	@ghdl -a ps2.vhd
+
 uart.o: uart.vhd
 	@echo "ghdl -a uart.vhd"
 	@ghdl -a uart.vhd
@@ -68,7 +73,7 @@ cpu.o: h2.o util.o cpu.vhd mem_h2.hexadecimal
 	@echo "ghdl -a cpu.vhd"
 	@ghdl -a cpu.vhd
 
-top_level.o: util.o cpu.o uart.o vga_top.o top_level.vhd
+top_level.o: util.o cpu.o uart.o vga_top.o ps2.o top_level.vhd
 	@echo "ghdl -a top_level.vhd"
 	@ghdl -a top_level.vhd
 

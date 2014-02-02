@@ -117,12 +117,18 @@ architecture behav of top_level is
   signal  ack_din, ack_dout:        std_logic:= '0';
   signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
 
+  ---- Timer
   signal  gpt0_ctr_r_we:     std_logic := '0';               
   signal  gpt0_ctr_r:        std_logic_vector(15 downto 0) := (others =>'0');
   signal  gpt0_irq_comp1:    std_logic;                    
   signal  gpt0_q_internal:   std_logic;                    
   signal  gpt0_nq_internal:  std_logic;
 
+  ---- PS/2
+  signal  ps2_ack:        std_logic := '0';  -- acknowledge read
+  signal  ps2_stb:        std_logic := '0';  -- signal ready to be read
+  signal  ps2_scanCode:   std_logic_vector(7 downto 0); -- actual data we want
+  signal  ps2_scanError:  std_logic := '0';   -- an error has occured, woops.
 begin
 ------- Output assignments (Not in a process) ---------------------------------
   rst   <=  '0';
@@ -408,7 +414,19 @@ begin
             vsync => vsync 
   );
 
+  ps2_module: entity work.ps2
+  port map(
+    clk => clk,
+    rst => rst,
 
+    ps2_clk => ps2_keyboard_clk,
+    ps2_data => ps2_keyboard_data,
+    ack_in => ps2_ack,
+
+    stb_out => ps2_stb,
+    scanCode => ps2_scanCode,
+    scanError => ps2_scanError
+  );
 
 -------------------------------------------------------------------------------
 end architecture;
