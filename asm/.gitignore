@@ -1,2 +1,6 @@
 *.partial
 *~
+out
+mem_h2.dis
+*.dis
+*.log

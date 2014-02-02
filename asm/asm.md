@@ -53,32 +53,37 @@ into the actual output.
   represents a macro name.
 
   * %if $var
-
+  (not implemented correctly yet)
   If $var evaluates to true (not zero), then anything in between this statement
   and the next %elsif, %else or %endif is put into the output file, any other
   case from then on are discarded. 
 
   * %ifdef $var or $macro
+  (not implemented correctly yet)
 
   If either $var or $macro are defined select anything between this statement
   and either the next %else or %end if. Any other statements are discarded.
 
   * %ifndef $var or $macro
+  (not implemented correctly yet)
 
   Like %ifdef, but if *not* defined.
 
   * %elsif $var
+  (not implemented yet)
 
   If $var evaluates to true (not zero), then anything in between this statement
   and the next %elsif, %else or %endif is put into the output file, any other
   case from then on are discarded.
 
   * %else
+  (not implemented yet)
 
   If hit, anything between this and the next %else statement unconditionally for
   processing.
 
   * %endif
+  (not implemented yet)
 
     Ends an %if/%else/... sequence.
 
@@ -89,6 +94,7 @@ into the actual output.
     Ends a macro.
 
   * %include
+  (not implemented yet)
   
   Includes another file for processing.
 

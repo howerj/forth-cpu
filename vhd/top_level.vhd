@@ -127,7 +127,7 @@ begin
 --  cpu_irc <= debug_irc;
 -- synthesis translate_on
   cpu_irq    <= gpt0_irq_comp1; -- or sig_1 .. or sig_n
-  cpu_irc(0) <= gpt0_irq_comp1 ;
+  cpu_irc(0) <= gpt0_irq_comp1;
 
   cpu_instance: entity work.cpu
   port map(
@@ -369,7 +369,7 @@ begin
     irq       => gpt0_irq_comp1,
     Q         => gpt0_q_internal,
     NQ        => gpt0_nq_internal
-          );
+  );
 
 
   vga_module: entity work.vga_top

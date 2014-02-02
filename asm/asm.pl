@@ -56,6 +56,7 @@ my $verbosity = 0;        # how verbose should we be?
 my $outputbase = 16;      # output base of assembled file, 2 or 16
 my @mem;                  # our CPUs memory
 my $pc = $entryp;         # begin assembling here
+my $max_irqs = $entryp;   # maximum number of interrupts
 my %labels;               # labels to jump to in program
 my %macros;               # all our macro definitions
 my %variables;            # compile time variables
@@ -112,6 +113,13 @@ my %cpuconstants = (      # ALU instruction field, 0-31, main field
 "r+1" => 1 << 2,
 "r-1" => 3 << 2,
 "r-2" => 2 << 2,
+);
+
+my @irqnames = ( 
+  "Reset/Entry Point",
+  "Clock  00        ",
+  "Unused 00        ",
+  "Unused 01        "
 );
 
 ###############################################################################
@@ -201,7 +209,7 @@ sub printalu{ ## creates and prints an alu instruction
     }
     $i++;
   }
-  $mem[$pc++] = $instr | 1 << 13 | 1 << 14; # put instruction into memory
+  $mem[$pc++] = $instr | 1 << 14 | 1 << 13; # put instruction into memory
 }
 
 sub unimplemented{
@@ -228,7 +236,7 @@ sub s_exit      {&printalu("T","R->PC","r-1")};
 sub s_rshift    {&printalu("N>>T","d-1")};
 sub s_lshift    {&printalu("N<<T","d-1")};
 sub s_tor       {&printalu("N","T->R","d-1","r+1")};
-sub s_from      {&printalu("R","T->N","T->R","d+1","r-1")};
+sub s_fromr     {&printalu("R","T->N","T->R","d+1","r-1")};
 sub s_rload     {&printalu("R","T->N","T->R","d+1")};
 sub s_load      {&printalu("[T]")};
 sub s_store     {&printalu("N","d-2","N->[T]")};
@@ -239,14 +247,17 @@ sub s_swapbytes {&printalu("swapbytes")};
 sub s_dptr      {&printalu("dptr", "d+1")};
 
 # associate token keywords with the functions that implement
-# that instruction
+# that instruction, aliases indented
 my %keywords = (
   "dup"         => \&s_dup,
   "over"        => \&s_over,
   "invert"      => \&s_invert,
   "+"           => \&s_add,
+    "add"         => \&s_add,
   "-"           => \&s_sub,
-  "1-"          => \&s_d,
+    "sub"         => \&s_sub,
+  "1-"          => \&s_dec,
+    "decrement"   => \&s_dec,
   "equal"       => \&s_equal,
   "and"         => \&s_and,
   "or"          => \&s_or,
@@ -258,13 +269,19 @@ my %keywords = (
   "rshift"      => \&s_rshift,
   "lshift"      => \&s_lshift,
   ">r"          => \&s_tor,
-  "r>"          => \&s_from,
+    "tor"         => \&s_tor,
+  "r>"          => \&s_fromr,
+    "fromr"       => \&s_fromr,
   "r@"          => \&s_rload,
+    "rload"       => \&s_rload,
   "@"           => \&s_load,
+    "load"        => \&s_load,
   "!"           => \&s_store,
+    "store"       => \&s_store,
   "*"           => \&s_multiply,
+    "multiply"    => \&s_multiply,
   "depth"       => \&s_depth,
-  "interrupts"  => \&s_togglei,
+  "toggle_interrupts" => \&s_togglei,
   "swapbytes"   => \&s_swapbytes,
   "dptr"        => \&s_dptr
 );
@@ -381,7 +398,7 @@ sub inc_by_for_number($){
 # Get all labels
 print "First pass:\n";
 open INPUT, "<", $inputfile or die "unable to open $inputfile for reading.\n";
-open TMPOUT,">", $tmpfile or die "unable to open tmp.out for writing.\n";
+open TMPOUT,">", $tmpfile or die "unable to open $tmpfile for writing.\n";
 $linecount = 1;
 while(<INPUT>){
   chomp;
@@ -393,13 +410,27 @@ while(<INPUT>){
     } elsif($token =~ /^\d+$/){ # print literal, special case
       print TMPOUT "$token\n";
       $pc += &inc_by_for_number($token);
+    } elsif($token eq "isr"){
+      # print out for second pass
+      print TMPOUT "$token ";
+      my $token = shift @tokens; 
+
+      if ($token =~ /^\d+$/){
+        print TMPOUT "$token\n";
+      } elsif(exists $variables{ "\$" . $token}){
+        # derefence compile time variable.
+        print TMPOUT $variables{"\$".$token}, "\n";
+      } else{
+        die "invalid token \"$token\" used for isr number";
+      }
+    } elsif($token eq "allocate"){
     } elsif($token =~ /^\$.*$/m){
       # compile time variables
       my $expr = join (" ", @tokens);
       $expr =~ s/\"//g;
       $variables{$token} = evaluate $expr;
       last;
-    } elsif($token =~ /%if(n?def)?/m){
+    } elsif($token =~ /^%if(n?def)?$/m){
       if($token eq "%ifdef"){
         my $macroname = shift @tokens;
         if(not exists $macros{$macroname}){
@@ -442,6 +473,7 @@ while(<INPUT>){
       my $macro = "";
       my $line = "";
       while(not $line =~ /%endmacro/){
+        $line =~ s/#.*$/ /g;
         $macro = $macro . $line;
         $line = <INPUT>;
       }
@@ -498,6 +530,12 @@ while(<INPUT>){
       } else {
         die "number to large to handle\n";
       }
+    } elsif($token eq "isr"){
+      # sets an interrupt to trigger at this label
+      $token = shift @tokens;
+      die "isr $token too big" if $token > $max_irqs or $token < 0 ;
+      $mem[$token] = $pc;
+    } elsif($token eq "allocate"){
     } elsif($token =~ /%if(n?def)?|%elsif|%else|%endif|%macro/m){
       die "$token managed to make its way to the output\n";
     } elsif($token =~ /jumpc?|call/m){
@@ -528,6 +566,12 @@ while(<INPUT>){
   }
   die "program to large $pc" if $pc > ($maxmem - 1);
 }
+
+## print out interrupt service routine pointers
+for(my $i = 0; $i < $max_irqs; $i++){
+  print "isr $irqnames[$i] = $mem[$i]\n";
+}
+
 close INPUT;
 print "Complete.\n";
 ###############################################################################

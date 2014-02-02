@@ -1,7 +1,13 @@
-# Richard James Howe
-# h2 test program
+###############################################################################
+# Richard James Howe                                                          #
+# H2 CPU program                                                              #
+###############################################################################
 
-$vga_init_val "122"
+
+#### System variables #########################################################
+
+$vga_init_val   "122"
+$clock_init_val " 65535"
 
 # When or'ed with a value, moves it into the
 # I/O address range.
@@ -32,27 +38,58 @@ $i_uartRead     "3 $io_range or"
 $i_uartAckWrite "4 $io_range or"
 $i_uartStbDout  "5 $io_range or"
 
+# Interrupt Service Requests
+$isr_reset      "0 "
+$isr_clock      "1 "
+$isr_unused01   "2 "
+$isr_unused02   "3 "
+###############################################################################
+
+#### System Macros ############################################################
 
 # setup routines go here
 %macro setup
+  # Setup Clock
+  clock_init_val
+  o_timerCtrl 
+  store
+  toggle_interrupts
+
+  # Setup VGA
   vga_init_val 
-  o_vgaCtrl
-  !
+  o_vgaCtrl 
+  store
 %endmacro
 
 %macro write_LED
   o_ledS
-  !
+  store
 %endmacro
 
 %macro read_SWITCHES
   i_switches 
-  @
+  load
 %endmacro
 
+###############################################################################
+
+#### program entry point ######################################################
 setup
 begin:
+#  read_SWITCHES
+#  write_LED
+jump begin
+
+###############################################################################
+
+#### interrupt service routines ###############################################
+isr isr_clock
   read_SWITCHES
   write_LED
-jump begin
+  exit
+###############################################################################
+
+###############################################################################
+### EOF #######################################################################
+###############################################################################
 
