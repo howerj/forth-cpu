@@ -29,6 +29,13 @@ entity ps2 is
 end entity;
 
 architecture rtl of ps2 is
-begin
+  signal  parity_bit: std_logic := 'X';
+  signal  bit_count:  unsigned(3 downto 0);
 
+  type    ps2_state is (waiting, reading, fail);
+  signal  state_n, state_c: ps2_state;
+begin
+  -- Filter signal
+  -- Read in scan code
+  -- Convert code?
 end architecture;
