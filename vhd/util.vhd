@@ -332,6 +332,7 @@ architecture rtl of memory is
         for i in 0 to ramSz - 1 loop
             if not endfile(inFile) then
                 readline(inFile,inputLine);
+                -- change to "bin" and "hex"
                 if fileType = "binary" then
                   read(inputLine,tmpVar);
                   ramData(i):=to_stdlogicvector(tmpVar);

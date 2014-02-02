@@ -214,6 +214,7 @@ begin
     uart_dout_c, 
     uart_dout, stb_dout, ack_din,
     stb_dout, stb_dout_c, vga_dout,
+    ps2_scanError, ps2_scanCode, ps2_stb,
 
     gpt0_ctr_r_we
   )
@@ -223,9 +224,10 @@ begin
     ka <= ka_c;
     ld <= ld_c;
 
-    uart_din    <= uart_din_c;
-    stb_din     <= '0';
-    ack_dout    <= '0';
+    uart_din <= uart_din_c;
+    stb_din  <= '0';
+    ack_dout <= '0';
+    ps2_ack  <= '0';
 
     -- Register defaults
     an_n <= an_c;
@@ -327,8 +329,11 @@ begin
         when "0101" => -- UART strobe output (write output).
                 cpu_io_din <= (0 => stb_dout_c, others => '0');
                 stb_dout_n <= '0';
-        when "0110" => cpu_io_din <= (others => '0');
+        when "0110" => 
+                cpu_io_din <= (0 => ps2_stb, others => '0');
         when "0111" => cpu_io_din <= (others => '0');
+                ps2_ack <= '1';
+                cpu_io_din <= "0000000" & ps2_scanError & ps2_scanCode;
         when "1000" => cpu_io_din <= (others => '0');
         when "1001" => cpu_io_din <= (others => '0');
         when "1010" => cpu_io_din <= (others => '0');

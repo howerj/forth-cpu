@@ -13,10 +13,10 @@ NETLIST=top_level
 SOURCES = \
 	util.vhd \
 	uart.vhd \
+	ps2.vhd \
 	vga80x40.vhd \
 	vga_top.vhd \
 	h2.vhd \
-	ps2.vhd \
 	cpu.vhd 
 
 all:

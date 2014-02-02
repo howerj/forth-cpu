@@ -8,7 +8,7 @@
 --! @email      howe.r.j.89@gmail.com
 --------------------------------------------------------------------------------- 
 
-library ieee,work;
+library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
@@ -35,6 +35,12 @@ architecture rtl of ps2 is
   type    ps2_state is (waiting, reading, fail);
   signal  state_n, state_c: ps2_state;
 begin
+  -- Dummy code 
+  scanCode <= X"FF" when ps2_data = '1' else X"00";
+  scanError <= ps2_clk;
+  stb_out <= ps2_clk;
+  -- Dummy code 
+
   -- Filter signal
   -- Read in scan code
   -- Convert code?

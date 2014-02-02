@@ -92,8 +92,8 @@ Net "gpt0_q" LOC = T12 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L19P, S
 Net "gpt0_nq" LOC = V12 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L19N, Sch name = JA2
 
 ## Pic USB-HID interface
-NET "ps2_keyboard_data" LOC = "J13" | IOSTANDARD = "LVCMOS33";  #Bank = 1, Pin name = IO_L39P_M1A3,                      Sch name = PIC-SDI1
-NET "ps2_keyboard_clk"  LOC = "L12" | IOSTANDARD = "LVCMOS33";  #Bank = 1, Pin name = IO_L40P_GCLK11_M1A5,               Sch name = PIC-SCK1
+NET "ps2_keyboard_data" LOC = "J13" | IOSTANDARD = "LVCMOS33"; # | PULLUP;  #Bank = 1, Pin name = IO_L39P_M1A3,                      Sch name = PIC-SDI1
+NET "ps2_keyboard_clk"  LOC = "L12" | IOSTANDARD = "LVCMOS33"; #| PULLUP;  #Bank = 1, Pin name = IO_L40P_GCLK11_M1A5,               Sch name = PIC-SCK1
 
 NET "ps2_mouse_data"   LOC = "K14" | IOSTANDARD = "LVCMOS33";   #Bank = 1, Pin name = IO_L39N_M1ODT,                     Sch name = PIC-SDO1
 NET "ps2_mouse_clk"    LOC = "L13" | IOSTANDARD = "LVCMOS33";   #Bank = 1, Pin name = IO_L40N_GCLK10_M1A6,               Sch name = PIC-SS1
