@@ -31,6 +31,7 @@ entity cpu is
 
     -- CPU External interface, I/O
     cpu_wr:     out  std_logic;
+    cpu_re:     out  std_logic; -- hardware *READS* can have side effects
     cpu_din:    in   std_logic_vector(15 downto 0):= (others => '0');
     cpu_dout:   out  std_logic_vector(15 downto 0):= (others => '0');
     cpu_daddr:  out  std_logic_vector(15 downto 0):= (others => '0');
@@ -78,6 +79,7 @@ begin
 
           -- External interface with the 'outside world'
           io_wr     =>  cpu_wr,
+          io_re     =>  cpu_re,
           io_din    =>  cpu_din,
           io_dout   =>  cpu_dout,
           io_daddr  =>  cpu_daddr,

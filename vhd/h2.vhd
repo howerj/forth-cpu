@@ -35,6 +35,7 @@ entity h2 is
         rst:        in  std_logic;
         -- IO interface
         io_wr:      out std_logic;
+        io_re:      out std_logic;
         io_din:     in  std_logic_vector(15 downto 0);
         io_dout:    out std_logic_vector(15 downto 0);
         io_daddr:   out std_logic_vector(15 downto 0);
@@ -56,7 +57,7 @@ entity h2 is
     );
 end;
 
-architecture rtl of h2 is
+architecture behav of h2 is
 
     -- Program counter.
     signal pc_c:                std_logic_vector(12 downto 0) := (others => '0');
@@ -208,6 +209,7 @@ begin
         int_en_c
     )
     begin
+        io_re          <=  '0'; -- hardware *READS* can have side effects
         tos_n          <=  tos_c;
         int_en_n       <=  int_en_c;
         dptr_n         <=  dptr_c;
@@ -222,6 +224,7 @@ begin
                   -- 0x6000 - 0x7FFF is external input
                   if tos_c(14 downto 13) = "11" then 
                     tos_n <= "0" & io_din; 
+                    io_re <= '1';
                   else 
                     tos_n <= "0" & din;  
                   end if;

@@ -122,4 +122,9 @@ I would very much like to make the CPU more generic, that is you can instantiate
 copies with variable bit lengths but there are a few things stopping me from
 doing that at the moment.
 
+Also, rewriting some of my programs in perl instead of C would seem like the way
+to go so people do not have to worry about my C code compiling or installing GCC
+on other platforms if they do not have it already. Some scripts for automatic
+change log and report generation would also be handy.
+
 EOF

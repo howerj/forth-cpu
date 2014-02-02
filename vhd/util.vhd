@@ -140,7 +140,7 @@ entity gptimer is
   );
 end entity;
 
-architecture rtl of gptimer is
+architecture behav of gptimer is
   constant highest_bit:         positive := gptimerbits - 1;
   constant control_enable_bit:  positive := highest_bit;
   constant local_rst_bit:       positive := highest_bit - 1;
@@ -271,7 +271,7 @@ entity memory is
     );
 end memory;
 
-architecture rtl of memory is
+architecture behav of memory is
     constant ramSz  : positive := 2 ** addr_bitlen;
 
     type ramArray_t is array ((ramSz - 1 ) downto 0) of std_logic_vector(data_bitlen - 1 downto 0);
@@ -406,7 +406,7 @@ entity losr is
   );
 end losr;
 
-architecture arch of losr is
+architecture behav of losr is
 begin
 
   process(reset, clk)
@@ -424,7 +424,7 @@ begin
 
     do <= data(N-1);
   end process;
-end arch;
+end behav;
 
 -------------------------------------------------------------------------------
 --! @file ctrm.vhd
@@ -453,7 +453,7 @@ entity ctrm is
   );
 end ctrm;
 
-architecture arch of ctrm is
+architecture behav of ctrm is
   signal c : integer range (M-1) downto 0:= 0;
 begin
   do <= c;
@@ -471,7 +471,7 @@ begin
       end if;
     end if;
   end process;
-end arch;
+end behav;
 
 -------------------------------------------------------------------------------
 -- END OF FILE ----------------------------------------------------------------

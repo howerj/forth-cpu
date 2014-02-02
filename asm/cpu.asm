@@ -3,7 +3,6 @@
 # H2 CPU program                                                              #
 ###############################################################################
 
-
 #### System variables #########################################################
 
 $vga_init_val   "122"
@@ -73,14 +72,36 @@ $isr_unused02   "3 "
 
 ###############################################################################
 
+#### Variable Addr. ###########################################################
+
+$vga_cursor "8000 "
+
+###############################################################################
+
+
 #### program entry point ######################################################
 setup
-  2
 begin:
-#  read_SWITCHES
-#  write_LED
-  2
-  add
+
+  # wait for UART input
+  uartwait:
+  i_uartStbDout 
+  load
+  jumpc  uartwait
+
+  # duplicate UART input, write back to UART also
+  i_uartRead load dup
+  o_uartWrite store
+  o_vgaTxtDin store
+
+  # increment vga cursor
+  vga_cursor load
+  1 add dup dup
+  vga_cursor store
+  o_vgaCursor store
+  o_vgaTxtAddr store
+  0 o_vgaWrite store
+
 jump begin
 
 ###############################################################################
@@ -89,6 +110,10 @@ jump begin
 isr isr_clock
   read_SWITCHES
   write_LED
+  exit
+isr isr_unused01
+  exit
+isr isr_unused02
   exit
 ###############################################################################
 

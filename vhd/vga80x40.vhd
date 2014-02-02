@@ -35,7 +35,7 @@ end vga80x40;
 
 
 
-architecture rtl of vga80x40 is
+architecture behav of vga80x40 is
 
   signal R_int : std_logic := '0';
   signal G_int : std_logic := '0';
@@ -286,4 +286,4 @@ begin
     
   end block;
   
-end rtl;
+end behav;

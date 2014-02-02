@@ -59,12 +59,12 @@ entity top_level is
     gpt0_nq:  out std_logic                    :=      '0';
     -- PS/2 Interface
     ps2_keyboard_data:  in std_logic           :=      '0'; 
-    ps2_keyboard_clk:   in std_logic           :=      '0'; 
+    ps2_keyboard_clk:   in std_logic           :=      '0'
 
-    ps2_mouse_data:     in std_logic           :=      '0'; 
-    ps2_mouse_clk:      in std_logic           :=      '0'; 
+--    ps2_mouse_data:     in std_logic           :=      '0'; 
+--    ps2_mouse_clk:      in std_logic           :=      '0'; 
 
-    pic_gpio:           in std_logic_vector(1 downto 0):= (others => 'X')
+--    pic_gpio:           in std_logic_vector(1 downto 0):= (others => 'X')
   );
 end;
 
@@ -76,6 +76,7 @@ architecture behav of top_level is
   signal  rst:                      std_logic := '0';
   -- CPU H2 IO interface signals.
   signal  cpu_io_wr:                std_logic := '0';
+  signal  cpu_io_re:                std_logic := '0';
   signal  cpu_io_din:               std_logic_vector(15 downto 0):= (others => '0');
   signal  cpu_io_dout:              std_logic_vector(15 downto 0):= (others => '0');
   signal  cpu_io_daddr:             std_logic_vector(15 downto 0):= (others => '0');
@@ -158,6 +159,7 @@ begin
     rst       => rst,
 
     cpu_wr    => cpu_io_wr,
+    cpu_re    => cpu_io_re,
     cpu_din   => cpu_io_din,
     cpu_dout  => cpu_io_dout,
     cpu_daddr => cpu_io_daddr,
@@ -207,7 +209,7 @@ begin
    end process;
 
   io_select: process(
-    cpu_io_wr,cpu_io_dout,cpu_io_daddr,
+    cpu_io_wr,cpu_io_re,cpu_io_dout,cpu_io_daddr,
     an_c,ka_c,ld_c,
     sw,rx,btnu,btnd,btnl,btnr,btnc,
     uart_din_c, ack_din_c,
@@ -312,7 +314,7 @@ begin
         when "10000" =>
         when others =>
       end case;
-    else
+    elsif cpu_io_re = '1' then
       -- Get input.
       case cpu_io_daddr(3 downto 0) is
         when "0000" => -- Switches, plus direct access to UART bit.

@@ -34,7 +34,7 @@ entity uart is
          );
 end uart;
 
-architecture rtl of uart is
+architecture behav of uart is
     
     ----------------------------------------------------------------------------
     -- baud generation
@@ -289,4 +289,4 @@ begin
             end if;
         end if;
     end process uart_receive_data;
-end rtl;
+end behav;

@@ -38,7 +38,7 @@ use std.textio.all;
 entity test_bench is
 end test_bench;
 
-architecture behavior of test_bench is
+architecture testing of test_bench is
     constant    clk_freq:        positive                     :=  1000000000;
     constant    clk_period:      time                         :=  1000 ms / clk_freq;
 
@@ -109,10 +109,10 @@ begin
         hsync => tb_hsync,
         vsync => tb_vsync,
         ps2_keyboard_data => tb_ps2_keyboard_data,
-        ps2_keyboard_clk => tb_ps2_keyboard_clk,
-        ps2_mouse_data => tb_ps2_mouse_data,
-        ps2_mouse_clk => tb_ps2_mouse_clk,
-        pic_gpio => tb_pic_gpio
+        ps2_keyboard_clk => tb_ps2_keyboard_clk
+--        ps2_mouse_data => tb_ps2_mouse_data,
+--        ps2_mouse_clk => tb_ps2_mouse_clk,
+--        pic_gpio => tb_pic_gpio
             );
 
 ------ Simulation only processes ----------------------------------------------
