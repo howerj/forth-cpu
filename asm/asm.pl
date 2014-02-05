@@ -61,6 +61,8 @@ my %labels;               # labels to jump to in program
 my %macros;               # all our macro definitions
 my %variables;            # compile time variables
 my $ifcount = 0;          # number of nested ifs
+my @filestack;            # input file stack, for %include directive
+
 
 my $linecount = 0;        # current line count
 my $alu = 0;              # for enumerating all alu values.
@@ -399,8 +401,9 @@ sub inc_by_for_number($){
 print "First pass:\n";
 open TMPOUT,">", $tmpfile or die "unable to open $tmpfile for writing.\n";
 $linecount = 1;
-open INPUT, "<", $inputfile or die "unable to open $inputfile for reading.\n";
-while(<INPUT>){
+open my $INPUT, "<", $inputfile or die "unable to open $inputfile for reading.\n";
+reprocess:
+while(<$INPUT>){
   chomp;
   my @tokens = &splitline($_);
   while (my $token = shift @tokens){
@@ -424,6 +427,7 @@ while(<INPUT>){
         die "invalid token \"$token\" used for isr number";
       }
     } elsif($token eq "allocate"){
+      die "allocate is not implement as of yet";
     } elsif($token =~ /^\$.*$/m){
       # compile time variables
       my $expr = join (" ", @tokens);
@@ -436,7 +440,7 @@ while(<INPUT>){
         if(not exists $macros{$macroname}){
           my $line = "";
           while(not $line =~ /%endif|%else/m){
-            $line = <INPUT>;
+            $line = <$INPUT>;
           }
         }
       } elsif ($token eq "%ifndef"){
@@ -444,7 +448,7 @@ while(<INPUT>){
         if(exists $macros{$macroname}){
           my $line = "";
           while(not $line =~ /%endif|%else/){
-            $line = <INPUT>;
+            $line = <$INPUT>;
           }
         }
       }
@@ -453,12 +457,25 @@ while(<INPUT>){
     } elsif($token eq "%else"){
       my $line = "";
       while(not $line =~ /%endif/){
-        $line = <INPUT>;
+        $line = <$INPUT>;
       }
     } elsif($token eq "%endif"){
       die "$token unexpected, missing %if?\n";
     } elsif($token eq "%include"){
-      die "unimplemented as of yet";
+#     $token = shift @tokens;
+#     open(my $fh, '<', $token) or die "open failed on $token: $!\n";
+#     my $slurp = do { local($/); <$fh> };
+#     close($fh);
+#
+#     $slurp =~ tr{\n}{ };
+#     my @tmptokens = reverse &splitline($slurp);
+#     foreach my $token (@tmptokens){
+#       unshift @tokens, $token;
+#     }
+      $token = shift @tokens;
+      push @filestack, $INPUT;
+      open my $tmp, "<", $token or die "open $token failed:$!\n"; 
+      $INPUT = $tmp;
     } elsif($token =~ /jumpc?|call/m){
       print TMPOUT "$token ";
       $token = shift @tokens;
@@ -475,7 +492,7 @@ while(<INPUT>){
       while(not $line =~ /%endmacro/){
         $line =~ s/#.*$/ /g;
         $macro = $macro . $line;
-        $line = <INPUT>;
+        $line = <$INPUT>;
       }
       $macros{$macroname} = $macro;
     } elsif($token =~ /.*:/){ 
@@ -499,10 +516,15 @@ while(<INPUT>){
     }
   }
 }
+# close $INPUT;
+
+if(0 <= $#filestack){
+  $INPUT = pop @filestack; 
+  goto reprocess;
+}
+close TMPOUT;
 print "\t", $pc - $entryp, " instructions found; $pc / $maxmem mem used\n";
 $pc = $entryp;
-close INPUT;
-close TMPOUT;
 print "Complete.\n";
 ###############################################################################
 
