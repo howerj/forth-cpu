@@ -72,6 +72,7 @@ architecture behav of top_level is
   -- System constants
   constant baud_rate:               positive := 115200;
   constant clock_frequency:         positive := 100000000;
+  constant number_of_interrupts:    positive := 4;
   -- Signals
   signal  rst:                      std_logic := '0';
   -- CPU H2 IO interface signals.
@@ -82,7 +83,7 @@ architecture behav of top_level is
   signal  cpu_io_daddr:             std_logic_vector(15 downto 0):= (others => '0');
   -- CPU H2 Interrupts
   signal  cpu_irq:                  std_logic:= '0';
-  signal  cpu_irc:                  std_logic_vector(3 downto 0):= (others => '0');
+  signal  cpu_irc:                  std_logic_vector(number_of_interrupts - 1 downto 0):= (others => '0');
 
   -- VGA interface signals
   signal  clk25MHz: std_logic:= '0';
@@ -145,6 +146,9 @@ begin
   cpu_irc(1) <= gpt0_irq_comp1;
 
   cpu_instance: entity work.cpu
+  generic map(
+    number_of_interrupts => number_of_interrupts
+  )
   port map(
 -- synthesis translate_off
     debug_pc => debug_pc,

@@ -16,6 +16,9 @@ use ieee.numeric_std.all;
 use work.util.memory;
 
 entity cpu is
+  generic(
+    number_of_interrupts: positive := 4
+  );
   port(
     -- synthesis translate_off
     debug_pc:         out std_logic_vector(12 downto 0);
@@ -37,7 +40,7 @@ entity cpu is
     cpu_daddr:  out  std_logic_vector(15 downto 0):= (others => '0');
     -- Interrupts
     cpu_irq:    in   std_logic;
-    cpu_irc:    in   std_logic_vector(3 downto 0)
+    cpu_irc:    in   std_logic_vector(number_of_interrupts - 1 downto 0)
   );
 end;
 
@@ -73,6 +76,9 @@ begin
 
   -- The actual CPU instance (H2)
   h2_instance: entity work.h2
+  generic map(
+    number_of_interrupts => number_of_interrupts
+         )
   port map(
           clk       =>    clk,
           rst       =>    rst,

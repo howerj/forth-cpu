@@ -12,7 +12,6 @@
 
 -------------------------------------------------------------------------------
 --! TODO:
---!  * Interrupts, Test them
 --!  * Interrupt handling needs to be improved, ie - simultaneous interrupts
 --!  * Carry Flag: Test it and move around instructions.
 --!  * Rotate through carry?
@@ -27,10 +26,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity h2 is
+    generic(
+        number_of_interrupts: positive := 4
+    );
     port(
-        -- synthesis translate_off
-        -- synthesis translate_on
-
         clk:        in  std_logic;
         rst:        in  std_logic;
         -- IO interface
@@ -41,7 +40,7 @@ entity h2 is
         io_daddr:   out std_logic_vector(15 downto 0);
         -- Interrupts
         irq:        in  std_logic;
-        irc:        in  std_logic_vector(3 downto 0);
+        irc:        in  std_logic_vector(number_of_interrupts - 1 downto 0);
 
         -- RAM interface, Dual port
         pco:        out std_logic_vector(12 downto 0);
@@ -113,6 +112,7 @@ architecture behav of h2 is
     signal dptr_c:              std_logic_vector(15 downto 0) := (others => '0');
     signal dptr_n:              std_logic_vector(15 downto 0) := (others => '0');
 begin
+
     -- is_instr_x, what kind of instruction do we have?
     is_instr_alu        <=  '1' when insn(15 downto 13) = "011" else '0';
     is_instr_lit        <=  '1' when insn(15) = '1' else '0';
@@ -348,18 +348,12 @@ begin
     begin
         pc_n    <=  pc_c;
         if is_instr_interrupt = '1' and int_en_c = '1' then -- Update PC on interrupt
-          -- Prioritory encoded, LSB has higher prioritory.
-          if irc_c(0) = '1' then
-            pc_n <= (others => '0');
-          elsif irc_c(1) = '1' then
-            pc_n <= (0 => '1', others => '0');
-          elsif irc_c(2) = '1' then
-            pc_n <= (1 => '1', others => '0');
-          elsif irc_c(3) = '1' then
-            pc_n <= (0 => '1',1 => '1', others => '0');
-          else
-            pc_n <= (others => '0');
-          end if;
+          -- Prioritory encoded, MSB has higher prioritory, should change this
+          interrupts: for i in 1 to number_of_interrupts loop 
+            if irc_c(i-1) = '1' then
+              pc_n <= std_logic_vector(to_unsigned(i-1,pc_n'length));
+            end if;
+          end loop;
         else -- Update PC on normal operations
           if is_instr_jmp = '1' or (is_instr_cjmp = '1' and comp_zero = '1') or is_instr_call = '1' then
               pc_n    <=  insn(12 downto 0);
