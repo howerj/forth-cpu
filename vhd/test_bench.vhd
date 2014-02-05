@@ -39,8 +39,11 @@ entity test_bench is
 end test_bench;
 
 architecture testing of test_bench is
-    constant    clk_freq:        positive                     :=  1000000000;
-    constant    clk_period:      time                         :=  1000 ms / clk_freq;
+    constant clk_freq: positive :=  1000000000;
+    constant number_of_interrupts: positive := 4;
+    constant uart_baud_rate: positive       := 115200;
+
+    constant clk_period: time   :=  1000 ms / clk_freq;
 
     signal  wait_flag:          std_logic                    :=  '0';
     signal  tb_debug_irq:       std_logic                    :=  '0';
@@ -52,34 +55,46 @@ architecture testing of test_bench is
     signal  tb_debug_mem_dout:  std_logic_vector(15 downto 0);
     signal  tb_debug_mem_daddr: std_logic_vector(12 downto 0);
 
-    signal  tb_clk:          std_logic                    :=  '0';
-    signal  tb_rst:          std_logic;
+    signal  tb_clk:   std_logic :=  '0';
+    signal  tb_rst:   std_logic;
 
-    signal  tb_btnu:         std_logic                    :=            '0';  -- button up
-    signal  tb_btnd:         std_logic                    :=            '0';  -- button down
-    signal  tb_btnc:         std_logic                    :=            '0';  -- button centre
-    signal  tb_btnl:         std_logic                    :=            '0';  -- button left
-    signal  tb_btnr:         std_logic                    :=            '0';  -- button right
-    signal  tb_sw:           std_logic_vector(7 downto 0) := (others => '0'); -- switches
-    signal  tb_an:           std_logic_vector(3 downto 0) := (others => '0'); -- anodes   7 segment display
-    signal  tb_ka:           std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 7 segment display
-    signal  tb_ld:           std_logic_vector(7 downto 0) := (others => '0'); -- leds
-    signal  tb_rx:           std_logic                    :=            '0';  -- uart rx 
-    signal  tb_tx:           std_logic                    :=            '0';  -- uart tx
-    signal  tb_red:          std_logic_vector(2 downto 0) := (others => '0');
-    signal  tb_green:        std_logic_vector(2 downto 0) := (others => '0');
-    signal  tb_blue:         std_logic_vector(1 downto 0) := (others => '0');
-    signal  tb_hsync:        std_logic                    :=            '0';
-    signal  tb_vsync:        std_logic                    :=            '0';
-    signal  tb_ps2_keyboard_data: std_logic               :=            '0'; 
-    signal  tb_ps2_keyboard_clk:  std_logic               :=            '0'; 
-    signal  tb_ps2_mouse_data:    std_logic               :=            '0'; 
-    signal  tb_ps2_mouse_clk:     std_logic               :=            '0'; 
-    signal  tb_pic_gpio:         std_logic_vector(1 downto 0):= (others => 'X');
+    -- Basic I/O
+    signal  tb_btnu:  std_logic :=            '0';  -- button up
+    signal  tb_btnd:  std_logic :=            '0';  -- button down
+    signal  tb_btnc:  std_logic :=            '0';  -- button centre
+    signal  tb_btnl:  std_logic :=            '0';  -- button left
+    signal  tb_btnr:  std_logic :=            '0';  -- button right
+    signal  tb_sw:    std_logic_vector(7 downto 0) := (others => '0'); -- switches
+    signal  tb_an:    std_logic_vector(3 downto 0) := (others => '0'); -- anodes   7 segment display
+    signal  tb_ka:    std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 7 segment display
+    signal  tb_ld:    std_logic_vector(7 downto 0) := (others => '0'); -- leds
+
+    -- UART
+    signal  tb_rx:    std_logic :=            '0';  -- uart rx 
+    signal  tb_tx:    std_logic :=            '0';  -- uart tx
+
+    -- VGA
+    signal  tb_red:   std_logic_vector(2 downto 0) := (others => '0');
+    signal  tb_green: std_logic_vector(2 downto 0) := (others => '0');
+    signal  tb_blue:  std_logic_vector(1 downto 0) := (others => '0');
+    signal  tb_hsync: std_logic :=            '0';
+    signal  tb_vsync: std_logic :=            '0';
+
+    -- HID
+    signal  tb_ps2_keyboard_data: std_logic := '0'; 
+    signal  tb_ps2_keyboard_clk:  std_logic := '0'; 
+--  signal  tb_ps2_mouse_data:    std_logic := '0'; 
+--  signal  tb_ps2_mouse_clk:     std_logic := '0'; 
+--  signal  tb_pic_gpio:          std_logic_vector(1 downto 0):= (others => 'X');
 begin
 ---- Units under test ----------------------------------------------------------
 
     top_level_uut: entity work.top_level
+    generic map(
+      clock_frequency => clk_freq,
+      number_of_interrupts => number_of_interrupts,
+      uart_baud_rate => uart_baud_rate
+    )
     port map(
       -- Remove me{{
         debug_irq       => tb_debug_irq,
@@ -104,15 +119,17 @@ begin
         rx => tb_rx,
         tx => tb_tx,
         red => tb_red,
+
         green => tb_green,
-        blue => tb_blue,
+        blue  => tb_blue,
         hsync => tb_hsync,
         vsync => tb_vsync,
+
         ps2_keyboard_data => tb_ps2_keyboard_data,
-        ps2_keyboard_clk => tb_ps2_keyboard_clk
---        ps2_mouse_data => tb_ps2_mouse_data,
---        ps2_mouse_clk => tb_ps2_mouse_clk,
---        pic_gpio => tb_pic_gpio
+        ps2_keyboard_clk  => tb_ps2_keyboard_clk
+--      ps2_mouse_data    => tb_ps2_mouse_data,
+--      ps2_mouse_clk     => tb_ps2_mouse_clk,
+--      pic_gpio          => tb_pic_gpio
             );
 
 ------ Simulation only processes ----------------------------------------------

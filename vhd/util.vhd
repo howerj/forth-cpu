@@ -161,7 +161,8 @@ architecture behav of gptimer is
 begin
 
   -- synthesis translate_off
-  assert (gptimerbits >= 4) report "gptimer needs to be *at least* 4 bits wide, 3 bits for control, one for the counter" severity failure;
+  assert (gptimerbits >= 4) report 
+  "gptimer needs to be *at least* 4 bits wide, 3 bits for control, one for the counter" severity failure;
   -- synthesis translate_on
 
   --! Output assignments not in proc
@@ -253,28 +254,29 @@ entity memory is
         addr_bitlen: positive := 12;              --! address bit length 
         data_bitlen: positive := 16;              --! data bit length
         filename:    string   := "memory.binary"; --! initial RAM contents
-        filetype:    string   := "binary"         --! ASCII encoding used
+        filetype:    string   := "bin"            --! ASCII 0/1s
     );
     port(
     --! Port A of dual port RAM
-        a_clk:    in  std_logic;
-        a_dwe:    in  std_logic;
-        a_addr:   in  std_logic_vector(addr_bitlen - 1 downto 0);
-        a_din:    in  std_logic_vector(data_bitlen - 1 downto 0);
-        a_dout:   out std_logic_vector(data_bitlen - 1 downto 0) := (others => '0');
+        a_clk:  in  std_logic;
+        a_dwe:  in  std_logic;
+        a_addr: in  std_logic_vector(addr_bitlen - 1 downto 0);
+        a_din:  in  std_logic_vector(data_bitlen - 1 downto 0);
+        a_dout: out std_logic_vector(data_bitlen - 1 downto 0) := (others => '0');
     --! Port B of dual port RAM
-        b_clk:    in  std_logic;
-        b_dwe:    in  std_logic;
-        b_addr:   in  std_logic_vector(addr_bitlen - 1 downto 0);
-        b_din:    in  std_logic_vector(data_bitlen - 1 downto 0);
-        b_dout:   out std_logic_vector(data_bitlen - 1 downto 0) := (others => '0')
+        b_clk:  in  std_logic;
+        b_dwe:  in  std_logic;
+        b_addr: in  std_logic_vector(addr_bitlen - 1 downto 0);
+        b_din:  in  std_logic_vector(data_bitlen - 1 downto 0);
+        b_dout: out std_logic_vector(data_bitlen - 1 downto 0) := (others => '0')
     );
 end memory;
 
 architecture behav of memory is
     constant ramSz  : positive := 2 ** addr_bitlen;
 
-    type ramArray_t is array ((ramSz - 1 ) downto 0) of std_logic_vector(data_bitlen - 1 downto 0);
+    type ramArray_t is array ((ramSz - 1 ) downto 0) of 
+        std_logic_vector(data_bitlen - 1 downto 0);
 
     function hexCharToStdLogicVector(hc: character) return std_logic_vector is
       variable slv: std_logic_vector(3 downto 0);
@@ -308,18 +310,8 @@ architecture behav of memory is
       return slv;
     end hexCharToStdLogicVector;
 
-  function to_string(sv: Std_Logic_Vector) return string is
-    use Std.TextIO.all;
-    variable bv: bit_vector(sv'range) := to_bitvector(sv);
-    variable lp: line;
-  begin
-    write(lp, bv);
-    return lp.all;
-  end;
-
     --! @brief This function will initialize the RAM, it reads from
     --! a file that can be specified in a generic way
-    --function initRam(fileName: in string, fileType: in string) return ramArray_t is
     function initRam(fileName, fileType: in string) return ramArray_t is
         variable ramData:   ramArray_t;
         file     inFile:    text is in fileName;
@@ -332,18 +324,18 @@ architecture behav of memory is
         for i in 0 to ramSz - 1 loop
             if not endfile(inFile) then
                 readline(inFile,inputLine);
-                -- change to "bin" and "hex"
-                if fileType = "binary" then
+                if fileType = "bin" then -- binary
                   read(inputLine,tmpVar);
                   ramData(i):=to_stdlogicvector(tmpVar);
-                elsif fileType = "hexadecimal" then
+                elsif fileType = "hex" then -- hexadecimal
                   for j in 1 to (data_bitlen/4) loop
                     c:= inputLine((data_bitlen/4) - j + 1);
                     slv((j*4)-1 downto (j*4)-4) := hexCharToStdLogicVector(c);
                   end loop;
                   ramData(i):= slv;
-                elsif fileType = "ascii" then
-                  assert false report "Not implemented currently, failing" severity failure;
+                elsif fileType = "txt" then -- txt
+                  assert false report "Not implemented currently, failing" 
+                    severity failure;
                 else
                   assert false report "Incorrect type given" severity failure;
                 end if;

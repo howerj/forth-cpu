@@ -50,12 +50,12 @@ architecture behav of vga_top is
   constant text_addr_bitlen: positive := 12;
   constant text_data_bitlen: positive := 8;
   constant text_filename:    string   := "mem_text.binary";
-  constant text_filetype:    string   := "binary";
+  constant text_filetype:    string   := "bin"; -- binary
   -- Setup for font buffer memory
   constant font_addr_bitlen: positive := 12;
   constant font_data_bitlen: positive := 8;
   constant font_filename:    string   := "mem_font.binary";
-  constant font_filetype:    string   := "binary";
+  constant font_filetype:    string   := "bin"; -- binary
 
   -- Internal signals for mapping ouput<-->VGA module
   signal  R_internal:      std_logic:= '0';

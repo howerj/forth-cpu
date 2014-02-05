@@ -54,7 +54,7 @@ architecture behav of cpu is
   constant addr_bitlen: positive := 13;
   constant data_bitlen: positive := 16;
   constant filename:    string   := "mem_h2.hexadecimal";
-  constant filetype:    string   := "hexadecimal";
+  constant filetype:    string   := "hex";
   --! memory <-> cpu signals
   signal  pc:           std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0'); -- Program counter
   signal  insn:         std_logic_vector(data_bitlen - 1 downto 0):= (others => '0'); -- Instruction issued by program counter

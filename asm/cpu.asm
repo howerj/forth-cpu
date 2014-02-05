@@ -36,6 +36,8 @@ $i_vgaTxtDout   "2 $io_range or"
 $i_uartRead     "3 $io_range or"
 $i_uartAckWrite "4 $io_range or"
 $i_uartStbDout  "5 $io_range or"
+$i_ps2StbDout   "6 $io_range or"
+$i_ps2Read      "7 $io_range or"
 
 # Interrupt Service Requests
 $isr_reset      "0 "
@@ -87,20 +89,38 @@ begin:
   uartwait:
   i_uartStbDout 
   load
-  jumpc  uartwait
+  i_ps2StbDout
+  load
+  or
+  jumpc uartwait
 
   # duplicate UART input, write back to UART also
-  i_uartRead load dup
-  o_uartWrite store
-  o_vgaTxtDin store
+  i_uartRead 
+  load 
+  i_ps2Read
+  or
+  dup
+  o_uartWrite 
+  store
+  o_vgaTxtDin 
+  store
 
   # increment vga cursor
-  vga_cursor load
-  1 add dup dup
-  vga_cursor store
-  o_vgaCursor store
-  o_vgaTxtAddr store
-  0 o_vgaWrite store
+  vga_cursor 
+  load
+  1 
+  add 
+  dup 
+  dup
+  vga_cursor 
+  store
+  o_vgaCursor 
+  store
+  o_vgaTxtAddr 
+  store
+  1 
+  o_vgaWrite 
+  store
 
 jump begin
 

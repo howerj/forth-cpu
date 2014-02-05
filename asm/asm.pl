@@ -397,9 +397,9 @@ sub inc_by_for_number($){
 #### First Pass ###############################################################
 # Get all labels
 print "First pass:\n";
-open INPUT, "<", $inputfile or die "unable to open $inputfile for reading.\n";
 open TMPOUT,">", $tmpfile or die "unable to open $tmpfile for writing.\n";
 $linecount = 1;
+open INPUT, "<", $inputfile or die "unable to open $inputfile for reading.\n";
 while(<INPUT>){
   chomp;
   my @tokens = &splitline($_);

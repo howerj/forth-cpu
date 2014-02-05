@@ -15,6 +15,11 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity top_level is
+  generic(
+    clock_frequency:      positive := 100000000;
+    number_of_interrupts: positive := 4;
+    uart_baud_rate:       positive := 115200
+  );
   port
   (
 -- synthesis translate_off
@@ -69,68 +74,64 @@ entity top_level is
 end;
 
 architecture behav of top_level is
-  -- System constants
-  constant baud_rate:               positive := 115200;
-  constant clock_frequency:         positive := 100000000;
-  constant number_of_interrupts:    positive := 4;
   -- Signals
-  signal  rst:                      std_logic := '0';
+  signal rst: std_logic := '0';
   -- CPU H2 IO interface signals.
-  signal  cpu_io_wr:                std_logic := '0';
-  signal  cpu_io_re:                std_logic := '0';
-  signal  cpu_io_din:               std_logic_vector(15 downto 0):= (others => '0');
-  signal  cpu_io_dout:              std_logic_vector(15 downto 0):= (others => '0');
-  signal  cpu_io_daddr:             std_logic_vector(15 downto 0):= (others => '0');
+  signal cpu_io_wr:    std_logic := '0';
+  signal cpu_io_re:    std_logic := '0';
+  signal cpu_io_din:   std_logic_vector(15 downto 0):= (others => '0');
+  signal cpu_io_dout:  std_logic_vector(15 downto 0):= (others => '0');
+  signal cpu_io_daddr: std_logic_vector(15 downto 0):= (others => '0');
   -- CPU H2 Interrupts
-  signal  cpu_irq:                  std_logic:= '0';
-  signal  cpu_irc:                  std_logic_vector(number_of_interrupts - 1 downto 0):= (others => '0');
+  signal cpu_irq: std_logic := '0';
+  signal cpu_irc: std_logic_vector(number_of_interrupts - 1 downto 0):= (others => '0');
 
   -- VGA interface signals
-  signal  clk25MHz: std_logic:= '0';
-  signal  clk50MHz: std_logic:= '0';
+  signal clk25MHz: std_logic:= '0';
+  signal clk50MHz: std_logic:= '0';
   -- Basic IO register
   ---- LEDs/Switches
-  signal  an_c,an_n: std_logic_vector(3 downto 0):=  (others => '0');
-  signal  ka_c,ka_n: std_logic_vector(7 downto 0):=  (others => '0');
-  signal  ld_c,ld_n: std_logic_vector(7 downto 0):=  (others => '0');
+  signal an_c,an_n: std_logic_vector(3 downto 0):=  (others => '0');
+  signal ka_c,ka_n: std_logic_vector(7 downto 0):=  (others => '0');
+  signal ld_c,ld_n: std_logic_vector(7 downto 0):=  (others => '0');
   ---- VGA
 
-  signal  crx_we: std_logic :=  '0';
-  signal  cry_we: std_logic :=  '0';
-  signal  ctl_we: std_logic :=  '0';
+  signal crx_we: std_logic :=  '0';
+  signal cry_we: std_logic :=  '0';
+  signal ctl_we: std_logic :=  '0';
 
-  signal  crx: std_logic_vector(6 downto 0):=  (others => '0');
-  signal  cry: std_logic_vector(5 downto 0):=  (others => '0');
-  signal  ctl: std_logic_vector(6 downto 0):=  (others => '0');
-  signal  vga_we_ram: std_logic :=  '0';
-  signal  vga_a_we:   std_logic :=  '0';
-  signal  vga_d_we:   std_logic :=  '0';
-  signal  vga_addr:   std_logic_vector(11 downto 0):= (others => '0');
-  signal  vga_dout:   std_logic_vector(7 downto 0) := (others => '0');
-  signal  vga_din:    std_logic_vector(7 downto 0) := (others => '0');
+  signal crx: std_logic_vector(6 downto 0):=  (others => '0');
+  signal cry: std_logic_vector(5 downto 0):=  (others => '0');
+  signal ctl: std_logic_vector(6 downto 0):=  (others => '0');
+  signal vga_we_ram: std_logic :=  '0';
+  signal vga_a_we:   std_logic :=  '0';
+  signal vga_d_we:   std_logic :=  '0';
+  signal vga_addr:   std_logic_vector(11 downto 0):= (others => '0');
+  signal vga_dout:   std_logic_vector(7 downto 0) := (others => '0');
+  signal vga_din:    std_logic_vector(7 downto 0) := (others => '0');
 
   ---- UART
-  signal  uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
-  signal  ack_din_c, ack_din_n:     std_logic:= '0';
-  signal  uart_dout_c, uart_dout_n: std_logic_vector(7 downto 0):= (others => '0');
-  signal  stb_dout_c, stb_dout_n:   std_logic:= '0';
-  signal  uart_din, uart_dout:      std_logic_vector(7 downto 0):= (others => '0');
-  signal  stb_din, stb_dout:        std_logic:= '0';
-  signal  ack_din, ack_dout:        std_logic:= '0';
-  signal  tx_uart, rx_uart,rx_sync: std_logic:= '0';
+  signal uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
+  signal ack_din_c, ack_din_n:     std_logic:= '0';
+  signal uart_dout_c, uart_dout_n: std_logic_vector(7 downto 0):= (others => '0');
+  signal stb_dout_c, stb_dout_n:   std_logic:= '0';
+  signal uart_din, uart_dout:      std_logic_vector(7 downto 0):= (others => '0');
+  signal stb_din, stb_dout:        std_logic:= '0';
+  signal ack_din, ack_dout:        std_logic:= '0';
+  signal tx_uart, rx_uart,rx_sync: std_logic:= '0';
 
   ---- Timer
-  signal  gpt0_ctr_r_we:     std_logic := '0';               
-  signal  gpt0_ctr_r:        std_logic_vector(15 downto 0) := (others =>'0');
-  signal  gpt0_irq_comp1:    std_logic;                    
-  signal  gpt0_q_internal:   std_logic;                    
-  signal  gpt0_nq_internal:  std_logic;
+  signal gpt0_ctr_r_we:     std_logic := '0';               
+  signal gpt0_ctr_r:        std_logic_vector(15 downto 0) := (others =>'0');
+  signal gpt0_irq_comp1:    std_logic;                    
+  signal gpt0_q_internal:   std_logic;                    
+  signal gpt0_nq_internal:  std_logic;
 
   ---- PS/2
-  signal  ps2_ack:        std_logic := '0';  -- acknowledge read
-  signal  ps2_stb:        std_logic := '0';  -- signal ready to be read
-  signal  ps2_scanCode:   std_logic_vector(7 downto 0); -- actual data we want
-  signal  ps2_scanError:  std_logic := '0';   -- an error has occured, woops.
+  signal ps2_ack:       std_logic := '0';  -- acknowledge read
+  signal ps2_stb:       std_logic := '0';  -- signal ready to be read
+  signal ps2_scanCode:  std_logic_vector(7 downto 0); -- actual data we want
+  signal ps2_scanError: std_logic := '0';   -- an error has occured, woops.
 begin
 ------- Output assignments (Not in a process) ---------------------------------
   rst   <=  '0';
@@ -151,16 +152,16 @@ begin
   )
   port map(
 -- synthesis translate_off
-    debug_pc => debug_pc,
-    debug_insn => debug_insn,
-    debug_mem_dwe => debug_mem_dwe,
-    debug_mem_din => debug_mem_din,
-    debug_mem_dout => debug_mem_dout,
+    debug_pc        => debug_pc,
+    debug_insn      => debug_insn,
+    debug_mem_dwe   => debug_mem_dwe,
+    debug_mem_din   => debug_mem_din,
+    debug_mem_dout  => debug_mem_dout,
     debug_mem_daddr => debug_mem_daddr,
 -- synthesis translate_on
 
-    clk       => clk,
-    rst       => rst,
+    clk => clk,
+    rst => rst,
 
     cpu_wr    => cpu_io_wr,
     cpu_re    => cpu_io_re,
@@ -355,7 +356,7 @@ begin
 
   u_uart: entity work.uart 
   generic map(
-    baud_rate => baud_rate,
+    baud_rate => uart_baud_rate,
     clock_frequency => clock_frequency
   )
   port map(
