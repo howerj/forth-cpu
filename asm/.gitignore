@@ -4,3 +4,5 @@ out
 mem_h2.dis
 *.dis
 *.log
+*.sym
+*.symbol

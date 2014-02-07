@@ -20,8 +20,6 @@
 #    %if %elsif %else %endif
 #     don't forget to handle file inclusion as well!
 #    %ifdef %ifndef
-#    %include
-#   isr instructions
 #   section to load program into, which if
 #     > interrupt jmp table end is a fail
 #     = interrupt jmp table end is normal
@@ -50,7 +48,8 @@ use strict;
 my $maxmem = 8192;        # maximum memory of h2 cpu
 my $entryp = 4;           # offset into memory to put program into
 my $inputfile   = "cpu.asm";            # input file name
-my $tmpfile     = "asm.partial";        # partially processed file
+my $tmpfile     = "partial";            # partially processed file suffix
+my $symfile     = "sym";                # symbol file
 my $outputfile  = "mem_h2.hexadecimal"; # final assembled file
 my $verbosity = 0;        # how verbose should we be?
 my $outputbase = 16;      # output base of assembled file, 2 or 16
@@ -62,7 +61,8 @@ my %macros;               # all our macro definitions
 my %variables;            # compile time variables
 my $ifcount = 0;          # number of nested ifs
 my @filestack;            # input file stack, for %include directive
-
+my $keeptempfiles = 0;    # !0 == true, keep temporary files
+my $dumpsymbols = 0;      # !0 == true, dump all symbols
 
 my $linecount = 0;        # current line count
 my $alu = 0;              # for enumerating all alu values.
@@ -149,6 +149,8 @@ Assembler for the \"H2\" CPU architecture.
   -x, output file in base 16 (hexadecimal).
   -b, output file in base 2  (binary).
   -v, increase verbosity level.
+  -s, keep all temporary files
+  -d, dump table of jump locations
 
 Author:
   Richard James Howe
@@ -178,6 +180,10 @@ sub getopts(){
           $outputbase = 2;
         }elsif($char eq 'v'){ # increase the verbosity, increase it!
           $verbosity++;
+        }elsif($char eq 's'){ # keep temporary files
+          $keeptempfiles = 1;
+        }elsif($char eq 'd'){ # dump symbols
+          $dumpsymbols = 1;
         }else{
           die "$char is not a valid option";
         }
@@ -188,13 +194,13 @@ sub getopts(){
 &getopts();
 
 print $intro;
-print "Memory available:\t$maxmem\n"      if $verbosity > 1;
-print "Prog entry point:\t$entryp\n"      if $verbosity > 0;
-print "Input file name :\t$inputfile\n"   ;# if $verbosity > 0;
-print "Temporary file  :\t$tmpfile\n"     if $verbosity > 1;
-print "Output file name:\t$outputfile\n"  ;#if $verbosity > 0;
-print "Verbosity level :\t$verbosity\n"   if $verbosity > 2;
-print "Output base     :\t$outputbase\n"  ;#if $verbosity > 0;
+print "Memory available:\t$maxmem\n"                 if $verbosity > 1;
+print "Prog entry point:\t$entryp\n"                 if $verbosity > 0;
+print "Input file name :\t$inputfile\n";            #if $verbosity > 0;
+print "Temporary file  :\t$inputfile.$tmpfile\n"     if $verbosity > 1;
+print "Output file name:\t$outputfile\n";           #if $verbosity > 0;
+print "Verbosity level :\t$verbosity\n"              if $verbosity > 2;
+print "Output base     :\t$outputbase\n";           #if $verbosity > 0;
 
 ###############################################################################
 
@@ -399,9 +405,9 @@ sub inc_by_for_number($){
 #### First Pass ###############################################################
 # Get all labels
 print "First pass:\n";
-open TMPOUT,">", $tmpfile or die "unable to open $tmpfile for writing.\n";
+open TMPOUT,">", "$inputfile.$tmpfile" or die "open $tmpfile $!\n";
 $linecount = 1;
-open my $INPUT, "<", $inputfile or die "unable to open $inputfile for reading.\n";
+open my $INPUT, "<", $inputfile or die "open $inputfile: $!\n";
 reprocess:
 while(<$INPUT>){
   chomp;
@@ -531,9 +537,9 @@ print "Complete.\n";
 #### Second Pass ##############################################################
 #
 print "Second pass:\n";
-open INPUT, "<", $tmpfile or die "unable to open tmp.out for reading.\n";
+open INPUT2, "<", "$inputfile.$tmpfile" or die "open $!\n";
 
-while(<INPUT>){
+while(<INPUT2>){
   chomp;
   my @tokens = &splitline($_);
   while (my $token = shift @tokens){
@@ -594,9 +600,21 @@ for(my $i = 0; $i < $max_irqs; $i++){
   print "isr $irqnames[$i] = $mem[$i]\n";
 }
 
-close INPUT;
+close INPUT2;
 print "Complete.\n";
 ###############################################################################
+
+#### Some options #############################################################
+unlink "$inputfile.$tmpfile" if not $keeptempfiles;
+
+if($dumpsymbols){
+  open SYMFILE, ">", "$inputfile.$symfile" or die "open $!\n";
+  print SYMFILE "pc $pc\n";
+  print SYMFILE "$_ $labels{$_}\n" for (keys %labels);
+  close SYMFILE;
+}
+###############################################################################
+
 
 #### Write output file ########################################################
 open OUTPUT, ">", $outputfile or die "unabled to open output\n";
