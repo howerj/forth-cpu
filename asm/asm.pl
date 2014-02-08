@@ -2,19 +2,6 @@
 ###############################################################################
 # h2 assembler
 #
-# syntax
-#   # (comment)
-#   keyword
-#   number
-#   label:
-#   branch label
-#
-#   %macro label
-#     ...
-#   %endmacro
-#
-#   macro
-#
 # TODO:
 #   Conditional compilation
 #    %if %elsif %else %endif
