@@ -52,7 +52,6 @@ $vga_cursor "8000 "
 # setup
 begin:
   255
-  1
   load # bug! load should use tos! not nos!
 
 #  1
