@@ -91,7 +91,7 @@ begin
     data_stream_out_stb <= uart_rx_data_out_stb;
     tx                  <= uart_tx_data;
 
-    -- the input clock is 100mhz, this needs to be divided down to the
+    -- the input clock is 100MHz, this needs to be divided down to the
     -- rate dictated by the baud_rate. for example, if 115200 baud is selected
     -- (115200 baud = 115200 bps - 115.2kbps) a tick must be generated once
     -- every 1/115200

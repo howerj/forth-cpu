@@ -565,9 +565,9 @@ while(<INPUT2>){
         if($type eq "jump"){
           $mem[$pc++] = $labels{$token};
         } elsif($type eq "jumpc"){
-          $mem[$pc++] = $labels{$token} | 1 << 13;
+          $mem[$pc++] = ($labels{$token} | 1 << 13);
         } elsif($type eq "call"){
-          $mem[$pc++] = $labels{$token} | 1 << 14;
+          $mem[$pc++] = ($labels{$token} | 1 << 14);
         } else{
           die "$token should not have matched regex!\n";
         }

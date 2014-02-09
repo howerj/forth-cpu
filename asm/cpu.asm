@@ -10,7 +10,7 @@
 
 #### Variable Addr. ###########################################################
 
-$vga_cursor "8000 "
+$vga_cursor "1024 "
 
 ###############################################################################
 
@@ -56,27 +56,21 @@ $vga_cursor "8000 "
 #### program entry point ######################################################
 setup
 begin:
-  255
-  memload
+  # increment cursor variable
+  call loadcursor
+  1 add
+  vga_cursor store
 
-  1
-  add
+  # load in cursor, output to actual VGA cursor
+  call loadcursor
+  o_vgaCursor store
 
-  255
-  store
-
-  255
-  memload
-  o_vgaCursor
-  store
-
-  255
-  memload
+  # load in cursor, output as new character
+  call loadcursor
   o_vgaTxtDin
   store
 
-  255
-  memload
+  call loadcursor
   o_vgaTxtAddr
   store
   
@@ -87,6 +81,11 @@ begin:
 jump begin
 
 ###############################################################################
+
+loadcursor:
+  vga_cursor
+  memload
+  exit
 
 #### interrupt service routines ###############################################
 isr isr_clock

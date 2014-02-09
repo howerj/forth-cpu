@@ -177,6 +177,7 @@ bitfile:
 	@rmdir _xmsgs
 	@sleep 5
 	@mv top_level.drc top_level_bitgen.xwbt top_level_usage.xml top_level_summary.xml webtalk.log tmp
+	@grep -i '\(warning\|clock period\)' reports/xst.log
 
 upload:
 	djtgcfg prog -d Nexys3 -i 0 -f design.bit

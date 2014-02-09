@@ -31,11 +31,11 @@ sub disassemble($){
   
   if($code & 0x8000){
     $dis = "literal\t" . ($code & 0x7FFF);
-  } elsif($code & 0x6000){
+  } elsif(($code & 0x6000) == 0x6000){
     $dis = "alu\t" . ($code & 0x3FFF);
-  } elsif($code & 0x4000){
+  } elsif(($code & 0x4000) == 0x4000){
     $dis = "call\t" . ($code & 0x3FFF);
-  } elsif($code & 0x2000){
+  } elsif(($code & 0x2000) == 0x2000){
     $dis = "jumpc\t". ($code & 0x3FFF);
   } else {
     $dis = "jump\t". ($code & 0x3FFF);

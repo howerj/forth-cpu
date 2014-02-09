@@ -16,6 +16,8 @@ Assembler for the H2 CPU architecture.
   -x, output file in base 16 (hexadecimal).
   -b, output file in base 2  (binary).
   -v, increase verbosity level.
+  -s, keep all temporary files
+  -d, dump table to jump locations
 
 * Author:
  - Richard James Howe
@@ -94,7 +96,6 @@ into the actual output.
     Ends a macro.
 
   * %include
-  (not implemented yet)
   
   Includes another file for processing.
 
@@ -105,6 +106,16 @@ into the actual output.
   * var
     
     Either a macro or a value. 
+
+  * allocate number/var
+  
+    (not implemented yet)
+  
+    Reserve an amount of space in memory
+
+  * isr number/var
+
+  Begin an interrupt service routine, a variable or a number can be used.
 
 ### H2 CPU overview
 
