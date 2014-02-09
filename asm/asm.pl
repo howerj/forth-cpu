@@ -236,6 +236,7 @@ sub s_rload     {&printalu("R","T->N","T->R","d+1")};
 sub s_load      {&printalu("[T]")};
 sub s_store     {&printalu("N","d-2","N->[T]")};
 #sub s_store     {&printalu("N","d-1","N->[T]")};
+#sub s_store     {&printalu("N","d+0","N->[T]")};
 sub s_multiply  {&printalu("L(T)*L(N)","d-1")};
 sub s_depth     {&printalu("depth","T->N","d+1")};
 sub s_togglei   {&printalu("togglei")};

@@ -44,6 +44,11 @@ $vga_cursor "8000 "
   load
 %endmacro
 
+%macro memload
+  0
+  load
+%endmacro
+
 ###############################################################################
 
 
@@ -52,26 +57,30 @@ $vga_cursor "8000 "
 setup
 begin:
   255
-  load 
+  memload
 
   1
   add
 
   255
-  swap
   store
 
   255
-  load
-
-  o_vgaTxtAddr
+  memload
+  o_vgaCursor
   store
 
-  101
+  255
+  memload
   o_vgaTxtDin
   store
 
-
+  255
+  memload
+  o_vgaTxtAddr
+  store
+  
+  0
   o_vgaWrite
   store
 

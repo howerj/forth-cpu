@@ -9,6 +9,8 @@
 --! @license        lgpl      
 --! @email          pab850@googlemail.com
 --! @contact        www.bytebash.com
+--!
+--! RJH: Changes made to range to stop Xilinx warnings
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -36,15 +38,17 @@ end uart;
 
 architecture behav of uart is
     
+    constant uart_tx_count_max: positive := 7;
+    constant uart_rx_count_max: positive := 7;
     ----------------------------------------------------------------------------
     -- baud generation
     ----------------------------------------------------------------------------
     constant c_tx_divider_val : integer := clock_frequency / baud_rate;
     constant c_rx_divider_val : integer := clock_frequency / (baud_rate * 16);
 
-    signal baud_counter             :   integer;   
+    signal baud_counter             :   integer range 0 to c_tx_divider_val;   
     signal baud_tick                :   std_logic := '0';
-    signal oversample_baud_counter  :   integer := 0;
+    signal oversample_baud_counter  :   integer range 0 to c_rx_divider_val := 0;
     signal oversample_baud_tick     :   std_logic := '0';
 
     ----------------------------------------------------------------------------
@@ -60,7 +64,7 @@ architecture behav of uart is
     
     signal  uart_tx_data_block  : std_logic_vector(7 downto 0) := (others => '0');
     signal  uart_tx_data        : std_logic := '1';
-    signal  uart_tx_count       : integer   := 0;
+    signal  uart_tx_count       : integer range 0 to uart_tx_count_max := 0;
     signal  uart_rx_data_in_ack : std_logic := '0';
     ----------------------------------------------------------------------------
     -- receiver signals
@@ -76,7 +80,7 @@ architecture behav of uart is
     signal  uart_rx_data_block  : std_logic_vector(7 downto 0) := (others => '0');
     signal  uart_rx_data_vec    : std_logic_vector(1 downto 0) := (others => '0');
     signal  uart_rx_filter      : unsigned(1 downto 0)  := (others => '0');
-    signal  uart_rx_count       : integer   := 0;
+    signal  uart_rx_count       : integer range 0 to uart_rx_count_max  := 0;
     signal  uart_rx_data_out_stb: std_logic := '0';
     signal  uart_rx_bit_spacing : unsigned (3 downto 0) := (others => '0');
     signal  uart_rx_bit_tick    : std_logic := '0';
@@ -142,7 +146,7 @@ begin
                         end if;
                     when transmit_data =>
                         if baud_tick = '1' then
-                            if uart_tx_count < 7 then
+                            if uart_tx_count < uart_tx_count_max then
                                 uart_tx_data    <=
                                     uart_tx_data_block(uart_tx_count);
                                 uart_tx_count   <= uart_tx_count + 1;
@@ -258,7 +262,7 @@ begin
                         end if;
                     when rx_get_data =>
                         if uart_rx_bit_tick = '1' then
-                            if uart_rx_count < 7 then
+                            if uart_rx_count < uart_rx_count_max then
                                 uart_rx_data_block(uart_rx_count)
                                     <= uart_rx_bit;
                                 uart_rx_count   <= uart_rx_count + 1;
