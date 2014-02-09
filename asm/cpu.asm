@@ -24,7 +24,7 @@ $vga_cursor "1024 "
 #  clock_init_val
 #  o_timerCtrl 
 #  store
-  # toggle_interrupts
+#  toggle_interrupts
 
   # Setup VGA
   vga_init_val 
@@ -41,12 +41,15 @@ $vga_cursor "1024 "
 # read from the switches
 %macro read_SWITCHES
   i_switches 
+  0
   load
 %endmacro
 
 %macro memload
   0
   load
+#  swap
+#  drop
 %endmacro
 
 ###############################################################################
@@ -56,6 +59,26 @@ $vga_cursor "1024 "
 #### program entry point ######################################################
 setup
 begin:
+
+ uartwait:
+  i_uartStbDout
+  load
+  jumpc uartwait
+  
+
+  # load in cursor, output as new character
+#  call loadcursor
+#  o_vgaTxtDin
+#  store
+  i_uartRead
+  load
+  o_vgaTxtDin
+  store
+
+  call loadcursor
+  o_vgaTxtAddr
+  store
+
   # increment cursor variable
   call loadcursor
   1 add
@@ -65,15 +88,7 @@ begin:
   call loadcursor
   o_vgaCursor store
 
-  # load in cursor, output as new character
-  call loadcursor
-  o_vgaTxtDin
-  store
-
-  call loadcursor
-  o_vgaTxtAddr
-  store
-  
+ 
   0
   o_vgaWrite
   store
@@ -89,8 +104,8 @@ loadcursor:
 
 #### interrupt service routines ###############################################
 isr isr_clock
-  # read_SWITCHES
-  # write_LED
+#  read_SWITCHES
+#  write_LED
   exit
 isr isr_unused01
   exit
