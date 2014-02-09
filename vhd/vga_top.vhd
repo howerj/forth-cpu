@@ -63,7 +63,6 @@ architecture behav of vga_top is
   signal  B_internal:      std_logic:= '0';
 
   -- Text RAM signals, RAM<-->VGA module
-  signal  text_dwe:        std_logic:= '0';
   signal  text_dout:       std_logic_vector(15 downto 0):=  (others => '0');
   signal  text_din:        std_logic_vector(15 downto 0):=  (others => '0');
   signal  text_addr:       std_logic_vector(11 downto 0):= (others => '0');
@@ -88,24 +87,26 @@ begin
 
   -- Internal control registers
   -- Next state on clk edge rising
-  vga_control_registers_ns: process(clk,rst)
+  vga_ns: process(clk,rst)
   begin
-    if rst='1' then
+    if rst = '1' then
       ocrx_c      <=  (others => '0');
       ocry_c      <=  (others => '0');
       octl_c      <=  (others => '0');
+      din_c       <=  (others => '0'); 
+      addr_c      <=  (others => '0');
     elsif rising_edge(clk) then
       ocrx_c      <=  ocrx_n;
       ocry_c      <=  ocry_n;
       octl_c      <=  octl_n;
       din_c       <=  din_n;
-      addr_c     <=  addr_n;
+      addr_c      <=  addr_n;
     end if;
   end process;
 
   -- Internal control register
   -- We write into the registers here.
-  vga_control_registers_we: process(
+  vga_creg_we: process(
     crx_we,cry_we,ctl_we,
     crx_oreg, cry_oreg, ctl_oreg,
     ocrx_c, ocry_c, octl_c,
@@ -132,11 +133,11 @@ begin
       octl_n <= ctl_oreg;
     end if;
 
-    if vga_a_we = '1' then
+    if vga_d_we = '1' then
       din_n <= vga_din;
     end if;
 
-    if vga_d_we = '1' then
+    if vga_a_we = '1' then
       addr_n <= vga_addr;
     end if;
   end process;

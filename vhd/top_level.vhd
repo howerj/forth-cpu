@@ -196,7 +196,7 @@ begin
 
    io_nextState: process(clk,rst)
    begin
-     if rst='1' then
+     if rst = '1' then
        -- LEDs/Switches
        an_c        <=  (others => '0');
        ka_c        <=  (others => '0');

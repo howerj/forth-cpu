@@ -137,10 +137,10 @@ begin
 
     -- I/O assignments
     pco                 <=  pc_n;
-    dout                <=  tos_c(15 downto 0); -- nos?
-    daddr               <=  tos_n(12 downto 0);
+    dout                <=  nos; -- tos_c(15 downto 0); -- nos?
+    daddr               <=  tos_c(12 downto 0); -- tos_n(12 downto 0);
     dwe                 <=  insn(5) when is_instr_alu = '1' 
-                            and tos_n(14 downto 13) /= "11" else '0';
+                            and tos_c(14 downto 13) /= "11" else '0';
 
 
     -- io_wr are handled in the ALU, 
