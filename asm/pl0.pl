@@ -42,14 +42,6 @@ foreach(@tokens){print $_,"\n"}
 
 ###############################################################################
 
-
-#typedef enum {ident, number, lparen, rparen, times, slash, plus,
-#    minus, eql, neq, lss, leq, gtr, geq, callsym, beginsym, semicolon,
-#    endsym, ifsym, whilesym, becomes, thensym, dosym, constsym, comma,
-#    varsym, procsym, period, oddsym} Symbol;
-# 
-#Symbol sym;
-
 #### Parser ###################################################################
 my $sym;
 

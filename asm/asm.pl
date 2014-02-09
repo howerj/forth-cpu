@@ -377,9 +377,9 @@ sub inc_by_for_number($){
   my $number = $_[0];
   my $incby = 0;
   if($number < 2**15){
-    $incby++;
+    $incby=1;
   } elsif($number >= 2**15 and $number < 2**16){
-    $incby+=2;
+    $incby=2;
   } else {
     die "number \"$number\" to large to handle\n";
   }
@@ -399,7 +399,8 @@ reprocess:
 while(<$INPUT>){
   chomp;
   my @tokens = &splitline($_);
-  while (my $token = shift @tokens){
+  my $token;
+  while (defined ($token = shift @tokens)){ # be care, token can equal zero!
     if (exists $keywords{$token}){
       print TMPOUT "$token\n";
       $pc++;
@@ -529,7 +530,8 @@ open INPUT2, "<", "$inputfile.$tmpfile" or die "open $!\n";
 while(<INPUT2>){
   chomp;
   my @tokens = &splitline($_);
-  while (my $token = shift @tokens){
+  my $token;
+  while (defined ($token = shift @tokens)){
     if (exists $keywords{$token}){
       print "\t\t$token\n";
       my $func = $keywords{$token};

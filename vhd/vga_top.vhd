@@ -21,9 +21,9 @@ entity vga_top is
     vga_we_ram: in std_logic; -- Write enable RAM
     vga_a_we:   in  std_logic; -- Write enable address
     vga_d_we:   in  std_logic; -- Write enable data
-    vga_dout:   out std_logic_vector(7 downto 0):= (others => '0');
-    vga_din:    in  std_logic_vector(7 downto 0);
-    vga_addr:   in  std_logic_vector(11 downto 0);
+    vga_dout:   out std_logic_vector(15 downto 0):= (others => '0');
+    vga_din:    in  std_logic_vector(15 downto 0);
+    vga_addr:   in  std_logic_vector(12 downto 0);
 
     -- VGA Font inteface
     vga_font_dout:   out std_logic_vector(7 downto 0):= (others => '0');
@@ -34,7 +34,7 @@ entity vga_top is
     cry_we:   in  std_logic; -- ... 
     crx_oreg: in  std_logic_vector(6 downto 0); -- Cursor position X
     cry_oreg: in  std_logic_vector(5 downto 0); -- Cursor position Y
-    ctl_oreg: in  std_logic_vector(6 downto 0); -- Control register
+    ctl_oreg: in  std_logic_vector(7 downto 0); -- Control register
 
     -- VGA output signals
     red:      out std_logic_vector(2 downto 0) := (others => '0'); 
@@ -47,8 +47,8 @@ end;
 
 architecture behav of vga_top is
   -- Setup for text buffer memory
-  constant text_addr_bitlen: positive := 12;
-  constant text_data_bitlen: positive := 8;
+  constant text_addr_bitlen: positive := 13;
+  constant text_data_bitlen: positive := 16;
   constant text_filename:    string   := "mem_text.binary";
   constant text_filetype:    string   := "bin"; -- binary
   -- Setup for font buffer memory
@@ -64,9 +64,10 @@ architecture behav of vga_top is
 
   -- Text RAM signals, RAM<-->VGA module
   signal  text_dwe:        std_logic:= '0';
-  signal  text_dout:       std_logic_vector(7 downto 0):=  (others => '0');
-  signal  text_din:        std_logic_vector(7 downto 0):=  (others => '0');
+  signal  text_dout:       std_logic_vector(15 downto 0):=  (others => '0');
+  signal  text_din:        std_logic_vector(15 downto 0):=  (others => '0');
   signal  text_addr:       std_logic_vector(11 downto 0):= (others => '0');
+  signal  text_addr_full:  std_logic_vector(12 downto 0):= (others => '0');
 
   -- Font ROM signals, ROM<-->VGA module
   signal  font_addr:       std_logic_vector(11 downto 0):= (others => '0');
@@ -75,10 +76,10 @@ architecture behav of vga_top is
   -- Internal control registers
   signal  ocrx_c, ocrx_n:  std_logic_vector(6 downto 0):=  (others => '0');
   signal  ocry_c, ocry_n:  std_logic_vector(5 downto 0):=  (others => '0');
-  signal  octl_c, octl_n:  std_logic_vector(6 downto 0):=  (others => '0');
+  signal  octl_c, octl_n:  std_logic_vector(7 downto 0):=  (others => '0');
   -- Internal registers for buffering write operation to RAM memory
-  signal  din_c, din_n:  std_logic_vector(7 downto 0):=  (others => '0');
-  signal  addr_c, addr_n:  std_logic_vector(11 downto 0):=  (others => '0');
+  signal  din_c, din_n:    std_logic_vector(15 downto 0):=  (others => '0');
+  signal  addr_c, addr_n:  std_logic_vector(12 downto 0):=  (others => '0');
 begin
   -- Output assignments, syncs elsewhere
   red   <=  R_internal & R_internal & R_internal;
@@ -145,15 +146,15 @@ begin
     reset     => rst,
     clk25MHz  => clk25MHz,
 
-    text_a    => text_addr,
-    text_d    => text_dout,
+    text_a    => text_addr, 
+    text_d    => text_dout(7 downto 0),
 
     font_a    => font_addr,
     font_d    => font_dout,
 
     ocrx    => ocrx_c,
     ocry    => ocry_c,
-    octl    => octl_c,
+    octl    => octl_c(6 downto 0),
 
     R       => R_internal,
     G       => G_internal,
@@ -163,6 +164,7 @@ begin
   );
 
 
+  text_addr_full <= octl_c(7) & text_addr;
   --! @brief This RAM module holds the text we want to
   --!  display on to the monitor. The text buffer
   --!  holds at least 80*40 characters.
@@ -183,7 +185,7 @@ begin
     -- Internal interface 
     b_clk  => clk25MHz,
     b_dwe  => '0',
-    b_addr => text_addr,
+    b_addr => text_addr_full,
     b_din  => (others => '0'),
     b_dout => text_dout
   );

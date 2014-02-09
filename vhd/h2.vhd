@@ -124,7 +124,8 @@ begin
     irq_n <= '1' when irq = '1' else '0';
     irc_n <= irc when irq = '1' else (others => '0');
 
-    comp_more_signed    <= '1' when signed(tos_c(15 downto 0)) > signed(nos) else '0';
+    comp_more_signed    <= '1' when signed(tos_c(15 downto 0)) > signed(nos) 
+                           else '0';
     comp_more           <= '1' when tos_c(15 downto 0) > nos else '0';
     comp_equal          <= '1' when tos_c(15 downto 0) = nos else '0';
     comp_negative       <= tos_c(15);
@@ -138,7 +139,8 @@ begin
     pco                 <=  pc_n;
     dout                <=  nos;
     daddr               <=  tos_c(12 downto 0);
-    dwe                 <=  insn(5) when is_instr_alu = '1' and tos_c(14 downto 13) /= "11" else '0';
+    dwe                 <=  insn(5) when is_instr_alu = '1' 
+                            and tos_c(14 downto 13) /= "11" else '0';
 
 
     -- io_wr are handled in the ALU, 
@@ -146,7 +148,8 @@ begin
     --  run out of instruction bits to use.
     io_dout             <=  nos;
     io_daddr            <=  tos_c(15 downto 0);
-    io_wr               <=  insn(5) when is_instr_alu = '1' and tos_c(14 downto 13) = "11" else '0';
+    io_wr               <=  insn(5) when is_instr_alu = '1' 
+                            and tos_c(14 downto 13) = "11" else '0';
 
     -- misc
     pc_plus_one         <=  std_logic_vector(unsigned(pc_c) + 1);
@@ -253,15 +256,19 @@ begin
                 when "10011" => tos_n  <=  (0 => comp_equal, others => '0');
                 when "10100" => tos_n  <=  (0 => comp_negative, others => '0');
                 when "10101" => tos_n  <=  (0 => comp_zero, others => '0');
-                when "10110" => tos_n  <=  tos_c(16) & tos_c(7 downto 0) & tos_c(15 downto 8);
+                when "10110" => tos_n  <=  
+                  tos_c(16) & tos_c(7 downto 0) & tos_c(15 downto 8);
                 when "10111" => int_en_n <= int_en_c xor '1'; -- toggle interrupts
                 when "11000" => tos_n  <=  std_logic_vector(unsigned(tos_c)-1); 
                 when "11001" => tos_n  <=  (others => '0'); -- clear all
                 when "11010" => tos_n(16) <= tos_c(0); -- carry flag, set
                 when "11011" => 
-                                tos_n(7 downto 0) <= "0" & tos_c(16) & int_en_c & comp_more_signed & comp_more & comp_equal & comp_negative & comp_zero; -- depth of stacks 
-                                tos_n(15 downto 8) <= (others => '0');
-                                tos_n(16) <= tos_c(16);
+                   tos_n(7 downto 0) <= "0" & tos_c(16) & int_en_c 
+                   & comp_more_signed & comp_more & comp_equal & 
+                   comp_negative & comp_zero; -- depth of stacks 
+
+                   tos_n(15 downto 8) <= (others => '0');
+                   tos_n(16) <= tos_c(16);
                 when "11100" => dptr_n <= tos_c(15 downto 0);
                 when "11101" => 
                 when "11110" => 

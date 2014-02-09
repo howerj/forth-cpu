@@ -4,6 +4,11 @@
 --!  It presents an interface between the CPU,
 --!  RAM, and all the I/O modules.
 --!
+--!  TODO:
+--!   * expand funcionality (colors, etc)
+--!   * switch between different sections of memory with addr bit
+--!   * integrate VGA memory with CPU core
+--!
 --! @author     Richard James Howe.
 --! @copyright  Copyright 2013 Richard James Howe.
 --! @license    LGPL    
@@ -102,13 +107,13 @@ architecture behav of top_level is
 
   signal crx: std_logic_vector(6 downto 0):=  (others => '0');
   signal cry: std_logic_vector(5 downto 0):=  (others => '0');
-  signal ctl: std_logic_vector(6 downto 0):=  (others => '0');
+  signal ctl: std_logic_vector(7 downto 0):=  (others => '0');
   signal vga_we_ram: std_logic :=  '0';
   signal vga_a_we:   std_logic :=  '0';
   signal vga_d_we:   std_logic :=  '0';
-  signal vga_addr:   std_logic_vector(11 downto 0):= (others => '0');
-  signal vga_dout:   std_logic_vector(7 downto 0) := (others => '0');
-  signal vga_din:    std_logic_vector(7 downto 0) := (others => '0');
+  signal vga_addr:   std_logic_vector(12 downto 0):= (others => '0');
+  signal vga_dout:   std_logic_vector(15 downto 0) := (others => '0');
+  signal vga_din:    std_logic_vector(15 downto 0) := (others => '0');
 
   ---- UART
   signal uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
@@ -293,13 +298,13 @@ begin
           cry <= cpu_io_dout(13 downto 8);
         when "00011" => -- VGA, control register.
           ctl_we <= '1';
-          ctl <= cpu_io_dout(6 downto 0);
+          ctl <= cpu_io_dout(7 downto 0);
         when "00100" => -- VGA update address register.
           vga_a_we <= '1';
-          vga_addr <= cpu_io_dout(11 downto 0);
+          vga_addr <= cpu_io_dout(12 downto 0);
         when "00101" => -- VGA, update register.
           vga_d_we <= '1';
-          vga_din <= cpu_io_dout(7 downto 0);
+          vga_din <= cpu_io_dout(15 downto 0);
         when "00110" => -- VGA write RAM write
           vga_we_ram <= '1';
         when "00111" => -- UART write output.
@@ -327,7 +332,7 @@ begin
         when "0001" => 
                 cpu_io_din <= X"00" & sw;
         when "0010" => -- VGA, Read VGA text buffer.
-                cpu_io_din <= X"00" & vga_dout;
+                cpu_io_din <= vga_dout;
         when "0011" => -- UART get input.
                 cpu_io_din <= X"00" & uart_dout_c;
         when "0100" => -- UART acknowledged input.

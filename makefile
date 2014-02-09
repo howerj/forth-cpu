@@ -24,5 +24,4 @@ _doxygen:
 
 clean:
 	@rm -rf doc/doxy/
-	@make -C fth/ clean
 	@make -C vhd/ clean

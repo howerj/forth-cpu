@@ -8,7 +8,15 @@
 # include system varables
 %include sys.inc
 
+#### Variable Addr. ###########################################################
+
+$vga_cursor "8000 "
+
+###############################################################################
+
 #### System Macros ############################################################
+
+
 
 # setup routines go here
 %macro setup
@@ -38,57 +46,26 @@
 
 ###############################################################################
 
-#### Variable Addr. ###########################################################
-
-$vga_cursor "8000 "
-
-###############################################################################
 
 
 #### program entry point ######################################################
-setup
+# setup
 begin:
-
-  # wait for UART input
-  uartwait:
-  i_uartStbDout
-  load
-  jumpc uartwait
-  
-
-  # duplicate UART input, write back to UART also
-  i_uartRead 
-  load 
-#  i_ps2Read
-#  or
-#  dup
+  255
   1
-  o_uartWrite
-  store
-  1
-  o_uartStbWrite
-  store
-  1
-  o_vgaTxtDin 
-  store
+  load # bug! load should use tos! not nos!
 
-  # increment vga cursor
-#  vga_cursor 
-#  load
-#  1 
-#  add 
-#  dup 
-#  dup
-#  vga_cursor 
-#  store
-#  o_vgaCursor 
-#  store
-#  o_vgaTxtAddr 
-#  store
-#  1 
-#  o_vgaWrite 
+#  1
+#  add
+#
+#  255
 #  store
 
+#  1
+#  add
+#  
+#  255
+#  store 
 jump begin
 
 ###############################################################################
