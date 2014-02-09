@@ -49,22 +49,32 @@ $vga_cursor "8000 "
 
 
 #### program entry point ######################################################
-# setup
+setup
 begin:
   255
-  load # bug! load should use tos! not nos!
+  load 
 
-#  1
-#  add
-#
-#  255
-#  store
+  1
+  add
 
-#  1
-#  add
-#  
-#  255
-#  store 
+  255
+  swap
+  store
+
+  255
+  load
+
+  o_vgaTxtAddr
+  store
+
+  101
+  o_vgaTxtDin
+  store
+
+
+  o_vgaWrite
+  store
+
 jump begin
 
 ###############################################################################
