@@ -66,14 +66,21 @@ begin:
   jumpc uartwait
   
 
-  # load in cursor, output as new character
-#  call loadcursor
-#  o_vgaTxtDin
-#  store
   i_uartRead
   load
+  dup # new
+
   o_vgaTxtDin
   store
+
+  o_uartWrite #new
+  store
+
+  #new
+  1
+  o_uartStbWrite
+  store
+  #new
 
   call loadcursor
   o_vgaTxtAddr

@@ -398,127 +398,121 @@ print "First pass:\n";
 open TMPOUT,">", "$inputfile.$tmpfile" or die "open $tmpfile $!\n";
 $linecount = 1;
 open my $INPUT, "<", $inputfile or die "open $inputfile: $!\n";
-reprocess:
-while(<$INPUT>){
-  chomp;
-  my @tokens = &splitline($_);
-  my $token;
-  while (defined ($token = shift @tokens)){ # be care, token can equal zero!
-    if (exists $keywords{$token}){
-      print TMPOUT "$token\n";
-      $pc++;
-    } elsif($token =~ /^\d+$/){ # print literal, special case
-      print TMPOUT "$token\n";
-      $pc += &inc_by_for_number($token);
-    } elsif($token eq "isr"){
-      # print out for second pass
-      print TMPOUT "$token ";
-      my $token = shift @tokens; 
 
-      if ($token =~ /^\d+$/){
+for(
+  push @filestack,$INPUT; 
+  0 <= $#filestack; 
+  close $INPUT, $INPUT = pop @filestack
+){
+  while(<$INPUT>){
+    chomp;
+    my @tokens = &splitline($_);
+    my $token;
+    while (defined ($token = shift @tokens)){ # be care, token can equal zero!
+      if (exists $keywords{$token}){
         print TMPOUT "$token\n";
+        $pc++;
+      } elsif($token =~ /^\d+$/){ # print literal, special case
+        print TMPOUT "$token\n";
+        $pc += &inc_by_for_number($token);
+      } elsif($token eq "isr"){
+        # print out for second pass
+        print TMPOUT "$token ";
+        my $token = shift @tokens; 
+
+        if ($token =~ /^\d+$/){
+          print TMPOUT "$token\n";
+        } elsif(exists $variables{ "\$" . $token}){
+          # derefence compile time variable.
+          print TMPOUT $variables{"\$".$token}, "\n";
+        } else{
+          die "invalid token \"$token\" used for isr number";
+        }
+      } elsif($token eq "allocate"){
+        die "allocate is not implement as of yet";
+      } elsif($token =~ /^\$.*$/m){
+        # compile time variables
+        my $expr = join (" ", @tokens);
+        $expr =~ s/\"//g;
+        $variables{$token} = evaluate $expr;
+        last;
+      } elsif($token =~ /^%if(n?def)?$/m){
+        if($token eq "%ifdef"){
+          my $macroname = shift @tokens;
+          if(not exists $macros{$macroname}){
+            my $line = "";
+            while(not $line =~ /%endif|%else/m){
+              $line = <$INPUT>;
+            }
+          }
+        } elsif ($token eq "%ifndef"){
+          my $macroname = shift @tokens;
+          if(exists $macros{$macroname}){
+            my $line = "";
+            while(not $line =~ /%endif|%else/){
+              $line = <$INPUT>;
+            }
+          }
+        }
+      } elsif($token eq "%elsif"){
+        print "$token not implemented yet\n";
+      } elsif($token eq "%else"){
+        my $line = "";
+        while(not $line =~ /%endif/){
+          $line = <$INPUT>;
+        }
+      } elsif($token eq "%endif"){
+        die "$token unexpected, missing %if?\n";
+      } elsif($token eq "%include"){
+        # add another input stream to the stack of
+        # input streams to be processed and switch
+        # to that stream, popping handled elsewhere!
+        $token = shift @tokens;
+        push @filestack, $INPUT;
+        open my $tmp, "<", $token or die "open $token failed:$!\n"; 
+        $INPUT = $tmp;
+      } elsif($token =~ /jumpc?|call/m){
+        print TMPOUT "$token ";
+        $token = shift @tokens;
+        print TMPOUT "$token\n";
+        $pc++;
+      } elsif($token eq "%macro"){ 
+        # macro found, add to dictionary
+        # the macros name is the next token.
+        # adds anything in between %macro and %endmacro
+        my $macroname = shift @tokens;
+        die "macros need names!" if not defined $macroname;
+        my $macro = "";
+        my $line = "";
+        while(not $line =~ /%endmacro/){
+          $line =~ s/#.*$/ /g;
+          $macro = $macro . $line;
+          $line = <$INPUT>;
+        }
+        $macros{$macroname} = $macro;
+      } elsif($token =~ /.*:/){ 
+        print TMPOUT "$token\n";
+        #label found, add to dictionary
+        $token =~ tr/://d; # remove labels ';'
+        $labels{$token} = $pc;
+      } elsif(exists $macros{$token}){
+        my $macrostr = $macros{$token};
+        $macrostr =~ tr{\n}{ };
+        my @tmptokens = reverse &splitline($macrostr);
+        foreach my $token (@tmptokens){
+          unshift @tokens, $token;
+        }
       } elsif(exists $variables{ "\$" . $token}){
         # derefence compile time variable.
         print TMPOUT $variables{"\$".$token}, "\n";
-      } else{
-        die "invalid token \"$token\" used for isr number";
+        $pc += &inc_by_for_number($variables{"\$" . $token});
+      } else {
+        die "\"$token\" is invalid\n";
       }
-    } elsif($token eq "allocate"){
-      die "allocate is not implement as of yet";
-    } elsif($token =~ /^\$.*$/m){
-      # compile time variables
-      my $expr = join (" ", @tokens);
-      $expr =~ s/\"//g;
-      $variables{$token} = evaluate $expr;
-      last;
-    } elsif($token =~ /^%if(n?def)?$/m){
-      if($token eq "%ifdef"){
-        my $macroname = shift @tokens;
-        if(not exists $macros{$macroname}){
-          my $line = "";
-          while(not $line =~ /%endif|%else/m){
-            $line = <$INPUT>;
-          }
-        }
-      } elsif ($token eq "%ifndef"){
-        my $macroname = shift @tokens;
-        if(exists $macros{$macroname}){
-          my $line = "";
-          while(not $line =~ /%endif|%else/){
-            $line = <$INPUT>;
-          }
-        }
-      }
-    } elsif($token eq "%elsif"){
-      print "$token not implemented yet\n";
-    } elsif($token eq "%else"){
-      my $line = "";
-      while(not $line =~ /%endif/){
-        $line = <$INPUT>;
-      }
-    } elsif($token eq "%endif"){
-      die "$token unexpected, missing %if?\n";
-    } elsif($token eq "%include"){
-#     $token = shift @tokens;
-#     open(my $fh, '<', $token) or die "open failed on $token: $!\n";
-#     my $slurp = do { local($/); <$fh> };
-#     close($fh);
-#
-#     $slurp =~ tr{\n}{ };
-#     my @tmptokens = reverse &splitline($slurp);
-#     foreach my $token (@tmptokens){
-#       unshift @tokens, $token;
-#     }
-      $token = shift @tokens;
-      push @filestack, $INPUT;
-      open my $tmp, "<", $token or die "open $token failed:$!\n"; 
-      $INPUT = $tmp;
-    } elsif($token =~ /jumpc?|call/m){
-      print TMPOUT "$token ";
-      $token = shift @tokens;
-      print TMPOUT "$token\n";
-      $pc++;
-    } elsif($token eq "%macro"){ 
-      # macro found, add to dictionary
-      # the macros name is the next token.
-      # adds anything in between %macro and %endmacro
-      my $macroname = shift @tokens;
-      die "macros need names!" if not defined $macroname;
-      my $macro = "";
-      my $line = "";
-      while(not $line =~ /%endmacro/){
-        $line =~ s/#.*$/ /g;
-        $macro = $macro . $line;
-        $line = <$INPUT>;
-      }
-      $macros{$macroname} = $macro;
-    } elsif($token =~ /.*:/){ 
-      print TMPOUT "$token\n";
-      #label found, add to dictionary
-      $token =~ tr/://d; # remove labels ';'
-      $labels{$token} = $pc;
-    } elsif(exists $macros{$token}){
-      my $macrostr = $macros{$token};
-      $macrostr =~ tr{\n}{ };
-      my @tmptokens = reverse &splitline($macrostr);
-      foreach my $token (@tmptokens){
-        unshift @tokens, $token;
-      }
-    } elsif(exists $variables{ "\$" . $token}){
-      # derefence compile time variable.
-      print TMPOUT $variables{"\$".$token}, "\n";
-      $pc += &inc_by_for_number($variables{"\$" . $token});
-    } else {
-      die "\"$token\" is invalid\n";
     }
   }
 }
-# close $INPUT;
 
-if(0 <= $#filestack){
-  $INPUT = pop @filestack; 
-  goto reprocess;
-}
 close TMPOUT;
 print "\t", $pc - $entryp, " instructions found; $pc / $maxmem mem used\n";
 $pc = $entryp;
