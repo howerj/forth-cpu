@@ -87,7 +87,8 @@ simulation: test_bench.o
 ## Simulation ==============================================================
 
 viewer:
-	gtkwave -S gtkwave.tcl -f test_bench.ghw &> /dev/null&
+	gtkwave -f test_bench.ghw; 
+	# gtkwave -S gtkwave.tcl -f test_bench.ghw &> /dev/null&
 
 synthesis:
 	@echo "Synthesis running..."
