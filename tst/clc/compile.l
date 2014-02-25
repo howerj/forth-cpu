@@ -63,6 +63,6 @@ void comment(void)
       return;
     prev = c;
   }
-  error("unterminated comment");
+  yyerror("unterminated comment");
 }
 

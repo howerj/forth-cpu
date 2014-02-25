@@ -1,12 +1,21 @@
 CC=gcc
+CCOPTS=-Wall -Wextra -Wno-write-strings -Wshadow -Wextra 
 
-all: compile
+all: h2
 
-compile: compile.y compile.l h2.c
-	bison -y -d compile.y
+lex.yy.c: compile.h compile.l
 	flex compile.l
-	$(CC) -c y.tab.c lex.yy.c
-	$(CC) y.tab.o lex.yy.o h2.c -o h2
+
+
+y.tab.X: compile.h compile.y
+	bison -y -d compile.y
+
+
+h2: compile.h lex.yy.c y.tab.X h2.c
+	$(CC) $(CCOPTS) -c y.tab.c lex.yy.c
+	$(CC) $(CCOPTS) y.tab.o lex.yy.o h2.c -o h2
+
+
 
 clean:
 	rm -f lex.yy.o y.tab.o
