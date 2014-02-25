@@ -7,7 +7,8 @@ typedef struct {
 
 /* identifiers */
 typedef struct {
-    int i;                      /* subscript to sym array */
+    int i;
+    char *s;
 } idNodeType;
 
 /* operators */
@@ -27,4 +28,5 @@ typedef struct nodeTypeTag {
     };
 } nodeType;
 
-extern int sym[26];
+#define MAX_SYMBOL_SIZE (64u)
+

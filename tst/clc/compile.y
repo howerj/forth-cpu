@@ -2,36 +2,36 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include "compile.h"
 
 /* prototypes */
 nodeType *opr(int oper, int nops, ...);
-nodeType *id(int i);
+nodeType *id(char *s);
 nodeType *con(int value);
 void freeNode(nodeType *p);
 int ex(nodeType *p);
 int yylex(void);
 
 void yyerror(char *s);
-int sym[26];                    /* symbol table */
 %}
 
 %union {
     int iValue;                 /* integer value */
-    char sIndex;                /* symbol table index */
+    char *sSymbol;
     nodeType *nPtr;             /* node pointer */
 };
 
 %token <iValue> INTEGER
-%token <sIndex> VARIABLE
+%token <sSymbol> VARIABLE
 %token WHILE IF PRINT
 %nonassoc IFX
 %nonassoc ELSE
 
 %left GE LE EQ NE '>' '<'
-%left '+' '-'
+%left '+' '-' '&' '|' '^' LS RS
 %left '*' '/'
-%nonassoc UMINUS
+%nonassoc UINVERT
 
 %type <nPtr> stmt expr stmt_list
 
@@ -65,13 +65,18 @@ stmt_list:
 expr:
           INTEGER               { $$ = con($1); }
         | VARIABLE              { $$ = id($1); }
-        | '-' expr %prec UMINUS { $$ = opr(UMINUS, 1, $2); }
+        | '~' expr %prec UINVERT { $$ = opr(UINVERT, 1, $2); }
         | expr '+' expr         { $$ = opr('+', 2, $1, $3); }
         | expr '-' expr         { $$ = opr('-', 2, $1, $3); }
         | expr '*' expr         { $$ = opr('*', 2, $1, $3); }
         | expr '/' expr         { $$ = opr('/', 2, $1, $3); }
+        | expr '&' expr         { $$ = opr('&', 2, $1, $3); }
+        | expr '|' expr         { $$ = opr('|', 2, $1, $3); }
+        | expr '^' expr         { $$ = opr('^', 2, $1, $3); }
         | expr '<' expr         { $$ = opr('<', 2, $1, $3); }
         | expr '>' expr         { $$ = opr('>', 2, $1, $3); }
+        | expr LS expr          { $$ = opr(LS, 2, $1, $3); }
+        | expr RS expr          { $$ = opr(RS, 2, $1, $3); }
         | expr GE expr          { $$ = opr(GE, 2, $1, $3); }
         | expr LE expr          { $$ = opr(LE, 2, $1, $3); }
         | expr NE expr          { $$ = opr(NE, 2, $1, $3); }
@@ -95,7 +100,7 @@ nodeType *con(int value) {
     return p;
 }
 
-nodeType *id(int i) {
+nodeType *id(char *s) {
     nodeType *p;
 
     /* allocate node */
@@ -104,7 +109,8 @@ nodeType *id(int i) {
 
     /* copy information */
     p->type = typeId;
-    p->id.i = i;
+    p->id.s = calloc(strlen(s)+1,sizeof(char));
+    strcpy(p->id.s,s);
 
     return p;
 }

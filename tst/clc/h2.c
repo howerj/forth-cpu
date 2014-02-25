@@ -10,34 +10,34 @@ int ex(nodeType *p) {
     if (!p) return 0;
     switch(p->type) {
     case typeCon:       
-        printf("\tpush\t%d\n", p->con.value); 
+        printf("\t%d\n", p->con.value); 
         break;
     case typeId:        
-        printf("\tpush\t%c\n", p->id.i + 'a'); 
+        printf("\tpush %s\n", p->id.s); 
         break;
     case typeOpr:
         switch(p->opr.oper) {
         case WHILE:
             printf("L%03d:\n", lbl1 = lbl++);
             ex(p->opr.op[0]);
-            printf("\tjz\tL%03d\n", lbl2 = lbl++);
+            printf("\tjumpc\tL%03d\n", lbl2 = lbl++);
             ex(p->opr.op[1]);
-            printf("\tjmp\tL%03d\n", lbl1);
+            printf("\tjump\tL%03d\n", lbl1);
             printf("L%03d:\n", lbl2);
             break;
         case IF:
             ex(p->opr.op[0]);
             if (p->opr.nops > 2) {
                 /* if else */
-                printf("\tjz\tL%03d\n", lbl1 = lbl++);
+                printf("\tjumpc\tL%03d\n", lbl1 = lbl++);
                 ex(p->opr.op[1]);
-                printf("\tjmp\tL%03d\n", lbl2 = lbl++);
+                printf("\tjump\tL%03d\n", lbl2 = lbl++);
                 printf("L%03d:\n", lbl1);
                 ex(p->opr.op[2]);
                 printf("L%03d:\n", lbl2);
             } else {
                 /* if */
-                printf("\tjz\tL%03d\n", lbl1 = lbl++);
+                printf("\tjumpc\tL%03d\n", lbl1 = lbl++);
                 ex(p->opr.op[1]);
                 printf("L%03d:\n", lbl1);
             }
@@ -48,11 +48,11 @@ int ex(nodeType *p) {
             break;
         case '=':       
             ex(p->opr.op[1]);
-            printf("\tpop\t%c\n", p->opr.op[0]->id.i + 'a');
+            printf("\tpop\t%s\n", p->opr.op[0]->id.s);
             break;
-        case UMINUS:    
+        case UINVERT:    
             ex(p->opr.op[0]);
-            printf("\tneg\n");
+            printf("\tinvert\n");
             break;
         default:
             ex(p->opr.op[0]);
@@ -62,6 +62,11 @@ int ex(nodeType *p) {
             case '-':   printf("\tsub\n"); break; 
             case '*':   printf("\tmul\n"); break;
             case '/':   printf("\tdiv\n"); break;
+            case '&':   printf("\tand\n"); break;
+            case '|':   printf("\tor\n"); break;
+            case '^':   printf("\txor\n"); break;
+            case LS:    printf("\tlshift\n"); break;
+            case RS:    printf("\trshift\n"); break;
             case '<':   printf("\tcompLT\n"); break;
             case '>':   printf("\tcompGT\n"); break;
             case GE:    printf("\tcompGE\n"); break;

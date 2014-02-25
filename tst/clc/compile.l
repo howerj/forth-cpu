@@ -3,17 +3,21 @@
 #include "compile.h"
 #include "y.tab.h"
 void yyerror(char *);
+void comment(void);
 %}
 
 %%
+"/*"        { comment(); }
 
-[a-z]       { 
-                yylval.sIndex = *yytext - 'a';
+"//"[^\n]*  { /* consume //-comment */ }
+
+"$"[a-zA-Z]* { 
+                yylval.sSymbol = strdup(yytext);
                 return VARIABLE;
             }
 
-0           {
-                yylval.iValue = atoi(yytext);
+0[0-7]*     { /* octal --and-- zero */
+                yylval.iValue =   strtol(yytext,NULL,8u);
                 return INTEGER;
             }
 
@@ -22,10 +26,17 @@ void yyerror(char *);
                 return INTEGER;
             }
 
-[-()<>=+*/;{}.] {
+0[xX][0-9a-fA-F]* { /* hex */
+                yylval.iValue =   strtol(yytext,NULL,16u);
+                return INTEGER;
+            }
+
+[-()<>=+*/;{}.^&|~] {
                 return *yytext;
              }
 
+"<<"            return LS;
+">>"            return RS;
 ">="            return GE;
 "<="            return LE;
 "=="            return EQ;
@@ -42,3 +53,16 @@ void yyerror(char *);
 int yywrap(void) {
     return 1;
 }
+
+void comment(void)
+{
+  char c, prev = 0;
+  while ((c = input()) != 0) /* (EOF maps to 0) */
+  {
+    if (c == '/' && prev == '*')
+      return;
+    prev = c;
+  }
+  error("unterminated comment");
+}
+
