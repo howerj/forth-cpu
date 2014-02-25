@@ -56,14 +56,17 @@ architecture behav of cpu is
   constant filename:    string   := "mem_h2.hexadecimal";
   constant filetype:    string   := "hex";
   --! memory <-> cpu signals
-  signal  pc:           std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0'); -- Program counter
-  signal  insn:         std_logic_vector(data_bitlen - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
-  signal  mem_dwe:      std_logic:= '0';   -- Read/Write toggle, 0=Read, 1=Write
-  signal  mem_din:      std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
-  signal  mem_dout:     std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
-  signal  mem_daddr:    std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0');
+  signal pc:           std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0'); -- Program counter
+  signal insn:         std_logic_vector(data_bitlen - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
+  signal mem_dwe:      std_logic:= '0';   -- Read/Write toggle, 0=Read, 1=Write
+  signal mem_din:      std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
+  signal mem_dout:     std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
+  signal mem_daddr:    std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0');
 
-  signal  dptr:         std_logic_vector(15 downto 0):= (others => '0');
+  signal dptr:         std_logic_vector(15 downto 0):= (others => '0');
+
+  signal processed_irq: std_logic:= '0';
+  signal processed_irc: std_logic_vector(number_of_interrupts - 1 downto 0):=(others=>'0');
 begin
   -- synthesis translate_off
   debug_pc          <= pc;
@@ -74,11 +77,26 @@ begin
   debug_mem_daddr   <= mem_daddr;
   -- synthesis translate_on
 
+  irqh_instance: entity work.irqh
+  generic map(
+    number_of_interrupts => number_of_interrupts
+             )
+  port map(
+          clk       =>    clk,
+          rst       =>    rst,
+
+          raw_irq   =>    cpu_irq,
+          raw_irc   =>    cpu_irc,
+
+          processed_irq => processed_irq,
+          processed_irc => processed_irc
+  );
+
   -- The actual CPU instance (H2)
   h2_instance: entity work.h2
   generic map(
     number_of_interrupts => number_of_interrupts
-         )
+  )
   port map(
           clk       =>    clk,
           rst       =>    rst,
@@ -90,8 +108,8 @@ begin
           io_dout   =>  cpu_dout,
           io_daddr  =>  cpu_daddr,
 
-          irq       =>  cpu_irq,
-          irc       =>  cpu_irc,
+          irq       =>  processed_irq,
+          irc       =>  processed_irc,
 
           -- Instruction and instruction address to CPU
           pco       =>    pc, 

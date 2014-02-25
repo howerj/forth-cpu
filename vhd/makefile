@@ -16,6 +16,7 @@ SOURCES = \
 	ps2.vhd \
 	vga80x40.vhd \
 	vga_top.vhd \
+	irqh.vhd \
 	h2.vhd \
 	cpu.vhd 
 
@@ -65,11 +66,15 @@ uart.o: uart.vhd
 	@echo "ghdl -a uart.vhd"
 	@ghdl -a uart.vhd
 
+irqh.o: irqh.vhd
+	@echo "ghdl -a irqh.vhd"
+	@ghdl -a irqh.vhd
+
 h2.o: h2.vhd
 	@echo "ghdl -a h2.vhd"
 	@ghdl -a h2.vhd
 
-cpu.o: h2.o util.o cpu.vhd mem_h2.hexadecimal
+cpu.o: h2.o irqh.o util.o cpu.vhd mem_h2.hexadecimal
 	@echo "ghdl -a cpu.vhd"
 	@ghdl -a cpu.vhd
 
