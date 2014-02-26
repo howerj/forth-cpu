@@ -12,8 +12,8 @@ int ex(nodeType *p) {
     case typeCon:       
         printf("\t%d\n", p->con.value); 
         break;
-    case typeId:       
-        printf("\t%s\n", p->id.s);
+    case typeId:        
+        printf("\tpush %s\n", p->id.s);
         break;
     case typeLabel:
         printf("%s\n", p->label.s);
@@ -21,8 +21,11 @@ int ex(nodeType *p) {
     case typeOpr:
         switch(p->opr.oper) {
         case GOTO:
-            printf("\tjump");
+            printf("\tjump\t");
             ex(p->opr.op[0]);
+            break;
+        case RETURN:
+            printf("\texit\n");
             break;
         case WHILE:
             printf("L%03d:\n", lbl1 = lbl++);

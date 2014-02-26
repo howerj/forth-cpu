@@ -28,7 +28,7 @@ void yyerror(char *s);
 %token <iValue> INTEGER
 %token <sSymbol> VARIABLE
 %token <sLabel> LABEL GOTO
-%token WHILE IF PRINT CONTINUE BREAK RETURN
+%token WHILE IF PRINT CONTINUE BREAK RETURN VARDECL
 %nonassoc IFX
 %nonassoc ELSE
 
@@ -46,22 +46,27 @@ program:
         ;
 
 function:
-          function stmt         { ex($2); freeNode($2); }
+          function stmt                                 { ex($2); freeNode($2); }
+        /*function VARIABLE '(' ')' '{' stmt '}'        { ex($6); freeNode($6); }*/
+        /*| declaration                                   { }*/
         | /* NULL */
         ;
 
 stmt:
           ';'                            { $$ = opr(';', 2, NULL, NULL); }
+        | VARDECL VARIABLE ';'           { $$ = opr(VARDECL, 1, id($2));}
         | expr ';'                       { $$ = $1; }
         | PRINT expr ';'                 { $$ = opr(PRINT, 1, $2); }
         | LABEL                          { $$ = label($1); }
-        | GOTO VARIABLE ';'              { $$ = opr(GOTO, 1, id($2));  }
+        | GOTO VARIABLE ';'              { $$ = opr(GOTO, 1, label($2));  }
         | VARIABLE '=' expr ';'          { $$ = opr('=', 2, id($1), $3); }
         | WHILE '(' expr ')' stmt        { $$ = opr(WHILE, 2, $3, $5); }
         | IF '(' expr ')' stmt %prec IFX { $$ = opr(IF, 2, $3, $5); }
         | IF '(' expr ')' stmt ELSE stmt { $$ = opr(IF, 3, $3, $5, $7); }
         | '{' stmt_list '}'              { $$ = $2; }
+        | RETURN ';'                     { $$ = opr(RETURN, 0); }
         ;
+
 
 stmt_list:
           stmt                  { $$ = $1; }

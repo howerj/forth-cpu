@@ -27,6 +27,7 @@ void comment(void);
 "break"         return BREAK;
 "return"        return RETURN;
 "goto"          return GOTO;
+"uint16_t"      return VARDECL; /* variable declaration */
 
 [_a-zA-Z][_0-9a-zA-Z]* { 
                 yylval.sSymbol = strdup(yytext);
