@@ -23,11 +23,19 @@ void comment(void);
 "if"            return IF;
 "else"          return ELSE;
 "print"         return PRINT;
-
+"continue"      return CONTINUE;
+"break"         return BREAK;
+"return"        return RETURN;
+"goto"          return GOTO;
 
 [_a-zA-Z][_0-9a-zA-Z]* { 
                 yylval.sSymbol = strdup(yytext);
                 return VARIABLE;
+             }
+
+[_a-zA-Z][_0-9a-zA-Z]*:? { 
+                yylval.sLabel = strdup(yytext);
+                return LABEL;
              }
 
 0[0-7]*     { /* octal --and-- zero */

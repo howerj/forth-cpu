@@ -9,6 +9,8 @@
 nodeType *opr(int oper, int nops, ...);
 nodeType *id(char *s);
 nodeType *con(int value);
+nodeType *label(char *s);
+
 void freeNode(nodeType *p);
 int ex(nodeType *p);
 int yylex(void);
@@ -18,13 +20,15 @@ void yyerror(char *s);
 
 %union {
     int iValue;                 /* integer value */
-    char *sSymbol;
+    char *sSymbol;              /* symbol name */
+    char *sLabel;               /* label name */
     nodeType *nPtr;             /* node pointer */
 };
 
 %token <iValue> INTEGER
 %token <sSymbol> VARIABLE
-%token WHILE IF PRINT
+%token <sLabel> LABEL GOTO
+%token WHILE IF PRINT CONTINUE BREAK RETURN
 %nonassoc IFX
 %nonassoc ELSE
 
@@ -33,7 +37,7 @@ void yyerror(char *s);
 %left '*' '/'
 %nonassoc UINVERT
 
-%type <nPtr> stmt expr stmt_list
+%type <nPtr> stmt expr stmt_list 
 
 %%
 
@@ -50,6 +54,8 @@ stmt:
           ';'                            { $$ = opr(';', 2, NULL, NULL); }
         | expr ';'                       { $$ = $1; }
         | PRINT expr ';'                 { $$ = opr(PRINT, 1, $2); }
+        | LABEL                          { $$ = label($1); }
+        | GOTO VARIABLE ';'              { $$ = opr(GOTO, 1, id($2));  }
         | VARIABLE '=' expr ';'          { $$ = opr('=', 2, id($1), $3); }
         | WHILE '(' expr ')' stmt        { $$ = opr(WHILE, 2, $3, $5); }
         | IF '(' expr ')' stmt %prec IFX { $$ = opr(IF, 2, $3, $5); }
@@ -115,6 +121,21 @@ nodeType *id(char *s) {
     return p;
 }
 
+nodeType *label(char *s){
+    nodeType *p;
+
+    /* allocate node */
+    if ((p = malloc(sizeof(nodeType))) == NULL)
+        yyerror("out of memory");
+
+    /* copy information */
+    p->type = typeLabel;
+    p->label.s = calloc(strlen(s)+1,sizeof(char));
+    strcpy(p->label.s,s);
+
+    return p;
+}
+
 nodeType *opr(int oper, int nops, ...) {
     va_list ap;
     nodeType *p;
@@ -151,6 +172,7 @@ void freeNode(nodeType *p) {
 
 void yyerror(char *s) {
     fprintf(stdout, "%s\n", s);
+    exit(-1);
 }
 
 int main(void) {

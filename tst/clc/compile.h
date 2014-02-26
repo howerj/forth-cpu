@@ -1,5 +1,5 @@
 #include <stdint.h>
-typedef enum { typeCon, typeId, typeOpr } nodeEnum;
+typedef enum { typeCon, typeId, typeLabel, typeOpr } nodeEnum;
 
 /* constants */
 typedef struct {
@@ -9,9 +9,12 @@ typedef struct {
 /* identifiers */
 typedef struct {
     int i;                      /* identifiers index */
-    uint32_t hash;              /* hash of identifier name */
     char *s;                    /* identifier name */
 } idNodeType;
+
+typedef struct {
+  char *s;                      /* goto label name */
+} labelNodeType;
 
 /* operators */
 typedef struct {
@@ -26,6 +29,7 @@ typedef struct nodeTypeTag {
     union {
         conNodeType con;        /* constants */
         idNodeType id;          /* identifiers */
+        labelNodeType label;    /* labels */
         oprNodeType opr;        /* operators */
     };
 } nodeType;
