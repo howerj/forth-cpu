@@ -13,7 +13,7 @@ int ex(nodeType *p) {
         printf("\t%d\n", p->con.value); 
         break;
     case typeId:        
-        printf("\tpush %s\n", p->id.s); 
+        printf("\tpush %s\n", p->id.s);
         break;
     case typeOpr:
         switch(p->opr.oper) {

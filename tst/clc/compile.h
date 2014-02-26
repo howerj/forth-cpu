@@ -1,3 +1,4 @@
+#include <stdint.h>
 typedef enum { typeCon, typeId, typeOpr } nodeEnum;
 
 /* constants */
@@ -7,15 +8,16 @@ typedef struct {
 
 /* identifiers */
 typedef struct {
-    int i;
-    char *s;
+    int i;                      /* identifiers index */
+    uint32_t hash;              /* hash of identifier name */
+    char *s;                    /* identifier name */
 } idNodeType;
 
 /* operators */
 typedef struct {
     int oper;                   /* operator */
     int nops;                   /* number of operands */
-    struct nodeTypeTag **op;	/* operands */
+    struct nodeTypeTag **op;	  /* operands */
 } oprNodeType;
 
 typedef struct nodeTypeTag {
@@ -29,4 +31,4 @@ typedef struct nodeTypeTag {
 } nodeType;
 
 #define MAX_SYMBOL_SIZE (64u)
-
+#define MAX_MEMORY      (8192u)
