@@ -7,9 +7,8 @@
 
 /* prototypes */
 nodeType *opr(int oper, int nops, ...);
-nodeType *id(char *s);
 nodeType *con(int value);
-nodeType *label(char *s);
+nodeType *symbol(char *s, nodeEnum ne);
 
 void freeNode(nodeType *p);
 int ex(nodeType *p);
@@ -54,12 +53,12 @@ function:
 
 stmt:
           ';'                            { $$ = opr(';', 2, NULL, NULL); }
-        | VARDECL VARIABLE ';'           { $$ = opr(VARDECL, 1, id($2));}
+        | VARDECL VARIABLE ';'           { $$ = opr(VARDECL, 1, symbol($2,typeLabel));}
         | expr ';'                       { $$ = $1; }
         | PRINT expr ';'                 { $$ = opr(PRINT, 1, $2); }
-        | LABEL                          { $$ = label($1); }
-        | GOTO VARIABLE ';'              { $$ = opr(GOTO, 1, label($2));  }
-        | VARIABLE '=' expr ';'          { $$ = opr('=', 2, id($1), $3); }
+        | LABEL                          { $$ = symbol($1,typeLabel); }
+        | GOTO VARIABLE ';'              { $$ = opr(GOTO, 1, symbol($2,typeLabel));  }
+        | VARIABLE '=' expr ';'          { $$ = opr('=', 2, symbol($1,typeId), $3); }
         | WHILE '(' expr ')' stmt        { $$ = opr(WHILE, 2, $3, $5); }
         | IF '(' expr ')' stmt %prec IFX { $$ = opr(IF, 2, $3, $5); }
         | IF '(' expr ')' stmt ELSE stmt { $$ = opr(IF, 3, $3, $5, $7); }
@@ -75,7 +74,7 @@ stmt_list:
 
 expr:
           INTEGER               { $$ = con($1); }
-        | VARIABLE              { $$ = id($1); }
+        | VARIABLE              { $$ = symbol($1,typeId); }
         | '~' expr %prec UINVERT { $$ = opr(UINVERT, 1, $2); }
         | expr '+' expr         { $$ = opr('+', 2, $1, $3); }
         | expr '-' expr         { $$ = opr('-', 2, $1, $3); }
@@ -111,7 +110,7 @@ nodeType *con(int value) {
     return p;
 }
 
-nodeType *id(char *s) {
+nodeType *symbol(char *s, nodeEnum ne) {
     nodeType *p;
 
     /* allocate node */
@@ -119,24 +118,9 @@ nodeType *id(char *s) {
         yyerror("out of memory");
 
     /* copy information */
-    p->type = typeId;
+    p->type = ne;
     p->id.s = calloc(strlen(s)+1,sizeof(char));
     strcpy(p->id.s,s);
-
-    return p;
-}
-
-nodeType *label(char *s){
-    nodeType *p;
-
-    /* allocate node */
-    if ((p = malloc(sizeof(nodeType))) == NULL)
-        yyerror("out of memory");
-
-    /* copy information */
-    p->type = typeLabel;
-    p->label.s = calloc(strlen(s)+1,sizeof(char));
-    strcpy(p->label.s,s);
 
     return p;
 }

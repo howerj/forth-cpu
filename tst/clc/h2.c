@@ -16,12 +16,16 @@ int ex(nodeType *p) {
         printf("\tpush %s\n", p->id.s);
         break;
     case typeLabel:
-        printf("%s\n", p->label.s);
+        printf("%s\n", p->id.s);
         break;
     case typeOpr:
         switch(p->opr.oper) {
         case GOTO:
             printf("\tjump\t");
+            ex(p->opr.op[0]);
+            break;
+        case VARDECL:
+            printf("alloc\t");
             ex(p->opr.op[0]);
             break;
         case RETURN:
