@@ -71,6 +71,11 @@ architecture behav of h2 is
     signal rstkp_c:             std_logic_vector(4 downto 0)  := (others => '0');
     signal rstkp_n:             std_logic_vector(4 downto 0)  := (others => '0');
     signal rstk_ram:            stk := (others => (others => '0'));
+
+    attribute ram_style: string;
+    attribute ram_style of vstk_ram: signal is "distributed";
+    attribute ram_style of rstk_ram: signal is "distributed";
+
     -- Stack deltas
     signal dd:                  std_logic_vector(4 downto 0)  := (others => '0');
     signal rd:                  std_logic_vector(4 downto 0)  := (others => '0');

@@ -121,7 +121,7 @@ synthesis:
 	    echo "-p xc6slx16-csg324-3"; \
 	    echo "-top top_level"; \
 	    echo "-opt_mode speed"; \
-	    echo "-opt_level 1" \
+	    echo "-opt_level 2" \
 	) > tmp/top_level.xst
 
 	@xst -intstyle silent -ifn tmp/top_level.xst -ofn reports/xst.log
