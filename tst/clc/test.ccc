@@ -1,3 +1,13 @@
-hello (){
   c = a+b;
+
+do{
+  a = a + b;
+}while(1)
+
+do{
+  a = a + b;
+}while(1)
+
+for( a  ; a < b ; a + 1 ){
+  b = b - 1;
 }

@@ -19,6 +19,8 @@ void comment(void);
 "<="            return LE;
 "=="            return EQ;
 "!="            return NE;
+"do"            return DO;
+"for"           return FOR;
 "while"         return WHILE;
 "if"            return IF;
 "else"          return ELSE;
@@ -27,7 +29,7 @@ void comment(void);
 "break"         return BREAK;
 "return"        return RETURN;
 "goto"          return GOTO;
-"variable"        return VARDECL; /* variable declaration, needs typedef' */
+"variable"      return VARDECL; /* variable declaration, needs typedef' */
 
 
 [_a-zA-Z][_0-9a-zA-Z]* { 

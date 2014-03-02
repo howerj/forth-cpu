@@ -31,29 +31,45 @@ int ex(nodeType *p) {
         case RETURN:
             printf("\texit\n");
             break;
-        case WHILE:
-            printf("L%03d:\n", lbl1 = lbl++);
+        case DO:
+            printf("L%05d:\n", lbl1 = lbl++);
             ex(p->opr.op[0]);
-            printf("\tjumpc\tL%03d\n", lbl2 = lbl++);
             ex(p->opr.op[1]);
-            printf("\tjump\tL%03d\n", lbl1);
-            printf("L%03d:\n", lbl2);
+            printf("\tjumpc\tL%05d\n",  lbl1);
+            break;
+        case WHILE:
+            printf("L%05d:\n", lbl1 = lbl++);
+            ex(p->opr.op[0]);
+            printf("\tjumpc\tL%05d\n", lbl2 = lbl++);
+            ex(p->opr.op[1]);
+            printf("\tjump\tL%05d\n", lbl1);
+            printf("L%05d:\n", lbl2);
+            break;
+        case FOR:
+            printf("L%05d:\n", lbl1 = lbl++);
+            ex(p->opr.op[0]);
+            ex(p->opr.op[1]);
+            printf("\tjumpc\tL%05d\n", lbl2 = lbl++);
+            ex(p->opr.op[3]);
+            ex(p->opr.op[2]);
+            printf("\tjump\tL%05d\n", lbl1);
+            printf("L%05d:\n", lbl2);
             break;
         case IF:
             ex(p->opr.op[0]);
             if (p->opr.nops > 2) {
                 /* if else */
-                printf("\tjumpc\tL%03d\n", lbl1 = lbl++);
+                printf("\tjumpc\tL%05d\n", lbl1 = lbl++);
                 ex(p->opr.op[1]);
-                printf("\tjump\tL%03d\n", lbl2 = lbl++);
-                printf("L%03d:\n", lbl1);
+                printf("\tjump\tL%05d\n", lbl2 = lbl++);
+                printf("L%05d:\n", lbl1);
                 ex(p->opr.op[2]);
-                printf("L%03d:\n", lbl2);
+                printf("L%05d:\n", lbl2);
             } else {
                 /* if */
-                printf("\tjumpc\tL%03d\n", lbl1 = lbl++);
+                printf("\tjumpc\tL%05d\n", lbl1 = lbl++);
                 ex(p->opr.op[1]);
-                printf("L%03d:\n", lbl1);
+                printf("L%05d:\n", lbl1);
             }
             break;
         case PRINT:     

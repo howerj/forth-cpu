@@ -27,7 +27,7 @@ void yyerror(char *s);
 %token <iValue> INTEGER
 %token <sSymbol> VARIABLE
 %token <sLabel> LABEL GOTO
-%token WHILE IF PRINT CONTINUE BREAK RETURN VARDECL
+%token DO WHILE IF PRINT CONTINUE BREAK RETURN VARDECL FOR
 %nonassoc IFX
 %nonassoc ELSE
 
@@ -60,6 +60,8 @@ stmt:
         | GOTO VARIABLE ';'              { $$ = opr(GOTO, 1, symbol($2,typeLabel));  }
         | VARIABLE '=' expr ';'          { $$ = opr('=', 2, symbol($1,typeId), $3); }
         | WHILE '(' expr ')' stmt        { $$ = opr(WHILE, 2, $3, $5); }
+        | DO stmt WHILE '(' expr ')'     { $$ = opr(DO, 2, $2, $5); }
+        /*| FOR '(' expr ';' expr ';' expr ')' stmt  { $$ = opr(FOR, 4, $3, $5, $7, $9); }  needs fixing ... */
         | IF '(' expr ')' stmt %prec IFX { $$ = opr(IF, 2, $3, $5); }
         | IF '(' expr ')' stmt ELSE stmt { $$ = opr(IF, 3, $3, $5, $7); }
         | '{' stmt_list '}'              { $$ = $2; }
