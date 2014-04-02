@@ -59,31 +59,20 @@ my %cpuconstants = (      # ALU instruction field, 0-31, main field
 "N"         => $alu++ << 8,
 "R"         => $alu++ << 8,
 "[T]"       => $alu++ << 8,
-"depth"     => $alu++ << 8,
+"get_info"  => $alu++ << 8,
+"set_interrupts"  => $alu++ << 8,
 "T|N"       => $alu++ << 8,
 "T&N"       => $alu++ << 8,
 "T^N"       => $alu++ << 8,
-"~(T^N)"    => $alu++ << 8,
 "~T"        => $alu++ << 8,
+"T=0"       => $alu++ << 8,
+"N=T"       => $alu++ << 8,
+"set_dptr"  => $alu++ << 8,
+"get_dptr"  => $alu++ << 8,
 "T+N"       => $alu++ << 8,
 "N-T"       => $alu++ << 8,
-"N<<T"      => $alu++ << 8,
-"N>>T"      => $alu++ << 8,
 "NrolT"     => $alu++ << 8,
 "NrorT"     => $alu++ << 8,
-"L(T)*L(N)" => $alu++ << 8,
-"Nu<T"      => $alu++ << 8,
-"N<T"       => $alu++ << 8,
-"N=T"       => $alu++ << 8,
-"T<0"       => $alu++ << 8,
-"T=0"       => $alu++ << 8,
-"swapbytes" => $alu++ << 8,
-"togglei"   => $alu++ << 8,
-"T-1"       => $alu++ << 8,
-"clr"       => $alu++ << 8,
-"setcarry"  => $alu++ << 8,
-"flags"     => $alu++ << 8,
-"dptr"      => $alu++ << 8,
 
 ## ALU instruction, other bits
 "T->N"   => 1<<7,
@@ -219,30 +208,23 @@ sub s_over      {&printalu("N","T->N","d+1")};
 sub s_invert    {&printalu("~T")};
 sub s_add       {&printalu("T+N","d-1")};
 sub s_sub       {&printalu("N-T","d-1")};
-sub s_dec       {&printalu("T-1")};
 sub s_equal     {&printalu("N=T","d-1")};
+sub s_zequa     {&printalu("0=","d-1")};
 sub s_and       {&printalu("T&N","d-1")};
 sub s_or        {&printalu("T|N","d-1")};
-sub s_xor       {&printalu("T^N","d-1")};
 sub s_swap      {&printalu("N","T->N")};
 sub s_nip       {&printalu("T","d-1")};
 sub s_drop      {&printalu("N","d-1")};
 sub s_exit      {&printalu("T","R->PC","r-1")};
-sub s_rshift    {&printalu("N>>T","d-1")};
-sub s_lshift    {&printalu("N<<T","d-1")};
 sub s_tor       {&printalu("N","T->R","d-1","r+1")};
 sub s_fromr     {&printalu("R","T->N","T->R","d+1","r-1")};
 sub s_rload     {&printalu("R","T->N","T->R","d+1")};
 sub s_load      {&printalu("[T]", "d-1", "T->N")};
-#sub s_load     {&printalu("[T]")};
 sub s_store     {&printalu("N","d-2","N->[T]")};
-#sub s_store     {&printalu("N","d-1","N->[T]")};
-#sub s_store     {&printalu("N","d+0","N->[T]")};
-sub s_multiply  {&printalu("L(T)*L(N)","d-1")};
 sub s_depth     {&printalu("depth","T->N","d+1")};
-sub s_togglei   {&printalu("togglei")};
-sub s_swapbytes {&printalu("swapbytes")};
-sub s_dptr      {&printalu("dptr", "d+1")};
+sub s_set_int   {&printalu("set_interrupts", "T->N", "d-1")};
+sub s_get_dptr  {&printalu("set_dptr", "d+1")};
+sub s_set_dptr  {&printalu("get_dptr", "d+1")};
 
 # associate token keywords with the functions that implement
 # that instruction, aliases indented
@@ -250,13 +232,9 @@ my %keywords = (
   "dup"         => \&s_dup,
   "over"        => \&s_over,
   "invert"      => \&s_invert,
-  "+"           => \&s_add,
-    "add"         => \&s_add,
-  "-"           => \&s_sub,
-    "sub"         => \&s_sub,
-  "1-"          => \&s_dec,
-    "decrement"   => \&s_dec,
-  "equal"       => \&s_equal,
+  "+"         => \&s_add,
+  "-"         => \&s_sub,
+  "="       => \&s_equal,
   "and"         => \&s_and,
   "or"          => \&s_or,
   "xor"         => \&s_xor,
@@ -267,21 +245,14 @@ my %keywords = (
   "rshift"      => \&s_rshift,
   "lshift"      => \&s_lshift,
   ">r"          => \&s_tor,
-    "tor"         => \&s_tor,
   "r>"          => \&s_fromr,
-    "fromr"       => \&s_fromr,
   "r@"          => \&s_rload,
-    "rload"       => \&s_rload,
   "@"           => \&s_load,
-    "load"        => \&s_load,
   "!"           => \&s_store,
-    "store"       => \&s_store,
-  "*"           => \&s_multiply,
-    "multiply"    => \&s_multiply,
   "depth"       => \&s_depth,
-  "toggle_interrupts" => \&s_togglei,
-  "swapbytes"   => \&s_swapbytes,
-  "dptr"        => \&s_dptr
+  "set_interrupts" => \&s_togglei,
+  "set_dptr"        => \&s_set_dptr,
+  "get_dptr"        => \&s_get_dptr
 );
 
 print "Initializing memory.\n";
