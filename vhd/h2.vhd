@@ -252,7 +252,7 @@ begin
         when "01001" =>  
           tos_n <=  not tos_c;
         when "01010" =>  
-          tos_n <=  (0 => comp_zero, others => '0');
+          tos_n <=  (0 => comp_more, others => '0');
         when "01011" => 
           tos_n <=  (0 => comp_equal, others => '0');
         when "01100" =>

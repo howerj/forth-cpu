@@ -13,7 +13,9 @@ NETLIST=top_level
 SOURCES = \
 	util.vhd \
 	uart.vhd \
-	ps2.vhd \
+	debounce.vhd \
+	ps2_keyboard.vhd \
+	ps2_keyboard_to_ascii.vhd \
 	vga80x40.vhd \
 	vga_top.vhd \
 	irqh.vhd \
@@ -58,9 +60,17 @@ vga_top.o: util.o vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
 	@echo "ghdl -a vga_top.vhd"
 	@ghdl -a vga_top.vhd
 
-ps2.o: ps2.vhd
-	@echo "ghdl -a ps2.vhd"
-	@ghdl -a ps2.vhd
+debounce.o: debounce.vhd
+	@echo "ghdl -a debounce.vhd"
+	@ghdl -a debounce.vhd 
+
+ps2_keyboard.o: ps2_keyboard.vhd debounce.o
+	@echo "ghdl -a ps2_keyboard.vhd"
+	@ghdl -a ps2_keyboard.vhd
+
+ps2_keyboard_to_ascii.o: ps2_keyboard_to_ascii.vhd ps2_keyboard.o debounce.o
+	@echo "ghdl -a ps2_keyboard_to_ascii.vhd"
+	@ghdl -a ps2_keyboard_to_ascii.vhd
 
 uart.o: uart.vhd
 	@echo "ghdl -a uart.vhd"
@@ -78,7 +88,7 @@ cpu.o: h2.o irqh.o util.o cpu.vhd mem_h2.hexadecimal
 	@echo "ghdl -a cpu.vhd"
 	@ghdl -a cpu.vhd
 
-top_level.o: util.o cpu.o uart.o vga_top.o ps2.o top_level.vhd
+top_level.o: util.o cpu.o uart.o vga_top.o ps2_keyboard_to_ascii.o top_level.vhd
 	@echo "ghdl -a top_level.vhd"
 	@ghdl -a top_level.vhd
 

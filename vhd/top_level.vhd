@@ -133,10 +133,10 @@ architecture behav of top_level is
   signal gpt0_nq_internal:  std_logic;
 
   ---- PS/2
-  signal ps2_ack:       std_logic := '0';  -- acknowledge read
-  signal ps2_stb:       std_logic := '0';  -- signal ready to be read
-  signal ps2_scanCode:  std_logic_vector(7 downto 0); -- actual data we want
-  signal ps2_scanError: std_logic := '0';   -- an error has occured, woops.
+  signal ascii_new: std_logic := '0';  -- new ASCII char available
+  signal ascii_new_c, ascii_new_n: std_logic := '0';
+  signal ascii_code:  std_logic_vector(6 downto 0); -- ASCII char
+  signal ascii_code_c, ascii_code_n:  std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
 begin
 ------- Output assignments (Not in a process) ---------------------------------
   rst   <=  '0';
@@ -148,8 +148,11 @@ begin
 --  cpu_irq <= debug_irq;
 --  cpu_irc <= debug_irc;
 -- synthesis translate_on
-  cpu_irq    <= gpt0_irq_comp1; -- or sig_1 .. or sig_n
+  cpu_irq    <= gpt0_irq_comp1 or ack_din or stb_dout; -- or sig_1 .. or sig_n
+--  cpu_irc(0) <= rst;
   cpu_irc(1) <= gpt0_irq_comp1;
+  cpu_irc(2) <= ack_din;
+  cpu_irc(3) <= stb_dout;
 
   cpu_instance: entity work.cpu
   generic map(
@@ -205,6 +208,10 @@ begin
        uart_din_c  <=  (others => '0');
        ack_din_c   <=  '0';
        stb_dout_c  <=  '0';
+
+       -- PS/2
+       ascii_code_c <= (others => '0');
+       ascii_new_c  <= '0';
      elsif rising_edge(clk) then
        -- LEDs/Switches
        an_c        <=  an_n;
@@ -215,6 +222,9 @@ begin
        ack_din_c   <=  ack_din_n;
        uart_dout_c <=  uart_dout_n;
        stb_dout_c  <=  stb_dout_n;
+       -- PS/2
+       ascii_code_c <= ascii_code_n;
+       ascii_new_c  <= ascii_new_n;
      end if;
    end process;
 
@@ -226,7 +236,7 @@ begin
     uart_dout_c, 
     uart_dout, stb_dout, ack_din,
     stb_dout, stb_dout_c, vga_dout,
-    ps2_scanError, ps2_scanCode, ps2_stb,
+    ascii_new, ascii_code, ascii_new_c, ascii_code_c,
 
     gpt0_ctr_r_we
   )
@@ -239,7 +249,6 @@ begin
     uart_din <= uart_din_c;
     stb_din  <= '0';
     ack_dout <= '0';
-    ps2_ack  <= '0';
 
     -- Register defaults
     an_n <= an_c;
@@ -265,6 +274,14 @@ begin
     -- General Purpose Timer
     gpt0_ctr_r_we <= '0';
     gpt0_ctr_r <= (others => '0');
+
+    if ascii_new = '1' then
+      ascii_new_n <= '1';
+      ascii_code_n <= ascii_code;
+    else
+      ascii_new_n <= ascii_new_c;
+      ascii_code_n <= ascii_code_c;
+    end if;
 
     if ack_din = '1' then
         ack_din_n <= '1';
@@ -342,10 +359,10 @@ begin
                 cpu_io_din <= (0 => stb_dout_c, others => '0');
                 stb_dout_n <= '0';
         when "0110" => 
-                cpu_io_din <= (0 => ps2_stb, others => '0');
+                cpu_io_din <= (0 => ascii_new_c, others => '0');
         when "0111" => cpu_io_din <= (others => '0');
-                ps2_ack <= '1';
-                cpu_io_din <= "0000000" & ps2_scanError & ps2_scanCode;
+                cpu_io_din <= "000000000" &  ascii_code;
+                ascii_new_n <= '0';
         when "1000" => cpu_io_din <= (others => '0');
         when "1001" => cpu_io_din <= (others => '0');
         when "1010" => cpu_io_din <= (others => '0');
@@ -357,6 +374,16 @@ begin
         when others => cpu_io_din <= (others => '0');
       end case;
     end if;
+  end process;
+
+  --- UART ----------------------------------------------------------
+  uart_deglitch: process (clk)
+  begin
+      if rising_edge(clk) then
+          rx_sync <= rx;
+          rx_uart <= rx_sync;
+          tx <= tx_uart;
+      end if;
   end process;
 
   u_uart: entity work.uart 
@@ -376,16 +403,9 @@ begin
    rx => rx_uart,
    tx => tx_uart
   );
+  --- UART ----------------------------------------------------------
 
-  uart_deglitch: process (clk)
-  begin
-      if rising_edge(clk) then
-          rx_sync <= rx;
-          rx_uart <= rx_sync;
-          tx <= tx_uart;
-      end if;
-  end process;
-
+  --- Timer ---------------------------------------------------------
   gpt0_q <= gpt0_q_internal;
   gpt0_nq <= gpt0_nq_internal;
   gptimer0_module: entity work.gptimer
@@ -401,8 +421,10 @@ begin
     Q         => gpt0_q_internal,
     NQ        => gpt0_nq_internal
   );
+  --- Timer ---------------------------------------------------------
 
 
+  --- VGA -----------------------------------------------------------
   vga_module: entity work.vga_top
   port map(
             clk => clk,
@@ -430,20 +452,24 @@ begin
             hsync => hsync,  
             vsync => vsync 
   );
+  --- VGA -----------------------------------------------------------
 
-  ps2_module: entity work.ps2
+  --- PS/2 ----------------------------------------------------------
+  ps2_module: entity work.ps2_keyboard_to_ascii
+  generic map(
+    clk_freq => clock_frequency,
+    ps2_debounce_counter_size => 9 -- ceil(log_2(clk_freq*desired_debouce_period))
+  )
   port map(
     clk => clk,
-    rst => rst,
 
     ps2_clk => ps2_keyboard_clk,
     ps2_data => ps2_keyboard_data,
-    ack_in => ps2_ack,
 
-    stb_out => ps2_stb,
-    scanCode => ps2_scanCode,
-    scanError => ps2_scanError
+    ascii_new => ascii_new,
+    ascii_code => ascii_code
   );
+  --- PS/2 ----------------------------------------------------------
 
 -------------------------------------------------------------------------------
 end architecture;

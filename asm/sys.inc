@@ -30,8 +30,8 @@ $i_vgaTxtDout   "2 $io_range or"
 $i_uartRead     "3 $io_range or"
 $i_uartAckWrite "4 $io_range or"
 $i_uartStbDout  "5 $io_range or"
-$i_ps2StbDout   "6 $io_range or"
-$i_ps2Read      "7 $io_range or"
+$i_ascii_new    "6 $io_range or"
+$i_ascii_char   "7 $io_range or"
 
 # Interrupt Service Requests
 $isr_reset      "0 "

@@ -16,8 +16,6 @@ $vga_cursor "1024 "
 
 #### System Macros ############################################################
 
-
-
 # setup routines go here
 %macro setup
 # Setup Clock
@@ -49,8 +47,6 @@ $vga_cursor "1024 "
 %macro memload
   0
   @
-#  swap
-#  drop
 %endmacro
 
 ###############################################################################
@@ -61,31 +57,14 @@ $vga_cursor "1024 "
 setup
 begin:
 
- uartwait:
-  i_uartStbDout
-  @
-  jumpc uartwait
-  
+ wait:
+  i_ascii_new  @ jumpc wait
+  i_ascii_char @ dup o_ledS !
 
-  i_uartRead
-  @
-  dup # new
-
-  o_vgaTxtDin
-  !
-
-  o_uartWrite #new
-  !
-
-  #new
-  1
-  o_uartStbWrite
-  !
-  #new
+  o_vgaTxtDin !
 
   call loadcursor
-  o_vgaTxtAddr
-  !
+  o_vgaTxtAddr !
 
   # increment cursor variable
   call loadcursor
@@ -96,9 +75,7 @@ begin:
   call loadcursor
   o_vgaCursor !
 
-  0
-  o_vgaWrite
-  !
+  0 o_vgaWrite !
 
 jump begin
 

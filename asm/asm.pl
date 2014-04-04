@@ -65,12 +65,12 @@ my %cpuconstants = (      # ALU instruction field, 0-31, main field
 "T&N"       => $alu++ << 8,
 "T^N"       => $alu++ << 8,
 "~T"        => $alu++ << 8,
-"T=0"       => $alu++ << 8,
+"T>N"       => $alu++ << 8,
 "N=T"       => $alu++ << 8,
-"set_dptr"  => $alu++ << 8,
-"get_dptr"  => $alu++ << 8,
 "T+N"       => $alu++ << 8,
 "N-T"       => $alu++ << 8,
+"set_dptr"  => $alu++ << 8,
+"get_dptr"  => $alu++ << 8,
 "NrolT"     => $alu++ << 8,
 "NrorT"     => $alu++ << 8,
 
@@ -209,7 +209,7 @@ sub s_invert    {&printalu("~T")};
 sub s_add       {&printalu("T+N","d-1")};
 sub s_sub       {&printalu("N-T","d-1")};
 sub s_equal     {&printalu("N=T","d-1")};
-sub s_zequa     {&printalu("0=","d-1")};
+sub s_more      {&printalu("N>T","d-1")};
 sub s_and       {&printalu("T&N","d-1")};
 sub s_or        {&printalu("T|N","d-1")};
 sub s_swap      {&printalu("N","T->N")};
@@ -232,9 +232,10 @@ my %keywords = (
   "dup"         => \&s_dup,
   "over"        => \&s_over,
   "invert"      => \&s_invert,
-  "+"         => \&s_add,
-  "-"         => \&s_sub,
-  "="       => \&s_equal,
+  "+"           => \&s_add,
+  "-"           => \&s_sub,
+  "="           => \&s_equal,
+  ">"           => \&s_more,
   "and"         => \&s_and,
   "or"          => \&s_or,
   "xor"         => \&s_xor,
