@@ -6,7 +6,7 @@
 #### System includes ##########################################################
 
 # include system varables
-%include sys.inc
+%include sys.old.inc
 
 #### Variable Addr. ###########################################################
 

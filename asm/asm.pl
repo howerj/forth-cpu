@@ -1,25 +1,10 @@
 #!/usr/bin/perl -w
 ###############################################################################
-# h2 assembler
+# H2 assembler
 #
-# TODO:
-#   Conditional compilation
-#    %if %elsif %else %endif
-#     don't forget to handle file inclusion as well!
-#    %ifdef %ifndef
-#   section to load program into, which if
-#     > interrupt jmp table end is a fail
-#     = interrupt jmp table end is normal
-#     < interrupt jmp table end means the interrupt
-#       jump table is not filled in, and the assumption
-#       is made we have a bootloader already in there.
-#   macro parameters
-#   nested if statements
-#   strings?
-#   special variables, %pc
-#   variables and ifdef
-#   commenting the code
-#   add interrupt handling routines
+#   This assembler is *very* basic and is dependant on a C Pre Processor being
+#   present, one should be available on most systems, I am going to be using
+#   GCC's CPP.
 #
 ###############################################################################
 
@@ -34,7 +19,7 @@ use strict;
 
 my $maxmem = 8192;        # maximum memory of h2 cpu
 my $entryp = 4;           # offset into memory to put program into
-my $inputfile   = "cpu.old.asm";        # input file name
+my $inputfile   = "cpu.asm";            # input file name
 my $tmpfile     = "partial";            # partially processed file suffix
 my $symfile     = "sym";                # symbol file
 my $outputfile  = "mem_h2.hexadecimal"; # final assembled file
@@ -266,16 +251,6 @@ $mem[0] = $entryp;
 
 #### Parsing helper functions #################################################
 
-sub splitline($){
-  if($_[0] eq ""){
-    return;
-  }
-  my $line = $_[0];
-  $line =~ s/#.*$//g;
-  my @tokens = split(' ', $line);
-  return @tokens;
-}
-
 # See http://www.perlmonks.org/?node_id=520826
 # by use "eyepopslikeamosquito" 
 # on Jan 05, 2006 at 09:23 UTC
@@ -366,224 +341,21 @@ sub inc_by_for_number($){
 
 #### First Pass ###############################################################
 # Get all labels
-print "First pass:\n";
-open TMPOUT,">", "$inputfile.$tmpfile" or die "open $tmpfile $!\n";
-$linecount = 1;
-open my $INPUT, "<", $inputfile or die "open $inputfile: $!\n";
+###############################################################################
 
-for(
-  push @filestack,$INPUT; 
-  0 <= $#filestack; 
-  close $INPUT, $INPUT = pop @filestack
-){
-  while(<$INPUT>){
-    chomp;
-    my @tokens = &splitline($_);
-    my $token;
-    while (defined ($token = shift @tokens)){ # be care, token can equal zero!
-      if (exists $keywords{$token}){
-        print TMPOUT "$token\n";
-        $pc++;
-      } elsif($token =~ /^\d+$/){ # print literal, special case
-        print TMPOUT "$token\n";
-        $pc += &inc_by_for_number($token);
-      } elsif($token eq "isr"){
-        # print out for second pass
-        print TMPOUT "$token ";
-        my $token = shift @tokens; 
 
-        if ($token =~ /^\d+$/){
-          print TMPOUT "$token\n";
-        } elsif(exists $variables{ "\$" . $token}){
-          # derefence compile time variable.
-          print TMPOUT $variables{"\$".$token}, "\n";
-        } else{
-          die "invalid token \"$token\" used for isr number";
-        }
-      } elsif($token eq "allocate"){
-        die "allocate is not implement as of yet";
-      } elsif($token =~ /^\$.*$/m){
-        # compile time variables
-        my $expr = join (" ", @tokens);
-        $expr =~ s/\"//g;
-        $variables{$token} = evaluate $expr;
-        last;
-      } elsif($token =~ /^%if(n?def)?$/m){
-        if($token eq "%ifdef"){
-          my $macroname = shift @tokens;
-          if(not exists $macros{$macroname}){
-            my $line = "";
-            while(not $line =~ /%endif|%else/m){
-              $line = <$INPUT>;
-            }
-          }
-        } elsif ($token eq "%ifndef"){
-          my $macroname = shift @tokens;
-          if(exists $macros{$macroname}){
-            my $line = "";
-            while(not $line =~ /%endif|%else/){
-              $line = <$INPUT>;
-            }
-          }
-        }
-      } elsif($token eq "%elsif"){
-        print "$token not implemented yet\n";
-      } elsif($token eq "%else"){
-        my $line = "";
-        while(not $line =~ /%endif/){
-          $line = <$INPUT>;
-        }
-      } elsif($token eq "%endif"){
-        die "$token unexpected, missing %if?\n";
-      } elsif($token eq "%include"){
-        # add another input stream to the stack of
-        # input streams to be processed and switch
-        # to that stream, popping handled elsewhere!
-        $token = shift @tokens;
-        push @filestack, $INPUT;
-        open my $tmp, "<", $token or die "open $token failed:$!\n"; 
-        $INPUT = $tmp;
-      } elsif($token =~ /jumpc?|call/m){
-        print TMPOUT "$token ";
-        $token = shift @tokens;
-        print TMPOUT "$token\n";
-        $pc++;
-      } elsif($token eq "%macro"){ 
-        # macro found, add to dictionary
-        # the macros name is the next token.
-        # adds anything in between %macro and %endmacro
-        my $macroname = shift @tokens;
-        die "macros need names!" if not defined $macroname;
-        my $macro = "";
-        my $line = "";
-        while(not $line =~ /%endmacro/){
-          $line =~ s/#.*$/ /g;
-          $macro = $macro . $line;
-          $line = <$INPUT>;
-        }
-        $macros{$macroname} = $macro;
-      } elsif($token =~ /.*:/){ 
-        print TMPOUT "$token\n";
-        #label found, add to dictionary
-        $token =~ tr/://d; # remove labels ';'
-        $labels{$token} = $pc;
-      } elsif(exists $macros{$token}){
-        my $macrostr = $macros{$token};
-        $macrostr =~ tr{\n}{ };
-        my @tmptokens = reverse &splitline($macrostr);
-        foreach my $token (@tmptokens){
-          unshift @tokens, $token;
-        }
-      } elsif(exists $variables{ "\$" . $token}){
-        # derefence compile time variable.
-        print TMPOUT $variables{"\$".$token}, "\n";
-        $pc += &inc_by_for_number($variables{"\$" . $token});
-      } else {
-        die "\"$token\" is invalid\n";
-      }
-    }
-  }
-}
 
-close TMPOUT;
-print "\t", $pc - $entryp, " instructions found; $pc / $maxmem mem used\n";
-$pc = $entryp;
-print "Complete.\n";
 ###############################################################################
 
 #### Second Pass ##############################################################
-#
-print "Second pass:\n";
-open INPUT2, "<", "$inputfile.$tmpfile" or die "open $!\n";
-
-while(<INPUT2>){
-  chomp;
-  my @tokens = &splitline($_);
-  my $token;
-  while (defined ($token = shift @tokens)){
-    if (exists $keywords{$token}){
-      print "\t\t$token\n";
-      my $func = $keywords{$token};
-      &$func();
-    } elsif($token =~ /^\d+$/m){ 
-      # assemble literal
-      print "\t\t$token\n";
-      if($token < 2**15){
-        $mem[$pc++] = $token | 1 << 15;
-      } elsif($token >= 2**15 and $token < 2**16){
-        $mem[$pc++] = (~$token & 0xFFFF) | 1<<15;
-        &s_invert();
-      } else {
-        die "number to large to handle\n";
-      }
-    } elsif($token eq "isr"){
-      # sets an interrupt to trigger at this label
-      $token = shift @tokens;
-      die "isr $token too big" if $token > $max_irqs or $token < 0 ;
-      $mem[$token] = $pc;
-    } elsif($token eq "allocate"){
-    } elsif($token =~ /%if(n?def)?|%elsif|%else|%endif|%macro/m){
-      die "$token managed to make its way to the output\n";
-    } elsif($token =~ /jumpc?|call/m){
-      my $type = $token;
-      $token = shift @tokens;
-      print "\t$type $token\n";
-      if(exists $labels{$token}){
-        if($type eq "jump"){
-          $mem[$pc++] = $labels{$token};
-        } elsif($type eq "jumpc"){
-          $mem[$pc++] = ($labels{$token} | 1 << 13);
-        } elsif($type eq "call"){
-          $mem[$pc++] = ($labels{$token} | 1 << 14);
-        } else{
-          die "$token should not have matched regex!\n";
-        }
-      } else {
-        die "label \"$token\" does not exist\n";
-      }
-    } elsif($token =~ /.*:/){ 
-      # label found, do nothing! (except print!)
-      print "\t$token\n";
-    } elsif(exists $macros{$token}){
-      die "$macros{$token} has not been expanded.";
-    } else {
-      die "\"$token\" is invalid\n";
-    }
-  }
-  die "program to large $pc" if $pc > ($maxmem - 1);
-}
-
-## print out interrupt service routine pointers
-for(my $i = 0; $i < $max_irqs; $i++){
-  print "isr $irqnames[$i] = $mem[$i]\n";
-}
-
-close INPUT2;
-print "Complete.\n";
+# Now we have the labels we can assemble the source
 ###############################################################################
 
 #### Some options #############################################################
-unlink "$inputfile.$tmpfile" if not $keeptempfiles;
-
-if($dumpsymbols){
-  open SYMFILE, ">", "$inputfile.$symfile" or die "open $!\n";
-  print SYMFILE "pc $pc\n";
-  print SYMFILE "$_ $labels{$_}\n" for (keys %labels);
-  close SYMFILE;
-}
+#
 ###############################################################################
 
 
 #### Write output file ########################################################
-open OUTPUT, ">", $outputfile or die "unabled to open output\n";
-for (my $i = 0; $i < $maxmem ; $i++){
-  if($outputbase eq 2){
-    printf OUTPUT "%016b\n", $mem[$i];
-  }elsif($outputbase eq 16){
-    printf OUTPUT "%04X\n", $mem[$i];
-  }else{
-    die "invalid output base of $outputbase\n";
-  }
-}
-close OUTPUT;
+#
 ###############################################################################
