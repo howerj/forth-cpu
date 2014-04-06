@@ -6,6 +6,10 @@
 #   present, one should be available on most systems, I am going to be using
 #   GCC's CPP.
 #
+#   I should probably use something more portable, see:
+#   <http://www.anarres.org/projects/cpp/>
+#   <http://www.perlmonks.org/?node=278562>
+#
 ###############################################################################
 
 #### Includes #################################################################
@@ -17,6 +21,8 @@ use strict;
 
 #### Globals ##################################################################
 
+my $cppcmd = "cpp";       # The name of the *external* program to call for
+                          #   the C pre processor
 my $maxmem = 8192;        # maximum memory of h2 cpu
 my $entryp = 4;           # offset into memory to put program into
 my $inputfile   = "cpu.asm";            # input file name
@@ -28,15 +34,12 @@ my $outputbase = 16;      # output base of assembled file, 2 or 16
 my @mem;                  # our CPUs memory
 my $pc = $entryp;         # begin assembling here
 my $max_irqs = $entryp;   # maximum number of interrupts
-my %labels;               # labels to jump to in program
-my %macros;               # all our macro definitions
-my %variables;            # compile time variables
-my $ifcount = 0;          # number of nested ifs
-my @filestack;            # input file stack, for %include directive
 my $keeptempfiles = 0;    # !0 == true, keep temporary files
 my $dumpsymbols = 0;      # !0 == true, dump all symbols
+my $cppcmdline = "$cppcmd $inputfile > $inputfile.$tmpfile"; # command to run
 
-my $linecount = 0;        # current line count
+my %variables;
+
 my $alu = 0;              # for enumerating all alu values.
 my %cpuconstants = (      # ALU instruction field, 0-31, main field
 ## ALU instructions
@@ -91,7 +94,7 @@ my @irqnames = (
 
 my $intro = 
 "H2 CPU Assembler.
-\t31/Jan/2014
+\t06/Apr/2014
 \tRichard James Howe
 \thowe.r.j.89\@gmail.com\n";
 
@@ -118,7 +121,8 @@ Author:
 Email (bug reports to):
   howe.r.j.89\@gmail.com
 For complete documentation look at \"asm.md\" which should be
-included alongside the assembler.\n";
+included alongside the assembler.
+";
 
 sub getopts(){
   while (my $arg = shift @ARGV){
@@ -131,10 +135,13 @@ sub getopts(){
           exit;
         }elsif($char eq 'i'){ # read from input file instead of default
           $inputfile = shift @ARGV;
+          die "incorrect number of args to -i" unless defined $inputfile;
         }elsif($char eq 'o'){ # print to output file instead of default
           $outputfile = shift @ARGV;
+          die "incorrect number of args to -o" unless defined $outputfile;
         }elsif($char eq 't'){ # temporary file to use
           $tmpfile = shift @ARGV;
+          die "incorrect number of args to -t" unless defined $tmpfile;
         }elsif($char eq 'x'){ # print hex instead
           $outputbase = 16;
         }elsif($char eq 'b'){ # print binary (default)
@@ -164,6 +171,7 @@ print "Verbosity level :\t$verbosity\n"              if $verbosity > 2;
 print "Output base     :\t$outputbase\n";           #if $verbosity > 0;
 
 ###############################################################################
+
 
 #### Instruction set encoding helper functions ################################
 
@@ -339,23 +347,54 @@ sub inc_by_for_number($){
 
 ###############################################################################
 
-#### First Pass ###############################################################
-# Get all labels
+#### First pass ###############################################################
+# Run input through C Pre Processor
 ###############################################################################
 
-
-
-###############################################################################
+`$cppcmdline`;
 
 #### Second Pass ##############################################################
-# Now we have the labels we can assemble the source
+# Get all labels and count instructions
+###############################################################################
+{
+  my $linecount = 0; # current line count
+  open INPUT_FIRST, "<", "$inputfile.$tmpfile" or die "$inputfile.$tmpfile:$!";
+  while(<INPUT_FIRST>){
+    my $line = $_;
+    $linecount++; # we need to set line count using the counts cpp spits out
+    my @tokens = split ' ', $line;
+    for(my $lntok = 0; $lntok < $#tokens + 1; $lntok++){
+      if($tokens[$lntok] =~ /(\w+):/){ # process label
+        print "label:$1:$linecount\n";
+      } else { # count instructions
+
+      }
+
+    }
+  }
+  close INPUT_FIRST;
+}
 ###############################################################################
 
+#### Third Pass ###############################################################
+# Now we have the labels we can assemble the source
+###############################################################################
+{
+  open INPUT_SECOND, "<", "$inputfile.$tmpfile" or die "$inputfile.$tmpfile:$!";
+  while(<INPUT_SECOND>){
+    my $line = $_;
+  }
+  close INPUT_SECOND;
+}
 #### Some options #############################################################
 #
 ###############################################################################
 
+if(0 == $keeptempfiles){ # remove temporary files or not
+  unlink "$inputfile.$tmpfile" or warn "unlink failed:$!";
+}
 
 #### Write output file ########################################################
 #
 ###############################################################################
+
