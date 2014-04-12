@@ -209,14 +209,17 @@ begin
       comp_more,
       comp_equal,comp_negative,comp_zero,
       dptr_c,
-      int_en_c
+      int_en_c,
+      cpu_wait
   )
   begin
     io_re          <=  '0'; -- hardware *READS* can have side effects
     tos_n          <=  tos_c;
     int_en_n       <=  int_en_c;
     dptr_n         <=  dptr_c;
-    if is_instr_lit = '1' then
+    if cpu_wait = '1' then 
+      -- Do nothing
+    elsif is_instr_lit = '1' then
         tos_n   <=  "0" & insn(14 downto 0);
     else 
       case aluop is -- ALU operation, 12 downto 8
@@ -317,14 +320,17 @@ begin
           tos_c,
           is_instr_jmp, is_instr_cjmp, is_instr_call, is_instr_lit, is_instr_alu,
           is_instr_interrupt, int_en_c,
-          pc_plus_one
+          pc_plus_one,
+          cpu_wait
       )
   begin
       vstkp_n   <=  vstkp_c;
       rstkp_n   <=  rstkp_c;
 
       -- main control
-      if is_instr_interrupt = '1' and int_en_c = '1' then 
+      if cpu_wait = '1' then
+        -- Do nothing
+      elsif is_instr_interrupt = '1' and int_en_c = '1' then 
           -- Interrupts are similar to a call
           rstkp_n <=  std_logic_vector(unsigned(rstkp_c) + 1);
           rstkW   <=  '1';
@@ -360,11 +366,14 @@ begin
       is_instr_jmp,is_instr_cjmp,is_instr_call,is_instr_alu, 
       is_instr_interrupt, int_en_c,
       irc_c,
-      comp_zero
+      comp_zero,
+      cpu_wait
   )
   begin
       pc_n    <=  pc_c;
-      if is_instr_interrupt = '1' and int_en_c = '1' then -- Update PC on interrupt
+      if cpu_wait = '1' then
+        -- Do nothing
+      elsif is_instr_interrupt = '1' and int_en_c = '1' then -- Update PC on interrupt
         -- Prioritory encoded, MSB has higher prioritory, should change this
         interrupts: for i in 1 to number_of_interrupts loop 
           if irc_c(i-1) = '1' then

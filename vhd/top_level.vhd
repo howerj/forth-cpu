@@ -43,6 +43,7 @@ entity top_level is
 -- synthesis translate_on
 
     clk:      in  std_logic                    :=      'X';  -- clock
+    cpu_wait: in  std_logic                    :=      'X';  -- CPU wait
     -- Buttons
     btnu:     in  std_logic                    :=      'X';  -- button up
     btnd:     in  std_logic                    :=      'X';  -- button down
@@ -82,7 +83,6 @@ architecture behav of top_level is
   -- Signals
   signal rst: std_logic := '0';
   -- CPU H2 IO interface signals.
-  signal cpu_wait:     std_logic := '0';
   signal cpu_io_wr:    std_logic := '0';
   signal cpu_io_re:    std_logic := '0';
   signal cpu_io_din:   std_logic_vector(15 downto 0):= (others => '0');

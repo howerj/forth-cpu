@@ -31,7 +31,7 @@ ENTITY ps2_keyboard_to_ascii IS
       clk        : IN  STD_LOGIC;                     --system clock input
       ps2_clk    : IN  STD_LOGIC;                     --clock signal from PS2 keyboard
       ps2_data   : IN  STD_LOGIC;                     --data signal from PS2 keyboard
-      ascii_new  : OUT STD_LOGIC;                     --output flag indicating new ASCII value
+      ascii_new  : OUT STD_LOGIC := '0';                     --output flag indicating new ASCII value
       ascii_code : OUT STD_LOGIC_VECTOR(6 DOWNTO 0)); --ASCII value
 END ps2_keyboard_to_ascii;
 
