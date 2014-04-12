@@ -354,7 +354,7 @@ sub inc_by_for_number($){
 `$cppcmdline`;
 
 #### Second Pass ##############################################################
-# Get all labels and count instructions
+# Get all labels, count instructions and evaluate expressions
 ###############################################################################
 {
   my $linecount = 0; # current line count
@@ -378,6 +378,16 @@ sub inc_by_for_number($){
         } elsif($token =~ /jumpc?|call/m){
           $pc++;
           shift @tokens;
+        } elsif($token =~ /eval\(?/m){
+          my $evaltoken = "";
+          while(1){
+            my $t = shift @tokens;
+            $evaltoken .= " $t";
+            last if($t =~ /\)/m);
+          }
+          $evaltoken =~ s/eval\s*\((".*")\)/$1/;
+          print ">> $evaltoken\n";
+          $pc++; # returns value always
         } else {
           die "Invalid token on line $linecount: \"$token\"";
         }
