@@ -173,6 +173,18 @@ begin
           wait for clk_period * 1;
         end loop;
 
+        tb_cpu_wait <= '1';
+        for i in 0 to 16 loop
+          rt:=reportln(tb_debug_pc, tb_debug_insn);
+          wait for clk_period * 1;
+        end loop;
+
+        tb_cpu_wait <= '0';
+        for i in 0 to 16 loop
+          rt:=reportln(tb_debug_pc, tb_debug_insn);
+          wait for clk_period * 1;
+        end loop;
+
 --        tb_debug_irq <= '1';
 --        tb_debug_irc <= X"4";
 --        wait for clk_period * 1;
