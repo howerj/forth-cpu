@@ -226,11 +226,20 @@ begin
     chry_ce <= hctr_639 and blank;
     scry_ce <= chry_011 and hctr_639;
 
-    ram_tmp <= scry * 80 + scrx;
+    -- Replace x 80 with (scry << 4) + (scry << 6)?
+--    ram_tmp <= (scry * 80) + scrx;
+    ram_tmp <=  to_integer(to_unsigned(scry,12) sll 4) +
+                to_integer(to_unsigned(scry,12) sll 6) +
+                scrx;
 
-    TEXT_A <= std_logic_vector(TO_UNSIGNED(ram_tmp, 12));
+    text_a <= std_logic_vector(to_unsigned(ram_tmp, 12));
 
-    rom_tmp <= TO_INTEGER(unsigned(TEXT_D)) * 12 + chry;
+    -- replace x 12 with (scry << 2) + (scry << 3)?
+    rom_tmp <= to_integer(unsigned(text_d)) * 12 + chry;
+--    rom_tmp <=  to_integer(unsigned(text_d) sll 2) +
+--                to_integer(unsigned(text_d) sll 3) +
+--                chry;
+
     FONT_A <= std_logic_vector(TO_UNSIGNED(rom_tmp, 12));
 
   end block;

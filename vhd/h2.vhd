@@ -33,25 +33,26 @@ entity h2 is
       clk:        in  std_logic;
       rst:        in  std_logic;
       -- IO interface
-      io_wr:      out std_logic;
-      io_re:      out std_logic;
+      cpu_wait:   in  std_logic;
+      io_wr:      out std_logic; 
+      io_re:      out std_logic; -- hardware reads can have side effects
       io_din:     in  std_logic_vector(15 downto 0);
       io_dout:    out std_logic_vector(15 downto 0);
       io_daddr:   out std_logic_vector(15 downto 0);
-      -- Interrupts
+      -- Interrupts; irq == request, irc == channel
       irq:        in  std_logic;
-      irc:        in  std_logic_vector(number_of_interrupts - 1 downto 0);
+      irc:        in  std_logic_vector(number_of_interrupts - 1 downto 0); 
 
       -- RAM interface, Dual port
-      pco:        out std_logic_vector(12 downto 0);
-      insn:       in  std_logic_vector(15 downto 0);
+      pco:        out std_logic_vector(12 downto 0); -- program counter
+      insn:       in  std_logic_vector(15 downto 0); -- instruction
 
       dwe:        out std_logic; -- data write enable, read enable not need.
       din:        in  std_logic_vector(15 downto 0);
       dout:       out std_logic_vector(15 downto 0);
       daddr:      out std_logic_vector(12 downto 0);
 
-      -- Data pointer
+      -- Data pointer 
       dptr:       out std_logic_vector(15 downto 0)
   );
 end;

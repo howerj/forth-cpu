@@ -82,6 +82,7 @@ architecture behav of top_level is
   -- Signals
   signal rst: std_logic := '0';
   -- CPU H2 IO interface signals.
+  signal cpu_wait:     std_logic := '0';
   signal cpu_io_wr:    std_logic := '0';
   signal cpu_io_re:    std_logic := '0';
   signal cpu_io_din:   std_logic_vector(15 downto 0):= (others => '0');
@@ -171,6 +172,7 @@ begin
     clk => clk,
     rst => rst,
 
+    cpu_wait  => cpu_wait,
     cpu_wr    => cpu_io_wr,
     cpu_re    => cpu_io_re,
     cpu_din   => cpu_io_din,

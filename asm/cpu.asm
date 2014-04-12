@@ -1,8 +1,8 @@
-/**
-  Richard James Howe                                                          
-  H2 CPU program                                                              
-  License LGPL
-*/
+/*****************************************************************************\
+* H2 CPU program                                                              *
+* Richard James Howe                                                          *
+* License LGPL                                                                *
+\*****************************************************************************/
 
 /* System includes */
 
@@ -10,9 +10,7 @@
 #include "ascii.inc"
 
 /* Variable Addr. */
-
 #define vga_cursor eval("1024")
-
 
 /*** System Macros ***********************************************************/
 
@@ -24,7 +22,7 @@
   !
 
 /* write to the LEDs*/
-#define macro write_LED \
+#define write_LED \
   o_ledS \
   ! 
 
@@ -76,8 +74,8 @@ loadcursor:
 
 /*** interrupt service routines **********************************************/
 isr isr_clock
-/*  read_SWITCHES*/
-/*  write_LED*/
+/* read_SWITCHES*/
+/* write_LED*/
   exit
 isr isr_unused01
   exit

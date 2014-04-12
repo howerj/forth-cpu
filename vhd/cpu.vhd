@@ -33,11 +33,12 @@ entity cpu is
     rst:        in   std_logic;
 
     -- CPU External interface, I/O
+    cpu_wait:   in   std_logic; -- Halt the CPU
     cpu_wr:     out  std_logic;
     cpu_re:     out  std_logic; -- hardware *READS* can have side effects
-    cpu_din:    in   std_logic_vector(15 downto 0):= (others => '0');
-    cpu_dout:   out  std_logic_vector(15 downto 0):= (others => '0');
-    cpu_daddr:  out  std_logic_vector(15 downto 0):= (others => '0');
+    cpu_din:    in   std_logic_vector(15 downto 0);
+    cpu_dout:   out  std_logic_vector(15 downto 0):= (others => 'X');
+    cpu_daddr:  out  std_logic_vector(15 downto 0):= (others => 'X');
     -- Interrupts
     cpu_irq:    in   std_logic;
     cpu_irc:    in   std_logic_vector(number_of_interrupts - 1 downto 0)
@@ -102,6 +103,7 @@ begin
           rst       =>    rst,
 
           -- External interface with the 'outside world'
+          cpu_wait  =>  cpu_wait,
           io_wr     =>  cpu_wr,
           io_re     =>  cpu_re,
           io_din    =>  cpu_din,
