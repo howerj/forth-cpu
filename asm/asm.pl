@@ -361,19 +361,34 @@ sub inc_by_for_number($){
   open INPUT_FIRST, "<", "$inputfile.$tmpfile" or die "$inputfile.$tmpfile:$!";
   while(<INPUT_FIRST>){
     my $line = $_;
+    next if $line =~ /^#/;
     $linecount++; # we need to set line count using the counts cpp spits out
     my @tokens = split ' ', $line;
+
     for(my $lntok = 0; $lntok < $#tokens + 1; $lntok++){
-      if($tokens[$lntok] =~ /(\w+):/){ # process label
+      my $token = $tokens[$lntok];
+      if($token =~ /(\w+):/){ # process label
         print "label:$1:$linecount\n";
       } else { # count instructions
-
+        if(exists $keywords{$token}){
+          $pc++;
+        } elsif($token =~ /^\d+$/){ # print literal, special case
+          $pc += &inc_by_for_number($token);
+        } elsif($token eq "isr"){
+        } elsif($token =~ /jumpc?|call/m){
+          $pc++;
+          shift @tokens;
+        } else {
+          die "Invalid token on line $linecount: \"$token\"";
+        }
       }
 
     }
   }
   close INPUT_FIRST;
 }
+
+print "Counted $pc instructions\n";
 ###############################################################################
 
 #### Third Pass ###############################################################

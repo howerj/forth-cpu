@@ -35,4 +35,6 @@
 #define isr_clock      eval("1")
 #define isr_unused01   eval("2")
 #define isr_unused02   eval("3")
+
+/*#define eval(...)*/
 /* End */
