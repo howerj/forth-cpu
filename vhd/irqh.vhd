@@ -27,11 +27,11 @@ entity irqh is
 
     processed_irq:    out   std_logic;
     processed_irc:    out   std_logic_vector(number_of_interrupts - 1 downto 0)
+
   );
 end;
 
 architecture behav of irqh is
-
 begin
   processed_irq <= raw_irq;
   processed_irc <= raw_irc;

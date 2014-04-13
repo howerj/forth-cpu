@@ -13,8 +13,6 @@
 -------------------------------------------------------------------------------
 --! TODO:
 --!  * Interrupt handling needs to be improved, ie - simultaneous interrupts
---!  * Carry Flag: Test it and move around instructions.
---!  * Rotate through carry?
 --!  * Make CPU more generic:
 --!    - instead of (15 downto 0) have (15_bit downto 0_bit)
 --!      where 15_bit and 0_bit are constants that can be moved
@@ -89,31 +87,31 @@ architecture behav of h2 is
   signal is_instr_interrupt:  std_logic                     :=  '0';
 
   -- Comparisions on stack items
-  signal comp_more:           std_logic :=  '0';
-  signal comp_equal:          std_logic :=  '0';
-  signal comp_negative:       std_logic :=  '0';
-  signal comp_zero:           std_logic :=  '0';
+  signal comp_more:     std_logic :=  '0';
+  signal comp_equal:    std_logic :=  '0';
+  signal comp_negative: std_logic :=  '0';
+  signal comp_zero:     std_logic :=  '0';
 
   -- Interrupt enable register (for when interrupts are implemented)
   signal int_en_c, int_en_n:  std_logic :=  '0';
-  signal irq_c, irq_n:        std_logic :=  '0';
-  signal irc_c, irc_n:        std_logic_vector(3 downto 0) :=  (others => '0');
+  signal irq_c, irq_n: std_logic :=  '0';
+  signal irc_c, irc_n: std_logic_vector(3 downto 0) :=  (others => '0');
 
   -- Top of stack, and next on stack.
   signal tos_c, tos_n:  std_logic_vector(15 downto 0) := (others => '0');
-  signal nos:                 std_logic_vector(15 downto 0) := (others => '0');
+  signal nos: std_logic_vector(15 downto 0) := (others => '0');
   -- Top of return stack.
-  signal rtos_c:              std_logic_vector(15 downto 0) := (others => '0');
+  signal rtos_c: std_logic_vector(15 downto 0) := (others => '0');
   -- aluop is what is fed into the alu.
-  signal aluop:               std_logic_vector(4 downto 0)  := (others => '0');
+  signal aluop: std_logic_vector(4 downto 0)  := (others => '0');
   -- pc_plus_1, forces fewer adders.
-  signal pc_plus_one:         std_logic_vector(12 downto 0) := (others => '0');
+  signal pc_plus_one: std_logic_vector(12 downto 0) := (others => '0');
   -- Stack signals
-  signal dstkW:               std_logic                     := '0';
-  signal rstkD:               std_logic_vector(15 downto 0) := (others => '0');
-  signal rstkW:               std_logic                     := '0';
+  signal dstkW: std_logic := '0';
+  signal rstkW: std_logic := '0';
+  signal rstkD: std_logic_vector(15 downto 0) := (others => '0');
   -- data pointer
-  signal dptr_c, dptr_n:      std_logic_vector(15 downto 0) := (others => '0');
+  signal dptr_c, dptr_n: std_logic_vector(15 downto 0) := (others => '0');
 begin
 
   -- is_instr_x, what kind of instruction do we have?
