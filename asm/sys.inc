@@ -1,13 +1,15 @@
 /*****************************************************************************/
+/* System header *************************************************************/
+/*****************************************************************************/
 
 /* When or'ed with a value, moves it into the I/O address range.*/
 define("3 13 << const io_range")
 
 /* System variables; Richard James Howe; LGPL */
-#define vga_init_val   eval("122 const vga_init_val")
-#define clock_init_val eval("1 15 << 1 13 << or 40 or const clock_init_val")
+#define vga_init_val   eval("122")
+#define clock_init_val eval("1 15 << 1 13 << or 40 or")
 
-#define o_vga_ctrl_reg eval("3 io_range or const o_vga_ctrl_reg")
+#define o_vga_ctrl_reg eval("3 io_range or")
 
 /* Outputs: 0x6000 - 0x7FFF */
 #define o_7seg         eval("0  io_range or")

@@ -20,7 +20,6 @@ use strict;
 ###############################################################################
 
 #### Globals ##################################################################
-
 my $cppcmd = "cpp";       # The name of the *external* program to call for
                           #   the C pre processor
 my $maxmem = 8192;        # maximum memory of h2 cpu
@@ -36,6 +35,8 @@ my $pc = $entryp;         # begin assembling here
 my $max_irqs = $entryp;   # maximum number of interrupts
 my $keeptempfiles = 0;    # !0 == true, keep temporary files
 my $dumpsymbols = 0;      # !0 == true, dump all symbols
+
+my %labels;               # labels to jump to in program
 my %variables;            # variables that get calculated at comile time
 
 my $stage00 = "$inputfile.00.$tmpfile";
@@ -338,15 +339,16 @@ sub evaluate {
 
 # numbers between 0 and 2**15 - 1 take one instruction
 # numbers between 2**15 and 2**16 take two instructions
-sub inc_by_for_number($){
+sub inc_by_for_number($$){
   my $number = $_[0];
+  my $line = $_[1];
   my $incby = 0;
   if($number < 2**15){
     $incby=1;
   } elsif($number >= 2**15 and $number < 2**16){
     $incby=2;
   } else {
-    die "number \"$number\" to large to handle\n";
+    die "number \"$number\" to large to handle on line $line\n";
   }
   return $incby;
 }
@@ -377,16 +379,17 @@ sub inc_by_for_number($){
     for(my $lntok = 0; $lntok < $#tokens + 1; $lntok++){
       my $token = $tokens[$lntok];
       if($token =~ /(\w+):/){ # process label
-        print "label:$1:$linecount\n";
+        $labels{$1} = $pc;
+        print "label:$1:$pc\n";
       } else { # count instructions
         if(exists $keywords{$token}){
           print OUTPUT_FIRST "$token\n";
           $pc++;
         } elsif($token =~ /^\d+$/){ # print literal, special case
           print OUTPUT_FIRST "$token\n";
-          $pc += &inc_by_for_number($token);
+          $pc += &inc_by_for_number($token,$line);
         } elsif($token eq "isr"){
-          print OUTPUT_FIRST "$token\n";
+          print OUTPUT_FIRST "$token ";
         } elsif($token =~ /jumpc?|call/m){
           print OUTPUT_FIRST "$token  ";
           $token = $tokens[++$lntok];
@@ -426,7 +429,7 @@ sub inc_by_for_number($){
           $expression =~ s/"//g;
           my $val = &evaluate($expression);
           print OUTPUT_FIRST "$val\n";
-          $pc += &inc_by_for_number($val);
+          $pc += &inc_by_for_number($val,$line);
         } else {
           die "Invalid token on line $linecount: \"$token\"";
         }
@@ -444,12 +447,62 @@ print "Counted $pc instructions\n";
 # Now we have the labels we can assemble the source
 ###############################################################################
 {
+  my $linecount++;
+  $pc = $entryp;
   open INPUT_SECOND, "<", $stage01 or die $stage01;
+
   while(<INPUT_SECOND>){
     my $line = $_;
-  }
+    my @tokens = split ' ', $line;
+    $linecount++;
+    for(my $lntok = 0; $lntok < $#tokens + 1; $lntok++){
+      my $token = $tokens[$lntok];
+      if($token =~ /(\w+):/){ # process label
+        die "$linecount: lable made it passed label processing stage";
+      } else { # count instructions
+        if(exists $keywords{$token}){
+          print "\t\t$token\n";
+          my $func = $keywords{$token};
+          &$func();
+        } elsif($token =~ /^\d+$/){ # print literal, special case
+          print "\t\t$token\n";
+          if($token < 2**15){
+            $mem[$pc++] = $token | 1 << 15;
+          } elsif(($token >= 2**15) and ($token < 2**16)){
+            $mem[$pc++] = (~$token & 0xFFFF) | 1<<15;
+            &s_invert();
+          } else {
+            die "number to large to handle\n";
+          }
+        } elsif($token eq "isr"){
+          $token = $tokens[++$lntok];
+          die "isr $token too big" if $token > $max_irqs or $token < 0 ;
+          $mem[$token] = $pc;
+        } elsif($token =~ /jumpc?|call/m){
+          my $type = $token;
+          $token = $tokens[++$lntok];
+          print "\t$type $token\n";
+          if(exists $labels{$token}){
+            if($type eq "jump"){
+              $mem[$pc++] = $labels{$token};
+            } elsif($type eq "jumpc"){
+              $mem[$pc++] = ($labels{$token} | 1 << 13);
+            } elsif($type eq "call"){
+              $mem[$pc++] = ($labels{$token} | 1 << 14);
+            } else{
+              die "$token should not have matched regex!\n";
+            }
+          } else {
+            die "label \"$token\" does not exist\n";
+          }
+        } else {
+          die "Error with \"$token\"";
+        }
+      } # if/else
+    } # for
+  } # while
   close INPUT_SECOND;
-}
+} # scope
 #### Some options #############################################################
 #
 ###############################################################################
@@ -463,3 +516,16 @@ if(0 == $keeptempfiles){ # remove temporary files or not
 #
 ###############################################################################
 
+open OUTPUT, ">", $outputfile or die "unabled to open output $outputfile: $!\n";
+for (my $i = 0; $i < $maxmem ; $i++){
+  if($outputbase eq 2){
+    printf OUTPUT "%016b\n", $mem[$i];
+  }elsif($outputbase eq 16){
+    printf OUTPUT "%04X\n", $mem[$i];
+  }else{
+    die "invalid output base of $outputbase\n";
+  }
+}
+close OUTPUT;
+
+print "Done!\n";
