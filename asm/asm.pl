@@ -36,9 +36,12 @@ my $pc = $entryp;         # begin assembling here
 my $max_irqs = $entryp;   # maximum number of interrupts
 my $keeptempfiles = 0;    # !0 == true, keep temporary files
 my $dumpsymbols = 0;      # !0 == true, dump all symbols
-my $cppcmdline = "$cppcmd $inputfile > $inputfile.00.$tmpfile"; # command to run
+my %variables;            # variables that get calculated at comile time
 
-my %variables;
+my $stage00 = "$inputfile.00.$tmpfile";
+my $stage01 = "$inputfile.01.$tmpfile";
+
+my $cppcmdline = "$cppcmd $inputfile > $stage00"; # command to run
 
 my $alu = 0;              # for enumerating all alu values.
 my %cpuconstants = (      # ALU instruction field, 0-31, main field
@@ -362,8 +365,8 @@ sub inc_by_for_number($){
 ###############################################################################
 {
   my $linecount = 0; # current line count
-  open INPUT_FIRST, "<", "$inputfile.00.$tmpfile" or die "$inputfile.00.$tmpfile:$!";
-  open OUTPUT_FIRST, ">", "$inputfile.01.$tmpfile" or die "$inputfile.01.$tmpfile:$!";
+  open INPUT_FIRST, "<", $stage00 or die $stage00;
+  open OUTPUT_FIRST, ">", $stage01 or die $stage01;
   while(<INPUT_FIRST>){
     my $line = $_;
     next if $line =~ /^#/;
@@ -419,7 +422,7 @@ sub inc_by_for_number($){
           }
 
           $expression =~ s/eval\s*\((".*")\)/$1/;
-          print "evaluating:\t$expression\n";
+          # print "evaluating:\t$expression\n";
           $expression =~ s/"//g;
           my $val = &evaluate($expression);
           print OUTPUT_FIRST "$val\n";
@@ -441,7 +444,7 @@ print "Counted $pc instructions\n";
 # Now we have the labels we can assemble the source
 ###############################################################################
 {
-  open INPUT_SECOND, "<", "$inputfile.01.$tmpfile" or die "$inputfile.01.$tmpfile:$!";
+  open INPUT_SECOND, "<", $stage01 or die $stage01;
   while(<INPUT_SECOND>){
     my $line = $_;
   }
@@ -452,8 +455,8 @@ print "Counted $pc instructions\n";
 ###############################################################################
 
 if(0 == $keeptempfiles){ # remove temporary files or not
-  unlink "$inputfile.00.$tmpfile" or warn "unlink failed:$!";
-  unlink "$inputfile.01.$tmpfile" or warn "unlink failed:$!";
+  unlink $stage00 or warn "unlink failed:$!";
+  unlink $stage01 or warn "unlink failed:$!";
 }
 
 #### Write output file ########################################################

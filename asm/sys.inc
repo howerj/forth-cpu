@@ -7,7 +7,6 @@ define("3 13 << const io_range")
 #define vga_init_val   eval("122 const vga_init_val")
 #define clock_init_val eval("1 15 << 1 13 << or 40 or const clock_init_val")
 
-
 #define o_vga_ctrl_reg eval("3 io_range or const o_vga_ctrl_reg")
 
 /* Outputs: 0x6000 - 0x7FFF */
@@ -40,4 +39,7 @@ define("3 13 << const io_range")
 #define isr_unused02   eval("3")
 
 /*#define eval(...)*/
-/* End */
+
+/*****************************************************************************/
+/* End                                                                       */
+/*****************************************************************************/

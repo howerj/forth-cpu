@@ -406,7 +406,7 @@ for(
         # compile time variables
         my $expr = join (" ", @tokens);
         $expr =~ s/\"//g;
-        $variables{$token} = evaluate $expr;
+        $variables{$token} = &evaluate $expr;
         last;
       } elsif($token =~ /^%if(n?def)?$/m){
         if($token eq "%ifdef"){

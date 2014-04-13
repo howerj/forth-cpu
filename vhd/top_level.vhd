@@ -157,6 +157,10 @@ begin
   cpu_irc(2) <= ack_din;
   cpu_irc(3) <= stb_dout;
 
+  -- Testing only -----------------
+  -- cpu_wait <= btnc; -- Pause CPU
+  ---------------------------------
+
   cpu_instance: entity work.cpu
   generic map(
     number_of_interrupts => number_of_interrupts
