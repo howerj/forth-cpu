@@ -40,8 +40,8 @@
 
 
 /*** program entry point *****************************************************/
-setup
-begin:
+main:
+ setup
 
  wait:
   i_ascii_new  @ jumpc wait
@@ -63,10 +63,9 @@ begin:
 
   0 o_vgaWrite !
 
-jump begin
+jump main
 
-/*****************************************************************************/
-
+/*** Functions ***************************************************************/
 loadcursor:
   vga_cursor
   memload
@@ -74,11 +73,7 @@ loadcursor:
 
 /*** interrupt service routines **********************************************/
 isr isr_clock
-/* read_SWITCHES*/
-/* write_LED*/
-  exit
 isr isr_unused01
-  exit
 isr isr_unused02
   exit
 /*****************************************************************************/

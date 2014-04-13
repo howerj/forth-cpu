@@ -512,9 +512,19 @@ if(0 == $keeptempfiles){ # remove temporary files or not
   unlink $stage01 or warn "unlink failed:$!";
 }
 
+if(0 != $dumpsymbols){
+  open SYMFILE, ">", "$inputfile.$symfile" or die "open $!\n";
+  print SYMFILE "pc $pc\n";
+  print SYMFILE "$_ $labels{$_}\n" for (keys %labels);
+  close SYMFILE;
+}
+
+
 #### Write output file ########################################################
 #
 ###############################################################################
+
+
 
 open OUTPUT, ">", $outputfile or die "unabled to open output $outputfile: $!\n";
 for (my $i = 0; $i < $maxmem ; $i++){
