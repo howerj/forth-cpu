@@ -244,7 +244,7 @@ my %keywords = (
   "@"           => \&s_load,
   "!"           => \&s_store,
   "depth"       => \&s_depth,
-  "set_interrupts" => \&s_togglei,
+  "set_interrupts"  => \&s_togglei,
   "set_dptr"        => \&s_set_dptr,
   "get_dptr"        => \&s_get_dptr
 );
@@ -271,12 +271,14 @@ sub evaluate {
       push @stack, $token;
       next;
     } elsif ($token =~ /^\$.*$/){ # implements variable assignment
-     if(exists $variables{$token}){
-      push @stack, $variables{$token};
-     } else {
-      die "token \"$token\" not a valid variable\n";
-     }
-     next;
+      if(exists $variables{$token}){
+        push @stack, $variables{$token};
+      } else {
+        die "token \"$token\" not a valid variable\n";
+      }
+      next;
+    } elsif($token eq "const"){
+
     }
 
     my $x = pop @stack;

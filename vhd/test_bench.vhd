@@ -58,7 +58,7 @@ architecture testing of test_bench is
     signal  tb_clk:   std_logic :=  '0';
     signal  tb_rst:   std_logic;
 
-    signal  tb_cpu_wait: std_logic := '0'; -- CPU wait flag
+--  signal  tb_cpu_wait: std_logic := '0'; -- CPU wait flag
 
     -- Basic I/O
     signal  tb_btnu:  std_logic :=            '0';  -- button up
@@ -109,7 +109,7 @@ begin
         debug_mem_daddr => tb_debug_mem_daddr,
       -- }}
         clk => tb_clk,
-        cpu_wait => tb_cpu_wait,
+--      cpu_wait => tb_cpu_wait,
         btnu => tb_btnu,
         btnd => tb_btnd,
         btnc => tb_btnc,
@@ -164,7 +164,7 @@ begin
       return true;
     end reportln;
 	begin
---        tb_sw <= X"A5";
+--      tb_sw <= X"A5";
         tb_rst <= '1';
         wait for clk_period * 2;
         tb_rst <= '0';
@@ -172,32 +172,6 @@ begin
           rt:=reportln(tb_debug_pc, tb_debug_insn);
           wait for clk_period * 1;
         end loop;
-
-        tb_cpu_wait <= '1';
-        for i in 0 to 16 loop
-          rt:=reportln(tb_debug_pc, tb_debug_insn);
-          wait for clk_period * 1;
-        end loop;
-
-        tb_cpu_wait <= '0';
-        for i in 0 to 16 loop
-          rt:=reportln(tb_debug_pc, tb_debug_insn);
-          wait for clk_period * 1;
-        end loop;
-
---        tb_debug_irq <= '1';
---        tb_debug_irc <= X"4";
---        wait for clk_period * 1;
---        tb_debug_irc <= X"0";
---        tb_debug_irq <= '0';
---        wait for clk_period * 64;
---        tb_debug_irq <= '1';
---        tb_debug_irc <= X"8";
---        wait for clk_period * 1;
---        tb_debug_irc <= X"4";
---        wait for clk_period * 1;
---        tb_debug_irq <= '0';
---        wait for clk_period * 64;
 
         wait_flag   <=  '1';
         wait;

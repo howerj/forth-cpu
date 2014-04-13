@@ -328,6 +328,8 @@ begin
       -- main control
       if cpu_wait = '1' then
         -- Do nothing
+        rstkW <= '0';
+        rstkD <= (others => '0');
       elsif is_instr_interrupt = '1' and int_en_c = '1' then 
           -- Interrupts are similar to a call
           rstkp_n <=  std_logic_vector(unsigned(rstkp_c) + 1);

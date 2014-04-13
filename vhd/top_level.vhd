@@ -43,7 +43,7 @@ entity top_level is
 -- synthesis translate_on
 
     clk:      in  std_logic                    :=      'X';  -- clock
-    cpu_wait: in  std_logic                    :=      'X';  -- CPU wait
+--  cpu_wait: in  std_logic                    :=      'X';  -- CPU wait
     -- Buttons
     btnu:     in  std_logic                    :=      'X';  -- button up
     btnd:     in  std_logic                    :=      'X';  -- button down
@@ -83,6 +83,7 @@ architecture behav of top_level is
   -- Signals
   signal rst: std_logic := '0';
   -- CPU H2 IO interface signals.
+  signal cpu_wait:     std_logic := '0';
   signal cpu_io_wr:    std_logic := '0';
   signal cpu_io_re:    std_logic := '0';
   signal cpu_io_din:   std_logic_vector(15 downto 0):= (others => '0');
@@ -97,11 +98,12 @@ architecture behav of top_level is
   signal clk50MHz: std_logic:= '0';
   -- Basic IO register
   ---- LEDs/Switches
+
   signal an_c,an_n: std_logic_vector(3 downto 0):=  (others => '0');
   signal ka_c,ka_n: std_logic_vector(7 downto 0):=  (others => '0');
   signal ld_c,ld_n: std_logic_vector(7 downto 0):=  (others => '0');
-  ---- VGA
 
+  ---- VGA
   signal crx_we: std_logic :=  '0';
   signal cry_we: std_logic :=  '0';
   signal ctl_we: std_logic :=  '0';
@@ -360,10 +362,10 @@ begin
         when "0101" => -- UART strobe output (write output).
                 cpu_io_din <= (0 => stb_dout_c, others => '0');
                 stb_dout_n <= '0';
-        when "0110" => 
+        when "0110" =>  -- PS/2 Keyboard, Check for new char
                 cpu_io_din <= (0 => ascii_new_c, others => '0');
-        when "0111" => cpu_io_din <= (others => '0');
-                cpu_io_din <= "000000000" &  ascii_code;
+        when "0111" =>  -- PS/2 ASCII In an ACK
+                cpu_io_din <= "000000000" &  ascii_code_c;
                 ascii_new_n <= '0';
         when "1000" => cpu_io_din <= (others => '0');
         when "1001" => cpu_io_din <= (others => '0');
