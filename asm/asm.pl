@@ -365,6 +365,7 @@ sub inc_by_for_number($){
     $linecount++; # we need to set line count using the counts cpp spits out
     my @tokens = split ' ', $line;
 
+    # foreach my $token (@tokens){
     for(my $lntok = 0; $lntok < $#tokens + 1; $lntok++){
       my $token = $tokens[$lntok];
       if($token =~ /(\w+):/){ # process label
@@ -379,24 +380,29 @@ sub inc_by_for_number($){
           $pc++;
           shift @tokens;
         } elsif($token =~ /eval\(?/m){
-          my $evaltoken = "";
-          while(1){
-            my $t = shift @tokens;
-            $evaltoken .= " $t";
-            last if($t =~ /\)/m);
+          my $expression = "";
+          if($token =~ /\)/m){ # eval("X")
+            $expression = $token;
+          } else { # eval("x y z")
+            for(my $t; not $tokens[$lntok] =~ /\)/m; $lntok++){
+              $t = $tokens[$lntok];
+              $expression .= " $t";
+            }
+            $expression .= " " . $tokens[$lntok];
           }
-          $evaltoken =~ s/eval\s*\((".*")\)/$1/;
-          print ">> $evaltoken\n";
+
+          $expression =~ s/eval\s*\((".*")\)/$1/;
+          print "evaluating:\t$expression\n";
+          # $pc += &inc_by_for_number(&evaluate($expression));
           $pc++; # returns value always
         } else {
           die "Invalid token on line $linecount: \"$token\"";
         }
-      }
-
-    }
-  }
+      } # else
+    } # foreach
+  } # while
   close INPUT_FIRST;
-}
+} # scope
 
 print "Counted $pc instructions\n";
 ###############################################################################
