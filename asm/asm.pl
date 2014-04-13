@@ -36,7 +36,7 @@ my $pc = $entryp;         # begin assembling here
 my $max_irqs = $entryp;   # maximum number of interrupts
 my $keeptempfiles = 0;    # !0 == true, keep temporary files
 my $dumpsymbols = 0;      # !0 == true, dump all symbols
-my $cppcmdline = "$cppcmd $inputfile > $inputfile.$tmpfile"; # command to run
+my $cppcmdline = "$cppcmd $inputfile > $inputfile.00.$tmpfile"; # command to run
 
 my %variables;
 
@@ -265,24 +265,22 @@ $mem[0] = $entryp;
 sub evaluate {
   my ($expr) = @_;
   my @stack;
-  for my $token (split ' ', $expr) {
+  my @tokens = split ' ', $expr;
+  for my $token (@tokens) {
     # no pops
     if ($token =~ /^\d+$/) {
       push @stack, $token;
       next;
-    } elsif ($token =~ /^\$.*$/){ # implements variable assignment
+    } elsif ($token =~ /^[0-9a-zA-Z_]*$/){ # implements variable assignment
       if(exists $variables{$token}){
         push @stack, $variables{$token};
-      } else {
-        die "token \"$token\" not a valid variable\n";
+        next;
       }
-      next;
-    } elsif($token eq "const"){
-
+      # do nothing, fall through, try other things
     }
 
     my $x = pop @stack;
-    defined $x or die "Stack underflow\n";
+    defined $x or die "Stack underflow: \"$token\"\n";
 
     ## one pop
     if($token eq 'drop'){
@@ -295,6 +293,10 @@ sub evaluate {
       next;
     } elsif($token eq 'invert'){
       push @stack,  ~$x;
+      next;
+    } elsif($token eq 'const'){
+      $token = pop @tokens;
+      $variables{$token} = $x;
       next;
     }
     ## two pops
@@ -360,7 +362,8 @@ sub inc_by_for_number($){
 ###############################################################################
 {
   my $linecount = 0; # current line count
-  open INPUT_FIRST, "<", "$inputfile.$tmpfile" or die "$inputfile.$tmpfile:$!";
+  open INPUT_FIRST, "<", "$inputfile.00.$tmpfile" or die "$inputfile.00.$tmpfile:$!";
+  open OUTPUT_FIRST, ">", "$inputfile.01.$tmpfile" or die "$inputfile.01.$tmpfile:$!";
   while(<INPUT_FIRST>){
     my $line = $_;
     next if $line =~ /^#/;
@@ -374,14 +377,36 @@ sub inc_by_for_number($){
         print "label:$1:$linecount\n";
       } else { # count instructions
         if(exists $keywords{$token}){
+          print OUTPUT_FIRST "$token\n";
           $pc++;
         } elsif($token =~ /^\d+$/){ # print literal, special case
+          print OUTPUT_FIRST "$token\n";
           $pc += &inc_by_for_number($token);
         } elsif($token eq "isr"){
+          print OUTPUT_FIRST "$token\n";
         } elsif($token =~ /jumpc?|call/m){
+          print OUTPUT_FIRST "$token  ";
+          $token = $tokens[++$lntok];
+          print OUTPUT_FIRST "$token\n";
           $pc++;
-          shift @tokens;
-        } elsif($token =~ /eval\(?/m){
+        } elsif($token =~ /define\(?/m){ ## MERGE WITH EVAL
+          my $expression = "";
+          if($token =~ /\)/m){ # eval("X")
+            $expression = $token;
+          } else { # eval("x y z")
+            for(my $t; not $tokens[$lntok] =~ /\)/m; $lntok++){
+              $t = $tokens[$lntok];
+              $expression .= " $t";
+            }
+            $expression .= " " . $tokens[$lntok];
+          }
+
+          $expression =~ s/define\s*\((".*")\)/$1/;
+          print "defining\t$expression\n";
+          $expression =~ s/"//g;
+          &evaluate($expression);
+
+        } elsif($token =~ /eval\(?/m){ ## MERGE WITH DEFINE
           my $expression = "";
           if($token =~ /\)/m){ # eval("X")
             $expression = $token;
@@ -395,8 +420,10 @@ sub inc_by_for_number($){
 
           $expression =~ s/eval\s*\((".*")\)/$1/;
           print "evaluating:\t$expression\n";
-          # $pc += &inc_by_for_number(&evaluate($expression));
-          $pc++; # returns value always
+          $expression =~ s/"//g;
+          my $val = &evaluate($expression);
+          print OUTPUT_FIRST "$val\n";
+          $pc += &inc_by_for_number($val);
         } else {
           die "Invalid token on line $linecount: \"$token\"";
         }
@@ -404,6 +431,7 @@ sub inc_by_for_number($){
     } # foreach
   } # while
   close INPUT_FIRST;
+  close OUTPUT_FIRST;
 } # scope
 
 print "Counted $pc instructions\n";
@@ -413,7 +441,7 @@ print "Counted $pc instructions\n";
 # Now we have the labels we can assemble the source
 ###############################################################################
 {
-  open INPUT_SECOND, "<", "$inputfile.$tmpfile" or die "$inputfile.$tmpfile:$!";
+  open INPUT_SECOND, "<", "$inputfile.01.$tmpfile" or die "$inputfile.01.$tmpfile:$!";
   while(<INPUT_SECOND>){
     my $line = $_;
   }
@@ -424,7 +452,8 @@ print "Counted $pc instructions\n";
 ###############################################################################
 
 if(0 == $keeptempfiles){ # remove temporary files or not
-  unlink "$inputfile.$tmpfile" or warn "unlink failed:$!";
+  unlink "$inputfile.00.$tmpfile" or warn "unlink failed:$!";
+  unlink "$inputfile.01.$tmpfile" or warn "unlink failed:$!";
 }
 
 #### Write output file ########################################################
