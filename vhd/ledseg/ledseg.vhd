@@ -37,14 +37,12 @@ entity ledseg is
 end;
 
 architecture behav of ledseg is
-  constant highest_counter_bit: integer := 21;
-  signal led_0_1_c, led_0_1_n: std_logic_vector(15 downto 0):= (others => '0');
-  signal led_2_3_c, led_2_3_n: std_logic_vector(15 downto 0):= (others => '0');
+  constant highest_counter_bit: integer := 6;
+  signal led_0_1_c, led_0_1_n: std_logic_vector(15 downto 0) := (others => '0');
+  signal led_2_3_c, led_2_3_n: std_logic_vector(15 downto 0) := (others => '0');
 
-  signal ka_c, ka_n: std_logic_vector(7 downto 0);
-
-  signal counter:    unsigned(highest_counter_bit downto 0);
-  signal counter_hb: std_logic;
+  signal counter:    unsigned(highest_counter_bit downto 0) := (others => '0');
+  signal counter_hb: std_logic := '0';
   signal shift_reg:  std_logic_vector(3 downto 0) := (0 => '1', others => '0');
 begin
   counter_hb <= counter(highest_counter_bit);
@@ -55,12 +53,10 @@ begin
     if rst = '1' then
       led_0_1_c <= (others => '0');    
       led_2_3_c <= (others => '0');    
-      ka_c      <= (others => '0');
       counter   <= (others => '0');
     elsif rising_edge(clk) then
       led_0_1_c <= led_0_1_n;
       led_2_3_c <= led_2_3_n;
-      ka_c      <= ka_n;
       counter   <= counter + 1;
     end if;
   end process;
@@ -77,12 +73,12 @@ begin
   process(
     led_0_1_c, led_0_1_we, led_0_1,
     led_2_3_c, led_2_3_we, led_2_3,
-    ka_c
+    shift_reg
   )
   begin
     led_0_1_n <= led_0_1_c;
     led_2_3_n <= led_2_3_c;
-    ka_n <= ka_n;
+    ka <= (others => '0');
 
     if '1' = led_0_1_we then
       led_0_1_n <= led_0_1;
@@ -91,6 +87,15 @@ begin
     if '1' = led_2_3_we then
       led_2_3_n <= led_2_3;
     end if;
-  end process;
 
+    if '1' = shift_reg(0) then
+      ka <= led_0_1_c(7 downto 0);
+    elsif '1' = shift_reg(1) then
+      ka <= led_0_1_c(15 downto 8);
+    elsif '1' = shift_reg(2) then
+      ka <= led_2_3_c(7 downto 0);
+    elsif '1' = shift_reg(3) then
+      ka <= led_2_3_c(15 downto 8);
+    end if;
+  end process;
 end architecture;

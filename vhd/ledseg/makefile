@@ -29,13 +29,13 @@ $(FILE).o: $(FILE).vhd
 
 simulation: $(FILE).o  $(FILE)_tb.vhd
 	ghdl -a $(FILE)_tb.vhd
-	ghdl -e $(FILE)
-	ghdl -r $(FILE) --wave=$(FILE).ghw 
+	ghdl -e $(FILE)_tb
+	ghdl -r $(FILE)_tb --wave=$(FILE).ghw 
 
 ## Simulation ==============================================================
 
 viewer:
-	@gtkwave $(FILE).ghw
+	@gtkwave $(FILE).ghw &> /dev/null&
 
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."

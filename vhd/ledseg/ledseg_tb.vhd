@@ -25,22 +25,19 @@ architecture testing of ledseg_tb is
   signal clk_tb:  std_logic;
   signal rst_tb:  std_logic;
 
-  signal led_0_1_tb:     std_logic_vector(15 downto 0); 
-  signal led_2_3_tb:     std_logic_vector(15 downto 0);
-  signal led_0_1_we_tb:  std_logic;
-  signal led_2_3_we_tb:  std_logic;
+  signal led_0_1_tb:     std_logic_vector(15 downto 0) := (others => '0'); 
+  signal led_2_3_tb:     std_logic_vector(15 downto 0) := (others => '0');
+  signal led_0_1_we_tb:  std_logic := '0';
+  signal led_2_3_we_tb:  std_logic := '0';
   signal an_tb:          std_logic_vector(3 downto 0);
   signal ka_tb:          std_logic_vector(7 downto 0);
-
-  signal  tb_clk100MHz:   std_logic :=  '0';
-  signal  tb_rst:         std_logic;
 begin
 ---- Units under test ----------------------------------------------------------
 
   ledseg_uut: entity work.ledseg
   generic map(
-    number_of_segments => number_of_segments,        -- not used at the moment
-    clk_freq => clk_freq  -- --""--
+    number_of_segments => number_of_segments, -- not used at the moment
+    clk_freq => clk_freq                      -- --""--
   )
   port map(
     clk => clk_tb,
@@ -68,10 +65,17 @@ begin
 
   stimulus_process: process
   begin
-    tb_rst <= '1';
+    rst_tb <= '1';
+
     wait for clk_period * 2;
-    tb_rst <= '0';
-    wait for clk_period * 255;
+    rst_tb <= '0';
+    wait for clk_period * 1;
+    led_0_1_tb <= X"4321";
+    led_2_3_tb <= X"8765";
+
+    led_0_1_we_tb <= '1';
+    led_2_3_we_tb <= '1';
+    wait for clk_period * 1024;
     wait_flag   <=  '1';
     wait;
   end process;
