@@ -55,6 +55,7 @@ entity top_level is
     -- Simple LED outputs
     an:       out std_logic_vector(3 downto 0) :=      (others => '0'); -- anodes   7 segment display
     ka:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- kathodes 7 segment display
+
     ld:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- leds
     -- UART
     rx:       in  std_logic                    :=      'X';  -- uart rx 
@@ -80,6 +81,8 @@ entity top_level is
 end;
 
 architecture behav of top_level is
+  constant number_of_segments: positive :=  4; -- number of 8 Segment LED displays
+
   -- Signals
   signal rst: std_logic := '0';
   -- CPU H2 IO interface signals.
@@ -99,8 +102,6 @@ architecture behav of top_level is
   -- Basic IO register
   ---- LEDs/Switches
 
-  signal an_c,an_n: std_logic_vector(3 downto 0):=  (others => '0');
-  signal ka_c,ka_n: std_logic_vector(7 downto 0):=  (others => '0');
   signal ld_c,ld_n: std_logic_vector(7 downto 0):=  (others => '0');
 
   ---- VGA
@@ -140,6 +141,12 @@ architecture behav of top_level is
   signal ascii_new_c, ascii_new_n: std_logic := '0';
   signal ascii_code:  std_logic_vector(6 downto 0); -- ASCII char
   signal ascii_code_c, ascii_code_n:  std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
+
+  ---- 8 Segment Display
+  signal led_0_1:    std_logic_vector(15 downto 0) := (others => '0'); -- leds 0 and 1
+  signal led_2_3:    std_logic_vector(15 downto 0) := (others => '0'); -- leds 2 and 3
+  signal led_0_1_we: std_logic := '0';
+  signal led_2_3_we: std_logic := '0';
 begin
 ------- Output assignments (Not in a process) ---------------------------------
   rst   <=  '0';
@@ -209,8 +216,6 @@ begin
    begin
      if rst = '1' then
        -- LEDs/Switches
-       an_c        <=  (others => '0');
-       ka_c        <=  (others => '0');
        ld_c        <=  (others => '0');
        -- UART
        uart_din_c  <=  (others => '0');
@@ -222,8 +227,6 @@ begin
        ascii_new_c  <= '0';
      elsif rising_edge(clk) then
        -- LEDs/Switches
-       an_c        <=  an_n;
-       ka_c        <=  ka_n;
        ld_c        <=  ld_n;
        -- UART
        uart_din_c  <=  uart_din_n; 
@@ -238,7 +241,7 @@ begin
 
   io_select: process(
     cpu_io_wr,cpu_io_re,cpu_io_dout,cpu_io_daddr,
-    an_c,ka_c,ld_c,
+    ld_c,
     sw,rx,btnu,btnd,btnl,btnr,btnc,
     uart_din_c, ack_din_c,
     uart_dout_c, 
@@ -250,17 +253,18 @@ begin
   )
   begin
     -- Outputs
-    an <= an_c;
-    ka <= ka_c;
     ld <= ld_c;
 
     uart_din <= uart_din_c;
     stb_din  <= '0';
     ack_dout <= '0';
 
+    led_0_1 <= (others => '0');
+    led_2_3 <= (others => '0');
+    led_0_1_we <= '0';
+    led_2_3_we <= '0';
+
     -- Register defaults
-    an_n <= an_c;
-    ka_n <= ka_c;
     ld_n <= ld_c;
 
     -- VGA
@@ -311,9 +315,7 @@ begin
     if cpu_io_wr = '1' then
       -- Write output.
       case cpu_io_daddr(4 downto 0) is
-        when "00000" => -- LEDs 7 Segment displays.
-          an_n <= cpu_io_dout(3 downto 0);
-          ka_n <= cpu_io_dout(15 downto 8);
+        when "00000" => -- Not used!
         when "00001" => -- LEDs, next to switches.
           ld_n <= cpu_io_dout(7 downto 0);
         when "00010" => -- VGA, cursor registers.
@@ -342,7 +344,11 @@ begin
           gpt0_ctr_r_we <= '1';
           gpt0_ctr_r    <= cpu_io_dout(15 downto 0);
         when "01011" =>
+          led_0_1 <= cpu_io_dout(15 downto 0);
+          led_0_1_we <= '1';
         when "01100" =>
+          led_2_3 <= cpu_io_dout(15 downto 0);
+          led_2_3_we <= '1';
         when "01101" =>
         when "01110" =>
         when "01111" =>
@@ -478,6 +484,24 @@ begin
     ascii_code => ascii_code
   );
   --- PS/2 ----------------------------------------------------------
+
+  --- LED 8 Segment display -----------------------------------------
+  ledseg_module: entity work.ledseg
+  generic map(
+    number_of_segments => number_of_segments, -- not used at the moment
+    clk_freq => clock_frequency               -- --""--
+  )
+  port map(
+    clk => clk,
+    rst => rst,
+    led_0_1 => led_0_1,
+    led_2_3 => led_2_3,
+    led_0_1_we => led_0_1_we,
+    led_2_3_we => led_2_3_we,
+    an => an,
+    ka => ka
+  );
+  --- LED 8 Segment display -----------------------------------------
 
 -------------------------------------------------------------------------------
 end architecture;

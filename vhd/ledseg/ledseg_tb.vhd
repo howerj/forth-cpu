@@ -75,7 +75,7 @@ begin
 
     led_0_1_we_tb <= '1';
     led_2_3_we_tb <= '1';
-    wait for clk_period * 1024;
+    wait for clk_period * 1000;
     wait_flag   <=  '1';
     wait;
   end process;

@@ -20,7 +20,8 @@ SOURCES = \
 	vga_top.vhd \
 	irqh.vhd \
 	h2.vhd \
-	cpu.vhd 
+	cpu.vhd \
+	ledseg.vhd
 
 all:
 	@echo ""
@@ -88,7 +89,11 @@ cpu.o: h2.o irqh.o util.o cpu.vhd mem_h2.hexadecimal
 	@echo "ghdl -a cpu.vhd"
 	@ghdl -a cpu.vhd
 
-top_level.o: util.o cpu.o uart.o vga_top.o ps2_keyboard_to_ascii.o top_level.vhd
+ledseg.o: ledseg.vhd
+	@echo "ghdl -a ledseg.vhd"
+	@ghdl -a ledseg.vhd
+
+top_level.o: util.o cpu.o uart.o vga_top.o ps2_keyboard_to_ascii.o ledseg.o top_level.vhd 
 	@echo "ghdl -a top_level.vhd"
 	@ghdl -a top_level.vhd
 
