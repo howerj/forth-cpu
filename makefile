@@ -1,9 +1,11 @@
 #
 # Makefile to simulate and synthesize VHDL designs
 #
-# @Author 		Marc Eberhard/Richard Howe
-# @Copyright	Copyright 2013 Marc Eberhard
-# @License		LGPL
+# @Author      Marc Eberhard/Richard Howe
+# @Copyright   Copyright 2013 Marc Eberhard, 2016 Richard Howe
+# @License     LGPL
+#
+# This file needs a lot of improving
 #
 
 DOXYFILE=doxygen.conf
@@ -15,6 +17,7 @@ NETLIST=top_level
 SOURCES = \
 	util.vhd \
 	uart.vhd \
+	edge_detector.vhd \
 	debounce.vhd \
 	ps2_keyboard.vhd \
 	ps2_keyboard_to_ascii.vhd \
@@ -192,7 +195,7 @@ design.bit: reports tmp/_xmsgs
 	@mv top_level.drc top_level_bitgen.xwbt top_level_usage.xml top_level_summary.xml webtalk.log tmp
 	@grep -i '\(warning\|clock period\)' reports/xst.log
 
-upload: bitfile
+upload: 
 	djtgcfg prog -d Nexys3 -i 0 -f design.bit
 
 design: clean simulation synthesis implementation bitfile

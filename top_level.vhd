@@ -138,6 +138,7 @@ architecture behav of top_level is
 
 	---- PS/2
 	signal ascii_new: std_logic := '0';  -- new ASCII char available
+	signal ascii_new_edge: std_logic := '0';
 	signal ascii_new_c, ascii_new_n: std_logic := '0';
 	signal ascii_code:  std_logic_vector(6 downto 0); -- ASCII char
 	signal ascii_code_c, ascii_code_n:  std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
@@ -158,11 +159,12 @@ begin
 --  cpu_irq <= debug_irq;
 --  cpu_irc <= debug_irc;
 -- synthesis translate_on
-	cpu_irq    <= gpt0_irq_comp1 or ack_din or stb_dout; -- or sig_1 .. or sig_n
+	-- cpu_irq    <= gpt0_irq_comp1 or ack_din or stb_dout; -- or sig_1 .. or sig_n
 --  cpu_irc(0) <= rst;
-	cpu_irc(1) <= gpt0_irq_comp1;
-	cpu_irc(2) <= ack_din;
-	cpu_irc(3) <= stb_dout;
+	-- cpu_irc(1) <= gpt0_irq_comp1;
+	-- cpu_irc(2) <= ack_din;
+	-- cpu_irc(3) <= stb_dout;
+	cpu_irc <= (others => '0');
 
 	-- Testing only -----------------
 	-- cpu_wait <= btnc; -- Pause CPU
@@ -287,7 +289,7 @@ begin
 	gpt0_ctr_r_we <= '0';
 	gpt0_ctr_r <= (others => '0');
 
-	if ascii_new = '1' then
+	if ascii_new_edge = '1' then
 	  ascii_new_n <= '1';
 	  ascii_code_n <= ascii_code;
 	else
@@ -374,7 +376,7 @@ begin
 	            stb_dout_n <= '0';
 	    when "0110" =>  -- PS/2 Keyboard, Check for new char
 	            cpu_io_din <= (0 => ascii_new_c, others => '0');
-	    when "0111" =>  -- PS/2 ASCII In an ACK
+	    when "0111" =>  -- PS/2 ASCII In and ACK
 	            cpu_io_din <= "000000000" &  ascii_code_c;
 	            ascii_new_n <= '0';
 	    when "1000" => cpu_io_din <= (others => '0');
@@ -468,21 +470,25 @@ begin
 	);
 	--- VGA -----------------------------------------------------------
 
+	edge: entity work.edge_detector
+	port map(
+		clk => clk,
+		sin => ascii_new,
+		output => ascii_new_edge);
+
 	--- PS/2 ----------------------------------------------------------
 	ps2_module: entity work.ps2_keyboard_to_ascii
 	generic map(
-	clk_freq => clock_frequency,
-	ps2_debounce_counter_size => 9 -- ceil(log_2(clk_freq*desired_debouce_period))
-	)
+		clk_freq => clock_frequency,
+		ps2_debounce_counter_size => 8 )
 	port map(
-	clk => clk,
+		clk => clk,
 
-	ps2_clk => ps2_keyboard_clk,
-	ps2_data => ps2_keyboard_data,
+		ps2_clk => ps2_keyboard_clk,
+		ps2_data => ps2_keyboard_data,
 
-	ascii_new => ascii_new,
-	ascii_code => ascii_code
-	);
+		ascii_new => ascii_new,
+		ascii_code => ascii_code);
 	--- PS/2 ----------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------

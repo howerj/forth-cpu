@@ -18,6 +18,7 @@
 --   Version 1.0 11/29/2013 Scott Larson
 --     Initial Public Release
 --    
+-- See https://eewiki.net/pages/viewpage.action?pageId=28279002
 --------------------------------------------------------------------------------
 
 LIBRARY ieee;

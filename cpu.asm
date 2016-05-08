@@ -66,7 +66,7 @@ main:
 
   0 o_vgaWrite !
 
-jump main
+jump wait
 
 /*** Functions ***************************************************************/
 loadcursor:
