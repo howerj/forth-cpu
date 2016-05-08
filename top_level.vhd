@@ -470,13 +470,16 @@ begin
 	);
 	--- VGA -----------------------------------------------------------
 
-	edge: entity work.edge_detector
+	--- PS/2 ----------------------------------------------------------
+
+	-- Process a ascii_new into a single edge for the rest of the
+	-- system
+	ps2_edge_new_character: entity work.edge_detector_rising
 	port map(
 		clk => clk,
 		sin => ascii_new,
 		output => ascii_new_edge);
 
-	--- PS/2 ----------------------------------------------------------
 	ps2_module: entity work.ps2_keyboard_to_ascii
 	generic map(
 		clk_freq => clock_frequency,

@@ -17,7 +17,7 @@ NETLIST=top_level
 SOURCES = \
 	util.vhd \
 	uart.vhd \
-	edge_detector.vhd \
+	edge_detector_rising.vhd \
 	debounce.vhd \
 	ps2_keyboard.vhd \
 	ps2_keyboard_to_ascii.vhd \
