@@ -9,6 +9,8 @@
 DOXYFILE=doxygen.conf
 NETLIST=top_level
 
+.PHONY: simulation viewer synthesis bitfile upload clean
+
 ## Remember to update the synthesis section as well
 SOURCES = \
 	util.vhd \
@@ -22,6 +24,8 @@ SOURCES = \
 	h2.vhd \
 	cpu.vhd \
 	ledseg.vhd \
+
+OBJECTS = $(SOURCES:.vhd=.o)
 
 all:
 	@echo ""
@@ -47,77 +51,62 @@ all:
 	@echo "make doxygen"       - make doxygen documentation
 	@echo ""
 
-##
-## Simulation ==============================================================
-util.o: util.vhd
-	@echo "ghdl -a util.vhd"
-	@ghdl -a util.vhd
 
-vga80x40.o: util.o vga80x40.vhd
-	@echo "ghdl -a vga80x40.vhd"
-	@ghdl -a vga80x40.vhd
+## Assembler ===============================================================
+
+mem_h2.hexadecimal: assembler cpu.asm
+	./assembler
+
+## Simulation ==============================================================
+
+filter: filter.c
+	$(CC) $^ -o $@
+
+%.o: %.vhd
+	ghdl -a $^
 
 vga_top.o: util.o vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
-	@echo "ghdl -a vga_top.vhd"
-	@ghdl -a vga_top.vhd
-
-debounce.o: debounce.vhd
-	@echo "ghdl -a debounce.vhd"
-	@ghdl -a debounce.vhd 
+	ghdl -a vga_top.vhd
 
 ps2_keyboard.o: ps2_keyboard.vhd debounce.o
-	@echo "ghdl -a ps2_keyboard.vhd"
-	@ghdl -a ps2_keyboard.vhd
+	ghdl -a ps2_keyboard.vhd
 
 ps2_keyboard_to_ascii.o: ps2_keyboard_to_ascii.vhd ps2_keyboard.o debounce.o
-	@echo "ghdl -a ps2_keyboard_to_ascii.vhd"
-	@ghdl -a ps2_keyboard_to_ascii.vhd
-
-uart.o: uart.vhd
-	@echo "ghdl -a uart.vhd"
-	@ghdl -a uart.vhd
-
-irqh.o: irqh.vhd
-	@echo "ghdl -a irqh.vhd"
-	@ghdl -a irqh.vhd
-
-h2.o: h2.vhd
-	@echo "ghdl -a h2.vhd"
-	@ghdl -a h2.vhd
+	ghdl -a ps2_keyboard_to_ascii.vhd
 
 cpu.o: h2.o irqh.o util.o cpu.vhd mem_h2.hexadecimal
-	@echo "ghdl -a cpu.vhd"
-	@ghdl -a cpu.vhd
-
-ledseg.o: ledseg.vhd
-	@echo "ghdl -a ledseg.vhd"
-	@ghdl -a ledseg.vhd
+	ghdl -a cpu.vhd
 
 top_level.o: util.o cpu.o uart.o vga_top.o ps2_keyboard_to_ascii.o ledseg.o top_level.vhd 
-	@echo "ghdl -a top_level.vhd"
-	@ghdl -a top_level.vhd
+	ghdl -a top_level.vhd
 
 test_bench.o: top_level.o test_bench.vhd
-	@echo "ghdl -a test_bench.vhd"
-	@ghdl -a test_bench.vhd
+	ghdl -a test_bench.vhd
 
-simulation: test_bench.o
+test_bench: $(OBJECTS) test_bench.o
 	ghdl -e test_bench
-	ghdl -r test_bench --wave=test_bench.ghw 
+
+%.ghw: %
+	ghdl -r $^ --wave=$^.ghw
+
+simulation: test_bench.ghw
+
 ## Simulation ==============================================================
 
-viewer: filter
+viewer: filter simulation
 	gtkwave -S gtkwave.tcl -f test_bench.ghw &> /dev/null&
 
-synthesis:
-	@echo "Synthesis running..."
+bitfile: design.bit
 
+reports:
 	@[ -d reports    ]    || mkdir reports
+tmp:
 	@[ -d tmp        ]    || mkdir tmp
+tmp/_xmsgs:
 	@[ -d tmp/_xmsgs ]    || mkdir tmp/_xmsgs
-	
-	@echo "work" > tmp/top_level.lso
 
+tmp/top_level.prj: tmp
+	@rm -f tmp/top_level.prj
 	@( \
 	    for f in $(SOURCES); do \
 	        echo "vhdl work \"$$f\""; \
@@ -125,6 +114,10 @@ synthesis:
 	    echo "vhdl work \"top_level.vhd\"" \
 	) > tmp/top_level.prj
 
+tmp/top_level.lso: tmp
+	@echo "work" > tmp/top_level.lso
+
+tmp/top_level.xst: tmp tmp/_xmsgs tmp/top_level.lso tmp/top_level.lso
 	@( \
 	    echo "set -tmpdir \"tmp\""; \
 	    echo "set -xsthdpdir \"tmp\""; \
@@ -138,6 +131,8 @@ synthesis:
 	    echo "-opt_level 2" \
 	) > tmp/top_level.xst
 
+synthesis: reports tmp tmp/_xmsgs tmp/top_level.prj tmp/top_level.xst
+	@echo "Synthesis running..."
 	@xst -intstyle silent -ifn tmp/top_level.xst -ofn reports/xst.log
 	@mv _xmsgs/* tmp/_xmsgs
 	@rmdir _xmsgs
@@ -146,11 +141,9 @@ synthesis:
 	 grep -v "WARNING.*has a constant value.*This FF/Latch will be trimmed during the optimization process." | \
 	 cat
 
-implementation: 
+implementation: reports tmp
 	@echo "Implementation running..."
 	
-	@[ -d reports             ] || mkdir reports
-	@[ -d tmp                 ] || mkdir tmp
 	@[ -d tmp/xlnx_auto_0_xdb ] || mkdir tmp/xlnx_auto_0_xdb
 
 	@ngdbuild -intstyle silent -quiet -dd tmp -uc top_level.ucf -p xc6slx16-csg324-3 top_level.ngc top_level.ngd
@@ -186,11 +179,11 @@ implementation:
 	@#rmdir _xmsgs
 	@#mv top_level_xsim.nlf top_level_tsim.nlf tmp
 
-bitfile:
+
+design.bit: reports tmp/_xmsgs
 	@echo "Generate bitfile running..."
 	@touch webtalk.log
 	@bitgen -intstyle silent -w top_level.ncd
-	@[ -d reports ] || mkdir reports
 	@mv top_level.bit design.bit
 	@mv top_level.bgn reports/bitgen.log
 	@mv _xmsgs/* tmp/_xmsgs
@@ -199,7 +192,7 @@ bitfile:
 	@mv top_level.drc top_level_bitgen.xwbt top_level_usage.xml top_level_summary.xml webtalk.log tmp
 	@grep -i '\(warning\|clock period\)' reports/xst.log
 
-upload:
+upload: bitfile
 	djtgcfg prog -d Nexys3 -i 0 -f design.bit
 
 design: clean simulation synthesis implementation bitfile
@@ -222,5 +215,6 @@ clean:
 	      top_level.unroutes top_level.xpi top_level_par.xrpt top_level.twx top_level.nlf design.bit top_level_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf doxy/
+	@rm -vrf doxy/ filter
 	@rm -vf usage_statistics_webtalk.html
+	@rm -vf mem_h2.binary mem_h2.hexadecimal

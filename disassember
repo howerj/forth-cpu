@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # H2 CPU disassembler
 # Either read from file, or given an individual number, disable it
 #

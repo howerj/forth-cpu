@@ -1,3 +1,5 @@
+mem_h2.binary
+mem_h2.hexadecimal
 filter
 *.swp
 *.swo
