@@ -1,7 +1,0 @@
-*.ghw
-*.o
-*.swp
-*.swo
-*.cf
-dac_top_level
-dac_test_bench

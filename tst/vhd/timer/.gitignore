@@ -1,7 +1,0 @@
-gptimer_test_bench
-*.o
-*.cf
-*.swp
-*.log
-*.swo
-*.ghw

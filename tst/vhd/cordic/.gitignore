@@ -1,9 +1,0 @@
-*.ghw
-*.o
-*.swp
-*.swo
-*.cf
-cordic_test_bench
-ccordic
-log.txt
-*.log

@@ -1,6 +1,0 @@
-*.o
-*.cf
-queue_test_bench
-*.swo
-*.swp
-*.ghw
