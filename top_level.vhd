@@ -5,7 +5,7 @@
 --!  RAM, and all the I/O modules.
 --!
 --!  TODO:
---!   * expand funcionality (colors, etc)
+--!   * expand functionality (colors, etc)
 --!   * switch between different sections of memory with addr bit
 --!   * integrate VGA memory with CPU core
 --!
@@ -21,62 +21,60 @@ use ieee.numeric_std.all;
 
 entity top_level is
 	generic(
-	clock_frequency:      positive := 100000000;
-	number_of_interrupts: positive := 4;
-	uart_baud_rate:       positive := 115200
+		clock_frequency:      positive := 100000000;
+		number_of_interrupts: positive := 4;
+		uart_baud_rate:       positive := 115200
 	);
 	port
 	(
 -- synthesis translate_off
+		-- This is only used for the test bench
+		debug_irq:        in  std_logic;
+		debug_irc:        in  std_logic_vector(3 downto 0);
 
-	-- This should be removed once testing is done in the interests of
-	-- portability.
-	debug_irq:        in  std_logic;
-	debug_irc:        in  std_logic_vector(3 downto 0);
-
-	debug_pc:         out std_logic_vector(12 downto 0);
-	debug_insn:       out std_logic_vector(15 downto 0);
-	debug_mem_dwe:    out std_logic:= '0';   
-	debug_mem_din:    out std_logic_vector(15 downto 0);
-	debug_mem_dout:   out std_logic_vector(15 downto 0);
-	debug_mem_daddr:  out std_logic_vector(12 downto 0);
+		debug_pc:         out std_logic_vector(12 downto 0);
+		debug_insn:       out std_logic_vector(15 downto 0);
+		debug_mem_dwe:    out std_logic:= '0';   
+		debug_mem_din:    out std_logic_vector(15 downto 0);
+		debug_mem_dout:   out std_logic_vector(15 downto 0);
+		debug_mem_daddr:  out std_logic_vector(12 downto 0);
 -- synthesis translate_on
 
-	clk:      in  std_logic                    :=      'X';  -- clock
+		clk:      in  std_logic                    :=      'X';  -- clock
 --  cpu_wait: in  std_logic                    :=      'X';  -- CPU wait
-	-- Buttons
-	btnu:     in  std_logic                    :=      'X';  -- button up
-	btnd:     in  std_logic                    :=      'X';  -- button down
-	btnc:     in  std_logic                    :=      'X';  -- button centre
-	btnl:     in  std_logic                    :=      'X';  -- button left
-	btnr:     in  std_logic                    :=      'X';  -- button right
-	-- Switches
-	sw:       in  std_logic_vector(7 downto 0) :=      (others => 'X'); -- switches
-	-- Simple LED outputs
-	an:       out std_logic_vector(3 downto 0) :=      (others => '0'); -- anodes   7 segment display
-	ka:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- kathodes 7 segment display
+		-- Buttons
+		btnu:     in  std_logic                    :=      'X';  -- button up
+		btnd:     in  std_logic                    :=      'X';  -- button down
+		btnc:     in  std_logic                    :=      'X';  -- button centre
+		btnl:     in  std_logic                    :=      'X';  -- button left
+		btnr:     in  std_logic                    :=      'X';  -- button right
+		-- Switches
+		sw:       in  std_logic_vector(7 downto 0) :=      (others => 'X'); -- switches
+		-- Simple LED outputs
+		an:       out std_logic_vector(3 downto 0) :=      (others => '0'); -- anodes   7 segment display
+		ka:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- kathodes 7 segment display
 
-	ld:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- leds
-	-- UART
-	rx:       in  std_logic                    :=      'X';  -- uart rx 
-	tx:       out std_logic                    :=      '0';  -- uart tx
-	-- VGA
-	red:      out std_logic_vector(2 downto 0) :=      (others => '0'); 
-	green:    out std_logic_vector(2 downto 0) :=      (others => '0'); 
-	blue:     out std_logic_vector(1 downto 0) :=      (others => '0'); 
-	hsync:    out std_logic                    :=      '0';
-	vsync:    out std_logic                    :=      '0';
-	-- PWM from timer
-	gpt0_q:   out std_logic                    :=      '0';
-	gpt0_nq:  out std_logic                    :=      '0';
-	-- PS/2 Interface
-	ps2_keyboard_data:  in std_logic           :=      '0'; 
-	ps2_keyboard_clk:   in std_logic           :=      '0'
+		ld:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- leds
+		-- UART
+		rx:       in  std_logic                    :=      'X';  -- uart rx 
+		tx:       out std_logic                    :=      '0';  -- uart tx
+		-- VGA
+		red:      out std_logic_vector(2 downto 0) :=      (others => '0'); 
+		green:    out std_logic_vector(2 downto 0) :=      (others => '0'); 
+		blue:     out std_logic_vector(1 downto 0) :=      (others => '0'); 
+		hsync:    out std_logic                    :=      '0';
+		vsync:    out std_logic                    :=      '0';
+		-- PWM from timer
+		gpt0_q:   out std_logic                    :=      '0';
+		gpt0_nq:  out std_logic                    :=      '0';
+		-- PS/2 Interface
+		ps2_keyboard_data:  in std_logic           :=      '0'; 
+		ps2_keyboard_clk:   in std_logic           :=      '0'
 
---    ps2_mouse_data:     in std_logic           :=      '0'; 
---    ps2_mouse_clk:      in std_logic           :=      '0'; 
+	--    ps2_mouse_data:     in std_logic           :=      '0'; 
+	--    ps2_mouse_clk:      in std_logic           :=      '0'; 
 
---    pic_gpio:           in std_logic_vector(1 downto 0):= (others => 'X')
+	--    pic_gpio:           in std_logic_vector(1 downto 0):= (others => 'X')
 	);
 end;
 
@@ -204,270 +202,264 @@ begin
 
 	-- Xilinx Application Note:
 	-- It seems like it buffers the clock correctly here, so no need to
-	-- use a DCM.
+	-- use a DCM. However, see:
+	-- http://electronics.stackexchange.com/questions/112534/using-digital-clock-manager-with-verilog-to-generate-25mhz-clock-from-32mhz-inte
 	---- Clock divider /2. 
-	clk50MHz <= '0' when rst = '1' else
-	    not clk50MHz when rising_edge(clk);
+	clk50MHz <= '0' when rst = '1' else not clk50MHz when rising_edge(clk);
 
 	---- Clock divider /2. Pixel clock is 25MHz
-	clk25MHz <= '0' when rst = '1' else
-	    not clk25MHz when rising_edge(clk50MHz);
+	clk25MHz <= '0' when rst = '1' else not clk25MHz when rising_edge(clk50MHz);
 	---- End note.
 
 	io_nextState: process(clk,rst)
 	begin
-	 if rst = '1' then
-	   -- LEDs/Switches
-	   ld_c        <=  (others => '0');
-	   -- UART
-	   uart_din_c  <=  (others => '0');
-	   ack_din_c   <=  '0';
-	   stb_dout_c  <=  '0';
+		if rst = '1' then
+			-- LEDs/Switches
+			ld_c        <=  (others => '0');
+			-- UART
+			uart_din_c  <=  (others => '0');
+			ack_din_c   <=  '0';
+			stb_dout_c  <=  '0';
 
-	   -- PS/2
-	   ascii_code_c <= (others => '0');
-	   ascii_new_c  <= '0';
-	 elsif rising_edge(clk) then
-	   -- LEDs/Switches
-	   ld_c        <=  ld_n;
-	   -- UART
-	   uart_din_c  <=  uart_din_n; 
-	   ack_din_c   <=  ack_din_n;
-	   uart_dout_c <=  uart_dout_n;
-	   stb_dout_c  <=  stb_dout_n;
-	   -- PS/2
-	   ascii_code_c <= ascii_code_n;
-	   ascii_new_c  <= ascii_new_n;
-	 end if;
+			-- PS/2
+			ascii_code_c <= (others => '0');
+			ascii_new_c  <= '0';
+		elsif rising_edge(clk) then
+			-- LEDs/Switches
+			ld_c        <=  ld_n;
+			-- UART
+			uart_din_c  <=  uart_din_n; 
+			ack_din_c   <=  ack_din_n;
+			uart_dout_c <=  uart_dout_n;
+			stb_dout_c  <=  stb_dout_n;
+			-- PS/2
+			ascii_code_c <= ascii_code_n;
+			ascii_new_c  <= ascii_new_n;
+		end if;
 	end process;
 
 	io_select: process(
-	cpu_io_wr,cpu_io_re,cpu_io_dout,cpu_io_daddr,
-	ld_c,
-	sw,rx,btnu,btnd,btnl,btnr,btnc,
-	uart_din_c, ack_din_c,
-	uart_dout_c, 
-	uart_dout, stb_dout, ack_din,
-	stb_dout, stb_dout_c, vga_dout,
-	ascii_new, ascii_code, ascii_new_c, ascii_code_c,
+		cpu_io_wr, cpu_io_re, cpu_io_dout, cpu_io_daddr, 
+		ld_c, 
+		sw, rx, btnu, btnd, btnl, btnr, btnc, 
+		uart_din_c, ack_din_c, 
+		uart_dout_c,  
+		uart_dout, stb_dout, ack_din, 
+		stb_dout, stb_dout_c, vga_dout, 
+		ascii_new, ascii_code, ascii_new_c, ascii_code_c, 
 
-	gpt0_ctr_r_we
-	)
+		gpt0_ctr_r_we)
 	begin
-	-- Outputs
-	ld <= ld_c;
+		-- Outputs
+		ld <= ld_c;
 
-	uart_din <= uart_din_c;
-	stb_din  <= '0';
-	ack_dout <= '0';
+		uart_din <= uart_din_c;
+		stb_din  <= '0';
+		ack_dout <= '0';
 
-	led_0_1 <= (others => '0');
-	led_2_3 <= (others => '0');
-	led_0_1_we <= '0';
-	led_2_3_we <= '0';
+		led_0_1 <= (others => '0');
+		led_2_3 <= (others => '0');
+		led_0_1_we <= '0';
+		led_2_3_we <= '0';
 
-	-- Register defaults
-	ld_n <= ld_c;
+		-- Register defaults
+		ld_n <= ld_c;
 
-	-- VGA
-	crx_we <= '0';
-	cry_we <= '0';
-	ctl_we <= '0';
-	crx <= (others => '0');
-	cry <= (others => '0');
-	ctl <= (others => '0');
+		-- VGA
+		crx_we <= '0';
+		cry_we <= '0';
+		ctl_we <= '0';
+		crx <= (others => '0');
+		cry <= (others => '0');
+		ctl <= (others => '0');
 
-	vga_we_ram <= '0';
-	vga_a_we <= '0';
-	vga_d_we <= '0';
-	vga_din <= (others => '0');
-	vga_addr <= (others => '0');
+		vga_we_ram <= '0';
+		vga_a_we <= '0';
+		vga_d_we <= '0';
+		vga_din <= (others => '0');
+		vga_addr <= (others => '0');
 
-	uart_din_n  <=  uart_din_c; 
+		uart_din_n  <=  uart_din_c; 
 
-	-- General Purpose Timer
-	gpt0_ctr_r_we <= '0';
-	gpt0_ctr_r <= (others => '0');
+		-- General Purpose Timer
+		gpt0_ctr_r_we <= '0';
+		gpt0_ctr_r <= (others => '0');
 
-	if ascii_new_edge = '1' then
-	  ascii_new_n <= '1';
-	  ascii_code_n <= ascii_code;
-	else
-	  ascii_new_n <= ascii_new_c;
-	  ascii_code_n <= ascii_code_c;
-	end if;
+		if ascii_new_edge = '1' then
+			ascii_new_n  <= '1';
+			ascii_code_n <= ascii_code;
+		else
+			ascii_new_n  <= ascii_new_c;
+			ascii_code_n <= ascii_code_c;
+		end if;
 
-	if ack_din = '1' then
-	    ack_din_n <= '1';
-	else
-	    ack_din_n <= ack_din_c;
-	end if;
+		if ack_din = '1' then
+			ack_din_n <= '1';
+		else
+			ack_din_n <= ack_din_c;
+		end if;
 
-	if stb_dout = '1' then
-	    stb_dout_n <= '1';
-	    uart_dout_n <= uart_dout;
-	    ack_dout <= '1';
-	else
-	    uart_dout_n <=  uart_dout_c;
-	    stb_dout_n <= stb_dout_c;
-	end if;
+		if stb_dout = '1' then
+			stb_dout_n  <= '1';
+			uart_dout_n <= uart_dout;
+			ack_dout    <= '1';
+		else
+			uart_dout_n <=  uart_dout_c;
+			stb_dout_n  <= stb_dout_c;
+		end if;
 
-	cpu_io_din <= (others => '0');
+		cpu_io_din <= (others => '0');
 
-	if cpu_io_wr = '1' then
-	  -- Write output.
-	  case cpu_io_daddr(4 downto 0) is
-	    when "00000" => -- Not used!
-	    when "00001" => -- LEDs, next to switches.
-	      ld_n <= cpu_io_dout(7 downto 0);
-	    when "00010" => -- VGA, cursor registers.
-	      crx_we <= '1';
-	      cry_we <= '1';
-	      crx <= cpu_io_dout(6 downto 0);
-	      cry <= cpu_io_dout(13 downto 8);
-	    when "00011" => -- VGA, control register.
-	      ctl_we <= '1';
-	      ctl <= cpu_io_dout(7 downto 0);
-	    when "00100" => -- VGA update address register.
-	      vga_a_we <= '1';
-	      vga_addr <= cpu_io_dout(12 downto 0);
-	    when "00101" => -- VGA, update register.
-	      vga_d_we <= '1';
-	      vga_din <= cpu_io_dout(15 downto 0);
-	    when "00110" => -- VGA write RAM write
-	      vga_we_ram <= '1';
-	    when "00111" => -- UART write output.
-	      uart_din_n <= cpu_io_dout(7 downto 0);
-	    when "01000" => -- UART strobe input.
-	      stb_din <= '1';
-	    when "01001" => -- UART acknowledge output.
-	      ack_dout <= '1';
-	    when "01010" => -- General purpose timer
-	      gpt0_ctr_r_we <= '1';
-	      gpt0_ctr_r    <= cpu_io_dout(15 downto 0);
-	    when "01011" => -- LED 8 Segment display
-	      led_0_1 <= cpu_io_dout(15 downto 0);
-	      led_0_1_we <= '1';
-	    when "01100" => -- LED 8 Segment display
-	      led_2_3 <= cpu_io_dout(15 downto 0);
-	      led_2_3_we <= '1';
-	    when "01101" =>
-	    when "01110" =>
-	    when "01111" =>
-	    when "10000" =>
-	    when others =>
-	  end case;
-	elsif cpu_io_re = '1' then
-	  -- Get input.
-	  case cpu_io_daddr(3 downto 0) is
-	    when "0000" => -- Switches, plus direct access to UART bit.
-	            cpu_io_din <= "0000000000" & rx & btnu & btnd & btnl & btnr & btnc;
-	    when "0001" => 
-	            cpu_io_din <= X"00" & sw;
-	    when "0010" => -- VGA, Read VGA text buffer.
-	            cpu_io_din <= vga_dout;
-	    when "0011" => -- UART get input.
-	            cpu_io_din <= X"00" & uart_dout_c;
-	    when "0100" => -- UART acknowledged input.
-	            cpu_io_din <= (0 => ack_din_c, others => '0');
-	            ack_din_n <= '0';
-	    when "0101" => -- UART strobe output (write output).
-	            cpu_io_din <= (0 => stb_dout_c, others => '0');
-	            stb_dout_n <= '0';
-	    when "0110" =>  -- PS/2 Keyboard, Check for new char
-	            cpu_io_din <= (0 => ascii_new_c, others => '0');
-	    when "0111" =>  -- PS/2 ASCII In and ACK
-	            cpu_io_din <= "000000000" &  ascii_code_c;
-	            ascii_new_n <= '0';
-	    when "1000" => cpu_io_din <= (others => '0');
-	    when "1001" => cpu_io_din <= (others => '0');
-	    when "1010" => cpu_io_din <= (others => '0');
-	    when "1011" => cpu_io_din <= (others => '0');
-	    when "1100" => cpu_io_din <= (others => '0');
-	    when "1101" => cpu_io_din <= (others => '0');
-	    when "1110" => cpu_io_din <= (others => '0');
-	    when "1111" => cpu_io_din <= (others => '0');
-	    when others => cpu_io_din <= (others => '0');
-	  end case;
-	end if;
+		if cpu_io_wr = '1' then
+			-- Write output.
+			case cpu_io_daddr(4 downto 0) is
+			when "00000" => -- Not used!
+			when "00001" => -- LEDs, next to switches.
+				ld_n <= cpu_io_dout(7 downto 0);
+			when "00010" => -- VGA, cursor registers.
+				crx_we <= '1';
+				cry_we <= '1';
+				crx <= cpu_io_dout(6 downto 0);
+				cry <= cpu_io_dout(13 downto 8);
+			when "00011" => -- VGA, control register.
+				ctl_we <= '1';
+				ctl <= cpu_io_dout(7 downto 0);
+			when "00100" => -- VGA update address register.
+				vga_a_we <= '1';
+				vga_addr <= cpu_io_dout(12 downto 0);
+			when "00101" => -- VGA, update register.
+				vga_d_we <= '1';
+				vga_din <= cpu_io_dout(15 downto 0);
+			when "00110" => -- VGA write RAM write
+				vga_we_ram <= '1';
+			when "00111" => -- UART write output.
+				uart_din_n <= cpu_io_dout(7 downto 0);
+			when "01000" => -- UART strobe input.
+				stb_din <= '1';
+			when "01001" => -- UART acknowledge output.
+				ack_dout <= '1';
+			when "01010" => -- General purpose timer
+				gpt0_ctr_r_we <= '1';
+				gpt0_ctr_r    <= cpu_io_dout(15 downto 0);
+			when "01011" => -- LED 8 Segment display
+				led_0_1 <= cpu_io_dout(15 downto 0);
+				led_0_1_we <= '1';
+			when "01100" => -- LED 8 Segment display
+				led_2_3 <= cpu_io_dout(15 downto 0);
+				led_2_3_we <= '1';
+			when "01101" =>
+			when "01110" =>
+			when "01111" =>
+			when "10000" =>
+			when others =>
+			end case;
+		elsif cpu_io_re = '1' then
+			-- Get input.
+			case cpu_io_daddr(3 downto 0) is
+			when "0000" => -- Switches, plus direct access to UART bit.
+				cpu_io_din <= "0000000000" & rx & btnu & btnd & btnl & btnr & btnc;
+			when "0001" => 
+				cpu_io_din <= X"00" & sw;
+			when "0010" => -- VGA, Read VGA text buffer.
+				cpu_io_din <= vga_dout;
+			when "0011" => -- UART get input.
+				cpu_io_din <= X"00" & uart_dout_c;
+			when "0100" => -- UART acknowledged input.
+				cpu_io_din <= (0 => ack_din_c, others => '0');
+				ack_din_n <= '0';
+			when "0101" => -- UART strobe output (write output).
+				cpu_io_din <= (0 => stb_dout_c, others => '0');
+				stb_dout_n <= '0';
+			when "0110" =>  -- PS/2 Keyboard, Check for new char
+				cpu_io_din <= (0 => ascii_new_c, others => '0');
+			when "0111" =>  -- PS/2 ASCII In and ACK
+				cpu_io_din <= "000000000" &  ascii_code_c;
+				ascii_new_n <= '0';
+			when "1000" => cpu_io_din <= (others => '0');
+			when "1001" => cpu_io_din <= (others => '0');
+			when "1010" => cpu_io_din <= (others => '0');
+			when "1011" => cpu_io_din <= (others => '0');
+			when "1100" => cpu_io_din <= (others => '0');
+			when "1101" => cpu_io_din <= (others => '0');
+			when "1110" => cpu_io_din <= (others => '0');
+			when "1111" => cpu_io_din <= (others => '0');
+			when others => cpu_io_din <= (others => '0');
+			end case;
+		end if;
 	end process;
 
 	--- UART ----------------------------------------------------------
 	uart_deglitch: process (clk)
 	begin
-	  if rising_edge(clk) then
-	      rx_sync <= rx;
-	      rx_uart <= rx_sync;
-	      tx <= tx_uart;
-	  end if;
+	if rising_edge(clk) then
+		rx_sync <= rx;
+		rx_uart <= rx_sync;
+		tx <= tx_uart;
+	end if;
 	end process;
 
 	u_uart: entity work.uart 
 	generic map(
-	baud_rate => uart_baud_rate,
-	clock_frequency => clock_frequency
-	)
+		baud_rate       => uart_baud_rate,
+		clock_frequency => clock_frequency)
 	port map(
-	clock => clk,
-	reset => rst,
-	data_stream_in => uart_din,
-	data_stream_in_stb => stb_din,
-	data_stream_in_ack => ack_din,
-	data_stream_out => uart_dout,
-	data_stream_out_stb => stb_dout,
-	data_stream_out_ack => ack_dout,
-	rx => rx_uart,
-	tx => tx_uart
+		clock               => clk,
+		reset               => rst,
+		data_stream_in      => uart_din,
+		data_stream_in_stb  => stb_din,
+		data_stream_in_ack  => ack_din,
+		data_stream_out     => uart_dout,
+		data_stream_out_stb => stb_dout,
+		data_stream_out_ack => ack_dout,
+		rx                  => rx_uart,
+		tx                  => tx_uart
 	);
 	--- UART ----------------------------------------------------------
 
 	--- Timer ---------------------------------------------------------
-	gpt0_q <= gpt0_q_internal;
+	gpt0_q  <= gpt0_q_internal;
 	gpt0_nq <= gpt0_nq_internal;
 	gptimer0_module: entity work.gptimer
 	generic map(
-	gptimerbits => 16
-	)
+		gptimerbits => 16)
 	port map(
-	clk       => clk,
-	rst       => rst,
-	ctrin_we  => gpt0_ctr_r_we,
-	ctrin     => gpt0_ctr_r,
-	irq       => gpt0_irq_comp1,
-	Q         => gpt0_q_internal,
-	NQ        => gpt0_nq_internal
-	);
+		clk       => clk,
+		rst       => rst,
+		ctrin_we  => gpt0_ctr_r_we,
+		ctrin     => gpt0_ctr_r,
+		irq       => gpt0_irq_comp1,
+		Q         => gpt0_q_internal,
+		NQ        => gpt0_nq_internal);
 	--- Timer ---------------------------------------------------------
 
 
 	--- VGA -----------------------------------------------------------
 	vga_module: entity work.vga_top
 	port map(
-	        clk => clk,
-	        clk25MHz => clk25MHz,
-	        rst => rst,
-	        
-	        crx_we => crx_we, 
-	        cry_we => cry_we, 
-	        ctl_we => ctl_we, 
+		clk => clk,
+		clk25MHz => clk25MHz,
+		rst => rst,
 
-	        crx_oreg => crx, 
-	        cry_oreg => cry, 
-	        ctl_oreg => ctl, 
+		crx_we => crx_we, 
+		cry_we => cry_we, 
+		ctl_we => ctl_we, 
 
-	        vga_we_ram => vga_we_ram,
-	        vga_a_we => vga_a_we,
-	        vga_d_we => vga_d_we,
-	        vga_dout => vga_dout,
-	        vga_din => vga_din,
-	        vga_addr => vga_addr,
+		crx_oreg => crx, 
+		cry_oreg => cry, 
+		ctl_oreg => ctl, 
 
-	        red => red,  
-	        green => green,  
-	        blue => blue,  
-	        hsync => hsync,  
-	        vsync => vsync 
-	);
+		vga_we_ram => vga_we_ram,
+		vga_a_we => vga_a_we,
+		vga_d_we => vga_d_we,
+		vga_dout => vga_dout,
+		vga_din => vga_din,
+		vga_addr => vga_addr,
+
+		red => red,  
+		green => green,  
+		blue => blue,  
+		hsync => hsync,  
+		vsync => vsync );
 	--- VGA -----------------------------------------------------------
 
 	--- PS/2 ----------------------------------------------------------
@@ -497,19 +489,18 @@ begin
 	--- LED 8 Segment display -----------------------------------------
 	ledseg_module: entity work.ledseg
 	generic map(
-	number_of_segments => number_of_segments, -- not used at the moment
-	clk_freq => clock_frequency               -- --""--
+		number_of_segments => number_of_segments, -- not used at the moment
+		clk_freq           => clock_frequency     -- --""--
 	)
 	port map(
-	clk => clk,
-	rst => rst,
-	led_0_1 => led_0_1,
-	led_2_3 => led_2_3,
-	led_0_1_we => led_0_1_we,
-	led_2_3_we => led_2_3_we,
-	an => an,
-	ka => ka
-	);
+		clk        => clk,
+		rst        => rst,
+		led_0_1    => led_0_1,
+		led_2_3    => led_2_3,
+		led_0_1_we => led_0_1_we,
+		led_2_3_we => led_2_3_we,
+		an         => an,
+		ka         => ka);
 	--- LED 8 Segment display -----------------------------------------
 
 -------------------------------------------------------------------------------

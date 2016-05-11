@@ -66,25 +66,14 @@ filter: filter.c
 	$(CC) $^ -o $@
 
 %.o: %.vhd
-	ghdl -a $^
+	ghdl -a $<
 
 vga_top.o: util.o vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
-	ghdl -a vga_top.vhd
-
 ps2_keyboard.o: ps2_keyboard.vhd debounce.o
-	ghdl -a ps2_keyboard.vhd
-
 ps2_keyboard_to_ascii.o: ps2_keyboard_to_ascii.vhd ps2_keyboard.o debounce.o
-	ghdl -a ps2_keyboard_to_ascii.vhd
-
 cpu.o: h2.o irqh.o util.o cpu.vhd mem_h2.hexadecimal
-	ghdl -a cpu.vhd
-
 top_level.o: util.o cpu.o uart.o vga_top.o ps2_keyboard_to_ascii.o ledseg.o top_level.vhd 
-	ghdl -a top_level.vhd
-
 test_bench.o: top_level.o test_bench.vhd
-	ghdl -a test_bench.vhd
 
 test_bench: $(OBJECTS) test_bench.o
 	ghdl -e test_bench

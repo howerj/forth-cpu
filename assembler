@@ -10,6 +10,9 @@
 #   <http://www.anarres.org/projects/cpp/>
 #   <http://www.perlmonks.org/?node=278562>
 #
+#   @todo Generate VHDL instead of assembly directly? Or at least have an
+#         option for doing so
+#   @todo This assembler *really* needs rewriting from scratch
 ###############################################################################
 
 #### Includes #################################################################
