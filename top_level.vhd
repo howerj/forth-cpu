@@ -22,7 +22,7 @@ use ieee.numeric_std.all;
 entity top_level is
 	generic(
 		clock_frequency:      positive := 100000000;
-		number_of_interrupts: positive := 4;
+		number_of_interrupts: positive := 8;
 		uart_baud_rate:       positive := 115200
 	);
 	port
@@ -41,7 +41,7 @@ entity top_level is
 -- synthesis translate_on
 
 		clk:      in  std_logic                    :=      'X';  -- clock
---  cpu_wait: in  std_logic                    :=      'X';  -- CPU wait
+--		cpu_wait: in  std_logic                    :=      'X';  -- CPU wait
 		-- Buttons
 		btnu:     in  std_logic                    :=      'X';  -- button up
 		btnd:     in  std_logic                    :=      'X';  -- button down
@@ -71,10 +71,6 @@ entity top_level is
 		ps2_keyboard_data:  in std_logic           :=      '0'; 
 		ps2_keyboard_clk:   in std_logic           :=      '0'
 
-	--    ps2_mouse_data:     in std_logic           :=      '0'; 
-	--    ps2_mouse_clk:      in std_logic           :=      '0'; 
-
-	--    pic_gpio:           in std_logic_vector(1 downto 0):= (others => 'X')
 	);
 end;
 
@@ -152,17 +148,11 @@ begin
 -------------------------------------------------------------------------------
 -- The Main components
 -------------------------------------------------------------------------------
-
--- synthesis translate_off
---  cpu_irq <= debug_irq;
---  cpu_irc <= debug_irc;
--- synthesis translate_on
-	-- cpu_irq    <= gpt0_irq_comp1 or ack_din or stb_dout; -- or sig_1 .. or sig_n
---  cpu_irc(0) <= rst;
-	-- cpu_irc(1) <= gpt0_irq_comp1;
-	-- cpu_irc(2) <= ack_din;
-	-- cpu_irc(3) <= stb_dout;
-	cpu_irc <= (others => '0');
+	cpu_irc(0) <= rst;
+	cpu_irc(1) <= gpt0_irq_comp1;
+	cpu_irc(2) <= ack_din;
+	cpu_irc(3) <= stb_dout;
+	cpu_irc(number_of_interrupts -1 downto 4) <= (others => '0');
 
 	-- Testing only -----------------
 	-- cpu_wait <= btnc; -- Pause CPU
@@ -170,8 +160,7 @@ begin
 
 	cpu_instance: entity work.cpu
 	generic map(
-	number_of_interrupts => number_of_interrupts
-	)
+		number_of_interrupts => number_of_interrupts)
 	port map(
 -- synthesis translate_off
 	debug_pc        => debug_pc,
@@ -246,7 +235,8 @@ begin
 		uart_dout_c,  
 		uart_dout, stb_dout, ack_din, 
 		stb_dout, stb_dout_c, vga_dout, 
-		ascii_new, ascii_code, ascii_new_c, ascii_code_c, 
+		ascii_code, ascii_new_c, ascii_code_c, 
+		ascii_new_edge,
 
 		gpt0_ctr_r_we)
 	begin

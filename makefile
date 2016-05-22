@@ -68,6 +68,7 @@ filter: filter.c
 %.o: %.vhd
 	ghdl -a $<
 
+vga80x40: util.o
 vga_top.o: util.o vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
 ps2_keyboard.o: ps2_keyboard.vhd debounce.o
 ps2_keyboard_to_ascii.o: ps2_keyboard_to_ascii.vhd ps2_keyboard.o debounce.o

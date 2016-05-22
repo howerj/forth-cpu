@@ -39,8 +39,12 @@ define("3 13 << const io_range")
 /* Interrupt Service Requests*/
 #define isr_reset      eval("0")
 #define isr_clock      eval("1")
-#define isr_unused01   eval("2")
-#define isr_unused02   eval("3")
+#define isr_uart_ack   eval("2")
+#define isr_uart_stb   eval("3")
+#define isr_unused03   eval("4")
+#define isr_unused04   eval("5")
+#define isr_unused05   eval("6")
+#define isr_unused06   eval("7")
 
 /*#define eval(...)*/
 

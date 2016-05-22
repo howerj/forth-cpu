@@ -40,7 +40,7 @@ end test_bench;
 
 architecture testing of test_bench is
 	constant clk_freq: positive :=  1000000000;
-	constant number_of_interrupts: positive := 4;
+	constant number_of_interrupts: positive := 8;
 	constant uart_baud_rate: positive       := 115200;
 
 	constant clk_period: time   :=  1000 ms / clk_freq;
@@ -93,58 +93,54 @@ begin
 
 	top_level_uut: entity work.top_level
 	generic map(
-	  clock_frequency => clk_freq,
-	  number_of_interrupts => number_of_interrupts,
-	  uart_baud_rate => uart_baud_rate
-	)
+		clock_frequency => clk_freq,
+		number_of_interrupts => number_of_interrupts,
+		uart_baud_rate => uart_baud_rate)
 	port map(
-	  -- Remove me{{
-	    debug_irq       => tb_debug_irq,
-	    debug_irc       => tb_debug_irc,
-	    debug_pc        => tb_debug_pc,
-	    debug_insn      => tb_debug_insn,
-	    debug_mem_dwe   => tb_debug_mem_dwe,
-	    debug_mem_din   => tb_debug_mem_din,
-	    debug_mem_dout  => tb_debug_mem_dout,
-	    debug_mem_daddr => tb_debug_mem_daddr,
-	  -- }}
-	    clk => tb_clk,
---      cpu_wait => tb_cpu_wait,
-	    btnu => tb_btnu,
-	    btnd => tb_btnd,
-	    btnc => tb_btnc,
-	    btnl => tb_btnl,
-	    btnr => tb_btnr,
-	    sw => tb_sw,
-	    an => tb_an,
-	    ka => tb_ka,
-	    ld => tb_ld,
-	    rx => tb_rx,
-	    tx => tb_tx,
-	    red => tb_red,
+		debug_irq       => tb_debug_irq,
+		debug_irc       => tb_debug_irc,
+		debug_pc        => tb_debug_pc,
+		debug_insn      => tb_debug_insn,
+		debug_mem_dwe   => tb_debug_mem_dwe,
+		debug_mem_din   => tb_debug_mem_din,
+		debug_mem_dout  => tb_debug_mem_dout,
+		debug_mem_daddr => tb_debug_mem_daddr,
+		clk => tb_clk,
+		btnu => tb_btnu,
+		btnd => tb_btnd,
+		btnc => tb_btnc,
+		btnl => tb_btnl,
+		btnr => tb_btnr,
+		sw => tb_sw,
+		an => tb_an,
+		ka => tb_ka,
+		ld => tb_ld,
+		rx => tb_rx,
+		tx => tb_tx,
+		red => tb_red,
 
-	    green => tb_green,
-	    blue  => tb_blue,
-	    hsync => tb_hsync,
-	    vsync => tb_vsync,
+		green => tb_green,
+		blue  => tb_blue,
+		hsync => tb_hsync,
+		vsync => tb_vsync,
 
-	    ps2_keyboard_data => tb_ps2_keyboard_data,
-	    ps2_keyboard_clk  => tb_ps2_keyboard_clk
---      ps2_mouse_data    => tb_ps2_mouse_data,
---      ps2_mouse_clk     => tb_ps2_mouse_clk,
---      pic_gpio          => tb_pic_gpio
+		ps2_keyboard_data => tb_ps2_keyboard_data,
+		ps2_keyboard_clk  => tb_ps2_keyboard_clk
+--		ps2_mouse_data    => tb_ps2_mouse_data,
+--		ps2_mouse_clk     => tb_ps2_mouse_clk,
+--		pic_gpio          => tb_pic_gpio
 	        );
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
 	begin
-	  while wait_flag = '0' loop
-	    tb_clk	<=	'1';
-	    wait for clk_period/2;
-	    tb_clk	<=	'0';
-	    wait for clk_period/2;
-	  end loop;
-	  wait;
+		while wait_flag = '0' loop
+			tb_clk	<=	'1';
+		wait for clk_period/2;
+			tb_clk	<=	'0';
+		wait for clk_period/2;
+		end loop;
+		wait;
 	end process;
 
 	-- I/O settings go here.
@@ -158,23 +154,23 @@ begin
 	--! needed.
 	function reportln(pc, insn: std_logic_vector) return boolean is
 	begin
-	    report "pc("   & integer'image(to_integer(unsigned(pc)))    & ") "
-	         & "insn(" & integer'image(to_integer(unsigned(insn)))  & ") "
-	    ;
-	  return true;
-	end reportln;
+		report 
+			"pc("   & integer'image(to_integer(unsigned(pc)))    &") " &
+			"insn(" & integer'image(to_integer(unsigned(insn)))  & ") ";
+		return true;
+		end reportln;
 	begin
---      tb_sw <= X"A5";
-	    tb_rst <= '1';
-	    wait for clk_period * 2;
-	    tb_rst <= '0';
-	    for i in 0 to 255 loop
-	      rt:=reportln(tb_debug_pc, tb_debug_insn);
-	      wait for clk_period * 1;
-	    end loop;
+	--      tb_sw <= X"A5";
+		tb_rst <= '1';
+		wait for clk_period * 2;
+		tb_rst <= '0';
+		for i in 0 to 255 loop
+		rt:=reportln(tb_debug_pc, tb_debug_insn);
+		wait for clk_period * 1;
+	end loop;
 
-	    wait_flag   <=  '1';
-	    wait;
+	wait_flag   <=  '1';
+	wait;
 	end process;
 ------ END ---------------------------------------------------------------------
 end architecture;

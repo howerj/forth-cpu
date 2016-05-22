@@ -16,23 +16,24 @@ use ieee.numeric_std.all;
 
 entity irqh is
 	generic(
-	number_of_interrupts: positive := 4
-	);
+		number_of_interrupts: positive := 8);
 	port(
-	clk:     in   std_logic;
-	rst:     in   std_logic;
+		clk:     in   std_logic;
+		rst:     in   std_logic;
 
-	raw_irq: in   std_logic;
-	raw_irc: in   std_logic_vector(number_of_interrupts - 1 downto 0);
+		raw_irq: in   std_logic;
+		raw_irc: in   std_logic_vector(number_of_interrupts - 1 downto 0);
 
-	processed_irq:    out   std_logic;
-	processed_irc:    out   std_logic_vector(number_of_interrupts - 1 downto 0)
-
-	);
+		processed_irq:    out   std_logic;
+		processed_irc:    out   std_logic_vector(number_of_interrupts - 1 downto 0));
 end;
 
 architecture behav of irqh is
 begin
+	-- interrupts should be remapped according to a lookup table, which
+	-- require changing the interface to this module. Interrupts should
+	-- also be held in a queue and interrupts paused until they are
+	-- renabled
 	processed_irq <= raw_irq;
 	processed_irc <= raw_irc;
 end architecture;

@@ -57,6 +57,7 @@ main:
 
   /* increment cursor variable */
   call loadcursor
+
   1 +
   vga_cursor !
 
@@ -76,8 +77,12 @@ loadcursor:
 
 /*** interrupt service routines **********************************************/
 isr isr_clock
-isr isr_unused01
-isr isr_unused02
+isr isr_uart_ack 
+isr isr_uart_stb
+isr isr_unused03
+isr isr_unused04
+isr isr_unused05
+isr isr_unused06
   exit
 /*****************************************************************************/
 

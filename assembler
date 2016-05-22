@@ -25,7 +25,7 @@ use strict;
 #### Globals ##################################################################
 my $cppcmd = "cpp";       # The name of the *external* program to call for the C pre processor
 my $maxmem = 8192;        # maximum memory of h2 cpu
-my $entryp = 4;           # offset into memory to put program into
+my $entryp = 8;           # offset into memory to put program into
 my $inputfile   = "cpu.asm";            # input file name
 my $tmpfile     = "partial";            # partially processed file suffix
 my $symfile     = "sym";                # symbol file
