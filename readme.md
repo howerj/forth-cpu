@@ -32,5 +32,7 @@ based on the [J1][] CPU.
 * Memory interface to Nexys 3 board on board memory
 * CHIP-8 emulator
 * Redo Thesis and other documentation
+* Add more assertions into the core
+* Fix timing issues in load/store to block ram
 
 [J1]: http://www.excamera.com/sphinx/fpga-j1.html
