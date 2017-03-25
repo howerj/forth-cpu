@@ -60,6 +60,11 @@ all:
 mem_h2.hexadecimal: assembler cpu.asm
 	./assembler
 
+## Virtual Machine =========================================================
+
+h2: h2.c
+	${CC} -Wall -Wextra -std=c99 $^ -o $@
+
 ## Simulation ==============================================================
 
 filter: filter.c

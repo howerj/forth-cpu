@@ -8,8 +8,8 @@
  * that signal with more clarity. 
  *
  * @author         Richard James Howe.
- * @copyright      Copyright 2013 Richard James Howe.
- * @license        LGPL      
+ * @copyright      Copyright 2013, 2017 Richard James Howe.
+ * @license        MIT
  * @email          howe.r.j.89@gmail.com
  */
 
@@ -25,46 +25,49 @@
  * signal both because the instruction set is constantly
  * changing and because there is only a limited amount of
  * space to display any information. */
-void disInsr_h2(char *in, char *out, FILE *log){
-  uint16_t instruction;
-  sscanf(in,"%hx", &instruction);
+void disInsr_h2(char *in, char *out, FILE * log)
+{
+	uint16_t instruction;
+	sscanf(in, "%hx", &instruction);
 
-  if((instruction & 0x8000) == 0x8000){ /**Literal */
-    sprintf(out,"lit(%hx)",0x7FFF&instruction);
-  }else if((instruction & 0x6000) == 0x6000){/**ALU instruction */
-    sprintf(out,"alu(%hx)",0x1FFF&instruction);
-  }else if((instruction & 0x4000) == 0x4000){/**Call */
-    sprintf(out,"call(%hx)",0x1FFF&instruction);
-  }else if((instruction & 0x2000) == 0x2000){/**Conditional Jump */
-    sprintf(out,"cjmp(%hx)",0x1FFF&instruction);
-  }else if(!(instruction & 0xC000)){/**Jump */
-    sprintf(out,"jmp(%hx)",0x1FFF&instruction);
-  } else{
-    memcpy(out,in,BUF_LEN_M);
-  }
+	if ((instruction & 0x8000) == 0x8000) {	/**Literal */
+		sprintf(out, "lit(%hx)", 0x7FFF & instruction);
+	} else if ((instruction & 0x6000) == 0x6000) { /**ALU instruction */
+		sprintf(out, "alu(%hx)", 0x1FFF & instruction);
+	} else if ((instruction & 0x4000) == 0x4000) { /**Call */
+		sprintf(out, "call(%hx)", 0x1FFF & instruction);
+	} else if ((instruction & 0x2000) == 0x2000) { /**Conditional Jump */
+		sprintf(out, "cjmp(%hx)", 0x1FFF & instruction);
+	} else if (!(instruction & 0xC000)) { /**Jump */
+		sprintf(out, "jmp(%hx)", 0x1FFF & instruction);
+	} else {
+		memcpy(out, in, BUF_LEN_M);
+	}
 }
 
 /**For every line of input the filter *must* produce a
  * line of output otherwise GTKwave will hang.*/
-int main(void){
-  char buf[BUF_LEN_M], output[BUF_LEN_M];
-  FILE *log;
+int main(void)
+{
+	char buf[BUF_LEN_M], output[BUF_LEN_M];
+	FILE *log;
 
-  if((log = fopen(LOG_FILE,"w")) == NULL){
-    fprintf(stderr,"Opening of %s for writing failed.\n",LOG_FILE);
-    exit(EXIT_FAILURE);
-  }
+	if ((log = fopen(LOG_FILE, "w")) == NULL) {
+		fprintf(stderr, "Opening of %s for writing failed.\n",
+			LOG_FILE);
+		exit(EXIT_FAILURE);
+	}
 
-  while(!feof(stdin)){
-    memset(buf, '\0', BUF_LEN_M);
-    scanf("%s", buf);
-    if(buf[0]){
-      disInsr_h2(buf,output,log);
-      printf("%s\n",output);
-      fflush(stdout);
-    }
-  }
-  fclose(log);
+	while (!feof(stdin)) {
+		memset(buf, '\0', BUF_LEN_M);
+		scanf("%s", buf);
+		if (buf[0]) {
+			disInsr_h2(buf, output, log);
+			printf("%s\n", output);
+			fflush(stdout);
+		}
+	}
+	fclose(log);
 
-  return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }

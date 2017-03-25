@@ -44,6 +44,13 @@ based on the [J1][] CPU.
 for the H2 core. This should speed up development a lot.
 * A graphics mode for the VGA core could be made, this
 would allow address the screen as an array of pixels.
+* The block RAM is allows for 18-bit access, look into this,
+perhaps the instruction set could be extended - or parity bits
+used.
+* Trap on overflow of underflow of stack.
+* Add instructions for setting the control registers
+* It might be worth replacing GHDL with another simulator as
+it is becoming more difficult to use.
 
 ## Ideas
 
