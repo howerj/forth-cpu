@@ -51,6 +51,9 @@ used.
 * Add instructions for setting the control registers
 * It might be worth replacing GHDL with another simulator as
 it is becoming more difficult to use.
+* A timer should be added, a 64-bit timer should be made
+which when requested stores its values in a set of four
+registers. This should all be memory mapped.
 
 ## Ideas
 

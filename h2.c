@@ -7,6 +7,9 @@
  * for the device, and allow for simulating the device where there
  * is no tool chain for dealing with VHDL.
  *
+ * @todo implement this
+ * @todo generate data that could be used with GTK wave
+ *
  */
 
 #include <assert.h>
