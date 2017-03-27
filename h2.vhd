@@ -49,10 +49,7 @@ entity h2 is
 		dwe:        out std_logic; -- data write enable, read enable not need.
 		din:        in  std_logic_vector(15 downto 0);
 		dout:       out std_logic_vector(15 downto 0);
-		daddr:      out std_logic_vector(12 downto 0);
-
-		-- Data pointer 
-		dptr:       out std_logic_vector(15 downto 0)
+		daddr:      out std_logic_vector(12 downto 0)
 	);
 end;
 
@@ -90,7 +87,7 @@ architecture behav of h2 is
 	-- Comparisons on stack items
 	signal comp_more:     std_logic :=  '0';
 	signal comp_equal:    std_logic :=  '0';
-	signal comp_negative: std_logic :=  '0';
+	signal comp_umore:    std_logic :=  '0';
 	signal comp_zero:     std_logic :=  '0';
 
 	signal int_en_c, int_en_n:  std_logic :=  '0';
@@ -110,7 +107,6 @@ architecture behav of h2 is
 	signal rstkW: std_logic := '0';
 	signal rstkD: std_logic_vector(15 downto 0) := (others => '0');
 	-- data pointer
-	signal dptr_c, dptr_n: std_logic_vector(15 downto 0) := (others => '0');
 begin
 
 	is_instr_alu        <=  '1' when insn(15 downto 13) = "011" else '0';
@@ -123,10 +119,10 @@ begin
 	irq_n <= '1' when irq = '1' else '0';
 	irc_n <= irc when irq = '1' else (others => '0');
 
-	comp_more     <= '1' when tos_c(15 downto 0) > nos else '0';
-	comp_equal    <= '1' when tos_c(15 downto 0) = nos else '0';
-	comp_negative <= tos_c(15);
-	comp_zero     <= '1' when unsigned(tos_c(15 downto 0)) = 0 else '0';
+	comp_more  <= '1' when signed(tos_c) > signed(nos) else '0';
+	comp_umore <= '1' when unsigned(tos_c) > unsigned(nos) else '0';
+	comp_equal <= '1' when tos_c = nos else '0';
+	comp_zero  <= '1' when unsigned(tos_c(15 downto 0)) = 0 else '0';
 
 	-- Stack assignments
 	nos    <=  vstk_ram(to_integer(unsigned(vstkp_c)));
@@ -135,13 +131,13 @@ begin
 	-- I/O assignments
 	pco    <=  pc_n;
 	dout   <=  nos; 
-	daddr  <=  tos_c(12 downto 0); 
-	dwe    <=  insn(5) when is_instr_alu = '1'  and tos_c(14 downto 13) /= "11" else '0';
+	daddr  <=  tos_n(12 downto 0); 
+	dwe    <=  '1' when insn(5) = '1' and is_instr_alu = '1'  and tos_n(14 downto 13) /= "11" else '0';
 
 	-- io_wr are handled in the ALU
 	io_dout   <=  nos;
 	io_daddr  <=  tos_c(15 downto 0);
-	io_wr     <=  insn(5) when is_instr_alu = '1' and tos_c(14 downto 13) = "11" else '0';
+	io_wr     <= '1' when insn(5) = '1' and is_instr_alu = '1' and tos_c(14 downto 13) = "11" else '0';
 
 	-- misc
 	pc_plus_one <=  std_logic_vector(unsigned(pc_c) + 1);
@@ -151,8 +147,6 @@ begin
 	rd        <=  insn(3) & insn(3) & insn(3) & insn(3) & insn(2);
 
 	dstkW     <= '1' when is_instr_lit = '1' or (is_instr_alu = '1' and insn(7) = '1') else '0';
-
-	dptr      <= dptr_c;
 
 	stackWrite: process(clk)
 	begin        
@@ -192,15 +186,13 @@ begin
 		io_din,
 		vstkp_c, rstkp_c,
 		comp_more,
-		comp_equal,comp_negative,comp_zero,
-		dptr_c,
+		comp_equal,comp_umore,comp_zero,
 		int_en_c,
 		cpu_wait)
 	begin
 		io_re          <=  '0'; -- hardware *READS* can have side effects
 		tos_n          <=  tos_c;
 		int_en_n       <=  int_en_c;
-		dptr_n         <=  dptr_c;
 	if cpu_wait = '1' then 
 		-- Do nothing
 	elsif is_instr_lit = '1' then
@@ -211,50 +203,52 @@ begin
 			tos_n <=  tos_c;
 		when "00001" => -- get next on stack
 			tos_n <=  nos;
-		when "00010" => -- get top of return stack
-			tos_n <=  rtos_c;
-		when "00011" => -- input
-		-- 0x6000 - 0x7FFF is external input
-		if tos_c(14 downto 13) = "11" then 
-			tos_n <= io_din; 
-			io_re <= '1';
-		else 
-			tos_n <= din;  
-		end if;
-		when "00100" => -- get depth, comparisons flags and interrupt flag 
-			tos_n(0) <= comp_zero;
-			tos_n(1) <= comp_negative;
-			tos_n(2) <= comp_equal;
-			tos_n(3) <= comp_more;
-			tos_n(5) <= int_en_c;
-			tos_n(10 downto 6)  <=  vstkp_c;
-			tos_n(15 downto 11) <=  rstkp_c;
-		when "00101" => -- set interrupt enable flag  
-			int_en_n <= tos_c(0); 
-		when "00110" =>  
-			tos_n <=  tos_c or nos;
-		when "00111" =>  
-			tos_n <=  tos_c and nos;
-		when "01000" =>  
-			tos_n <=  tos_c xor nos;
-		when "01001" =>  
-			tos_n <=  not tos_c;
-		when "01010" =>  
-			tos_n <=  (0 => comp_more, others => '0');
-		when "01011" => 
-			tos_n <=  (0 => comp_equal, others => '0');
-		when "01100" =>
+		when "00010" => -- add
 			tos_n <=  std_logic_vector(unsigned(nos) + unsigned(tos_c));
+		when "00011" => 
+			tos_n <=  tos_c and nos;
+		when "00100" => 
+			tos_n <=  tos_c or nos;
+		when "00101" => 
+			tos_n <=  tos_c xor nos;
+		when "00110" =>  
+			tos_n <=  not tos_c;
+		when "00111" =>  
+			tos_n <=  (0 => comp_equal, others => '0');
+		when "01000" =>  
+			tos_n <=  (0 => comp_more, others => '0');
+		when "01001" =>  
+			tos_n <=  std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
+		when "01010" =>  
+			tos_n <=  std_logic_vector(unsigned(tos_c) - 1);
+		when "01011" => 
+			tos_n <=  rtos_c;
+		when "01100" =>
+			-- input
+			-- 0x6000 - 0x7FFF is external input
+			if tos_c(14 downto 13) /= "00" then 
+				tos_n <= io_din; 
+				io_re <= '1';
+			else 
+				tos_n <= din;  
+			end if;
 		when "01101" =>  
-			tos_n <=  std_logic_vector(unsigned(nos) - unsigned(tos_c));
-		when "01110" => -- get the data segment pointer
-			tos_n <= dptr_c;
-		when "01111" => -- set the data segment pointer
-			dptr_n <= tos_c;
-		when "10000" => 
-			tos_n <=  std_logic_vector(unsigned(nos) rol to_integer(unsigned(tos_c(3 downto 0))));
-		when "10001" =>
-			tos_n <=  std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
+			tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
+		when "01110" => -- get depth, comparisons flags and interrupt flag 
+			tos_n(4 downto 0)  <=  vstkp_c;
+			tos_n(5) <= comp_zero;
+			tos_n(6) <= comp_umore;
+			tos_n(7) <= comp_equal;
+			tos_n(8) <= comp_more;
+			tos_n(9) <= int_en_c;
+			tos_n(10) <= '0';
+			tos_n(15 downto 11) <=  rstkp_c;
+		when "01111" =>
+			tos_n <=  (0 => comp_umore, others => '0');
+		when "10000" => tos_n <= tos_c;
+			-- set interrupt enable flag  
+			int_en_n <= tos_c(0); 
+		when "10001" => tos_n <= tos_c;
 		when "10010" => tos_n <= tos_c;
 		when "10011" => tos_n <= tos_c;
 		when "10100" => tos_n <= tos_c;

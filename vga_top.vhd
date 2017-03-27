@@ -25,7 +25,7 @@ entity vga_top is
 	vga_din:    in  std_logic_vector(15 downto 0);
 	vga_addr:   in  std_logic_vector(12 downto 0);
 
-	-- VGA Font inteface
+	-- VGA Font interface
 	vga_font_dout:   out std_logic_vector(7 downto 0):= (others => '0');
 
 	-- VGA control registers

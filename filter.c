@@ -21,6 +21,31 @@
 #define BUF_LEN_M (1025u)
 #define LOG_FILE  "log.txt"
 
+const char *alu(uint16_t instruction)
+{
+	switch((instruction & 0x1F00) >> 8) {
+	case 0: return "T";
+	case 1: return "N";
+	case 2: return "T+N";
+	case 3: return "T&N";
+	case 4: return "T|N";
+	case 5: return "T^N";
+	case 6: return "~T";
+	case 7: return "N=T";
+	case 8: return "T>N";
+	case 9: return "N>>T";
+	case 10: return "T-1";
+	case 11: return "R";
+	case 12: return "[T]";
+	case 13: return "N<<T";
+	case 14: return "depth";
+	case 15: return "Tu>N";
+	case 16: return "set_interrupts";
+	default: return "unknown";
+	}
+}
+
+
 /**The disassembler, it only *partially* disassembles the
  * signal both because the instruction set is constantly
  * changing and because there is only a limited amount of
@@ -33,7 +58,7 @@ void disInsr_h2(char *in, char *out, FILE * log)
 	if ((instruction & 0x8000) == 0x8000) {	/**Literal */
 		sprintf(out, "lit(%hx)", 0x7FFF & instruction);
 	} else if ((instruction & 0x6000) == 0x6000) { /**ALU instruction */
-		sprintf(out, "alu(%hx)", 0x1FFF & instruction);
+		sprintf(out, "alu(%hx:%s)", 0x1FFF & instruction, alu(instruction & 0x1FFF));
 	} else if ((instruction & 0x4000) == 0x4000) { /**Call */
 		sprintf(out, "call(%hx)", 0x1FFF & instruction);
 	} else if ((instruction & 0x2000) == 0x2000) { /**Conditional Jump */

@@ -60,8 +60,6 @@ architecture behav of cpu is
 	signal mem_dout:     std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
 	signal mem_daddr:    std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0');
 
-	signal dptr:         std_logic_vector(15 downto 0):= (others => '0');
-
 	signal processed_irq: std_logic:= '0';
 	signal processed_irc: std_logic_vector(number_of_interrupts - 1 downto 0):=(others=>'0');
 begin
@@ -113,9 +111,8 @@ begin
 		dwe       =>    mem_dwe,
 		din       =>    mem_din,
 		dout      =>    mem_dout,
-		daddr     =>    mem_daddr,
-		-- Data pointer
-		dptr      =>    dptr);
+		daddr     =>    mem_daddr);
+		
 
 	--! Dual port RAM for the CPU, acts as bootloader or
 	--! contains the full system software

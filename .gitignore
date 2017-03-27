@@ -100,3 +100,4 @@ xst/
 *_xst.xrpt
 *.a
 *.so
+*.log

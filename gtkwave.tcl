@@ -2,7 +2,7 @@
 # TCL Script for GTKWave on test_bench.ghw for final year project 
 #
 
-#set nfacs [ gtkwave::getNumFacs ]
+set nfacs [ gtkwave::getNumFacs ]
 #set dumpname [ gtkwave::getDumpFileName ]
 #set dmt [ gtkwave::getDumpType ]
 
@@ -11,11 +11,11 @@
 set names [list]
 lappend names "tb_clk"
 lappend names "tb_rst"
-lappend names "pc_c"
-lappend names "insn"
-lappend names "tos_c"
-lappend names "nos"
-lappend names "vstkp_c"
+lappend names "tb_debug_pc"
+lappend names "tb_debug_insn"
+lappend names "tb_debug_mem_daddr"
+lappend names "tb_debug_mem_dout"
+lappend names "tb_debug_mem_din"
 
 set num_added [ gtkwave::addSignalsFromList $names ]
 puts "num signals added: $num_added"

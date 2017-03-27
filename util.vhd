@@ -340,12 +340,12 @@ architecture behav of memory is
 begin
 	a_ram:process(a_clk)
 	begin
-	    if rising_edge(a_clk) then
-	        if a_dwe = '1' then
-	            ram(to_integer(unsigned(a_addr))) := a_din;
-	        end if;
-	        a_dout <= ram(to_integer(unsigned(a_addr)));
-	    end if;
+		if rising_edge(a_clk) then
+			if a_dwe = '1' then
+				ram(to_integer(unsigned(a_addr))) := a_din;
+			end if;
+			a_dout <= ram(to_integer(unsigned(a_addr)));
+		end if;
 	end process;
 
 	b_ram:process(b_clk)
@@ -354,7 +354,7 @@ begin
 			if b_dwe = '1' then
 				ram(to_integer(unsigned(b_addr))) := b_din;
 			end if;
-		b_dout <= ram(to_integer(unsigned(b_addr)));
+			b_dout <= ram(to_integer(unsigned(b_addr)));
 		end if;
 	end process;
 end architecture;

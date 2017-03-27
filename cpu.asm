@@ -19,21 +19,18 @@
 #define setup \
   vga_init_val \
   o_vgaCtrl \
-  !
+  ! \
+  drop
 
 /* write to the LEDs*/
 #define write_LED \
   o_ledS \
-  ! 
+  ! \
+  drop
 
 /* read from the switches*/
 #define read_SWITCHES \
   i_switches \
-  0 \
-  @ \
-
-#define memload \
-  0 \
   @
 
 /*****************************************************************************/
@@ -41,38 +38,52 @@
 
 /*** program entry point *****************************************************/
 main:
- 43775 o_8SegLED_0_1 !
- 21777 o_8SegLED_2_3 !
+ /* setup
 
- setup
+ 43775 o_8SegLED_0_1 ! drop
+ 21777 o_8SegLED_2_3 ! drop
+ */
 
  wait:
-  i_ascii_new  @ jumpc wait
-  i_ascii_char @ dup o_ledS !
 
-  o_vgaTxtDin !
+  /* increment cursor variable */
+  /* call loadcursor
+  1 +
+  call savecursor */
+  1024 @ 1 + 1024 ! drop
+  jump wait
+
+  read_SWITCHES write_LED
+  i_ascii_new  @ jumpc wait
 
   call loadcursor
-  o_vgaTxtAddr !
+  o_vgaTxtAddr ! drop
+
+  i_ascii_char @ 
+  o_vgaTxtDin ! drop
+
+  0 o_vgaWrite ! drop 
 
   /* increment cursor variable */
   call loadcursor
-
   1 +
-  vga_cursor !
+  call savecursor
 
   /* load in cursor, output to actual VGA cursor*/
   call loadcursor
-  o_vgaCursor !
+  o_vgaCursor ! drop
 
-  0 o_vgaWrite !
 
 jump wait
 
 /*** Functions ***************************************************************/
 loadcursor:
   vga_cursor
-  memload
+  @
+  exit
+
+savecursor:
+  vga_cursor ! drop
   exit
 
 /*** interrupt service routines **********************************************/
