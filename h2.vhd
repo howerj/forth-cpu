@@ -2,8 +2,8 @@
 --! @file h2.vhd
 --! @brief The H2 Processor:
 --! J1 processor translation and extension. Moved bit 12 to bit 4 to
---!  allow for more ALU instructions, added more ALU instructions and
---!  changed a few things around.
+--! allow for more ALU instructions.
+--!
 --! @author         Richard James Howe.
 --! @copyright      Copyright 2013 Richard James Howe.
 --! @license        LGPL      
@@ -25,12 +25,12 @@ use ieee.numeric_std.all;
 
 entity h2 is
 	generic(
-		number_of_interrupts: positive := 8);
+		number_of_interrupts: positive := 8;
+		start_address: positive := 8);
 	port(
-
-
 		clk:        in  std_logic;
 		rst:        in  std_logic;
+
 		-- IO interface
 		cpu_wait:   in  std_logic;
 		io_wr:      out std_logic; 
@@ -38,6 +38,7 @@ entity h2 is
 		io_din:     in  std_logic_vector(15 downto 0);
 		io_dout:    out std_logic_vector(15 downto 0);
 		io_daddr:   out std_logic_vector(15 downto 0);
+
 		-- Interrupts; irq == request, irc == channel
 		irq:        in  std_logic;
 		irc:        in  std_logic_vector(number_of_interrupts - 1 downto 0); 
@@ -46,7 +47,8 @@ entity h2 is
 		pco:        out std_logic_vector(12 downto 0); -- program counter
 		insn:       in  std_logic_vector(15 downto 0); -- instruction
 
-		dwe:        out std_logic; -- data write enable, read enable not need.
+		dwe:        out std_logic; -- data write enable
+		dre:        out std_logic; -- data read enable
 		din:        in  std_logic_vector(15 downto 0);
 		dout:       out std_logic_vector(15 downto 0);
 		daddr:      out std_logic_vector(12 downto 0)
@@ -58,12 +60,15 @@ architecture behav of h2 is
 	-- Program counter.
 	signal pc_c:  std_logic_vector(12 downto 0) := (others => '0');
 	signal pc_n:  std_logic_vector(12 downto 0) := (others => '0');
+
 	-- Stack Type!
 	type   stk  is array (31 downto 0) of std_logic_vector(15 downto 0);
+
 	-- Variable stack (RAM Template)
 	signal vstkp_c:  std_logic_vector(4 downto 0)  := (others => '0');
 	signal vstkp_n:  std_logic_vector(4 downto 0)  := (others => '0');
 	signal vstk_ram: stk := (others => (others => '0'));
+
 	-- Return stack (RAM Template)
 	signal rstkp_c:  std_logic_vector(4 downto 0)  := (others => '0');
 	signal rstkp_n:  std_logic_vector(4 downto 0)  := (others => '0');
@@ -76,6 +81,7 @@ architecture behav of h2 is
 	-- Stack deltas
 	signal dd:                  std_logic_vector(4 downto 0)  := (others => '0');
 	signal rd:                  std_logic_vector(4 downto 0)  := (others => '0');
+
 	-- is_instr_x signals, booleans, does the instruction have a certain property.
 	signal is_instr_alu:        std_logic :=  '0';
 	signal is_instr_lit:        std_logic :=  '0';
@@ -97,11 +103,14 @@ architecture behav of h2 is
 	-- Top of stack, and next on stack.
 	signal tos_c, tos_n:  std_logic_vector(15 downto 0) := (others => '0');
 	signal nos: std_logic_vector(15 downto 0) := (others => '0');
+
 	-- Top of return stack.
 	signal rtos_c: std_logic_vector(15 downto 0) := (others => '0');
+
 	-- aluop is what is fed into the alu.
 	signal aluop: std_logic_vector(4 downto 0)  := (others => '0');
 	signal pc_plus_one: std_logic_vector(12 downto 0) := (others => '0');
+
 	-- Stack signals
 	signal dstkW: std_logic := '0';
 	signal rstkW: std_logic := '0';
@@ -130,14 +139,16 @@ begin
 
 	-- I/O assignments
 	pco    <=  pc_n;
-	dout   <=  nos; 
-	daddr  <=  tos_n(12 downto 0); 
-	dwe    <=  '1' when insn(5) = '1' and is_instr_alu = '1'  and tos_n(14 downto 13) /= "11" else '0';
 
-	-- io_wr are handled in the ALU
+	dout   <=  nos; 
+	daddr  <=  tos_c(12 downto 0); 
+	dwe    <=  '1' when insn(5) = '1' and is_instr_alu = '1'  and tos_c(14 downto 13) /= "11" else '0';
+	dre    <=  '0' when tos_c(15 downto 14) = "00" else '0';
+
 	io_dout   <=  nos;
-	io_daddr  <=  tos_c(15 downto 0);
-	io_wr     <= '1' when insn(5) = '1' and is_instr_alu = '1' and tos_c(14 downto 13) = "11" else '0';
+	io_daddr  <=  tos_n(15 downto 0);
+	io_wr     <= '1' when insn(5) = '1' and is_instr_alu = '1' and tos_n(14 downto 13) = "11" else '0';
+	-- io_re is handled in the ALU
 
 	-- misc
 	pc_plus_one <=  std_logic_vector(unsigned(pc_c) + 1);
@@ -199,41 +210,27 @@ begin
 		tos_n   <=  "0" & insn(14 downto 0);
 	else 
 		case aluop is -- ALU operation, 12 downto 8
-		when "00000" => -- do nothing
-			tos_n <=  tos_c;
-		when "00001" => -- get next on stack
-			tos_n <=  nos;
-		when "00010" => -- add
-			tos_n <=  std_logic_vector(unsigned(nos) + unsigned(tos_c));
-		when "00011" => 
-			tos_n <=  tos_c and nos;
-		when "00100" => 
-			tos_n <=  tos_c or nos;
-		when "00101" => 
-			tos_n <=  tos_c xor nos;
-		when "00110" =>  
-			tos_n <=  not tos_c;
-		when "00111" =>  
-			tos_n <=  (0 => comp_equal, others => '0');
-		when "01000" =>  
-			tos_n <=  (0 => comp_more, others => '0');
-		when "01001" =>  
-			tos_n <=  std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
-		when "01010" =>  
-			tos_n <=  std_logic_vector(unsigned(tos_c) - 1);
-		when "01011" => 
-			tos_n <=  rtos_c;
+		when "00000" => tos_n <= tos_c;
+		when "00001" => tos_n <= nos;
+		when "00010" => tos_n <= std_logic_vector(unsigned(nos) + unsigned(tos_c));
+		when "00011" => tos_n <= tos_c and nos;
+		when "00100" => tos_n <= tos_c or nos;
+		when "00101" => tos_n <= tos_c xor nos;
+		when "00110" => tos_n <= not tos_c;
+		when "00111" => tos_n <= (0 => comp_equal, others => '0');
+		when "01000" => tos_n <= (0 => comp_more, others => '0');
+		when "01001" => tos_n <= std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
+		when "01010" => tos_n <= std_logic_vector(unsigned(tos_c) - 1);
+		when "01011" => tos_n <= rtos_c;
 		when "01100" =>
-			-- input
-			-- 0x6000 - 0x7FFF is external input
+			-- input: 0x6000 - 0x7FFF is external input
 			if tos_c(14 downto 13) /= "00" then 
 				tos_n <= io_din; 
 				io_re <= '1';
 			else 
 				tos_n <= din;  
 			end if;
-		when "01101" =>  
-			tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
+		when "01101" => tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
 		when "01110" => -- get depth, comparisons flags and interrupt flag 
 			tos_n(4 downto 0)  <=  vstkp_c;
 			tos_n(5) <= comp_zero;
@@ -243,11 +240,8 @@ begin
 			tos_n(9) <= int_en_c;
 			tos_n(10) <= '0';
 			tos_n(15 downto 11) <=  rstkp_c;
-		when "01111" =>
-			tos_n <=  (0 => comp_umore, others => '0');
-		when "10000" => tos_n <= tos_c;
-			-- set interrupt enable flag  
-			int_en_n <= tos_c(0); 
+		when "01111" => tos_n <=  (0 => comp_umore, others => '0');
+		when "10000" => int_en_n <= tos_c(0); 
 		when "10001" => tos_n <= tos_c;
 		when "10010" => tos_n <= tos_c;
 		when "10011" => tos_n <= tos_c;
@@ -272,21 +266,21 @@ begin
 	nextState: process(clk, rst)
 	begin
 		if rst='1' then
-			vstkp_c     <=  (others => '0');
-			rstkp_c     <=  (others => '0');
-			pc_c        <=  (others => '0');
-			tos_c       <=  (others => '0');
-			int_en_c    <=  '0';
-			irq_c       <=  '0';
-			irc_c       <=  (others => '0');
+			vstkp_c  <= (others => '0');
+			rstkp_c  <= (others => '0');
+			pc_c     <= std_logic_vector(to_unsigned(start_address, pc_c'length));
+			tos_c    <= (others => '0');
+			int_en_c <= '0';
+			irq_c    <= '0';
+			irc_c    <= (others => '0');
 		elsif rising_edge(clk) then
-			vstkp_c     <=  vstkp_n;
-			rstkp_c     <=  rstkp_n;
-			pc_c        <=  pc_n;
-			tos_c       <=  tos_n;
-			int_en_c    <=  int_en_n;
-			irq_c       <=  irq_n;
-			irc_c       <=  irc_n;
+			vstkp_c  <= vstkp_n;
+			rstkp_c  <= rstkp_n;
+			pc_c     <= pc_n;
+			tos_c    <= tos_n;
+			int_en_c <= int_en_n;
+			irq_c    <= irq_n;
+			irc_c    <= irc_n;
 		end if;
 	end process;
 
@@ -301,8 +295,8 @@ begin
 		pc_plus_one,
 		cpu_wait)
 	begin
-		vstkp_n   <=  vstkp_c;
-		rstkp_n   <=  rstkp_c;
+		vstkp_n <= vstkp_c;
+		rstkp_n <= rstkp_c;
 
 		-- main control
 		if cpu_wait = '1' then
@@ -311,31 +305,31 @@ begin
 			rstkD <= (others => '0');
 		elsif is_instr_interrupt = '1' and int_en_c = '1' then 
 			-- Interrupts are similar to a call
-			rstkp_n <=  std_logic_vector(unsigned(rstkp_c) + 1);
-			rstkW   <=  '1';
-			rstkD   <=  "000" & pc_c; 
+			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
+			rstkW   <= '1';
+			rstkD   <= "000" & pc_c; 
 		elsif is_instr_lit = '1' then
-			vstkp_n <=  std_logic_vector(unsigned(vstkp_c)+1);
-			rstkW   <=  '0';
-			rstkD   <=  "000" & pc_plus_one; 
+			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + 1);
+			rstkW   <= '0';
+			rstkD   <= "000" & pc_plus_one; 
 		elsif is_instr_alu = '1' then 
-			rstkW   <=  insn(6);
-			rstkD   <=  tos_c;
+			rstkW   <= insn(6);
+			rstkD   <= tos_c;
 			-- Signed addition, trust me, it's signed.
-			vstkp_n <=  std_logic_vector(unsigned(vstkp_c) + unsigned(dd));
-			rstkp_n <=  std_logic_vector(unsigned(rstkp_c) + unsigned(rd));
+			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + unsigned(dd));
+			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + unsigned(rd));
 		else
 			if is_instr_cjmp = '1' then
-				vstkp_n <=  std_logic_vector(unsigned(vstkp_c) - 1);
+				vstkp_n <= std_logic_vector(unsigned(vstkp_c) - 1);
 			end if;
 
 			if is_instr_call = '1' then -- A call!
-				rstkp_n <=  std_logic_vector(unsigned(rstkp_c) + 1);
-				rstkW   <=  '1';
-				rstkD   <=  "000" & pc_plus_one; 
+				rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
+				rstkW   <= '1';
+				rstkD   <= "000" & pc_plus_one; 
 			else
-				rstkW   <=  '0';
-				rstkD   <=  "000" & pc_plus_one; 
+				rstkW   <= '0';
+				rstkD   <= "000" & pc_plus_one; 
 			end if;
 		end if;
 	end process;

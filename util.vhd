@@ -252,12 +252,14 @@ entity memory is
 		--! Port A of dual port RAM
 		a_clk:  in  std_logic;
 		a_dwe:  in  std_logic;
+		a_dre:  in  std_logic;
 		a_addr: in  std_logic_vector(addr_bitlen - 1 downto 0);
 		a_din:  in  std_logic_vector(data_bitlen - 1 downto 0);
 		a_dout: out std_logic_vector(data_bitlen - 1 downto 0) := (others => '0');
 		--! Port B of dual port RAM
 		b_clk:  in  std_logic;
 		b_dwe:  in  std_logic;
+		b_dre:  in  std_logic;
 		b_addr: in  std_logic_vector(addr_bitlen - 1 downto 0);
 		b_din:  in  std_logic_vector(data_bitlen - 1 downto 0);
 		b_dout: out std_logic_vector(data_bitlen - 1 downto 0) := (others => '0')
@@ -336,7 +338,7 @@ architecture behav of memory is
 		end loop;
 		return ramData;
 	end function;
-	shared variable ram: ramArray_t:= initRam(filename, filetype);
+	shared variable ram: ramArray_t := initRam(filename, filetype);
 begin
 	a_ram:process(a_clk)
 	begin
@@ -350,7 +352,7 @@ begin
 
 	b_ram:process(b_clk)
 	begin
-		if rising_edge(b_clk) then
+		if falling_edge(b_clk) then
 			if b_dwe = '1' then
 				ram(to_integer(unsigned(b_addr))) := b_din;
 			end if;

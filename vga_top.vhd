@@ -180,12 +180,14 @@ begin
 	a_clk  => clk, 
 	-- External interface
 	a_dwe  => vga_we_ram,
+	a_dre  => '1',
 	a_addr => addr_c,
 	a_din  => din_c,
 	a_dout => vga_dout,
 	-- Internal interface 
 	b_clk  => clk25MHz,
 	b_dwe  => '0',
+	b_dre  => '1',
 	b_addr => text_addr_full,
 	b_din  => (others => '0'),
 	b_dout => text_dout
@@ -203,12 +205,14 @@ begin
 	-- External interface
 	a_clk => clk,
 	a_dwe  => '0',
+	a_dre  => '1',
 	a_addr => (others => '0'),
 	a_din  => (others => '0'),
 	a_dout => vga_font_dout,
 	-- Internal interface 
 	b_clk  => clk25MHz,
 	b_dwe  => '0',
+	b_dre  => '1',
 	b_addr => font_addr,
 	b_din  => (others => '0'),
 	b_dout => font_dout

@@ -50,7 +50,7 @@ main:
   /* call loadcursor
   1 +
   call savecursor */
-  1024 @ 1 + 1024 ! drop
+  255 @ 1 + 255 ! drop
   jump wait
 
   read_SWITCHES write_LED

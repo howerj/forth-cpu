@@ -55,7 +55,8 @@ architecture behav of cpu is
 	--! memory <-> cpu signals
 	signal pc:           std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0'); -- Program counter
 	signal insn:         std_logic_vector(data_bitlen - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
-	signal mem_dwe:      std_logic:= '0';   -- Read/Write toggle, 0=Read, 1=Write
+	signal mem_dwe:      std_logic:= '0'; -- Read/Write toggle, 0=Read, 1=Write
+	signal mem_dre:      std_logic:= '0'; -- Read enable
 	signal mem_din:      std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
 	signal mem_dout:     std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
 	signal mem_daddr:    std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0');
@@ -73,8 +74,7 @@ begin
 	-- synthesis translate_on
 
 	irqh_instance: entity work.irqh
-	generic map(
-		number_of_interrupts => number_of_interrupts)
+	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 		clk       =>    clk,
 		rst       =>    rst,
@@ -87,8 +87,7 @@ begin
 
 	-- The actual CPU instance (H2)
 	h2_instance: entity work.h2
-	generic map(
-		number_of_interrupts => number_of_interrupts)
+	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 		clk       =>    clk,
 		rst       =>    rst,
@@ -109,6 +108,7 @@ begin
 		insn      =>    insn,  
 		-- Fetch/Store
 		dwe       =>    mem_dwe,
+		dre       =>    mem_dre,
 		din       =>    mem_din,
 		dout      =>    mem_dout,
 		daddr     =>    mem_daddr);
@@ -126,12 +126,14 @@ begin
 		-- Port A, Read only, CPU instruction/address
 		a_clk   =>    clk,
 		a_dwe   =>    '0',
+		a_dre   =>    '1',
 		a_addr  =>    pc,
 		a_din   =>    (others => '0'),
 		a_dout  =>    insn,
 		-- Port B, Read/Write controlled by CPU instructions
 		b_clk   =>    clk,
 		b_dwe   =>    mem_dwe,
+		b_dre   =>    mem_dre,
 		b_addr  =>    mem_daddr,
 		b_din   =>    mem_dout,
 		b_dout  =>    mem_din);
