@@ -36,6 +36,7 @@ all:
 	@echo ""
 	@echo "make simulation     - simulate design"
 	@echo "make viewer         - start waveform viewer for simulation results"
+	@echo "make h2             - make experimental C simulator"
 	@echo ""
 	@echo "Synthesis:"
 	@echo ""
@@ -63,7 +64,7 @@ mem_h2.hexadecimal: assembler cpu.asm
 ## Virtual Machine =========================================================
 
 h2: h2.c
-	${CC} -Wall -Wextra -std=c99 $^ -o $@
+	${CC} -Wall -Wextra -g -std=c99 $^ -o $@
 
 ## Simulation ==============================================================
 

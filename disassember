@@ -3,18 +3,8 @@
 # Either read from file, or given an individual number, disable it
 #
 # TODO:
-#   * command line options
-#     - single word to disassemble
-#     - entire file with filename defaulting to mem_h2.hexadecimal
-#     - different input bases
-#     - help message
-#     - package (separate from this file) for both the assembler
-#       and disassembler.
-#     - disassemble until jump 0
-#     - disassemble range
-#   * the actual disassembler
-#   * verbosity levels
-
+#	* Remove this disassembler
+#
 use warnings;
 use strict;
 
