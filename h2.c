@@ -52,8 +52,8 @@
 /* The H2 CPU is a rewrite of the J1 Forth CPU in VHDL with some extensions,
  *
  * It is a stack based CPU with minimal state; a program counter, a top
- * of the variable stack register and two stacks 32 deep each, the return
- * and the variable stacks. It is a 16-bit CPU.
+ * of the data stack register and two stacks 32 deep each, the return
+ * and the data stacks. It is a 16-bit CPU.
  *
  * The program is stored in RAM and is 8192 cells long, which is the
  * maximum number of cells that the program can be. Any read or write
@@ -72,16 +72,16 @@
  *	*---------------------------------------------------------------*
  *	| 0 | 1 | 0 |            CALL TARGET ADDRESS                    |
  *	*---------------------------------------------------------------*
- *	| 0 | 1 | 0 |   ALU OPERATION   |T2N|T2R|N2A|R2P| RSTACK| DSTACK|
+ *	| 0 | 1 | 1 |   ALU OPERATION   |T2N|T2R|N2A|R2P| RSTACK| DSTACK|
  *	*---------------------------------------------------------------*
  *	| F | E | D | C | B | A | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
  *	*---------------------------------------------------------------*
  *
- *      T   : Top off variable stack
- *	N   : Next on variable stack
+ *      T   : Top of data stack
+ *	N   : Next on data stack
  *	PC  : Program Counter
  *
- *      LITERAL VALUES : push a value onto the variable stack
+ *      LITERAL VALUES : push a value onto the data stack
  *      CONDITIONAL    : JUMPS pop and test the T
  *      CALLS          : PC+1 onto the return stack
  *
@@ -92,7 +92,7 @@
  *
  *	RSTACK and DSTACK are signed values (twos compliment) that are
  *	the stack delta (the amount to increment or decrement the stack
- *	by for their respective stacks: return and variable)
+ *	by for their respective stacks: return and data)
  *
  * ALU OPERATIONS
  *
@@ -125,10 +125,23 @@
  * 	http://excamera.com/sphinx/fpga-j1.html
  */
 
+#define IS_LITERAL(INST) (((INST) & 0x8000) == 0x8000)
+#define IS_JUMP(INST)    (((INST) & 0xE000) == 0x0000)
+#define IS_CJUMP(INST)   (((INST) & 0x2000) == 0x2000)
+#define IS_CALL(INST)    (((INST) & 0x4000) == 0x4000)
+#define IS_ALU_OP(INST)   (((INST) & 0x6000) == 0x6000)
+
+#define ALU_OP_LENGTH   (5u)
+#define ALU_OP_START    (8u)
+#define ALU_OP(INST)    (((INST) >> ALU_OP_START) & (ALU_OP_LENGTH - 1))
+
 #define DSTACK_LENGTH   (2u)
-#define DSTART_START    (0u)
+#define DSTACK_START    (0u)
+#define DSTACK(INST)    (((INST) >> DSTACK_START) & (DSTACK_LENGTH - 1))
+
 #define RSTACK_LENGTH   (2u)
 #define RSTACK_START    (2u)
+#define RSTACK(INST)    (((INST) >> RSTACK_START) & (RSTACK_LENGTH - 1))
 
 #define R_TO_PC_BIT     (4u)
 #define N_TO_ADDR_T_BIT (5u)
@@ -332,90 +345,6 @@ int h2_load(h2_t *h, FILE *hexfile)
 
 /* ========================== Utilities ==================================== */
 
-/* ========================== Simulation =================================== */
-/** @warning Can only push or pop once per cycle */
-/** @todo over and underflow checks: it would be nice if the CPU could trap 
- * on under or overflow */
-static void vpush(h2_t *h, uint16_t v)
-{
-	assert(h);
-	h->vstk[h->sp + 1 % STK_SIZE] = h->tos;
-	h->tos = v;
-	h->sp++;
-	if(h->sp >= STK_SIZE)
-		warning("stack overflow");
-	h->sp %= STK_SIZE;
-}
-
-static uint16_t vpop(h2_t *h)
-{
-	uint16_t r;
-	assert(h);
-	r = h->tos;
-	h->tos = h->vstk[h->sp % STK_SIZE];
-	h->sp--;
-	return r;
-}
-
-static int _trace(FILE *output, const char *fmt, ...)
-{
-	int r = 0;
-	va_list ap;
-	if(!output)
-		return r;
-	assert(fmt);
-	va_start(ap, fmt);
-	r = vfprintf(output, fmt, ap);
-	va_end(ap);
-	fputc('\n', output);
-	fflush(output);
-	return r;
-}
-
-#define trace(FMT, ...) _trace(output, FMT, ##__VA_ARGS__)
-
-/** @todo interrupt handling, implement instruction set and I/O 
- *  @todo split into a step and a run function */
-int h2_run(h2_t *h, FILE *output, unsigned steps)
-{
-	assert(h);
-	for(unsigned i = 0; i < steps || steps == 0; i++) {
-		uint16_t inst, lit, val;
-
-		inst = h->core[h->pc];
-		lit = 0;
-		val = 0;
-		trace("%u: pc(%04x) inst(%04x)", 
-				i, (unsigned)h->pc, (unsigned)inst);
-
-		/* decode / execute */
-		if((inst & 0x8000) == 0x8000) { /* literal */
-			lit = inst & 0x7FFF;
-			vpush(h, lit);
-			h->pc = (h->pc + 1) % MAX_CORE;
-		} else if ((inst & 0x6000) == 0x6000){ /* ALU instruction */
-			h->pc = (h->pc + 1) % MAX_CORE;
-		} else if ((inst & 0x4000) == 0x4000) { /* CALL */
-			val = inst & 0x1FFF;
-		} else if ((inst & 0x2000) == 0x2000) { /* Conditional Jump */
-			val = inst & 0x1FFF;
-			if(!vpop(h))
-				h->pc = val % MAX_CORE;
-			else
-				h->pc = (h->pc + 1) % MAX_CORE;
-		} else if (!(inst & 0xC000)) { /* Jump */
-			val = inst & 0x1FFF;
-			h->pc = val;
-		} else {
-			/* ??? */
-		}
-
-	}
-	return 0;
-}
-
-/* ========================== Simulation =================================== */
-
 /* ========================== Disassembler ================================= */
 /* Plan: Use "filter.c"
  *
@@ -456,21 +385,25 @@ static const char *disassembler_alu(uint16_t instruction)
 static int disassembler_instruction(uint16_t instruction, FILE *output)
 {
 	int r = 0;
+	unsigned short literal, address;
 	assert(output);
-	if ((instruction & 0x8000) == 0x8000) {	/**Literal */
-		r = fprintf(output, "lit(%hx)", 0x7FFF & instruction);
-	} else if ((instruction & 0x6000) == 0x6000) { /**ALU instruction */
-		r = fprintf(output, "%s:%hx", disassembler_alu(instruction & 0x1FFF), 0x1FFF & instruction);
-	} else if ((instruction & 0x4000) == 0x4000) { /**Call */
-		r = fprintf(output, "call(%hx)", 0x1FFF & instruction);
-	} else if ((instruction & 0x2000) == 0x2000) { /**Conditional Jump */
-		r = fprintf(output, "cjmp(%hx)", 0x1FFF & instruction);
-	} else if (!(instruction & 0xC000)) { /**Jump */
-		r = fprintf(output, "jmp(%hx)", 0x1FFF & instruction);
-	} else {
+
+	literal = instruction & 0x7FFF;
+	address = instruction & 0x1FFF;
+
+	if (IS_LITERAL(instruction))
+		r = fprintf(output, "lit(%hx)", literal);
+	else if (IS_ALU_OP(instruction))
+		r = fprintf(output, "%s:%hx", disassembler_alu(address), address);
+	else if (IS_CALL(instruction))
+		r = fprintf(output, "call(%hx)", address);
+	else if (IS_CJUMP(instruction)) 
+		r = fprintf(output, "cjmp(%hx)", address);
+	else if (IS_JUMP(instruction))
+		r = fprintf(output, "jmp(%hx)", address);
+	else
 		r = fprintf(output, "?(%hx)", instruction);
-	}
-	return r;
+	return r < 0 ? -1 : 0;
 }
 
 int h2_disassemble(FILE *input, FILE *output)
@@ -502,6 +435,154 @@ int h2_disassemble(FILE *input, FILE *output)
 }
 
 /* ========================== Disassembler ================================= */
+
+/* ========================== Simulation =================================== */
+
+/** @warning Can only push or pop once per cycle */
+static void dpush(h2_t *h, uint16_t v)
+{
+	assert(h);
+	h->vstk[(h->sp + 1) % STK_SIZE] = h->tos;
+	h->tos = v;
+	h->sp++;
+	if(h->sp >= STK_SIZE)
+		warning("data stack overflow");
+	h->sp %= STK_SIZE;
+}
+
+static uint16_t dpop(h2_t *h)
+{
+	uint16_t r;
+	assert(h);
+	r = h->tos;
+	h->tos = h->vstk[h->sp % STK_SIZE];
+	h->sp--;
+	if(h->sp >= STK_SIZE)
+		warning("data stack underflow");
+	h->sp %= STK_SIZE;
+	return r;
+}
+
+static void rpush(h2_t *h, uint16_t r)
+{
+	h->rstk[(h->rp + 1) % STK_SIZE] = r;
+	h->rp++;
+	if(h->rp >= STK_SIZE)
+		warning("return stack overflow");
+	h->rp %= STK_SIZE;
+}
+
+static uint16_t rpop(h2_t *h)
+{
+	uint16_t r;
+	assert(h);
+	r = h->rstk[h->rp % STK_SIZE];
+	h->rp--;
+	if(h->sp >= STK_SIZE)
+		warning("return stack underflow");
+	h->rp %= STK_SIZE;
+	return r;
+}
+
+static uint16_t stack_delta(uint16_t d)
+{
+	static const uint16_t i[4] = { 0x0000, 0x0001, 0xFFFE, 0xFFFF };
+	assert((d & 0xFFFC) == 0);
+	return i[d];
+}
+
+static int trace(FILE *output, uint16_t instruction, const char *fmt, ...)
+{
+	int r = 0;
+	va_list ap;
+	if(!output)
+		return r;
+	assert(fmt);
+	va_start(ap, fmt);
+	r = vfprintf(output, fmt, ap);
+	va_end(ap);
+	if(r < 0)
+		return r;
+	if(fputc('\t', output) != '\t')
+		return -1;
+	r = disassembler_instruction(instruction, output);
+	if(r < 0)
+		return r;
+	if(fputc('\n', output) != '\n')
+		return -1;
+	if(fflush(output) == EOF)
+		return -1;
+	return r;
+}
+
+/** @todo interrupt handling, implement instruction set and I/O 
+ *  @todo split into a step and a run function */
+int h2_run(h2_t *h, FILE *output, unsigned steps)
+{
+	assert(h);
+	for(unsigned i = 0; i < steps || steps == 0; i++) {
+		uint16_t instruction, 
+			 literal, 
+			 address, 
+			 pc_plus_one;
+
+		instruction = h->core[h->pc];
+
+		literal = instruction & 0x7FFF;
+		address = instruction & 0x1FFF; /* NB. also used for ALU OP */
+
+		pc_plus_one = h->pc + 1 % MAX_CORE;
+
+		trace(output, instruction,
+			"%04u: pc(%04x) inst(%04x) sp(%04x) rp(%04x)", 
+			i, 
+			(unsigned)h->pc, 
+			(unsigned)instruction,
+			(unsigned)h->sp,
+			(unsigned)h->rp);
+
+		/* decode / execute */
+		if(IS_LITERAL(instruction)) {
+			dpush(h, literal);
+			h->pc = pc_plus_one;
+		} else if (IS_ALU_OP(instruction)) {
+			uint16_t rd = stack_delta(RSTACK(instruction));
+			uint16_t dd = stack_delta(DSTACK(instruction));
+
+			/**@todo Do ALU decoding here */
+
+			h->sp -= dd;
+			if(h->sp >= STK_SIZE)
+				warning("data stack overflow");
+			h->sp %= STK_SIZE;
+
+			h->rp -= rd;
+			if(h->rp >= STK_SIZE)
+				warning("return stack overflow");
+			h->rp %= STK_SIZE;
+
+			h->pc = pc_plus_one;
+		} else if (IS_CALL(instruction)) {
+			rpush(h, pc_plus_one);
+			h->pc = address;
+		} else if (IS_CJUMP(instruction)) {
+			if(!dpop(h))
+				h->pc = address % MAX_CORE;
+			else
+				h->pc = pc_plus_one;
+		} else if (IS_JUMP(instruction)) {
+			h->pc = address;
+		} else {
+			/* ??? */
+		}
+
+	}
+	return 0;
+}
+
+/* ========================== Simulation =================================== */
+
+
 
 /* ========================== Assembler ==================================== */
 /* 
