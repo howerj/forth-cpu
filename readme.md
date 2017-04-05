@@ -54,6 +54,7 @@ it is becoming more difficult to use.
 * A timer should be added, a 64-bit timer should be made
 which when requested stores its values in a set of four
 registers. This should all be memory mapped.
+* For CRC VHDL code see <http://outputlogic.com/?page_id=321>
 
 ## Ideas
 

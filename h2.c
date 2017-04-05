@@ -16,6 +16,8 @@
  * @todo turn this into a library
  * @todo turn this into a literate program
  * @todo make common macros for extracting instruction information
+ * @todo Make structures for assembling and disassembling instructions
+ * and functions that act on instructions.
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
@@ -29,6 +31,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -125,6 +128,45 @@
  * 	http://excamera.com/sphinx/fpga-j1.html
  */
 
+#if 0
+typedef enum {
+	INSTRUCTION_TYPE_LITERAL,
+	INSTRUCTION_TYPE_BRANCH,
+	INSTRUCTION_TYPE_0BRANCH,
+	INSTRUCTION_TYPE_CALL,
+	INSTRUCTION_TYPE_ALU_OP
+} instruction_type_e;
+
+typedef struct {
+	uint16_t alu_op : 5;
+	uint16_t t_to_n : 1;
+	uint16_t t_to_r : 1;
+	uint16_t n_to_addr_t : 1;
+	uint16_t r_to_pc : 1;
+	uint16_t dd : 2;
+	uint16_t rd : 2;
+} instruction_alu_t;
+
+typedef struct {
+	uint16_t target : 12;
+} instruction_target_t; /* conditional jump, call and jump */
+
+typedef struct {
+	uint16_t value: 15;
+} instruction_literal_t; 
+
+typedef struct {
+	uint16_t type : 3;
+	union {
+		instruction_literal_t literal;
+		instruction_target_t  jmp;
+		instruction_target_t  cjmp;
+		instruction_target_t  call;
+		instruction_alu_t     aluop;
+	} p;
+} instruction_t;
+#endif
+
 #define IS_LITERAL(INST) (((INST) & 0x8000) == 0x8000)
 #define IS_JUMP(INST)    (((INST) & 0xE000) == 0x0000)
 #define IS_CJUMP(INST)   (((INST) & 0x2000) == 0x2000)
@@ -148,10 +190,30 @@
 #define T_TO_R_BIT      (6u)
 #define T_TO_N_BIT      (7u)
 
+typedef enum {
+	ALUOP_T,                /**< Top of Stack         */
+	ALUOP_N,                /**< Copy T to N          */
+	ALUOP_T_PLUS_N,         /**< Addition             */
+	ALUOP_T_AND_N,          /**< Bitwise AND          */
+	ALUOP_T_OR_N,           /**< Bitwise OR           */
+	ALUOP_T_XOR_N,          /**< Bitwise XOR          */
+	ALUOP_T_INVERT,         /**< Bitwise Inversion    */
+	ALUOP_T_EQUAL_N,        /**< Equality test        */
+	ALUOP_N_LESS_T,         /**< Signed comparison    */
+	ALUOP_N_RSHIFT_T,       /**< Logical Right Shift  */  
+	ALUOP_T_DECREMENT,      /**< Decrement            */
+	ALUOP_R,                /**< Top of return stack  */
+	ALUOP_T_LOAD,           /**< Load from address    */
+	ALUOP_N_LSHIFT_T,       /**< Logical Left Shift   */
+	ALUOP_DEPTH,            /**< Depth of stack       */   
+	ALUOP_N_ULESS_T,        /**< Unsigned comparison  */ 
+	ALUOP_ENABLE_INTERRUPTS /**< Enable interrupts    */
+} aluop_e;
+
 typedef struct {
 	uint16_t core[MAX_CORE]; /**< main memory */
 	uint16_t rstk[STK_SIZE]; /**< return stack */
-	uint16_t vstk[STK_SIZE]; /**< variable stack */
+	uint16_t dstk[STK_SIZE]; /**< variable stack */
 	uint16_t pc;  /**< program counter */
 	uint16_t tos; /**< top of stack */
 	uint16_t rp;  /**< return stack pointer */
@@ -255,6 +317,15 @@ static FILE *fopen_or_die(const char *file, const char *mode)
 		fatal("failed to open file '%s' (mode %s): %s", 
 				file, mode, reason());
 	return f;
+}
+
+static int indent(FILE *output, char c, unsigned i)
+{
+	assert(output);
+	while(i--)
+		if(fputc(c, output) != c)
+			return -1;
+	return 0;
 }
 
 static int string_to_long(int base, long *n, const char *s)
@@ -442,7 +513,7 @@ int h2_disassemble(FILE *input, FILE *output)
 static void dpush(h2_t *h, uint16_t v)
 {
 	assert(h);
-	h->vstk[(h->sp + 1) % STK_SIZE] = h->tos;
+	h->dstk[(h->sp + 1) % STK_SIZE] = h->tos;
 	h->tos = v;
 	h->sp++;
 	if(h->sp >= STK_SIZE)
@@ -455,7 +526,7 @@ static uint16_t dpop(h2_t *h)
 	uint16_t r;
 	assert(h);
 	r = h->tos;
-	h->tos = h->vstk[h->sp % STK_SIZE];
+	h->tos = h->dstk[h->sp % STK_SIZE];
 	h->sp--;
 	if(h->sp >= STK_SIZE)
 		warning("data stack underflow");
@@ -515,7 +586,7 @@ static int trace(FILE *output, uint16_t instruction, const char *fmt, ...)
 	return r;
 }
 
-/** @todo interrupt handling, implement instruction set and I/O 
+/** @todo interrupt handling, CPU hold, implement instruction set and I/O 
  *  @todo split into a step and a run function */
 int h2_run(h2_t *h, FILE *output, unsigned steps)
 {
@@ -548,8 +619,34 @@ int h2_run(h2_t *h, FILE *output, unsigned steps)
 		} else if (IS_ALU_OP(instruction)) {
 			uint16_t rd = stack_delta(RSTACK(instruction));
 			uint16_t dd = stack_delta(DSTACK(instruction));
+			uint16_t nos = h->dstk[h->sp % STK_SIZE];
+			uint16_t tos = h->tos;
 
-			/**@todo Do ALU decoding here */
+			switch(ALU_OP(instruction)) {
+			case ALUOP_T:           /* tos = tos; */ break;
+			case ALUOP_N:           tos = nos; break;
+			case ALUOP_T_PLUS_N:    tos += nos; break;
+			case ALUOP_T_AND_N:     tos &= nos; break;
+			case ALUOP_T_OR_N:      tos |= nos; break;
+			case ALUOP_T_XOR_N:     tos ^= nos; break;
+			case ALUOP_T_INVERT:    tos = ~nos; break;
+			case ALUOP_T_EQUAL_N:   tos = tos == nos; break;
+			case ALUOP_N_LESS_T:    tos = (int16_t)nos < (int16_t)nos; break;
+			case ALUOP_N_RSHIFT_T:  tos >>= nos; break;
+			case ALUOP_T_DECREMENT: tos--; break;
+			case ALUOP_R:           tos = h->rstk[h->rp % STK_SIZE]; break;
+			case ALUOP_T_LOAD:
+				/** @todo This causes problems */
+				break;
+			case ALUOP_N_LSHIFT_T: tos <<= nos; break;
+			case ALUOP_DEPTH:      tos = (h->rp << 12) | h->rp; break;
+			case ALUOP_N_ULESS_T:  tos = nos < tos; break;
+			case ALUOP_ENABLE_INTERRUPTS:
+				/** @todo implement this */
+				break;
+			default:
+				warning("unknown ALU operation: %u", (unsigned)ALU_OP(instruction));
+			}
 
 			h->sp -= dd;
 			if(h->sp >= STK_SIZE)
@@ -588,17 +685,7 @@ int h2_run(h2_t *h, FILE *output, unsigned steps)
 /* 
  * Plan: Lexer/Parser/Code-Generation
  *
- * Grammar:
- *
- * Program     := Statement*  EOF 
- * Statement   := Label | Jump | Literal | Instruction | constant
- * Label       := Identifier ':'
- * Jump        := [ "call" | "branch" | "0branch" ] Identifier
- * Constant    := "constant" Identifier Literal
- * Literal     := Hex | Octal | Signed-Decimal
- * Instruction := "@" | "!" | "exit" | ... 
- * Identifier  := Alpha AlphaNumeric*
- *
+*
  * Initially, at least, only forward jumps will be allowed. Structured
  * programming such as 'if...then' and 'begin...until' could be added
  * later, as well as a pseudo Forth like syntax. There really is no
@@ -608,52 +695,52 @@ int h2_run(h2_t *h, FILE *output, unsigned steps)
 #define MAX_ID_LENGTH (256u)
 
 typedef enum {
-	LITERAL,
-	IDENTIFIER,
-	LABEL,
+	LEX_LITERAL,
+	LEX_IDENTIFIER,
+	LEX_LABEL,
 
-	CONSTANT, /* start of named tokens */
-	CALL,
-	JMP,
-	CJMP,
-	DUP,
-	OVER,
-	INVERT,
-	ADD,
-	SWAP,
-	NIP,
-	DROP,
-	EXIT,
-	TOR,
-	FROMR,
-	RAT,
-	LOAD,
-	STORE, /* end of named tokens */
-	ERROR, /* error token: this needs to be after the named tokens */
+	LEX_CONSTANT, /* start of named tokens */
+	LEX_CALL,
+	LEX_JMP,
+	LEX_CJMP,
+	LEX_DUP,
+	LEX_OVER,
+	LEX_INVERT,
+	LEX_ADD,
+	LEX_SWAP,
+	LEX_NIP,
+	LEX_DROP,
+	LEX_EXIT,
+	LEX_TOR,
+	LEX_FROMR,
+	LEX_RAT,
+	LEX_LOAD,
+	LEX_STORE, /* end of named tokens */
+	LEX_ERROR, /* error token: this needs to be after the named tokens */
 
-	EOI = EOF
+	LEX_EOI = EOF
 } token_e;
 
 static const char *keywords[] = 
 {
-	[CONSTANT]  =  "constant",
-	[CALL]      =  "call",
-	[JMP]       =  "branch",
-	[CJMP]      =  "0branch",
-	[DUP]       =  "dup",
-	[OVER]      =  "over",
-	[INVERT]    =  "invert",
-	[ADD]       =  "+",
-	[SWAP]      =  "swap",
-	[NIP]       =  "nip",
-	[DROP]      =  "drop",
-	[EXIT]      =  "exit",
-	[TOR]       =  ">r",
-	[FROMR]     =  "r>",
-	[RAT]       =  "r@",
-	[LOAD]      =  "@",
-	[STORE]     =  "!",
-	[ERROR]     =  NULL,
+	[LEX_CONSTANT]  =  "constant",
+	[LEX_CALL]      =  "call",
+	[LEX_JMP]       =  "branch",
+	[LEX_CJMP]      =  "0branch",
+	[LEX_DUP]       =  "dup",
+	[LEX_OVER]      =  "over",
+	[LEX_INVERT]    =  "invert",
+	[LEX_ADD]       =  "+",
+	[LEX_SWAP]      =  "swap",
+	[LEX_NIP]       =  "nip",
+	[LEX_DROP]      =  "drop",
+	[LEX_EXIT]      =  "exit",
+	[LEX_TOR]       =  ">r",
+	[LEX_FROMR]     =  "r>",
+	[LEX_RAT]       =  "r@",
+	[LEX_LOAD]      =  "@",
+	[LEX_STORE]     =  "!",
+	[LEX_ERROR]     =  NULL,
 	NULL
 };
 
@@ -677,6 +764,8 @@ typedef struct {
 	token_t *accepted;
 } lexer_t;
 
+/********* LEXER *********/
+
 static token_t *token_new(token_e type, unsigned line)
 {
 	token_t *r = allocate_or_die(sizeof(*r));
@@ -689,7 +778,7 @@ void token_free(token_t *t)
 {
 	if(!t)
 		return;
-	if(t->type == IDENTIFIER)
+	if(t->type == LEX_IDENTIFIER)
 		free(t->p.id);
 	memset(t, 0, sizeof(*t));
 	free(t);
@@ -721,6 +810,30 @@ static void lexer_free(lexer_t *l)
 	free(l);
 }
 
+static int print_token(token_t *t, FILE *output, unsigned depth)
+{
+	token_e type;
+	int r = 0;
+	if(!t)
+		return 0;
+	indent(output, ' ', depth);
+	type = t->type;
+	if(type == LEX_LITERAL) {
+		r = fprintf(output, "number: %"PRId16, t->p.number);
+	} else if(type == LEX_LABEL) {
+		r = fprintf(output, "label: %s", t->p.id);
+	} else if(type == LEX_IDENTIFIER) {
+		r = fprintf(output, "id: %s", t->p.id);
+	} else if(type == LEX_ERROR) {
+		r = fputs("error", output);
+	} else if(type == LEX_EOI) {
+		r = fputs("EOI", output);
+	} else {
+		r = fprintf(output, "keyword: %s", keywords[type]);
+	}
+	return r < 0 ? -1 : 0;
+}
+
 static int _syntax_error(lexer_t *l, 
 		const char *func, unsigned line, const char *fmt, ...)
 {
@@ -741,7 +854,7 @@ static int _syntax_error(lexer_t *l,
 	if(r >= 0)
 		r = fputc('\n', stderr);
 
-	/*print_token(stderr, l->token, 2);*/
+	print_token(l->token, stderr, 2);
 	ethrow(&l->error);
 	return 0;
 }
@@ -773,7 +886,7 @@ static void lexer(lexer_t *l)
 	assert(l);
 	int ch;
 	ch = next_char(l);
-	l->token = token_new(ERROR, l->line);
+	l->token = token_new(LEX_ERROR, l->line);
 
 again:
 	switch(ch) {
@@ -784,7 +897,7 @@ again:
 		ch = next_char(l);
 		goto again;
 	case EOF:  
-		l->token->type = EOI; 
+		l->token->type = LEX_EOI; 
 		return;
 	case '#':
 		for(; '\n' != (ch = next_char(l));)
@@ -794,26 +907,34 @@ again:
 		goto again;
 	default:
 		if(isdigit(ch)) {
-			l->token->type = LITERAL;
+			l->token->type = LEX_LITERAL;
 			l->token->p.number = number(l, &ch);
 			break;
 		}
 
-		if(isalpha(ch)) {
+		if(isgraph(ch)) {
 			unsigned i = 0, sym = 0;
-			while(isalnum(ch)) {
+			while(isgraph(ch) && ch != ':') {
 				l->id[i++] = ch;
 				ch = next_char(l);
 			}
 			l->id[i] = '\0';
-			for(sym = CONSTANT; sym != ERROR && keywords[sym] && strcmp(keywords[sym], l->id); sym++)
+			for(sym = LEX_CONSTANT; sym != LEX_ERROR && keywords[sym] && strcmp(keywords[sym], l->id); sym++)
 				/*do nothing*/;
 			if(!keywords[sym]) {
+
+				/* check is valid identifier */
+				if(!isalpha(l->id[0]))
+					goto fail;
+				for(unsigned j = 1; l->id[0] && j < i; j++)
+					if(!isalnum(l->id[j]))
+						goto fail;
+
 				if(ch == ':') { /* IDENTIFIER ':' */
 					ch = next_char(l);
-					l->token->type = LABEL;
+					l->token->type = LEX_LABEL;
 				} else { /* IDENTIFIER */
-					l->token->type = IDENTIFIER;
+					l->token->type = LEX_IDENTIFIER;
 				}
 				l->token->p.id = duplicate(l->id);
 			} else {
@@ -821,10 +942,185 @@ again:
 			}
 			break;
 		}
+fail:
 		syntax_error(l, "invalid token: %s (%d)\n", l->id, ch);
 		break;
 	}
 	unget_char(l, ch);
+}
+
+/********* PARSER *********/
+
+/* Grammar:
+ *
+ * Program     := Statements  EOF 
+ * Statements  := [ Label | Jump | Literal | Instruction | constant ]*
+ * Label       := Identifier ':'
+ * Jump        := [ "call" | "branch" | "0branch" ] Identifier
+ * Constant    := "constant" Identifier Literal
+ * Instruction := "@" | "!" | "exit" | ... 
+ * Literal     := Hex | Octal | Signed-Decimal
+ * Identifier  := Alpha AlphaNumeric**/
+ 
+
+#define XMACRO_PARSE\
+	X(SYM_PROGRAM,     "program")\
+	X(SYM_STATEMENTS,  "statements")\
+	X(SYM_LABEL,       "label")\
+	X(SYM_JUMP,        "jump")\
+	X(SYM_CONSTANT,    "constant")\
+	X(SYM_LITERAL,     "literal")\
+	X(SYM_INSTRUCTION, "instruction")
+
+typedef enum {
+#define X(ENUM, NAME) ENUM,
+	XMACRO_PARSE
+#undef X
+} parse_e;
+
+static const char *names[] = {
+#define X(ENUM, NAME) [ENUM] = NAME,
+	XMACRO_PARSE
+#undef X
+	NULL
+};
+
+typedef struct node_t  {
+	parse_e type; 
+	unsigned length;
+	token_t *token, *value;
+	struct node_t *o[];
+} node_t;
+
+node_t *node_new(lexer_t *l, parse_e type, unsigned size)
+{
+	node_t *r = allocate_or_die(sizeof(*r) + sizeof(r->o[0])*size);
+	assert(l);
+	if(log_level == LOG_DEBUG)
+		fprintf(stderr, "new> %s\n", names[type]);
+	r->length = size;
+	r->type = type;
+	return r;
+}
+
+void node_free(node_t *n)
+{
+	if(!n)
+		return;
+	for(unsigned i = 0; i < n->length; i++)
+		node_free(n->o[i]);
+	token_free(n->token);
+	token_free(n->value);
+	free(n);
+}
+
+static int accept(lexer_t *l, token_e sym)
+{
+	assert(l);
+	if(sym == l->token->type) {
+		token_free(l->accepted); /* free token owned by lexer */
+		l->accepted = l->token;
+		if(sym != LEX_EOI)
+			lexer(l);
+		return 1;
+	}
+	return 0;
+}
+
+static void use(lexer_t *l, node_t *n)
+{ /* move ownership of token from lexer to parse tree */
+	assert(l);
+	assert(n);
+	n->token = l->accepted;
+	l->accepted = NULL;
+}
+
+static int print_token_enum(token_e sym, FILE *output)
+{ /**@todo improve this function */
+	assert(output);
+	return fprintf(stderr, "%u", sym);
+}
+
+void print_node(FILE *output, node_t *n, int shallow, unsigned depth)
+{
+	if(!n)
+		return;
+	assert(output);
+	indent(output, ' ', depth); 
+	fprintf(output, "node(%d): %s\n", n->type, names[n->type]);
+	print_token(n->token, output, depth);
+	if(shallow)
+		return;
+	for(size_t i = 0; i < n->length; i++)
+		print_node(output, n->o[i], shallow, depth+1);
+}
+
+static int _expect(lexer_t *l, token_e sym, const char *file, const char *func, unsigned line)
+{
+	assert(l);
+	assert(file);
+	assert(func);
+	if(accept(l, sym))
+		return 1;
+	fprintf(stderr, "%s:%s:%u\n", file, func, line);
+	fprintf(stderr, "  Syntax error: unexpected token\n  Got:          ");
+	print_token(l->token, stderr, 0);
+	fputs("  Expected:     ", stderr);
+	print_token_enum(sym, stderr);
+	fprintf(stderr, "\n  On line: %u\n", l->line);
+	ethrow(&l->error);
+	return 0;
+}
+
+#define expect(L, SYM) _expect((L), (SYM), __FILE__, __func__, __LINE__)
+
+static node_t *statements(lexer_t *l) /* [ Label | Jump | Literal | Instruction | constant ] */
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_STATEMENTS, 2);
+
+	if(accept(l, LEX_CALL) || accept(l, LEX_JMP) || accept(l, LEX_CJMP)) {
+		node_t *n = node_new(SYM_JUMP);
+		use(l, n);
+		r->o[0] = n;
+	} else if(accept(l, LEX_LITERAL)) {
+		node_t *n = node_new(SYM_LITERAL);
+		use(l, n);
+		r->o[0] = n;
+	} else if(accept(l, LEX_CONSTANT)) {
+	} else {
+
+	}
+	r->o[1] = statements(l);
+	return r;
+}
+
+static node_t *program(lexer_t *l) /* block ( "." | EOF ) */
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_PROGRAM, 1);
+	lexer(l);
+	r->o[0] = statements(l);
+	expect(l, LEX_EOI);
+	return r;
+}
+
+static node_t *parse(FILE *input)
+{
+	lexer_t *l;
+	assert(input);
+	l = lexer_new(input);
+	l->error.jmp_buf_valid = 1;
+	if(setjmp(l->error.j)) {
+		lexer_free(l);
+		/** @warning leaks parsed nodes */
+		return NULL;
+	}
+	node_t *n = program(l);
+	lexer_free(l);
+	return n;
 }
 
 int h2_assemble(FILE *input, FILE *output)
@@ -843,9 +1139,11 @@ int h2_assemble(FILE *input, FILE *output)
 	/**@todo implement the rest of this, and print tokens out */
 	for(;;) {
 		lexer(l);
-		if(l->token->type == EOI)
+		if(l->token->type == LEX_EOI)
 			break;
-		printf("TOKEN\n");
+		fprintf(stdout, "%u: ", l->token->line);
+		print_token(l->token, stdout, 0);
+		fputc('\n', stdout);
 	}
 
 	lexer_free(l);
