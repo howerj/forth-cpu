@@ -171,7 +171,7 @@ typedef struct {
 #define IS_JUMP(INST)    (((INST) & 0xE000) == 0x0000)
 #define IS_CJUMP(INST)   (((INST) & 0x2000) == 0x2000)
 #define IS_CALL(INST)    (((INST) & 0x4000) == 0x4000)
-#define IS_ALU_OP(INST)   (((INST) & 0x6000) == 0x6000)
+#define IS_ALU_OP(INST)  (((INST) & 0x6000) == 0x6000)
 
 #define ALU_OP_LENGTH   (5u)
 #define ALU_OP_START    (8u)
@@ -543,6 +543,7 @@ static void rpush(h2_t *h, uint16_t r)
 	h->rp %= STK_SIZE;
 }
 
+#if 0
 static uint16_t rpop(h2_t *h)
 {
 	uint16_t r;
@@ -554,6 +555,7 @@ static uint16_t rpop(h2_t *h)
 	h->rp %= STK_SIZE;
 	return r;
 }
+#endif
 
 static uint16_t stack_delta(uint16_t d)
 {
@@ -700,10 +702,10 @@ typedef enum {
 	LEX_LABEL,
 
 	LEX_CONSTANT, /* start of named tokens */
-	LEX_CALL,
+	LEX_CALL, 
 	LEX_JMP,
 	LEX_CJMP,
-	LEX_DUP,
+	LEX_DUP,   /* start of instructions */
 	LEX_OVER,
 	LEX_INVERT,
 	LEX_ADD,
@@ -715,7 +717,7 @@ typedef enum {
 	LEX_FROMR,
 	LEX_RAT,
 	LEX_LOAD,
-	LEX_STORE, /* end of named tokens */
+	LEX_STORE, /* end of named tokens and instructions */
 	LEX_ERROR, /* error token: this needs to be after the named tokens */
 
 	LEX_EOI = EOF
@@ -954,9 +956,11 @@ fail:
 /* Grammar:
  *
  * Program     := Statements  EOF 
- * Statements  := [ Label | Jump | Literal | Instruction | constant ]*
+ * Statements  := [ Label | Jump | CJump | Call | Literal | Instruction | Constant ]*
  * Label       := Identifier ':'
- * Jump        := [ "call" | "branch" | "0branch" ] Identifier
+ * Jump        := "branch"  [ Identifier | Literal ]
+ * CJump       := "0branch" [ Identifier | Literal ]
+ * Call        := "call"    [ Identifier | Literal ]
  * Constant    := "constant" Identifier Literal
  * Instruction := "@" | "!" | "exit" | ... 
  * Literal     := Hex | Octal | Signed-Decimal
@@ -967,7 +971,9 @@ fail:
 	X(SYM_PROGRAM,     "program")\
 	X(SYM_STATEMENTS,  "statements")\
 	X(SYM_LABEL,       "label")\
-	X(SYM_JUMP,        "jump")\
+	X(SYM_JUMP,        "branch")\
+	X(SYM_CJUMP,       "0branch")\
+	X(SYM_CALL,        "call")\
 	X(SYM_CONSTANT,    "constant")\
 	X(SYM_LITERAL,     "literal")\
 	X(SYM_INSTRUCTION, "instruction")
@@ -996,7 +1002,7 @@ node_t *node_new(lexer_t *l, parse_e type, unsigned size)
 {
 	node_t *r = allocate_or_die(sizeof(*r) + sizeof(r->o[0])*size);
 	assert(l);
-	if(log_level == LOG_DEBUG)
+	if(log_level >= LOG_DEBUG)
 		fprintf(stderr, "new> %s\n", names[type]);
 	r->length = size;
 	r->type = type;
@@ -1027,6 +1033,14 @@ static int accept(lexer_t *l, token_e sym)
 	return 0;
 }
 
+static int accept_range(lexer_t *l, token_e low, token_e high)
+{
+	for(token_e i = low; i <= high; i++)
+		if(accept(l, i))
+			return 1;
+	return 0;
+}
+
 static void use(lexer_t *l, node_t *n)
 { /* move ownership of token from lexer to parse tree */
 	assert(l);
@@ -1041,7 +1055,7 @@ static int print_token_enum(token_e sym, FILE *output)
 	return fprintf(stderr, "%u", sym);
 }
 
-void print_node(FILE *output, node_t *n, int shallow, unsigned depth)
+void print_node(FILE *output, node_t *n, bool shallow, unsigned depth)
 {
 	if(!n)
 		return;
@@ -1049,50 +1063,92 @@ void print_node(FILE *output, node_t *n, int shallow, unsigned depth)
 	indent(output, ' ', depth); 
 	fprintf(output, "node(%d): %s\n", n->type, names[n->type]);
 	print_token(n->token, output, depth);
+	if(n->token)
+		fputc('\n', output);
 	if(shallow)
 		return;
 	for(size_t i = 0; i < n->length; i++)
 		print_node(output, n->o[i], shallow, depth+1);
 }
 
-static int _expect(lexer_t *l, token_e sym, const char *file, const char *func, unsigned line)
+static int _expect(lexer_t *l, token_e token, const char *file, const char *func, unsigned line)
 {
 	assert(l);
 	assert(file);
 	assert(func);
-	if(accept(l, sym))
+	if(accept(l, token))
 		return 1;
 	fprintf(stderr, "%s:%s:%u\n", file, func, line);
 	fprintf(stderr, "  Syntax error: unexpected token\n  Got:          ");
 	print_token(l->token, stderr, 0);
 	fputs("  Expected:     ", stderr);
-	print_token_enum(sym, stderr);
+	print_token_enum(token, stderr);
 	fprintf(stderr, "\n  On line: %u\n", l->line);
 	ethrow(&l->error);
 	return 0;
 }
 
-#define expect(L, SYM) _expect((L), (SYM), __FILE__, __func__, __LINE__)
+#define expect(L, TOKEN) _expect((L), (TOKEN), __FILE__, __func__, __LINE__)
+
+/* for rules in the BNF tree defined entirely by their token */
+static node_t *defined_by_token(lexer_t *l, parse_e type)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, type, 0);
+	use(l, r);
+	return r;
+}
+
+static node_t *constant(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_CONSTANT, 1);
+	expect(l, LEX_IDENTIFIER);
+	use(l, r);
+	expect(l, LEX_LITERAL);
+	r->o[0] = defined_by_token(l, SYM_LITERAL);
+	return r;
+}
+
+static node_t *jump(lexer_t *l, parse_e type)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, type, 0);
+	(void)(accept(l, LEX_LITERAL) || expect(l, LEX_IDENTIFIER));
+	use(l, r);
+	return r;
+}
 
 static node_t *statements(lexer_t *l) /* [ Label | Jump | Literal | Instruction | constant ] */
 {
 	node_t *r;
 	assert(l);
 	r = node_new(l, SYM_STATEMENTS, 2);
-
-	if(accept(l, LEX_CALL) || accept(l, LEX_JMP) || accept(l, LEX_CJMP)) {
-		node_t *n = node_new(SYM_JUMP);
-		use(l, n);
-		r->o[0] = n;
+	if(accept(l, LEX_CALL)) {
+		r->o[0] = jump(l, SYM_CALL);
+		r->o[1] = statements(l);
+	} else if(accept(l, LEX_JMP)) {
+		r->o[0] = jump(l, SYM_JUMP);
+		r->o[1] = statements(l);
+	} else if(accept(l, LEX_CJMP)) {
+		r->o[0] = jump(l, SYM_CJUMP);
+		r->o[1] = statements(l);
 	} else if(accept(l, LEX_LITERAL)) {
-		node_t *n = node_new(SYM_LITERAL);
-		use(l, n);
-		r->o[0] = n;
+		r->o[0] = defined_by_token(l, SYM_LITERAL);
+		r->o[1] = statements(l);
+	} else if(accept(l, LEX_LABEL)) {
+		r->o[0] = defined_by_token(l, SYM_LABEL);
+		r->o[1] = statements(l);
 	} else if(accept(l, LEX_CONSTANT)) {
-	} else {
-
+		r->o[0] = constant(l);
+		r->o[1] = statements(l);
+	} else if(accept_range(l, LEX_DUP, LEX_STORE)) {
+		r->o[0] = defined_by_token(l, SYM_INSTRUCTION);
+		r->o[1] = statements(l);
 	}
-	r->o[1] = statements(l);
 	return r;
 }
 
@@ -1123,10 +1179,225 @@ static node_t *parse(FILE *input)
 	return n;
 }
 
+/********* CODE ***********/
+
+typedef enum {
+	CODE_LABEL,
+	CODE_CONSTANT
+} symbol_type_e;
+
+typedef struct {
+	symbol_type_e type;
+	char *id;
+	uint16_t value;
+} symbol_t;
+
+typedef struct {
+	size_t length;
+	symbol_t **symbols;
+} symbol_table_t;
+
+static symbol_t *symbol_new(symbol_type_e type, const char *id, uint16_t value)
+{
+	symbol_t *s = allocate_or_die(sizeof(*s));
+	assert(id);
+	s->id = duplicate(id);
+	s->value = value;
+	s->type = type;
+	return s;
+}
+
+static void symbol_free(symbol_t *s)
+{
+	if(!s)
+		return;
+	free(s->id);
+	memset(s, 0, sizeof(*s));
+	free(s);
+}
+
+static symbol_table_t *symbol_table_new(void)
+{
+	symbol_table_t *t = allocate_or_die(sizeof(*t));
+	return t;
+}
+
+static void symbol_table_free(symbol_table_t *t)
+{
+	if(!t)
+		return;
+	for(size_t i = 0; i < t->length; i++)
+		symbol_free(t->symbols[i]);
+	free(t->symbols);
+	memset(t, 0, sizeof(*t));
+	free(t);
+}
+
+static void symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *id, uint16_t value)
+{
+	symbol_t *s = symbol_new(type, id, value);
+	symbol_t **xs = NULL;
+	assert(t);
+	t->length++;
+	errno = 0;
+	xs = realloc(t->symbols, sizeof(*t->symbols) * t->length);
+	if(!xs)
+		fatal("reallocate of size %zu failed: %s", t->length, reason());
+	t->symbols = xs;
+	t->symbols[t->length - 1] = s;
+}
+
+static int symbol_table_print(symbol_table_t *t, FILE *output)
+{
+	static const char *symbol_names[] =
+	{
+		[CODE_LABEL]    = "label",
+		[CODE_CONSTANT] = "constant"
+	};
+	assert(t);
+	for(size_t i = 0; i < t->length; i++) {
+		symbol_t *s = t->symbols[i];
+		if(fprintf(output, "%s %s %"PRId16"\n", symbol_names[s->type], s->id, s->value) < 0)
+			return -1;
+	}
+	return 0;
+}
+
+static symbol_t *symbol_table_lookup(symbol_table_t *t, const char *id)
+{
+	for(size_t i = 0; i < t->length; i++)
+		if(!strcmp(t->symbols[i]->id, id))
+			return t->symbols[i];
+	return NULL;
+}
+
+static void generate(h2_t *h, uint16_t instruction)
+{
+	assert(h);
+	if(log_level >= LOG_DEBUG)
+		fprintf(stderr, "%"PRIx16":\t%"PRIx16"\n", h->pc, instruction);
+	h->core[h->pc++] = instruction;
+}
+
+#if 0
+static uint16_t hole(h2_t *h)
+{
+	assert(h);
+	return h->pc++;
+}
+
+static void fix(h2_t *h, uint16_t hole, uint16_t patch)
+{
+	assert(h);
+	h->core[hole] = patch;
+}
+#endif
+
+static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type)
+{
+	uint16_t or = 0;
+	uint16_t addr = 0;
+	symbol_t *s;
+	assert(h);
+	assert(t);
+
+	if(tok->type == LEX_IDENTIFIER) {
+		s = symbol_table_lookup(t, tok->p.id);
+		if(!s)
+			fatal("undefined symbol: %s", tok->p.id);
+		addr = s->value;
+	} else if (tok->type == LEX_LITERAL) {
+		addr = tok->p.number;
+	} else {
+		fatal("invalid jump target token type");
+	}
+
+	if(addr > 0x1FFF)
+		fatal("invalid jump address: %"PRId16, addr);
+
+	switch(type) {
+	case SYM_JUMP:  or = 0x0000; break;
+	case SYM_CJUMP: or = 0x2000; break;
+	case SYM_CALL:  or = 0x4000; break;
+	default:
+		fatal("invalid call type: %u", type);
+	}
+	generate(h, or | addr);
+}
+
+/** @todo better error handling */
+static void assemble(h2_t *h, node_t *n, symbol_table_t *t)
+{
+	assert(h);
+	assert(t);
+	if(!n)
+		return;
+
+	switch(n->type) {
+	case SYM_PROGRAM:    
+		assemble(h, n->o[0], t); 
+		break;
+	case SYM_STATEMENTS: 
+		assemble(h, n->o[0], t);
+		assemble(h, n->o[1], t);
+		break;
+	case SYM_LABEL:
+		symbol_table_add(t, CODE_LABEL, n->token->p.id, h->pc);
+		break;
+	case SYM_JUMP:
+	case SYM_CJUMP:
+	case SYM_CALL:
+		generate_jump(h, t, n->token, n->type);
+		break;
+	case SYM_CONSTANT:
+		symbol_table_add(t, CODE_CONSTANT, n->token->p.id, n->o[0]->token->p.number);
+		break;
+	case SYM_LITERAL:
+	{
+		uint16_t number = n->token->p.number;
+		if(number & 0x8000) {
+			/** @todo invert number, generate, then generate invert
+			 * instruction */
+		}
+		generate(h, 0x8000 | n->token->p.number);
+		break;
+	}
+	case SYM_INSTRUCTION:
+		break;
+	default:
+		fatal("Invalid or unknown type: %u", n->type);
+	}
+}
+
+static h2_t *code(node_t *n)
+{
+	h2_t *h = h2_new();
+	symbol_table_t *t = symbol_table_new();
+	assert(n);
+	assemble(h, n, t);
+	h->pc = START_ADDR;
+
+	symbol_table_print(t, stdout);
+	symbol_table_free(t);
+	return h;
+}
+
 int h2_assemble(FILE *input, FILE *output)
 {
 	assert(input);
 	assert(output);
+	node_t *n = parse(input);
+
+	if(log_level >= LOG_DEBUG)
+		print_node(output, n, false, 0);
+	if(n) {
+		h2_t *h = code(n);
+		h2_free(h);
+	}
+
+	node_free(n);
+
+#if 0
 	lexer_t *l = lexer_new(input);
 
 	l->error.jmp_buf_valid = 1;
@@ -1147,6 +1418,7 @@ int h2_assemble(FILE *input, FILE *output)
 	}
 
 	lexer_free(l);
+#endif
 	return 0;
 }
 
