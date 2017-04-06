@@ -217,8 +217,8 @@ begin
 		when "00100" => tos_n <= tos_c or nos;
 		when "00101" => tos_n <= tos_c xor nos;
 		when "00110" => tos_n <= not tos_c;
-		when "00111" => tos_n <= (0 => comp_equal, others => '0'); /* incorrect - -1 == true */
-		when "01000" => tos_n <= (0 => comp_more, others => '0'); /* incorrect - -1 == true */
+		when "00111" => tos_n <= (0 => comp_equal, others => '0'); -- incorrect - -1 == true 
+		when "01000" => tos_n <= (0 => comp_more, others => '0'); -- incorrect - -1 == true 
 		when "01001" => tos_n <= std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
 		when "01010" => tos_n <= std_logic_vector(unsigned(tos_c) - 1);
 		when "01011" => tos_n <= rtos_c;
@@ -233,14 +233,14 @@ begin
 		when "01101" => tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
 		when "01110" => -- get depth, comparisons flags and interrupt flag 
 			tos_n(4 downto 0)  <=  vstkp_c;
-			tos_n(5) <= comp_zero; /* remove these? */
+			tos_n(5) <= comp_zero; -- remove these?
 			tos_n(6) <= comp_umore;
 			tos_n(7) <= comp_equal;
 			tos_n(8) <= comp_more;
 			tos_n(9) <= int_en_c;
 			tos_n(10) <= '0';
 			tos_n(15 downto 11) <=  rstkp_c;
-		when "01111" => tos_n <=  (0 => comp_umore, others => '0'); /* incorrect - -1 == true */
+		when "01111" => tos_n <=  (0 => comp_umore, others => '0'); -- incorrect - -1 == true 
 		when "10000" => int_en_n <= tos_c(0); 
 		when "10001" => tos_n <= tos_c;
 		when "10010" => tos_n <= tos_c;
