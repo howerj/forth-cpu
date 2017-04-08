@@ -124,8 +124,8 @@
  */
 
 #define OP_BRANCH        (0x0000)
-#define OP_CALL          (0x2000)
-#define OP_0BRANCH       (0x4000)
+#define OP_0BRANCH       (0x2000)
+#define OP_CALL          (0x4000)
 #define OP_ALU_OP        (0x6000)
 #define OP_LITERAL       (0x8000)
 
@@ -770,6 +770,13 @@ typedef enum {
 	LEX_CALL,
 	LEX_BRANCH,
 	LEX_0BRANCH,
+	LEX_BEGIN,
+	LEX_UNTIL,
+	LEX_IF,
+	LEX_ELSE,
+	LEX_THEN,
+	LEX_DEFINE,
+	LEX_ENDDEFINE,
 	LEX_DUP,   /* start of instructions */
 	LEX_OVER,
 	LEX_INVERT,
@@ -806,6 +813,13 @@ static const char *keywords[] =
 	[LEX_CALL]      =  "call",
 	[LEX_BRANCH]    =  "branch",
 	[LEX_0BRANCH]   =  "0branch",
+	[LEX_BEGIN]     =  "begin",
+	[LEX_UNTIL]     =  "until",
+	[LEX_IF]        =  "if",
+	[LEX_ELSE]      =  "else",
+	[LEX_THEN]      =  "then",
+	[LEX_DEFINE]    =  ":",
+	[LEX_ENDDEFINE] =  ";",
 	[LEX_DUP]       =  "dup",
 	[LEX_OVER]      =  "over",
 	[LEX_INVERT]    =  "invert",
@@ -1038,7 +1052,7 @@ again:
 	case EOF:
 		l->token->type = LEX_EOI;
 		return;
-	case '#':
+	case '\\':
 		for(; '\n' != (ch = next_char(l));)
 			if(ch == EOF)
 				syntax_error(l, "commented terminated by EOF");
@@ -1066,23 +1080,27 @@ again:
 
 		if(isgraph(ch)) {
 			unsigned i = 0, sym = 0;
-			while(isgraph(ch) && ch != ':') {
+			while(isgraph(ch)) {
 				l->id[i++] = ch;
+				if(i >= MAX_ID_LENGTH - 1)
+					syntax_error(l, "identifier too large: %s", l->id);
 				ch = next_char(l);
 			}
 			l->id[i] = '\0';
+			/**@todo make case insensitive */
 			for(sym = LEX_CONSTANT; sym != LEX_ERROR && keywords[sym] && strcmp(keywords[sym], l->id); sym++)
 				/*do nothing*/;
 			if(!keywords[sym]) {
-
+				unsigned j;
 				/* check is valid identifier */
-				if(!isalpha(l->id[0]))
+				if(!isgraph(l->id[0]))
 					goto fail;
-				for(unsigned j = 1; l->id[0] && j < i; j++)
-					if(!isalnum(l->id[j]))
+				for(j = 1; l->id[0] && j < i; j++)
+					if(!isgraph(l->id[j]))
 						goto fail;
 
-				if(ch == ':') { /* IDENTIFIER ':' */
+				if(j > 1 && l->id[j - 1] == ':') {
+					l->id[strlen(l->id) - 1] = '\0';
 					ch = next_char(l);
 					l->token->type = LEX_LABEL;
 				} else { /* IDENTIFIER */
@@ -1157,7 +1175,11 @@ fail:
 	X(SYM_CALL,        "call")\
 	X(SYM_CONSTANT,    "constant")\
 	X(SYM_LITERAL,     "literal")\
-	X(SYM_INSTRUCTION, "instruction")
+	X(SYM_INSTRUCTION, "instruction")\
+	X(SYM_BEGIN_UNTIL, "begin...until")\
+	X(SYM_IF1,         "if1")\
+	X(SYM_DEFINITION,  "defintion")\
+	X(SYM_CALL_DEFINITION, "call definition")
 
 typedef enum {
 #define X(ENUM, NAME) ENUM,
@@ -1303,6 +1325,42 @@ static node_t *jump(lexer_t *l, parse_e type)
 	return r;
 }
 
+static node_t *statements(lexer_t *l);
+
+static node_t *begin(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_BEGIN_UNTIL, 1);
+	r->o[0] = statements(l);
+	expect(l, LEX_UNTIL);
+	return r;
+}
+
+static node_t *if1(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_IF1, 2);
+	r->o[0] = statements(l);
+	if(accept(l, LEX_ELSE))
+		r->o[1] = statements(l);
+	expect(l, LEX_THEN);
+	return r;
+}
+
+static node_t *define(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_DEFINITION, 1);
+	expect(l, LEX_IDENTIFIER);
+	use(l, r);
+	r->o[0] = statements(l);
+	expect(l, LEX_ENDDEFINE);
+	return r;
+}
+
 static node_t *statements(lexer_t *l) /* [ Label | Jump | Literal | Instruction | constant ] */
 {
 	node_t *r;
@@ -1325,6 +1383,18 @@ static node_t *statements(lexer_t *l) /* [ Label | Jump | Literal | Instruction 
 		r->o[1] = statements(l);
 	} else if(accept(l, LEX_CONSTANT)) {
 		r->o[0] = constant(l);
+		r->o[1] = statements(l);
+	} else if(accept(l, LEX_IF)) {
+		r->o[0] = if1(l);
+		r->o[1] = statements(l);
+	} else if(accept(l, LEX_DEFINE)) {
+		r->o[0] = define(l);
+		r->o[1] = statements(l);
+	} else if(accept(l, LEX_BEGIN)) {
+		r->o[0] = begin(l);
+		r->o[1] = statements(l);
+	} else if(accept(l, LEX_IDENTIFIER)) {
+		r->o[0] = defined_by_token(l, SYM_CALL_DEFINITION);
 		r->o[1] = statements(l);
 	} else if(accept_range(l, LEX_DUP, LEX_T_N1)) {
 		r->o[0] = defined_by_token(l, SYM_INSTRUCTION);
@@ -1364,6 +1434,7 @@ static node_t *parse(FILE *input)
 
 typedef enum {
 	SYMBOL_TYPE_LABEL,
+	SYMBOL_TYPE_CALL,
 	SYMBOL_TYPE_CONSTANT
 } symbol_type_e;
 
@@ -1449,6 +1520,7 @@ static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *i
 static const char *symbol_names[] =
 {
 	[SYMBOL_TYPE_LABEL]    = "label",
+	[SYMBOL_TYPE_CALL]     = "call",
 	[SYMBOL_TYPE_CONSTANT] = "constant",
 	NULL
 };
@@ -1512,19 +1584,26 @@ static void generate(h2_t *h, uint16_t instruction)
 	h->core[h->pc++] = instruction;
 }
 
-#if 0
+static uint16_t here(h2_t *h)
+{
+	assert(h);
+	assert(h->pc < MAX_CORE);
+	return h->pc;
+}
+
 static uint16_t hole(h2_t *h)
 {
 	assert(h);
+	assert(h->pc < MAX_CORE);
 	return h->pc++;
 }
 
 static void fix(h2_t *h, uint16_t hole, uint16_t patch)
 {
 	assert(h);
+	assert(hole < MAX_CORE);
 	h->core[hole] = patch;
 }
-#endif
 
 static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type, error_t *e)
 {
@@ -1547,15 +1626,15 @@ static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type
 		fatal("invalid jump target token type");
 	}
 
-	if(addr > 0x1FFF) {
+	if(addr > MAX_CORE) {
 		error("invalid jump address: %"PRId16, addr);
 		ethrow(e);
 	}
 
 	switch(type) {
-	case SYM_BRANCH:    or = 0x0000; break;
-	case SYM_0BRANCH: or = 0x2000; break;
-	case SYM_CALL:    or = 0x4000; break;
+	case SYM_BRANCH:  or = OP_BRANCH ; break;
+	case SYM_0BRANCH: or = OP_0BRANCH; break;
+	case SYM_CALL:    or = OP_CALL;    break;
 	default:
 		fatal("invalid call type: %u", type);
 	}
@@ -1596,12 +1675,18 @@ static uint16_t lexer_to_alu_op(token_e t)
 
 static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 {
+	uint16_t hole1, hole2;
 	assert(h);
 	assert(t);
 	assert(e);
 
 	if(!n)
 		return;
+
+	if(h->pc > MAX_CORE) {
+		error("PC/Dictionary overflow: %"PRId16, h->pc);
+		ethrow(e);
+	}
 
 	switch(n->type) {
 	case SYM_PROGRAM:
@@ -1612,7 +1697,7 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 		assemble(h, n->o[1], t, e);
 		break;
 	case SYM_LABEL:
-		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, h->pc, e);
+		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h), e);
 		break;
 	case SYM_BRANCH:
 	case SYM_0BRANCH:
@@ -1625,12 +1710,12 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 	case SYM_LITERAL:
 	{
 		uint16_t number = n->token->p.number;
-		if(number & 0x8000) {
+		if(number & OP_LITERAL) {
 			number = ~number;
-			generate(h, 0x8000 | number);
+			generate(h, OP_LITERAL | number);
 			generate(h, CODE_INVERT);
 		} else {
-			generate(h, 0x8000 | number);
+			generate(h, OP_LITERAL | number);
 		}
 		break;
 	}
@@ -1638,8 +1723,8 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 	{
 		/**@todo optimize calls to exit by smushing it with the
 		 * previous instruction if possible. Further optimizations
-		 * could be done by pushing instructions onto a stack in
-		 * generate and then by recognizing groups of instructions,
+		 * could be done by pushing instructions onto a queue in
+		 * generate() and then by recognizing groups of instructions,
 		 * deferring the emission of code and replacing them with
 		 * more optimal versions. Jumps and Calls would empty the 
 		 * stack before they emitted any code */
@@ -1652,6 +1737,45 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 		}
 		break;
 	}
+
+	case SYM_BEGIN_UNTIL:
+		hole1 = here(h);
+		assemble(h, n->o[0], t, e);
+		generate(h, OP_BRANCH | hole1);
+		break;
+	case SYM_IF1:
+		hole1 = hole(h);
+		assemble(h, n->o[0], t, e);
+		if(n->o[1]) { /* if ... else .. then */
+			hole2 = hole(h);
+			fix(h, hole1, OP_0BRANCH | (hole2   + 2));
+			assemble(h, n->o[1], t, e);
+			fix(h, hole2, OP_BRANCH  | (here(h) + 1));
+		} else { /* if ... then */
+			fix(h, hole1, OP_0BRANCH | (here(h) + 1));
+		}
+		break;
+	case SYM_CALL_DEFINITION:
+	{
+		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
+		if(!s) {
+			error("not a constant or a defined procedure: %s", n->token->p.id);
+			ethrow(e);
+		}
+		if(s->type == SYMBOL_TYPE_CALL) {
+			generate(h, OP_CALL | s->value);
+		} else if(s->type == SYMBOL_TYPE_CONSTANT) {
+			generate(h, OP_LITERAL | s->value);
+		} else {
+			error("can only call or push literal: %s", s->id);
+			ethrow(e);
+		}
+		break;
+	}
+	case SYM_DEFINITION:
+		/**@bug allows for nested definitions, this should change STATE */
+		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
+		break;
 	default:
 		fatal("Invalid or unknown type: %u", n->type);
 	}
