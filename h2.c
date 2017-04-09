@@ -1,6 +1,5 @@
 /** @file      h2.c
  *  @brief     Simulate the H2 CPU and surrounding system
- *  @author    Richard James Howe
  *  @copyright Richard James Howe (2017)
  *  @license   MIT
  *
@@ -10,44 +9,18 @@
  * for the device, and allow for simulating the device where there
  * is no tool chain for dealing with VHDL.
  *
- * @todo implement the simulator
- * @todo turn this into a library
- * @todo turn this into a literate program
+ * @todo implement the simulator I/O
+ * @todo turn this into a library, and into a literate program
+ * @todo make a peephole optimizer for the assembler and a super optimizer
+ * utility.
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
  * VHDL based CPU. This could be used as an advanced test bench. This could
  * be done instruction by instruction, or the data could be read in from a
  * file.
- */
-
-/* ========================== Preamble: Types, Macros, Globals ============= */
-
-#include <assert.h>
-#include <ctype.h>
-#include <errno.h>
-#include <inttypes.h>
-#include <setjmp.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#ifdef _WIN32
-#include <io.h>
-#include <fcntl.h>
-#endif
-
-#define MAX_CORE      (8192u)
-#define STK_SIZE      (32u)
-#define START_ADDR    (8u)
-#define DEFAULT_STEPS (64)
-#define MAX(X, Y)  ((X) > (Y) ? (X) : (Y))
-#define MIN(X, Y)  ((X) > (Y) ? (Y) : (X))
-
-/* The H2 CPU is a rewrite of the J1 Forth CPU in VHDL with some extensions,
+ *
+ * The H2 CPU is a rewrite of the J1 Forth CPU in VHDL with some extensions,
  *
  * It is a stack based CPU with minimal state; a program counter, a top
  * of the data stack register and two stacks 32 deep each, the return
@@ -123,6 +96,32 @@
  * 	http://excamera.com/sphinx/fpga-j1.html
  */
 
+/* ========================== Preamble: Types, Macros, Globals ============= */
+
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <setjmp.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif
+
+#define MAX_CORE      (8192u)
+#define STK_SIZE      (32u)
+#define START_ADDR    (8u)
+#define DEFAULT_STEPS (64)
+#define MAX(X, Y)  ((X) > (Y) ? (X) : (Y))
+#define MIN(X, Y)  ((X) > (Y) ? (Y) : (X))
+
 #define OP_BRANCH        (0x0000)
 #define OP_0BRANCH       (0x2000)
 #define OP_CALL          (0x4000)
@@ -185,8 +184,6 @@ typedef enum {
 #define MK_DSTACK(DELTA) ((DELTA) << DSTACK_START)
 #define MK_RSTACK(DELTA) ((DELTA) << RSTACK_START)
 #define MK_CODE(CODE)    ((CODE)  << ALU_OP_START)
-
-/**@todo add more instructions */
 
 typedef enum {
 	CODE_DUP    = (OP_ALU_OP | MK_CODE(ALU_OP_T)        | T_TO_N  | MK_DSTACK(DELTA_1)),
@@ -591,47 +588,47 @@ fail:
 static const char *instruction_to_string(uint16_t i)
 {
 	switch(i) {
-	case  CODE_DUP:     return "dup";
-	case  CODE_OVER:    return "over";
-	case  CODE_INVERT:  return "invert";
-	case  CODE_ADD:     return "+";
-	case  CODE_SWAP:    return "swap";
-	case  CODE_NIP:     return "nip";
-	case  CODE_DROP:    return "drop";
-	case  CODE_EXIT:    return "exit";
-	case  CODE_TOR:     return ">r";
-	case  CODE_FROMR:   return "r>";
-	case  CODE_RAT:     return "r@";
-	case  CODE_LOAD:    return "@";
-	case  CODE_STORE:   return "!";
-	case  CODE_RSHIFT:  return "rshift";
-	case  CODE_LSHIFT:  return "lshift";
-	case  CODE_EQUAL:   return "equal";
-	case  CODE_ULESS:   return "u<";
-	case  CODE_LESS:    return "<";
-	case  CODE_AND:     return "and";
-	case  CODE_XOR:     return "xor";
-	case  CODE_OR:      return "or";
-	case  CODE_DEPTH:   return "depth";
-	case  CODE_T_N1:    return "m1"; /**@todo renamed 1- once lexer is fixed */
-	default: break;
+	case CODE_DUP:    return "dup";
+	case CODE_OVER:   return "over";
+	case CODE_INVERT: return "invert";
+	case CODE_ADD:    return "+";
+	case CODE_SWAP:   return "swap";
+	case CODE_NIP:    return "nip";
+	case CODE_DROP:   return "drop";
+	case CODE_EXIT:   return "exit";
+	case CODE_TOR:    return ">r";
+	case CODE_FROMR:  return "r>";
+	case CODE_RAT:    return "r@";
+	case CODE_LOAD:   return "@";
+	case CODE_STORE:  return "!";
+	case CODE_RSHIFT: return "rshift";
+	case CODE_LSHIFT: return "lshift";
+	case CODE_EQUAL:  return "equal";
+	case CODE_ULESS:  return "u<";
+	case CODE_LESS:   return "<";
+	case CODE_AND:    return "and";
+	case CODE_XOR:    return "xor";
+	case CODE_OR:     return "or";
+	case CODE_DEPTH:  return "depth";
+	case CODE_T_N1:   return "m1"; /**@todo renamed 1- once lexer is fixed */
+	default:          break;
 	}
 	return NULL;
 }
 
 static const char *alu_op_to_string(uint16_t instruction)
 {
-	switch((instruction & 0x1F00) >> 8) {
-	case 0: return "T";
-	case 1: return "N";
-	case 2: return "T+N";
-	case 3: return "T&N";
-	case 4: return "T|N";
-	case 5: return "T^N";
-	case 6: return "~T";
-	case 7: return "N=T";
-	case 8: return "T>N";
-	case 9: return "N>>T";
+	switch(ALU_OP(instruction)) {
+	case  0: return "T";
+	case  1: return "N";
+	case  2: return "T+N";
+	case  3: return "T&N";
+	case  4: return "T|N";
+	case  5: return "T^N";
+	case  6: return "~T";
+	case  7: return "N=T";
+	case  8: return "T>N";
+	case  9: return "N>>T";
 	case 10: return "T-1";
 	case 11: return "R";
 	case 12: return "[T]";
@@ -688,11 +685,11 @@ static int disassembler_instruction(uint16_t instruction, FILE *output, symbol_t
 	else if (IS_ALU_OP(instruction))
 		r = fprintf(output, "%s", s = disassembler_alu(instruction));
 	else if (IS_CALL(instruction))
-		r = fprintf(output, "call %hx %s", address, disassemble_jump(symbols, SYMBOL_TYPE_CALL, address));
+		r = fprintf(output, "call %hx %s",    address, disassemble_jump(symbols, SYMBOL_TYPE_CALL, address));
 	else if (IS_0BRANCH(instruction))
 		r = fprintf(output, "0branch %hx %s", address, disassemble_jump(symbols, SYMBOL_TYPE_LABEL, address));
 	else if (IS_BRANCH(instruction))
-		r = fprintf(output, "branch %hx %s", address, disassemble_jump(symbols, SYMBOL_TYPE_LABEL, address));
+		r = fprintf(output, "branch %hx %s",  address, disassemble_jump(symbols, SYMBOL_TYPE_LABEL, address));
 	else
 		r = fprintf(output, "?(%hx)", instruction);
 	free(s);
@@ -850,7 +847,7 @@ int h2_run(h2_t *h, FILE *output, unsigned steps, symbol_table_t *symbols)
 				if(h->tos & 0x6000) {
 					/**@todo implement I/O*/
 
-				/**@note h->tos is divide by 2 on the original core */
+				/**@note h->tos is divided by 2 on the original core */
 				} else { 
 					tos = h->core[h->tos % MAX_CORE];
 				}
@@ -876,18 +873,19 @@ int h2_run(h2_t *h, FILE *output, unsigned steps, symbol_table_t *symbols)
 			h->rp %= STK_SIZE;
 
 			if(instruction & T_TO_N)
-				npc = h->dstk[h->sp % STK_SIZE];
+				h->dstk[h->sp % STK_SIZE] = tos;
 
 			if(instruction & R_TO_PC)
 				npc = h->rstk[h->rp % STK_SIZE];
 
 			if(instruction & T_TO_R)
-				h->rp = h->tos % STK_SIZE;
+				h->rstk[h->sp % STK_SIZE] = tos;
 
 			if(instruction & N_TO_ADDR_T) {
 				if(h->tos & 0x6000) {
 					/**@todo implement output */
 				} else {
+					/**@note h->tos is divided by 2 on the original core */
 					h->core[h->tos % MAX_CORE] = nos;
 				}
 			}
@@ -1105,23 +1103,16 @@ static int print_token(token_t *t, FILE *output, unsigned depth)
 static int _syntax_error(lexer_t *l,
 		const char *func, unsigned line, const char *fmt, ...)
 {
-	int r = 0;
 	va_list ap;
 	assert(l);
 	assert(func);
 	assert(fmt);
-	if(fprintf(stderr, "%s:%u\n", func, line) < 0)
-		return -1;
-	if(fprintf(stderr, "  syntax error on line %u of input\n", l->line) < 0)
-		return -1;
-
+	fprintf(stderr, "%s:%u\n", func, line);
+	fprintf(stderr, "  syntax error on line %u of input\n", l->line);
 	va_start(ap, fmt);
-	r = vfprintf(stderr, fmt, ap);
+	vfprintf(stderr, fmt, ap);
 	va_end(ap);
-
-	if(r >= 0)
-		r = fputc('\n', stderr);
-
+	fputc('\n', stderr);
 	print_token(l->token, stderr, 2);
 	ethrow(&l->error);
 	return 0;

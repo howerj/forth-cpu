@@ -139,6 +139,8 @@ project.
 * <https://nanode0000.wordpress.com/2017/04/08/exploring-the-j1-instruction-set-and-architecture/>
 * <https://www.fpgarelated.com/showarticle/790.php>
 * <https://opencores.org/>
+* <https://en.wikipedia.org/wiki/Peephole_optimization>
+* <https://en.wikipedia.org/wiki/Superoptimization>
 
 [J1]: http://www.excamera.com/sphinx/fpga-j1.html
 [PL/0]: https://github.com/howerj/pl0
