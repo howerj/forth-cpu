@@ -55,7 +55,7 @@ begin
 				counter_out <= counter_out + 1;
 			else                                        --stable input time is met
 			result <= flipflops(1);
-			end if;    
+			end if;
 		end if;
 	end process;
 end logic;

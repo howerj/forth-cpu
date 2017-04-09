@@ -4,7 +4,7 @@
 --
 -- @author     Richard James Howe.
 -- @copyright    Copyright 2013 Richard James Howe.
--- @license    LGPL    
+-- @license    LGPL
 -- @email      howe.r.j.89@gmail.com
 -------------------------------------------------------------------------------
 library ieee,work;
@@ -31,15 +31,15 @@ entity vga_top is
 	-- VGA control registers
 	crx_we:   in  std_logic; -- Write enable
 	ctl_we:   in  std_logic; -- ...
-	cry_we:   in  std_logic; -- ... 
+	cry_we:   in  std_logic; -- ...
 	crx_oreg: in  std_logic_vector(6 downto 0); -- Cursor position X
 	cry_oreg: in  std_logic_vector(5 downto 0); -- Cursor position Y
 	ctl_oreg: in  std_logic_vector(7 downto 0); -- Control register
 
 	-- VGA output signals
-	red:      out std_logic_vector(2 downto 0) := (others => '0'); 
-	green:    out std_logic_vector(2 downto 0) := (others => '0'); 
-	blue:     out std_logic_vector(1 downto 0) := (others => '0'); 
+	red:      out std_logic_vector(2 downto 0) := (others => '0');
+	green:    out std_logic_vector(2 downto 0) := (others => '0');
+	blue:     out std_logic_vector(1 downto 0) := (others => '0');
 	hsync:    out std_logic                    :=      '0';
 	vsync:    out std_logic                    :=      '0');
 end;
@@ -49,7 +49,7 @@ architecture behav of vga_top is
 	constant text_addr_length: positive := 13;
 	constant text_data_length: positive := 16;
 	constant text_file_name:   string   := "text.bin";
-	constant text_file_type:   string   := "bin"; 
+	constant text_file_type:   string   := "bin";
 	-- Setup for font buffer memory
 	constant font_addr_length: positive := 12;
 	constant font_data_length: positive := 8;
@@ -92,7 +92,7 @@ begin
 		ocrx_c      <=  (others => '0');
 		ocry_c      <=  (others => '0');
 		octl_c      <=  (others => '0');
-		din_c       <=  (others => '0'); 
+		din_c       <=  (others => '0');
 		addr_c      <=  (others => '0');
 	elsif rising_edge(clk) then
 		ocrx_c      <=  ocrx_n;
@@ -145,7 +145,7 @@ begin
 		reset     => rst,
 		clk25MHz  => clk25MHz,
 
-		text_a    => text_addr, 
+		text_a    => text_addr,
 		text_d    => text_dout(7 downto 0),
 
 		font_a    => font_addr,
@@ -162,7 +162,7 @@ begin
 		vsync     => vsync);
 
 	text_addr_full <= octl_c(7) & text_addr;
-	--! @brief This RAM module holds the text we want to display on to the 
+	--! @brief This RAM module holds the text we want to display on to the
 	--! monitor. The text buffer holds at least 80*40 characters.
 	u_text: entity work.memory
 	generic map(
@@ -171,14 +171,14 @@ begin
 	    file_name     => text_file_name,
 	    file_type     => text_file_type)
 	port map (
-	a_clk  => clk, 
+	a_clk  => clk,
 	-- External interface
 	a_dwe  => vga_we_ram,
 	a_dre  => '1',
 	a_addr => addr_c,
 	a_din  => din_c,
 	a_dout => vga_dout,
-	-- Internal interface 
+	-- Internal interface
 	b_clk  => clk25MHz,
 	b_dwe  => '0',
 	b_dre  => '1',
@@ -187,7 +187,7 @@ begin
 	b_dout => text_dout);
 
 	--! VGA Font memory
-	u_font: entity work.memory 
+	u_font: entity work.memory
 	generic map(
 		addr_length   => font_addr_length,
 		data_length   => font_data_length,
@@ -201,7 +201,7 @@ begin
 		a_addr => (others => '0'),
 		a_din  => (others => '0'),
 		a_dout => vga_font_dout,
-		-- Internal interface 
+		-- Internal interface
 		b_clk  => clk25MHz,
 		b_dwe  => '0',
 		b_dre  => '1',

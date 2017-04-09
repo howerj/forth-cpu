@@ -34,7 +34,7 @@ architecture testing of tb is
 	signal  debug_irc:       std_logic_vector(3 downto 0) := (others => '0');
 	signal  debug_pc:        std_logic_vector(12 downto 0);
 	signal  debug_insn:      std_logic_vector(15 downto 0);
-	signal  debug_mem_dwe:   std_logic := '0';   
+	signal  debug_mem_dwe:   std_logic := '0';
 	signal  debug_mem_din:   std_logic_vector(15 downto 0);
 	signal  debug_mem_dout:  std_logic_vector(15 downto 0);
 	signal  debug_mem_daddr: std_logic_vector(12 downto 0);
@@ -56,7 +56,7 @@ architecture testing of tb is
 	signal  ld:    std_logic_vector(7 downto 0) := (others => '0'); -- leds
 
 	-- UART
-	signal  rx:    std_logic := '0';  -- uart rx 
+	signal  rx:    std_logic := '0';  -- uart rx
 	signal  tx:    std_logic := '0';  -- uart tx
 
 	-- VGA
@@ -67,10 +67,10 @@ architecture testing of tb is
 	signal  vsync: std_logic := '0';
 
 	-- HID
-	signal  ps2_keyboard_data: std_logic := '0'; 
-	signal  ps2_keyboard_clk:  std_logic := '0'; 
---  signal  ps2_mouse_data:    std_logic := '0'; 
---  signal  ps2_mouse_clk:     std_logic := '0'; 
+	signal  ps2_keyboard_data: std_logic := '0';
+	signal  ps2_keyboard_clk:  std_logic := '0';
+--  signal  ps2_mouse_data:    std_logic := '0';
+--  signal  ps2_mouse_clk:     std_logic := '0';
 --  signal  pic_gpio:          std_logic_vector(1 downto 0):= (others => 'X');
 begin
 ---- Units under test ----------------------------------------------------------
@@ -133,7 +133,7 @@ begin
 
 		function reportln(pc, insn: std_logic_vector) return boolean is
 		begin
-			report 
+			report
 				"pc("   & integer'image(to_integer(unsigned(pc)))    &") " &
 				"insn(" & integer'image(to_integer(unsigned(insn)))  & ") ";
 			return true;

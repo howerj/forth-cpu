@@ -18,7 +18,7 @@ entity cpu is
 		-- synthesis translate_off
 		debug_pc:         out std_logic_vector(12 downto 0);
 		debug_insn:       out std_logic_vector(15 downto 0);
-		debug_mem_dwe:    out std_logic := '0';   
+		debug_mem_dwe:    out std_logic := '0';
 		debug_mem_din:    out std_logic_vector(15 downto 0);
 		debug_mem_dout:   out std_logic_vector(15 downto 0);
 		debug_mem_daddr:  out std_logic_vector(12 downto 0);
@@ -95,8 +95,8 @@ begin
 		irc       =>  processed_irc,
 
 		-- Instruction and instruction address to CPU
-		pco       =>    pc, 
-		insn      =>    insn,  
+		pco       =>    pc,
+		insn      =>    insn,
 		-- Fetch/Store
 		dwe       =>    mem_dwe,
 		dre       =>    mem_dre,

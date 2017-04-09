@@ -508,6 +508,8 @@ static void symbol_table_free(symbol_table_t *t)
 	free(t);
 }
 
+/**@note If this becomes too slow, the first optimization would be
+ * to use a frequency sorted list */
 static symbol_t *symbol_table_lookup(symbol_table_t *t, const char *id)
 {
 	for(size_t i = 0; i < t->length; i++)
@@ -628,7 +630,7 @@ static const char *instruction_to_string(uint16_t i)
 	case CODE_XOR:    return "xor";
 	case CODE_OR:     return "or";
 	case CODE_DEPTH:  return "depth";
-	case CODE_T_N1:   return "1-"; 
+	case CODE_T_N1:   return "1-";
 	case CODE_IEN:    return "seti";
 	case CODE_ISIEN:  return "iset?";
 	case CODE_RDEPTH: return "rdepth";
@@ -671,7 +673,7 @@ static char *disassembler_alu(uint16_t instruction)
 	const char *r = instruction_to_string(OP_ALU_OP | instruction);
 	if(r)
 		return duplicate(r);
-	sprintf(buf, "%04x:%s:%s:%s:%s:%s:%u:%u", 
+	sprintf(buf, "%04x:%s:%s:%s:%s:%s:%u:%u",
 			(unsigned)instruction,
 			alu_op_to_string(instruction),
 			instruction & T_TO_N ? "T->N" : "",
@@ -880,7 +882,7 @@ int h2_run(h2_t *h, FILE *output, unsigned steps, symbol_table_t *symbols)
 					/**@todo implement I/O*/
 
 				/**@note h->tos is divided by 2 on the original core */
-				} else { 
+				} else {
 					tos = h->core[h->tos % MAX_CORE];
 				}
 				break;
@@ -969,6 +971,8 @@ typedef enum {
 	LEX_THEN,
 	LEX_DEFINE,
 	LEX_ENDDEFINE,
+	LEX_CHAR,
+	LEX_COMPILE,
 	LEX_DUP,   /* start of instructions */
 	LEX_OVER,
 	LEX_INVERT,
@@ -992,10 +996,10 @@ typedef enum {
 	LEX_OR,
 	LEX_DEPTH,
 	LEX_T_N1,
-	LEX_IEN,   
-	LEX_ISIEN, 
+	LEX_IEN,
+	LEX_ISIEN,
 	LEX_RDEPTH,
-	LEX_TE0,   
+	LEX_TE0,
 	/* end of named tokens and instructions */
 
 	LEX_ERROR, /* error token: this needs to be after the named tokens */
@@ -1016,6 +1020,8 @@ static const char *keywords[] =
 	[LEX_THEN]      =  "then",
 	[LEX_DEFINE]    =  ":",
 	[LEX_ENDDEFINE] =  ";",
+	[LEX_CHAR]      =  "[char]",
+	[LEX_COMPILE]   =  ",",
 	[LEX_DUP]       =  "dup",
 	[LEX_OVER]      =  "over",
 	[LEX_INVERT]    =  "invert",
@@ -1038,7 +1044,7 @@ static const char *keywords[] =
 	[LEX_XOR]       =  "xor",
 	[LEX_OR]        =  "or",
 	[LEX_DEPTH]     =  "depth",
-	[LEX_T_N1]      =  "1-", 
+	[LEX_T_N1]      =  "1-",
 	[LEX_IEN]       =  "seti",
 	[LEX_ISIEN]     =  "iset?",
 	[LEX_RDEPTH]    =  "rdepth",
@@ -1212,10 +1218,10 @@ static int number(lexer_t *l, uint16_t *o, size_t length)
 				return 0;
 			start = i+2;
 		}
-	} 
+	}
 
 	for(i = start; i < length; i++)
-		if(!numeric(s[i], base)) 
+		if(!numeric(s[i], base))
 			return 0;
 
 	for(i = start; i < length; i++)
@@ -1300,7 +1306,7 @@ again:
  *
  * Program     := Statement* EOF
  * Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
- *                | Identifier | Constant | Definition | If | Begin
+ *                | Identifier | Constant | Definition | If | Begin | Char
  * Label       := Identifier ';'
  * Branch      := "branch"  ( Identifier | Literal )
  * 0Branch     := "0branch" ( Identifier | Literal )
@@ -1310,6 +1316,7 @@ again:
  * Definition  := ':' Statement* ';'
  * If          := 'if' Statement* [ 'else' ] Statement* 'then'
  * Literal     := [ '-' ] Number
+ * Char        := 'char' ASCII ','
  * Number      := Octal | Hex | Decimal
  * Octal       := '0' ... '7'
  * Decimal     := '1' ... '9' ( '0' ... '9' )*
@@ -1346,6 +1353,7 @@ again:
 	X(SYM_BEGIN_UNTIL, "begin...until")\
 	X(SYM_IF1,         "if1")\
 	X(SYM_DEFINITION,  "defintion")\
+	X(SYM_CHAR,        "char")\
 	X(SYM_CALL_DEFINITION, "call definition")
 
 typedef enum {
@@ -1541,8 +1549,21 @@ static node_t *define(lexer_t *l)
 	return r;
 }
 
+static node_t *charcompile(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_CHAR, 0);
+	expect(l, LEX_IDENTIFIER);
+	use(l, r);
+	if(strlen(r->token->p.id) > 1)
+		syntax_error(l, "expected single character, got identifier: %s", r->token->p.id);
+	expect(l, LEX_COMPILE);
+	return r;
+}
+
 static node_t *statements(lexer_t *l)
-{ 
+{
 	node_t *r;
 	size_t i = 0;
 	assert(l);
@@ -1572,6 +1593,9 @@ again:
 		goto again;
 	} else if(accept(l, LEX_DEFINE)) {
 		r->o[i++] = define(l);
+		goto again;
+	} else if(accept(l, LEX_CHAR)) {
+		r->o[i++] = charcompile(l);
 		goto again;
 	} else if(accept(l, LEX_BEGIN)) {
 		r->o[i++] = begin(l);
@@ -1667,7 +1691,7 @@ static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type
 			asmfail(e, "undefined symbol: %s", tok->p.id);
 		addr = s->value;
 
-		if(s->type == SYMBOL_TYPE_CALL && type != SYM_CALL) 
+		if(s->type == SYMBOL_TYPE_CALL && type != SYM_CALL)
 			asmfail(e, "cannot branch/0branch to call: %s", tok->p.id);
 
 	} else if (tok->type == LEX_LITERAL) {
@@ -1687,6 +1711,17 @@ static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type
 		fatal("invalid call type: %u", type);
 	}
 	generate(h, or | addr);
+}
+
+static void generate_literal(h2_t *h, uint16_t number)
+{
+	if(number & OP_LITERAL) {
+		number = ~number;
+		generate(h, OP_LITERAL | number);
+		generate(h, CODE_INVERT);
+	} else {
+		generate(h, OP_LITERAL | number);
+	}
 }
 
 static uint16_t lexer_to_alu_op(token_e t)
@@ -1726,6 +1761,7 @@ static uint16_t lexer_to_alu_op(token_e t)
 	return 0;
 }
 
+/**@todo define various variables that the programmer can use */
 static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
 {
 	uint16_t hole1, hole2;
@@ -1769,17 +1805,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e);
 		break;
 	case SYM_LITERAL:
-	{
-		uint16_t number = n->token->p.number;
-		if(number & OP_LITERAL) {
-			number = ~number;
-			generate(h, OP_LITERAL | number);
-			generate(h, CODE_INVERT);
-		} else {
-			generate(h, OP_LITERAL | number);
-		}
+		generate_literal(h, n->token->p.number);
 		break;
-	}
 	case SYM_INSTRUCTION:
 	{
 		/**@todo optimize calls to exit by smushing it with the
@@ -1787,7 +1814,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		 * could be done by pushing instructions onto a queue in
 		 * generate() and then by recognizing groups of instructions,
 		 * deferring the emission of code and replacing them with
-		 * more optimal versions. Jumps and Calls would empty the 
+		 * more optimal versions. Jumps and Calls would empty the
 		 * stack before they emitted any code */
 		uint16_t alu_instruction = lexer_to_alu_op(n->token->type);
 		if(alu_instruction == CODE_STORE) {
@@ -1798,7 +1825,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		}
 		break;
 	}
-
 	case SYM_BEGIN_UNTIL:
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
@@ -1824,7 +1850,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		if(s->type == SYMBOL_TYPE_CALL) {
 			generate(h, OP_CALL | s->value);
 		} else if(s->type == SYMBOL_TYPE_CONSTANT) {
-			generate(h, OP_LITERAL | s->value);
+			generate_literal(h, s->value);
 		} else {
 			error("can only call or push literal: %s", s->id);
 			ethrow(e);
@@ -1833,6 +1859,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	}
 	case SYM_DEFINITION:
 		/**@bug definitions are allowed after start symbol has been declared */
+		/**@todo compile a word header into the dictionary (optionally) with an
+		 * immediate and a hidden bit */
 		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
 		if(a->in_definition)
 			asmfail(e, "nested word definition is not allowed");
@@ -1840,6 +1868,9 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		assemble(h, a, n->o[0], t, e);
 		generate(h, CODE_EXIT);
 		a->in_definition = false;
+		break;
+	case SYM_CHAR: /* char A , */
+		generate(h, OP_LITERAL | n->token->p.id[0]);
 		break;
 	default:
 		fatal("Invalid or unknown type: %u", n->type);
@@ -1850,7 +1881,7 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 {
 	error_t e;
 	h2_t *h;
-	symbol_table_t *t = NULL; 
+	symbol_table_t *t = NULL;
 	assembler_t a = { false, false, 0 };
 	assert(n);
 

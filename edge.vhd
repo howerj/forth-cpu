@@ -1,4 +1,4 @@
--- @file edge.vhd 
+-- @file edge.vhd
 -- @brief rising edge detector
 -- @license MIT
 library ieee,work,std;

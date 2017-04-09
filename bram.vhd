@@ -1,15 +1,15 @@
---------------------------------------------------------------------------------- 
+---------------------------------------------------------------------------------
 --! @file bram.vhd
 --! @brief Implements a generic dual port block RAM
 --! which according to Xilinx's XST guide will synthesize with
 --! a file you can specify with a string as the RAMs initial
---! value, stored in ASCII encoded binary. 
+--! value, stored in ASCII encoded binary.
 --!
 --! @author         Richard James Howe.
 --! @copyright      Copyright 2013 Richard James Howe.
 --! @license        MIT
 --! @email          howe.r.j.89@gmail.com
---------------------------------------------------------------------------------- 
+---------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -19,8 +19,8 @@ entity memory is
 
 	-- These default values for addr_length and data_length have been
 	-- chosen so as to fill the block RAM available on a Spartan 6
-	generic(addr_length: positive  := 12;              
-		data_length: positive  := 16;             
+	generic(addr_length: positive  := 12;
+		data_length: positive  := 16;
 		file_name:    string   := "memory.binary"; --! initial RAM contents
 		file_type:    string   := "bin");          --! ASCII 0/1s
 	port(
@@ -104,7 +104,7 @@ architecture behav of memory is
 					assert false report "Incorrect type given" severity failure;
 				end if;
 			else
-				ramData(i):=(others => '0'); 
+				ramData(i):=(others => '0');
 			end if;
 		end loop;
 		return ramData;

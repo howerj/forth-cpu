@@ -1,4 +1,4 @@
---------------------------------------------------------------------------------- 
+---------------------------------------------------------------------------------
 --! @file top.vhd
 --! @brief This file is the top level of the project.
 --!  It presents an interface between the CPU,
@@ -8,7 +8,7 @@
 --! @copyright  Copyright 2013 Richard James Howe.
 --! @license    MIT
 --! @email      howe.r.j.89@gmail.com
---------------------------------------------------------------------------------- 
+---------------------------------------------------------------------------------
 
 library ieee,work;
 use ieee.std_logic_1164.all;
@@ -29,7 +29,7 @@ entity top is
 
 		debug_pc:         out std_logic_vector(12 downto 0);
 		debug_insn:       out std_logic_vector(15 downto 0);
-		debug_mem_dwe:    out std_logic := '0';   
+		debug_mem_dwe:    out std_logic := '0';
 		debug_mem_din:    out std_logic_vector(15 downto 0);
 		debug_mem_dout:   out std_logic_vector(15 downto 0);
 		debug_mem_daddr:  out std_logic_vector(12 downto 0);
@@ -51,19 +51,19 @@ entity top is
 
 		ld:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- leds
 		-- UART
-		rx:       in  std_logic                    :=      'X';  -- uart rx 
+		rx:       in  std_logic                    :=      'X';  -- uart rx
 		tx:       out std_logic                    :=      '0';  -- uart tx
 		-- VGA
-		red:      out std_logic_vector(2 downto 0) :=      (others => '0'); 
-		green:    out std_logic_vector(2 downto 0) :=      (others => '0'); 
-		blue:     out std_logic_vector(1 downto 0) :=      (others => '0'); 
+		red:      out std_logic_vector(2 downto 0) :=      (others => '0');
+		green:    out std_logic_vector(2 downto 0) :=      (others => '0');
+		blue:     out std_logic_vector(1 downto 0) :=      (others => '0');
 		hsync:    out std_logic                    :=      '0';
 		vsync:    out std_logic                    :=      '0';
 		-- PWM from timer
 		gpt0_q:   out std_logic                    :=      '0';
 		gpt0_nq:  out std_logic                    :=      '0';
 		-- PS/2 Interface
-		ps2_keyboard_data:  in std_logic           :=      '0'; 
+		ps2_keyboard_data:  in std_logic           :=      '0';
 		ps2_keyboard_clk:   in std_logic           :=      '0'
 
 	);
@@ -86,7 +86,7 @@ architecture behav of top is
 	signal clk25MHz: std_logic:= '0';
 	signal clk50MHz: std_logic:= '0';
 
-	attribute buffer_type : string; 
+	attribute buffer_type : string;
 	attribute buffer_type of clk50MHz : signal is "BUFG";
 	attribute buffer_type of clk25MHz : signal is "BUFG";
 
@@ -111,6 +111,7 @@ architecture behav of top is
 	signal vga_din:    std_logic_vector(15 downto 0) := (others => '0');
 
 	---- UART
+	-- @todo move this to its own module
 	signal uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
 	signal ack_din_c, ack_din_n:     std_logic:= '0';
 	signal uart_dout_c, uart_dout_n: std_logic_vector(7 downto 0):= (others => '0');
@@ -121,10 +122,10 @@ architecture behav of top is
 	signal tx_uart, rx_uart,rx_sync: std_logic:= '0';
 
 	---- Timer
-	signal gpt0_ctr_r_we:     std_logic := '0';               
+	signal gpt0_ctr_r_we:     std_logic := '0';
 	signal gpt0_ctr_r:        std_logic_vector(15 downto 0) := (others =>'0');
-	signal gpt0_irq_comp1:    std_logic;                    
-	signal gpt0_q_internal:   std_logic;                    
+	signal gpt0_irq_comp1:    std_logic;
+	signal gpt0_q_internal:   std_logic;
 	signal gpt0_nq_internal:  std_logic;
 
 	---- PS/2
@@ -188,7 +189,7 @@ begin
 	-- It seems like it buffers the clock correctly here, so no need to
 	-- use a DCM. However, see:
 	-- http://electronics.stackexchange.com/questions/112534/using-digital-clock-manager-with-verilog-to-generate-25mhz-clock-from-32mhz-inte
-	---- Clock divider /2. 
+	---- Clock divider /2.
 	clk50MHz <= '0' when rst = '1' else not clk50MHz when rising_edge(clk);
 
 	---- Clock divider /2. Pixel clock is 25MHz
@@ -212,7 +213,7 @@ begin
 			-- LEDs/Switches
 			ld_c        <=  ld_n;
 			-- UART
-			uart_din_c  <=  uart_din_n; 
+			uart_din_c  <=  uart_din_n;
 			ack_din_c   <=  ack_din_n;
 			uart_dout_c <=  uart_dout_n;
 			stb_dout_c  <=  stb_dout_n;
@@ -223,14 +224,14 @@ begin
 	end process;
 
 	io_select: process(
-		cpu_io_wr, cpu_io_re, cpu_io_dout, cpu_io_daddr, 
-		ld_c, 
-		sw, rx, btnu, btnd, btnl, btnr, btnc, 
-		uart_din_c, ack_din_c, 
-		uart_dout_c,  
-		uart_dout, stb_dout, ack_din, 
-		stb_dout, stb_dout_c, vga_dout, 
-		kbd_char, kbd_new_c, kbd_char_c, 
+		cpu_io_wr, cpu_io_re, cpu_io_dout, cpu_io_daddr,
+		ld_c,
+		sw, rx, btnu, btnd, btnl, btnr, btnc,
+		uart_din_c, ack_din_c,
+		uart_dout_c,
+		uart_dout, stb_dout, ack_din,
+		stb_dout, stb_dout_c, vga_dout,
+		kbd_char, kbd_new_c, kbd_char_c,
 		kbd_new_edge,
 
 		gpt0_ctr_r_we)
@@ -264,7 +265,7 @@ begin
 		vga_din    <= (others => '0');
 		vga_addr   <= (others => '0');
 
-		uart_din_n  <=  uart_din_c; 
+		uart_din_n  <=  uart_din_c;
 
 		-- General Purpose Timer
 		gpt0_ctr_r_we <= '0';
@@ -343,7 +344,7 @@ begin
 			case cpu_io_daddr(3 downto 0) is
 			when "0000" => -- Switches, plus direct access to UART bit.
 				cpu_io_din <= "0000000000" & rx & btnu & btnd & btnl & btnr & btnc;
-			when "0001" => 
+			when "0001" =>
 				cpu_io_din <= X"00" & sw;
 			when "0010" => -- VGA, Read VGA text buffer.
 				cpu_io_din <= vga_dout;
@@ -377,7 +378,7 @@ begin
 	end if;
 	end process;
 
-	uart_0: entity work.uart 
+	uart_0: entity work.uart
 	generic map(
 		baud_rate       => uart_baud_rate,
 		clock_frequency => clock_frequency)
@@ -398,12 +399,12 @@ begin
 	gpt0_q  <= gpt0_q_internal;
 	gpt0_nq <= gpt0_nq_internal;
 	timer0_0: entity work.timer
-	generic map(gptimerbits => 16)
+	generic map(timer_length => 16)
 	port map(
 		clk       => clk,
 		rst       => rst,
-		ctrin_we  => gpt0_ctr_r_we,
-		ctrin     => gpt0_ctr_r,
+		we        => gpt0_ctr_r_we,
+		control   => gpt0_ctr_r,
 		irq       => gpt0_irq_comp1,
 		Q         => gpt0_q_internal,
 		NQ        => gpt0_nq_internal);
@@ -417,13 +418,13 @@ begin
 		clk25MHz => clk25MHz,
 		rst => rst,
 
-		crx_we => crx_we, 
-		cry_we => cry_we, 
-		ctl_we => ctl_we, 
+		crx_we => crx_we,
+		cry_we => cry_we,
+		ctl_we => ctl_we,
 
-		crx_oreg => crx, 
-		cry_oreg => cry, 
-		ctl_oreg => ctl, 
+		crx_oreg => crx,
+		cry_oreg => cry,
+		ctl_oreg => ctl,
 
 		vga_we_ram => vga_we_ram,
 		vga_a_we => vga_a_we,
@@ -432,10 +433,10 @@ begin
 		vga_din => vga_din,
 		vga_addr => vga_addr,
 
-		red => red,  
-		green => green,  
-		blue => blue,  
-		hsync => hsync,  
+		red => red,
+		green => green,
+		blue => blue,
+		hsync => hsync,
 		vsync => vsync);
 	--- VGA -----------------------------------------------------------
 
@@ -445,8 +446,8 @@ begin
 	-- system
 	ps2_edge_new_character_0: entity work.edge
 	port map(
-		clk => clk,
-		sin => kbd_new,
+		clk    => clk,
+		sin    => kbd_new,
 		output => kbd_new_edge);
 
 	ps2_0: entity work.ps2top
@@ -462,14 +463,22 @@ begin
 	--- PS/2 ----------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------
+	-- @todo split writes to each segment up
 	ledseg_0: entity work.ledseg
 	port map(
 		clk        => clk,
 		rst        => rst,
-		led_0_1    => led_0_1,
-		led_2_3    => led_2_3,
-		led_0_1_we => led_0_1_we,
-		led_2_3_we => led_2_3_we,
+
+		led_0      => led_0_1(7 downto 0),
+		led_1      => led_0_1(15 downto 8),
+		led_2      => led_2_3(7 downto 0),
+		led_3      => led_2_3(15 downto 8),
+
+		led_0_we   => led_0_1_we,
+		led_1_we   => led_0_1_we,
+		led_2_we   => led_2_3_we,
+		led_3_we   => led_2_3_we,
+
 		an         => an,
 		ka         => ka);
 	--- LED 8 Segment display -----------------------------------------

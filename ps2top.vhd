@@ -17,7 +17,7 @@
 --   Version History
 --   Version 1.0 11/29/2013 Scott Larson
 --     Initial Public Release
---    
+--
 -- See https://eewiki.net/pages/viewpage.action?pageId=28279002
 -- @note This file has been renamed and updated from the original.
 -- @todo Reformat this file.
@@ -78,7 +78,7 @@ begin
 	if(clk'event and clk = '1') then
 	  prev_ps2_code_new <= ps2_code_new; --keep track of previous ps2_code_new values to determine low-to-high transitions
 	  case state is
-	  
+	
 	    --ready state: wait for a new PS2 code to be received
 	    when ready =>
 	      if(prev_ps2_code_new = '0' AND ps2_code_new = '1') then --new PS2 code received
@@ -87,8 +87,8 @@ begin
 	      else                                                    --no new PS2 code received yet
 	        state <= ready;                                         --remain in ready state
 	      end if;
-	      
-	    --new_code state: determine what to do with the new PS2 code  
+	
+	    --new_code state: determine what to do with the new PS2 code
 	    when new_code =>
 	      if(ps2_code = x"F0") then    --code indicates that next command is break
 	        break <= '1';                --set break flag
@@ -105,7 +105,7 @@ begin
 	    when translate =>
 	        break <= '0';    --reset break flag
 	        e0_code <= '0';  --reset multi-code command flag
-	        
+	
 	        --handle codes for control, shift, and caps lock
 	        case ps2_code is
 	          when x"58" =>                   --caps lock code
@@ -124,7 +124,7 @@ begin
 	            shift_r <= NOT break;           --update right shift flag
 	          when others => null;
 	        end case;
-	    
+	
 	        --translate control codes (these do not depend on shift or caps lock)
 	        if(control_l = '1' OR control_r = '1') then
 	          case ps2_code is
@@ -163,8 +163,8 @@ begin
 	            when x"4A" => ascii <= x"7F"; --^?  DEL
 	            when others => null;
 	          end case;
-	        else --if control keys are not pressed  
-	        
+	        else --if control keys are not pressed
+	
 	          --translate characters that do not depend on shift, or caps lock
 	          case ps2_code is
 	            when x"29" => ascii <= x"20"; --space
@@ -172,17 +172,17 @@ begin
 	            when x"0D" => ascii <= x"09"; --tab (HT control code)
 	            when x"5A" => ascii <= x"0D"; --enter (CR control code)
 	            when x"76" => ascii <= x"1B"; --escape (ESC control code)
-	            when x"71" => 
+	            when x"71" =>
 	              if(e0_code = '1') then      --ps2 code for delete is a multi-key code
 	                ascii <= x"7F";             --delete
 	              end if;
 	            when others => null;
 	          end case;
-	          
+	
 	          --translate letters (these depend on both shift and caps lock)
 	          if((shift_r = '0' AND shift_l = '0' AND caps_lock = '0') OR
 	            ((shift_r = '1' OR shift_l = '1') AND caps_lock = '1')) then  --letter is lowercase
-	            case ps2_code is              
+	            case ps2_code is
 	              when x"1C" => ascii <= x"61"; --a
 	              when x"32" => ascii <= x"62"; --b
 	              when x"21" => ascii <= x"63"; --c
@@ -212,7 +212,7 @@ begin
 	              when others => null;
 	            end case;
 	          else                                     --letter is uppercase
-	            case ps2_code is            
+	            case ps2_code is
 	              when x"1C" => ascii <= x"41"; --A
 	              when x"32" => ascii <= x"42"; --B
 	              when x"21" => ascii <= x"43"; --C
@@ -242,16 +242,16 @@ begin
 	              when others => null;
 	            end case;
 	          end if;
-	          
+	
 	          --translate numbers and symbols (these depend on shift but not caps lock)
 	          if(shift_l = '1' OR shift_r = '1') then  --key's secondary character is desired
-	            case ps2_code is              
+	            case ps2_code is
 	              when x"16" => ascii <= x"21"; --!
 	              when x"52" => ascii <= x"22"; --"
 	              when x"26" => ascii <= x"23"; --#
 	              when x"25" => ascii <= x"24"; --$
 	              when x"2E" => ascii <= x"25"; --%
-	              when x"3D" => ascii <= x"26"; --&              
+	              when x"3D" => ascii <= x"26"; --&
 	              when x"46" => ascii <= x"28"; --(
 	              when x"45" => ascii <= x"29"; --)
 	              when x"3E" => ascii <= x"2A"; --*
@@ -270,7 +270,7 @@ begin
 	              when others => null;
 	            end case;
 	          else --key's primary character is desired
-	            case ps2_code is  
+	            case ps2_code is
 	              when x"45" => ascii <= x"30"; --0
 	              when x"16" => ascii <= x"31"; --1
 	              when x"1E" => ascii <= x"32"; --2
@@ -295,15 +295,15 @@ begin
 	              when others => null;
 	            end case;
 	          end if;
-	          
+	
 	        end if;
-	      
+	
 	      if(break = '0') then  --the code is a make
 	        state <= output;      --proceed to output state
 	      else                  --code is a break
 	        state <= ready;       --return to ready state to await next PS2 code
 	      end if;
-	    
+	
 	    --output state: verify the code is valid and output the ASCII value
 	    when output =>
 	      if(ascii(7) = '0') then            --the PS2 code has an ASCII output

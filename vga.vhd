@@ -5,7 +5,7 @@
 --! @copyright      Copyright 2007 Javier Valcarce García
 --! @license        LGPL version 3
 --! @email          javier.valcarce@gmail.com
---! (RJHOWE: I made some minor modifications, mainly to the coding style) 
+--! (RJHOWE: I made some minor modifications, mainly to the coding style)
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -29,8 +29,7 @@ entity vga is
 	G           : out std_logic;
 	B           : out std_logic;
 	hsync       : out std_logic;
-	vsync       : out std_logic
-	);   
+	vsync       : out std_logic);
 end vga;
 
 
@@ -93,14 +92,14 @@ architecture behav of vga is
 begin
 
 -------------------------------------------------------------------------------
--------------------------------------------------------------------------------  
+-------------------------------------------------------------------------------
 -- hsync generator, initialized with '1'
 	process (reset, clk25MHz)
 	begin
 	if reset = '1' then
 	  hsync_int <= '1';
 	elsif rising_edge(clk25MHz) then
-	  
+	
 	  if (hctr > 663) and (hctr < 757) then
 	    hsync_int <= '0';
 	  else
@@ -128,14 +127,14 @@ begin
 	end process;
 
 -------------------------------------------------------------------------------
--------------------------------------------------------------------------------  
--- Blank signal, 0 = no draw, 1 = visible/draw zone   
+-------------------------------------------------------------------------------
+-- Blank signal, 0 = no draw, 1 = visible/draw zone
 
 -- Proboscide99 31/08/08
 	blank <= '0' when (hctr < 8) or (hctr > 647) or (vctr > 479) else '1';
 
 -------------------------------------------------------------------------------
--------------------------------------------------------------------------------  
+-------------------------------------------------------------------------------
 -- flip-flips for sync of R, G y B signal, initialized with '0'
 	process (reset, clk25MHz)
 	begin
@@ -152,16 +151,16 @@ begin
 
 
 -------------------------------------------------------------------------------
--------------------------------------------------------------------------------  
+-------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 	-- Control register. Individual control signal
 
 	-- RHOWE, Reorganized this.
-	vga_en    <= octl(6); 
-	cur_en    <= octl(5); 
-	cur_blink <= octl(4); 
-	cur_mode  <= octl(3); 
+	vga_en    <= octl(6);
+	cur_en    <= octl(5);
+	cur_blink <= octl(4);
+	cur_mode  <= octl(3);
 	ctl_r     <= octl(2);
 	ctl_g     <= octl(1);
 	ctl_b     <= octl(0);
@@ -197,7 +196,7 @@ begin
 	
 	U_HCTR : ctrm generic map (M => 794) port map (
 	 reset =>reset, clk=>clk25MHz, ce =>hctr_ce, rs =>hctr_rs, do => hctr);
-	 
+	
 	U_VCTR : ctrm generic map (M => 525) port map (reset, clk25MHz, vctr_ce, vctr_rs, vctr);
 
 	hctr_ce <= '1';
@@ -258,7 +257,7 @@ begin
 	B_int <= (ctl_b and y) and blank;
 	
 	hsync <= hsync_int and vga_en;
-	vsync <= vsync_int and vga_en;  
+	vsync <= vsync_int and vga_en;
 	
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -275,7 +274,7 @@ begin
 	signal cry_tmp : integer range 39 downto 0;
 	signal crx     : integer range 79 downto 0;
 	signal cry     : integer range 39 downto 0;
-	signal counter : unsigned(22 downto 0);  
+	signal counter : unsigned(22 downto 0);
 	begin
 
 	-- slowclk for blink hardware cursor

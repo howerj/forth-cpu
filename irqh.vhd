@@ -3,7 +3,7 @@
 --! @brief Interrupt request handler, while the CPU can handle interrupts
 --!        it does not to a good job of it. This allows customization of
 --!        priority and other such things.
---! 
+--!
 --! @author     Richard James Howe.
 --! @copyright  Copyright 2013 Richard James Howe.
 --! @license    MIT

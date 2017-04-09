@@ -20,7 +20,7 @@
 -------------------------------------------------------------------------------
 
 library ieee,work,std;
-use ieee.std_logic_1164.all; 
+use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all; -- only needed for calculations relating to generics
 
@@ -36,7 +36,7 @@ entity h2 is
 
 		-- IO interface
 		cpu_wait: in  std_logic;
-		io_wr:    out std_logic; 
+		io_wr:    out std_logic;
 		io_re:    out std_logic; -- hardware reads can have side effects
 		io_din:   in  std_logic_vector(15 downto 0);
 		io_dout:  out std_logic_vector(15 downto 0);
@@ -44,7 +44,7 @@ entity h2 is
 
 		-- Interrupts; irq == request, irc == channel
 		irq:      in  std_logic;
-		irc:      in  std_logic_vector(number_of_interrupts - 1 downto 0); 
+		irc:      in  std_logic_vector(number_of_interrupts - 1 downto 0);
 
 		-- RAM interface, Dual port
 		pco:      out std_logic_vector(12 downto 0); -- program counter
@@ -122,7 +122,7 @@ architecture behav of h2 is
 	signal rstkW: std_logic := '0';
 	signal rstkD: std_logic_vector(15 downto 0) := (others => '0');
 begin
-	assert(stack_size > 4 and stack_size < 128) 
+	assert(stack_size > 4 and stack_size < 128)
 		report "stack size out of bounds";
 
 	is_instr_alu        <=  '1' when insn(15 downto 13) = "011" else '0';
@@ -150,9 +150,9 @@ begin
 
 	-- @note The loading and read timings really need looking at and
 	-- comparing with previous versions of this file, and with the original
-	-- j1.v source. 
-	dout   <=  nos; 
-	daddr  <=  tos_c(12 downto 0) when is_ram_write = '1' else tos_n(12 downto 0); 
+	-- j1.v source.
+	dout   <=  nos;
+	daddr  <=  tos_c(12 downto 0) when is_ram_write = '1' else tos_n(12 downto 0);
 	dwe    <=  '1' when is_ram_write = '1' and tos_c(14 downto 13) /= "11" else '0';
 	dre    <=  '1' when tos_n(15 downto 14) = "00" else '0';
 
@@ -170,7 +170,7 @@ begin
 	dstkW     <= '1' when is_instr_lit = '1' or (is_instr_alu = '1' and insn(7) = '1') else '0';
 
 	stackWrite: process(clk)
-	begin        
+	begin
 		if rising_edge(clk) then
 			if dstkW = '1' then
 				vstk_ram(to_integer(unsigned(vstkp_n))) <=  tos_c(15 downto 0);
@@ -201,9 +201,9 @@ begin
 
 	-- ALU
 	alu: process(
-		is_instr_lit, 
-		tos_c, nos, rtos_c, 
-		din, insn, aluop, 
+		is_instr_lit,
+		tos_c, nos, rtos_c,
+		din, insn, aluop,
 		io_din,
 		vstkp_c, rstkp_c,
 		comp_more,
@@ -214,11 +214,11 @@ begin
 		io_re          <=  '0'; -- hardware *READS* can have side effects
 		tos_n          <=  tos_c;
 		int_en_n       <=  int_en_c;
-	if cpu_wait = '1' then 
+	if cpu_wait = '1' then
 		-- Do nothing
 	elsif is_instr_lit = '1' then
 		tos_n   <=  "0" & insn(14 downto 0);
-	else 
+	else
 		case aluop is -- ALU operation, 12 downto 8
 		when "00000" => tos_n <= tos_c;
 		when "00001" => tos_n <= nos;
@@ -227,28 +227,28 @@ begin
 		when "00100" => tos_n <= tos_c or nos;
 		when "00101" => tos_n <= tos_c xor nos;
 		when "00110" => tos_n <= not tos_c;
-		when "00111" => tos_n <= (others => comp_equal); 
-		when "01000" => tos_n <= (others => comp_more); 
+		when "00111" => tos_n <= (others => comp_equal);
+		when "01000" => tos_n <= (others => comp_more);
 		when "01001" => tos_n <= std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
 		when "01010" => tos_n <= std_logic_vector(unsigned(tos_c) - 1);
 		when "01011" => tos_n <= rtos_c;
 		when "01100" =>
 			-- input: 0x6000 - 0x7FFF is external input
-			if tos_c(14 downto 13) /= "00" then 
-				tos_n <= io_din; 
+			if tos_c(14 downto 13) /= "00" then
+				tos_n <= io_din;
 				io_re <= '1';
-			else 
-				tos_n <= din;  
+			else
+				tos_n <= din;
 			end if;
 		when "01101" => tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
 		when "01110" => tos_n(4 downto 0)  <=  vstkp_c;
-		when "01111" => tos_n <=  (others => comp_umore); 
-		when "10000" => int_en_n <= tos_c(0); 
-		when "10001" => tos_n <= (others => int_en_c); 
-		when "10010" => tos_n(4 downto 0) <= rstkp_c; 
+		when "01111" => tos_n <=  (others => comp_umore);
+		when "10000" => int_en_n <= tos_c(0);
+		when "10001" => tos_n <= (others => int_en_c);
+		when "10010" => tos_n(4 downto 0) <= rstkp_c;
 		when "10011" => tos_n <= (others => comp_zero);
 		when others  => tos_n <= tos_c;
-				assert false report "Invalid ALU operation."; 
+				assert false report "Invalid ALU operation.";
 		end case;
 	end if;
 	end process;
@@ -276,7 +276,7 @@ begin
 	end process;
 
 	stackUpdate: process(
-		pc_c, 
+		pc_c,
 		insn,
 		vstkp_c, vstk_ram, dd,
 		rstkp_c, rstk_ram, rd,
@@ -294,17 +294,17 @@ begin
 			-- Do nothing
 			rstkW <= '0';
 			rstkD <= (others => '0');
-		elsif is_instr_interrupt = '1' and int_en_c = '1' then 
+		elsif is_instr_interrupt = '1' and int_en_c = '1' then
 			-- Interrupts are similar to a call
 			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
 			rstkW   <= '1';
 			-- return to *current* instruction
-			rstkD   <= "000" & pc_c; 
+			rstkD   <= "000" & pc_c;
 		elsif is_instr_lit = '1' then
 			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + 1);
 			rstkW   <= '0';
-			rstkD   <= "000" & pc_plus_one; 
-		elsif is_instr_alu = '1' then 
+			rstkD   <= "000" & pc_plus_one;
+		elsif is_instr_alu = '1' then
 			rstkW   <= insn(6);
 			rstkD   <= tos_c;
 			-- Signed addition, trust me, it's signed.
@@ -318,17 +318,17 @@ begin
 			if is_instr_call = '1' then -- A call!
 				rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
 				rstkW   <= '1';
-				rstkD   <= "000" & pc_plus_one; 
+				rstkD   <= "000" & pc_plus_one;
 			else
 				rstkW   <= '0';
-				rstkD   <= "000" & pc_plus_one; 
+				rstkD   <= "000" & pc_plus_one;
 			end if;
 		end if;
 	end process;
 
 	pcUpdate: process(
-		pc_c,insn,rtos_c,pc_plus_one, 
-		is_instr_jmp,is_instr_cjmp,is_instr_call,is_instr_alu, 
+		pc_c,insn,rtos_c,pc_plus_one,
+		is_instr_jmp,is_instr_cjmp,is_instr_call,is_instr_alu,
 		is_instr_interrupt, int_en_c,
 		irc_c,
 		comp_zero,
@@ -340,7 +340,7 @@ begin
 		elsif is_instr_interrupt = '1' and int_en_c = '1' then -- Update PC on interrupt
 			-- Priority encoded, MSB has higher priority, more
 			-- complex interrupt handling should be done externally
-			interrupts: for i in 1 to number_of_interrupts loop 
+			interrupts: for i in 1 to number_of_interrupts loop
 				if irc_c(i-1) = '1' then
 					pc_n <= std_logic_vector(to_unsigned(i-1,pc_n'length));
 				end if;

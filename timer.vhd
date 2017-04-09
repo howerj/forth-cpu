@@ -2,7 +2,7 @@
 --! @file timer.vhd
 --! @brief General Purpose Timer. It is of customizable length,
 --!        the minimum being 4-bits, one for the actual timing, the other
---!        three for control. (gptimer.vhd, original file name)
+--!        three for control. (timer.vhd, original file name)
 --!
 --! @author         Richard James Howe.
 --! @copyright      Copyright 2013 Richard James Howe.
@@ -12,18 +12,17 @@
 -------------------------------------------------------------------------------
 
 library ieee,work,std;
-use ieee.std_logic_1164.all; 
+use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity timer is
-	generic(gptimerbits: positive := 16);
+	generic(timer_length: positive := 16);
 	port(
 	clk:          in std_logic;
 	rst:          in std_logic;
 
-	ctrin_we:     in std_logic; -- write enable
-
-	ctrin:        in std_logic_vector(gptimerbits - 1 downto 0); -- Control register
+	we:           in std_logic; -- write enable for control register
+	control:        in std_logic_vector(timer_length - 1 downto 0); -- control register
 
 	-- Timer interrupts
 	irq:          out std_logic;  -- Compare Interrupt
@@ -32,7 +31,7 @@ entity timer is
 end entity;
 
 architecture behav of timer is
-	constant highest_bit:         positive := gptimerbits - 1;
+	constant highest_bit:         positive := timer_length - 1;
 	constant control_enable_bit:  positive := highest_bit;
 	constant local_rst_bit:       positive := highest_bit - 1;
 	constant irq_enable_bit:      positive := highest_bit - 2;
@@ -51,10 +50,8 @@ architecture behav of timer is
 	signal count:           unsigned(timer_highest_bit downto 0)         := (others => '0');
 begin
 
-	-- synthesis translate_off
-	assert (gptimerbits >= 4) report 
-	"gptimer needs to be *at least* 4 bits wide, 3 bits for control, one for the counter" severity failure;
-	-- synthesis translate_on
+	assert (timer_length >= 4) report
+	"timer needs to be *at least* 4 bits wide, 3 bits for control, one for the counter" severity failure;
 
 	Q  <= q_c;
 	NQ <= not q_c;
@@ -62,7 +59,7 @@ begin
 	ctr_enabled     <= ctrl_c(control_enable_bit);
 	ctr_localrst    <= ctrl_c(local_rst_bit);
 	ctr_irq_en      <= ctrl_c(irq_enable_bit);
-	compare         <= ctrl_c(timer_highest_bit downto 0); 
+	compare         <= ctrl_c(timer_highest_bit downto 0);
 
 	clockRegisters: process(clk, rst)
 	begin
@@ -90,7 +87,7 @@ begin
 		end if;
 	end process;
 
-	output: process(count, ctrin_we, ctrin, ctrl_c, compare, q_c, ctr_irq_en, ctr_enabled)
+	output: process(count, we, control, ctrl_c, compare, q_c, ctr_irq_en, ctr_enabled)
 	begin
 		irq         <= '0';
 		q_n         <= q_c;
@@ -99,11 +96,10 @@ begin
 
 		ctrl_n(local_rst_bit)  <= '0'; -- reset!
 
-		if ctrin_we = '1' then
-			ctrl_n <= ctrin;
+		if we = '1' then
+			ctrl_n <= control;
 		end if;
 
-		-- @todo replace comparison with highest bit check
 		if count = unsigned(compare) and ctr_enabled = '1' then
 			if ctr_irq_en = '1' then
 				irq <= '1';

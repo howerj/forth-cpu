@@ -1,12 +1,12 @@
 --------------------------------------------------------------------------------
 --! @file uart.vhd
---! @brief implements a universal asynchronous receiver transmitter with 
---! parameterisable baud rate. tested on a spartan 6 lx9 connected to a 
+--! @brief implements a universal asynchronous receiver transmitter with
+--! parameterisable baud rate. tested on a spartan 6 lx9 connected to a
 --! silicon labs cp210 usb-uart bridge.
---!          
+--!
 --! @author         peter a bennett
 --! @copyright      (c) 2012 peter a bennett
---! @license        lgpl      
+--! @license        lgpl
 --! @email          pab850@googlemail.com
 --! @contact        www.bytebash.com
 --!
@@ -24,7 +24,7 @@ entity uart is
 	    );
 	port (  -- general
 	        clock               :   in      std_logic;
-	        reset               :   in      std_logic;    
+	        reset               :   in      std_logic;
 	        data_stream_in      :   in      std_logic_vector(7 downto 0);
 	        data_stream_in_stb  :   in      std_logic;
 	        data_stream_in_ack  :   out     std_logic := '0';
@@ -45,7 +45,7 @@ architecture behav of uart is
 	constant c_tx_divider_val : integer := clock_frequency / baud_rate;
 	constant c_rx_divider_val : integer := clock_frequency / (baud_rate * 16);
 
-	signal baud_counter             :   integer range 0 to c_tx_divider_val;   
+	signal baud_counter             :   integer range 0 to c_tx_divider_val;
 	signal baud_tick                :   std_logic := '0';
 	signal oversample_baud_counter  :   integer range 0 to c_rx_divider_val := 0;
 	signal oversample_baud_tick     :   std_logic := '0';
@@ -58,7 +58,7 @@ architecture behav of uart is
 	                            send_start_bit,
 	                            transmit_data,
 	                            send_stop_bit);
-	                            
+	
 	signal  uart_tx_state       : uart_tx_states := idle;
 	
 	signal  uart_tx_data_block  : std_logic_vector(7 downto 0) := (others => '0');
@@ -68,12 +68,12 @@ architecture behav of uart is
 	----------------------------------------------------------------------------
 	-- receiver signals
 	----------------------------------------------------------------------------
-	type    uart_rx_states is ( rx_wait_start_synchronise, 
-	                            rx_get_start_bit, 
-	                            rx_get_data, 
-	                            rx_get_stop_bit, 
+	type    uart_rx_states is ( rx_wait_start_synchronise,
+	                            rx_get_start_bit,
+	                            rx_get_data,
+	                            rx_get_stop_bit,
 	                            rx_send_block);
-	                            
+	
 	signal  uart_rx_state       : uart_rx_states := rx_get_start_bit;
 	signal  uart_rx_bit         : std_logic := '0';
 	signal  uart_rx_data_block  : std_logic_vector(7 downto 0) := (others => '0');
@@ -99,7 +99,7 @@ begin
 	    if rising_edge (clock) then
 	        if reset = '1' then
 	            baud_counter     <= 0;
-	            baud_tick        <= '0';    
+	            baud_tick        <= '0';
 	        else
 	            if baud_counter = c_tx_divider_val then
 	                baud_counter <= 0;
@@ -111,7 +111,7 @@ begin
 	        end if;
 	    end if;
 	end process tx_clock_divider;
-	        
+	
 	-- get data from data_stream_in and send it one bit at a time
 	-- upon each baud tick. lsb first.
 	-- wait 1 tick, send start bit (0), send data 0-7, send stop bit (1)
@@ -132,7 +132,7 @@ begin
 	                        uart_tx_data_block  <= data_stream_in;
 	                        uart_rx_data_in_ack <= '1';
 	                        uart_tx_state       <= wait_for_tick;
-	                    end if;                                   
+	                    end if;
 	                when wait_for_tick =>
 	                    if baud_tick = '1' then
 	                        uart_tx_state   <= send_start_bit;
@@ -166,7 +166,7 @@ begin
 	            end case;
 	        end if;
 	    end if;
-	end process uart_send_data;    
+	end process uart_send_data;
 	
 	-- generate an oversampled tick (baud * 16)
 	oversample_clock_divider   : process (clock)
@@ -174,7 +174,7 @@ begin
 	    if rising_edge (clock) then
 	        if reset = '1' then
 	            oversample_baud_counter     <= 0;
-	            oversample_baud_tick        <= '0';    
+	            oversample_baud_tick        <= '0';
 	        else
 	            if oversample_baud_counter = c_rx_divider_val then
 	                oversample_baud_counter <= 0;
@@ -231,7 +231,7 @@ begin
 	begin
 	    if rising_edge(clock) then
 	        uart_rx_bit_tick <= '0';
-	        if oversample_baud_tick = '1' then       
+	        if oversample_baud_tick = '1' then
 	            if uart_rx_bit_spacing = 15 then
 	                uart_rx_bit_tick <= '1';
 	                uart_rx_bit_spacing <= (others => '0');
@@ -240,7 +240,7 @@ begin
 	            end if;
 	            if uart_rx_state = rx_get_start_bit then
 	                uart_rx_bit_spacing <= (others => '0');
-	            end if; 
+	            end if;
 	        end if;
 	    end if;
 	end process rx_bit_spacing;
@@ -285,7 +285,7 @@ begin
 	                        uart_rx_state           <= rx_get_start_bit;
 	                    else
 	                        uart_rx_data_out_stb    <= '1';
-	                    end if;                                
+	                    end if;
 	                when others =>
 	                    uart_rx_state   <= rx_get_start_bit;
 	            end case;

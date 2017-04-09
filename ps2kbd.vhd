@@ -17,7 +17,7 @@
 --   Version History
 --   Version 1.0 11/25/2013 Scott Larson
 --     Initial Public Release
---   
+--
 --   @note This file has been modified from the original one found at
 --   <https://eewiki.net/pages/viewpage.action?pageId=28279002>
 --------------------------------------------------------------------------------
@@ -83,8 +83,8 @@ BEGIN
 	
 	--verify that parity, start, and stop bits are all correct
 	error <= NOT (NOT ps2_word(0) AND ps2_word(10) AND (ps2_word(9) XOR ps2_word(8) XOR
-	    ps2_word(7) XOR ps2_word(6) XOR ps2_word(5) XOR ps2_word(4) XOR ps2_word(3) XOR 
-	    ps2_word(2) XOR ps2_word(1)));  
+	    ps2_word(7) XOR ps2_word(6) XOR ps2_word(5) XOR ps2_word(4) XOR ps2_word(3) XOR
+	    ps2_word(2) XOR ps2_word(1)));
 
 	--determine if PS2 port is idle (i.e. last transaction is finished) and output result
 	PROCESS(clk)
@@ -96,14 +96,14 @@ BEGIN
 	  ELSIF(count_idle /= clk_freq/18_000) THEN  --PS2 clock has been high less than a half clock period (<55us)
 	      count_idle <= count_idle + 1;            --continue counting
 	  END IF;
-	  
+	
 	  IF(count_idle = clk_freq/18_000 AND error = '0') THEN  --idle threshold reached and no errors detected
 	    ps2_code_new <= '1';                                   --set flag that new PS/2 code is available
 	    ps2_code <= ps2_word(8 DOWNTO 1);                      --output new PS/2 code
 	  ELSE                                                   --PS/2 port active or error detected
 	    ps2_code_new <= '0';                                   --set flag that PS/2 transaction is in progress
 	  END IF;
-	  
+	
 	END IF;
 	END PROCESS;
 	

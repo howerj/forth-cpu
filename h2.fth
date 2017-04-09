@@ -43,12 +43,34 @@ constant isrUnused05   6
 constant isrUnused06   7
 
 \ Initial value of VGA
-constant vgaInit       122
+\ BIT     MEANING
+\  7   -  Select high fonts
+\  6   -  Enable VGA
+\  5   -  Cursor enable
+\  4   -  Cursor blinks
+\  3   -  Cursor mode
+\  2   -  Blue
+\  1   -  Green 
+\  0   -  Blue 
+constant vgaInit       122 \ 0x007A 
 constant vgaX          80
 constant vgaY          40
 
+\ Initial value of timer, top three bits are timer control,
+\ which are (from highest to lowest);
+\ Enable Timer, Reset Timer, Interrupt Enable
+\ All other bits are a value to compare against, which when
+\ reach can optionally trigger an interrupt.
+constant timerInit     0x8032
+
 \ Place a variable here
 constant cursor        1024
+
+\ TODO: 
+\ * Function for displaying numbers on the display
+\ * key? key emit and a VGA driver
+\ * Bootloader 
+\ * Minimal Forth interpreter
 
 : 1+ 1 + ;
 : 2+ 2 + ;
@@ -62,7 +84,8 @@ constant cursor        1024
 : 2dup over over ;
 
 start:
-	vgaInit oVgaCtrl ! \ Turn on VGA monitor
+	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
+	timerInit oTimerCtrl ! \ Enable timer
 
 nextChar:
 

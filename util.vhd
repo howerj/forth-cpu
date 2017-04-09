@@ -11,7 +11,7 @@
 --!
 --! Notes:
 --! * Two subsections have been written by Javier Valcarce García as part of
---! VGA driver, which are labeled. 
+--! VGA driver, which are labeled.
 --!
 --! @todo split this file up
 -------------------------------------------------------------------------------
@@ -22,28 +22,9 @@ use ieee.numeric_std.all;
 package util is
 
 	--- Component definitions ---------------------------------------------------
-	component gptimer is
-	generic(gptimerbits: positive := 16);
-	port(
-		clk:          in std_logic;
-		rst:          in std_logic;
-
-		--! Write enables
-		ctrin_we:     in std_logic;                     -- write enable
-
-		--! Control register
-		ctrin:        in std_logic_vector(gptimerbits - 1 downto 0); 
-
-		-- Timer interrupts
-		irq:          out std_logic;                    -- Compare Interrupt
-		Q:            out std_logic;                    -- Timer signal
-		NQ:           out std_logic                     -- Timer signal inverted
-	);
-	end component;
-
-	component losr 
+	component losr
 	generic (N : integer := 4);
-	port 
+	port
 	(
 		reset : in  std_logic;
 		clk   : in  std_logic;
@@ -84,7 +65,7 @@ use ieee.numeric_std.all;
 
 entity losr is
 	generic (N : integer := 4);
-	port 
+	port
 	(
 		reset : in  std_logic;
 		clk   : in  std_logic;
