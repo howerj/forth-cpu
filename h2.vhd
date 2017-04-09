@@ -6,17 +6,16 @@
 --!
 --! @author         Richard James Howe.
 --! @copyright      Copyright 2013 Richard James Howe.
---! @license        LGPL      
+--! @license        MIT
 --! @email          howe.r.j.89@gmail.com
--------------------------------------------------------------------------------
-
--------------------------------------------------------------------------------
+--!
 --! TODO:
---!  * Interrupt handling needs to be improved, ie - simultaneous interrupts
---!  * Make CPU more generic:
---!    - instead of (15 downto 0) have (15_bit downto 0_bit)
---!      where 15_bit and 0_bit are constants that can be moved
---!      up and down relative to each other.
+--!  * Interrupt handling needs to be improved
+--!  * Use more generics
+--!  * Turn this into a literate file, describing the CPU
+--!  * Sort out the load instruction
+--!  * Reset and setting pc_c to start_address does not seem to work
+--!
 -------------------------------------------------------------------------------
 
 library ieee,work,std;
@@ -25,33 +24,35 @@ use ieee.numeric_std.all;
 
 entity h2 is
 	generic(
+		-- Stack size and instruction width should be made to be 
+		-- generic options
 		number_of_interrupts: positive := 8;
 		start_address: positive := 8);
 	port(
-		clk:        in  std_logic;
-		rst:        in  std_logic;
+		clk:      in  std_logic;
+		rst:      in  std_logic;
 
 		-- IO interface
-		cpu_wait:   in  std_logic;
-		io_wr:      out std_logic; 
-		io_re:      out std_logic; -- hardware reads can have side effects
-		io_din:     in  std_logic_vector(15 downto 0);
-		io_dout:    out std_logic_vector(15 downto 0);
-		io_daddr:   out std_logic_vector(15 downto 0);
+		cpu_wait: in  std_logic;
+		io_wr:    out std_logic; 
+		io_re:    out std_logic; -- hardware reads can have side effects
+		io_din:   in  std_logic_vector(15 downto 0);
+		io_dout:  out std_logic_vector(15 downto 0);
+		io_daddr: out std_logic_vector(15 downto 0);
 
 		-- Interrupts; irq == request, irc == channel
-		irq:        in  std_logic;
-		irc:        in  std_logic_vector(number_of_interrupts - 1 downto 0); 
+		irq:      in  std_logic;
+		irc:      in  std_logic_vector(number_of_interrupts - 1 downto 0); 
 
 		-- RAM interface, Dual port
-		pco:        out std_logic_vector(12 downto 0); -- program counter
-		insn:       in  std_logic_vector(15 downto 0); -- instruction
+		pco:      out std_logic_vector(12 downto 0); -- program counter
+		insn:     in  std_logic_vector(15 downto 0); -- instruction
 
-		dwe:        out std_logic; -- data write enable
-		dre:        out std_logic; -- data read enable
-		din:        in  std_logic_vector(15 downto 0);
-		dout:       out std_logic_vector(15 downto 0);
-		daddr:      out std_logic_vector(12 downto 0)
+		dwe:      out std_logic; -- data write enable
+		dre:      out std_logic; -- data read enable
+		din:      in  std_logic_vector(15 downto 0);
+		dout:     out std_logic_vector(15 downto 0);
+		daddr:    out std_logic_vector(12 downto 0)
 	);
 end;
 
@@ -79,22 +80,22 @@ architecture behav of h2 is
 	attribute ram_style of rstk_ram: signal is "distributed";
 
 	-- Stack deltas
-	signal dd:                  std_logic_vector(4 downto 0)  := (others => '0');
-	signal rd:                  std_logic_vector(4 downto 0)  := (others => '0');
+	signal dd: std_logic_vector(4 downto 0)  := (others => '0');
+	signal rd: std_logic_vector(4 downto 0)  := (others => '0');
 
 	-- is_instr_x signals, booleans, does the instruction have a certain property.
-	signal is_instr_alu:        std_logic :=  '0';
-	signal is_instr_lit:        std_logic :=  '0';
-	signal is_instr_jmp:        std_logic :=  '0';
-	signal is_instr_cjmp:       std_logic :=  '0';
-	signal is_instr_call:       std_logic :=  '0';
-	signal is_instr_interrupt:  std_logic :=  '0';
+	signal is_instr_alu:       std_logic :=  '0';
+	signal is_instr_lit:       std_logic :=  '0';
+	signal is_instr_jmp:       std_logic :=  '0';
+	signal is_instr_cjmp:      std_logic :=  '0';
+	signal is_instr_call:      std_logic :=  '0';
+	signal is_instr_interrupt: std_logic :=  '0';
 
 	-- Comparisons on stack items
-	signal comp_more:     std_logic :=  '0';
-	signal comp_equal:    std_logic :=  '0';
-	signal comp_umore:    std_logic :=  '0';
-	signal comp_zero:     std_logic :=  '0';
+	signal comp_more:  std_logic :=  '0';
+	signal comp_equal: std_logic :=  '0';
+	signal comp_umore: std_logic :=  '0';
+	signal comp_zero:  std_logic :=  '0';
 
 	signal int_en_c, int_en_n:  std_logic :=  '0';
 	signal irq_c, irq_n: std_logic :=  '0';
@@ -146,8 +147,8 @@ begin
 	dre    <=  '0' when tos_c(15 downto 14) = "00" else '0';
 
 	io_dout   <=  nos;
-	io_daddr  <=  tos_n(15 downto 0);
-	io_wr     <= '1' when insn(5) = '1' and is_instr_alu = '1' and tos_n(14 downto 13) = "11" else '0';
+	io_daddr  <=  tos_c(15 downto 0);
+	io_wr     <= '1' when insn(5) = '1' and is_instr_alu = '1' and tos_c(14 downto 13) = "11" else '0';
 	-- io_re is handled in the ALU
 
 	-- misc
@@ -217,8 +218,8 @@ begin
 		when "00100" => tos_n <= tos_c or nos;
 		when "00101" => tos_n <= tos_c xor nos;
 		when "00110" => tos_n <= not tos_c;
-		when "00111" => tos_n <= (0 => comp_equal, others => '0'); -- incorrect - -1 == true 
-		when "01000" => tos_n <= (0 => comp_more, others => '0'); -- incorrect - -1 == true 
+		when "00111" => tos_n <= (others => comp_equal); 
+		when "01000" => tos_n <= (others => comp_more); 
 		when "01001" => tos_n <= std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
 		when "01010" => tos_n <= std_logic_vector(unsigned(tos_c) - 1);
 		when "01011" => tos_n <= rtos_c;
@@ -231,7 +232,10 @@ begin
 				tos_n <= din;  
 			end if;
 		when "01101" => tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-		when "01110" => -- get depth, comparisons flags and interrupt flag 
+		when "01110" => 
+			-- get depth, comparisons flags and interrupt flag 
+			-- This instruction really should be split up into a
+			-- rdepth and a depth instruction.
 			tos_n(4 downto 0)  <=  vstkp_c;
 			tos_n(5) <= comp_zero; -- remove these?
 			tos_n(6) <= comp_umore;
@@ -240,7 +244,7 @@ begin
 			tos_n(9) <= int_en_c;
 			tos_n(10) <= '0';
 			tos_n(15 downto 11) <=  rstkp_c;
-		when "01111" => tos_n <=  (0 => comp_umore, others => '0'); -- incorrect - -1 == true 
+		when "01111" => tos_n <=  (others => comp_umore); 
 		when "10000" => int_en_n <= tos_c(0); 
 		when "10001" => tos_n <= tos_c;
 		when "10010" => tos_n <= tos_c;
@@ -265,7 +269,7 @@ begin
 	-- Reset and state-machine clock.
 	nextState: process(clk, rst)
 	begin
-		if rst='1' then
+		if rst = '1' then
 			vstkp_c  <= (others => '0');
 			rstkp_c  <= (others => '0');
 			pc_c     <= std_logic_vector(to_unsigned(start_address, pc_c'length));
@@ -307,6 +311,7 @@ begin
 			-- Interrupts are similar to a call
 			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
 			rstkW   <= '1';
+			-- return to *current* instruction
 			rstkD   <= "000" & pc_c; 
 		elsif is_instr_lit = '1' then
 			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + 1);
@@ -364,3 +369,4 @@ begin
 		end if;
 	end process;
 end architecture;
+

@@ -5,7 +5,7 @@
 /* When or'ed with a value, moves it into the I/O address range.*/
 define("3 13 << const io_range")
 
-/* System variables; Richard James Howe; LGPL */
+/* System variables; Richard James Howe; */
 #define vga_init_val   eval("122")
 #define clock_init_val eval("1 15 << 1 13 << or 40 or")
 

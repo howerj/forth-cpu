@@ -4,7 +4,7 @@
 --!
 --! @author     Richard James Howe.
 --! @copyright  Copyright 2013 Richard James Howe.
---! @license    LGPL    
+--! @license    MIT
 --! @email      howe.r.j.89@gmail.com
 --------------------------------------------------------------------------------
 
@@ -50,18 +50,18 @@ architecture behav of cpu is
 	--! memory constants
 	constant addr_bitlen: positive := 13;
 	constant data_bitlen: positive := 16;
-	constant filename:    string   := "mem_h2.hexadecimal";
+	constant filename:    string   := "h2.hex";
 	constant filetype:    string   := "hex";
 	--! memory <-> cpu signals
 	signal pc:           std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0'); -- Program counter
 	signal insn:         std_logic_vector(data_bitlen - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
-	signal mem_dwe:      std_logic:= '0'; -- Read/Write toggle, 0=Read, 1=Write
-	signal mem_dre:      std_logic:= '0'; -- Read enable
+	signal mem_dwe:      std_logic := '0'; -- Read/Write toggle, 0=Read, 1=Write
+	signal mem_dre:      std_logic := '0'; -- Read enable
 	signal mem_din:      std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
 	signal mem_dout:     std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
 	signal mem_daddr:    std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0');
 
-	signal processed_irq: std_logic:= '0';
+	signal processed_irq: std_logic := '0';
 	signal processed_irc: std_logic_vector(number_of_interrupts - 1 downto 0):=(others=>'0');
 begin
 	-- synthesis translate_off
@@ -73,7 +73,7 @@ begin
 	debug_mem_daddr   <= mem_daddr;
 	-- synthesis translate_on
 
-	irqh_instance: entity work.irqh
+	irqh_0: entity work.irqh
 	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 		clk       =>    clk,
@@ -86,7 +86,7 @@ begin
 		processed_irc => processed_irc);
 
 	-- The actual CPU instance (H2)
-	h2_instance: entity work.h2
+	h2_0: entity work.h2
 	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 		clk       =>    clk,
@@ -116,7 +116,7 @@ begin
 
 	--! Dual port RAM for the CPU, acts as bootloader or
 	--! contains the full system software
-	mem_h2_instance: entity work.memory
+	mem_h2_0: entity work.memory
 	generic map(
 		addr_bitlen   => addr_bitlen,
 		data_bitlen   => data_bitlen,

@@ -29,7 +29,7 @@ my $entryp = 8;           # offset into memory to put program into
 my $inputfile   = "cpu.asm";            # input file name
 my $tmpfile     = "partial";            # partially processed file suffix
 my $symfile     = "sym";                # symbol file
-my $outputfile  = "mem_h2.hexadecimal"; # final assembled file
+my $outputfile  = "h2.hex"; # final assembled file
 my $verbosity = 0;        # how verbose should we be?
 my $outputbase = 16;      # output base of assembled file, 2 or 16
 my @mem;                  # our CPUs memory

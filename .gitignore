@@ -1,4 +1,5 @@
 *~
+*.a
 *.bgn
 *.bit
 *_bitgen.xwbt
@@ -18,9 +19,12 @@ fth/doc/doxygen/*
 *.ghw
 *.gise
 h2
+h2.bin
+h2.hex
 h2_tb
 iseconfig/
 *.ll
+*.log
 *.log
 log.txt
 *.lso
@@ -58,12 +62,14 @@ post/*
 *.rbd
 reports/
 reports/*
+*.so
 *.stx
 *_summary.html
 *_summary.xml
 *.swo
 *.swp
 *.syr
+tb
 test_bench
 tmp/
 tmp/*
@@ -91,6 +97,7 @@ webtalk.log
 webtalk_pn.xml
 work-obj93.cf
 xlnx_auto_0_xdb/
+*.xml
 _xmsgs/
 _xmsgs/*
 *.xpi
@@ -98,6 +105,5 @@ _xmsgs/*
 *.xst
 xst/
 *_xst.xrpt
-*.a
-*.so
-*.log
+core
+vgcore.*

@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
---! @file vga80x40.vhd
+--! @file vga.vhd
 --! @brief Monochrome TexT Mode Video Controller VHDL Macro.
 --! @author         Javier Valcarce García
 --! @copyright      Copyright 2007 Javier Valcarce García
@@ -12,7 +12,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util.all;
 
-entity vga80x40 is
+entity vga is
 	port (
 	reset       : in  std_logic;
 	clk25MHz    : in  std_logic;
@@ -31,11 +31,11 @@ entity vga80x40 is
 	hsync       : out std_logic;
 	vsync       : out std_logic
 	);   
-end vga80x40;
+end vga;
 
 
 
-architecture behav of vga80x40 is
+architecture behav of vga is
 
 	signal R_int : std_logic := '0';
 	signal G_int : std_logic := '0';

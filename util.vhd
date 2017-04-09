@@ -246,7 +246,9 @@ entity memory is
 		addr_bitlen: positive := 12;              --! address bit length 
 		data_bitlen: positive := 16;              --! data bit length
 		filename:    string   := "memory.binary"; --! initial RAM contents
-		filetype:    string   := "bin"            --! ASCII 0/1s
+		filetype:    string   := "bin";           --! ASCII 0/1s
+		a_rising:    boolean  := true;
+		b_rising:    boolean  := true
 	);
 	port(
 		--! Port A of dual port RAM
@@ -326,14 +328,11 @@ architecture behav of memory is
 						slv((j*4)-1 downto (j*4)-4) := hexCharToStdLogicVector(c);
 					end loop;
 					ramData(i):= slv;
-				elsif fileType = "txt" then -- txt
-					assert false report "Not implemented currently, failing" 
-					severity failure;
 				else
 					assert false report "Incorrect type given" severity failure;
 				end if;
 			else
-			ramData(i):=(others => '0'); 
+				ramData(i):=(others => '0'); 
 			end if;
 		end loop;
 		return ramData;
@@ -342,21 +341,39 @@ architecture behav of memory is
 begin
 	a_ram:process(a_clk)
 	begin
-		if rising_edge(a_clk) then
-			if a_dwe = '1' then
-				ram(to_integer(unsigned(a_addr))) := a_din;
+		if(a_rising = true) then
+			if rising_edge(a_clk) then
+				if a_dwe = '1' then
+					ram(to_integer(unsigned(a_addr))) := a_din;
+				end if;
+				a_dout <= ram(to_integer(unsigned(a_addr)));
 			end if;
-			a_dout <= ram(to_integer(unsigned(a_addr)));
+		else
+			if falling_edge(a_clk) then
+				if a_dwe = '1' then
+					ram(to_integer(unsigned(a_addr))) := a_din;
+				end if;
+				a_dout <= ram(to_integer(unsigned(a_addr)));
+			end if;
 		end if;
 	end process;
 
 	b_ram:process(b_clk)
 	begin
-		if falling_edge(b_clk) then
-			if b_dwe = '1' then
-				ram(to_integer(unsigned(b_addr))) := b_din;
+		if(b_rising = true) then
+			if rising_edge(b_clk) then
+				if b_dwe = '1' then
+					ram(to_integer(unsigned(b_addr))) := b_din;
+				end if;
+				b_dout <= ram(to_integer(unsigned(b_addr)));
 			end if;
-			b_dout <= ram(to_integer(unsigned(b_addr)));
+		else 
+			if falling_edge(b_clk) then
+				if b_dwe = '1' then
+					ram(to_integer(unsigned(b_addr))) := b_din;
+				end if;
+				b_dout <= ram(to_integer(unsigned(b_addr)));
+			end if;
 		end if;
 	end process;
 end architecture;

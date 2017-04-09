@@ -1,21 +1,22 @@
--- rising edge detector
+-- @file edge.vhd 
+-- @brief rising edge detector
+-- @license MIT
 library ieee,work,std;
 use ieee.std_logic_1164.all;
 
-entity edge_detector_rising is
+entity edge is
 	port(
 		clk : in std_logic;
 		sin : in std_logic;
-       		output : out std_logic
-	);
-end edge_detector_rising;
+       		output : out std_logic);
+end edge;
 
-architecture behav of edge_detector_rising is
+architecture behav of edge is
 	signal d: std_logic;
 begin
 	process(clk)
 	begin
-		if clk = '1' and clk'event then
+		if rising_edge(clk) then
 			d <= sin;
 		end if;
 	end process;

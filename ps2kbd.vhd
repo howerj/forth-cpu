@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 --
---   FileName:         ps2_keyboard.vhd
+--   FileName:         ps2kbd.vhd
 --   Dependencies:     debounce.vhd
 --   Design Software:  Quartus II 32-bit Version 12.1 Build 177 SJ Full Version
 --
@@ -18,13 +18,14 @@
 --   Version 1.0 11/25/2013 Scott Larson
 --     Initial Public Release
 --   
---   See https://eewiki.net/pages/viewpage.action?pageId=28279002
+--   @note This file has been modified from the original one found at
+--   <https://eewiki.net/pages/viewpage.action?pageId=28279002>
 --------------------------------------------------------------------------------
 
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 
-ENTITY ps2_keyboard IS
+ENTITY ps2kbd IS
 	GENERIC(
 	clk_freq              : INTEGER := 50000000; --system clock frequency in Hz
 	debounce_counter_size : INTEGER := 8);         --set such that (2^size)/clk_freq = 5us (size = 8 for 50MHz)
@@ -34,9 +35,9 @@ ENTITY ps2_keyboard IS
 	ps2_data     : IN  STD_LOGIC;                     --data signal from PS/2 keyboard
 	ps2_code_new : OUT STD_LOGIC;                     --flag that new PS/2 code is available on ps2_code bus
 	ps2_code     : OUT STD_LOGIC_VECTOR(7 DOWNTO 0)); --code received from PS/2
-END ps2_keyboard;
+END ps2kbd;
 
-ARCHITECTURE logic OF ps2_keyboard IS
+ARCHITECTURE logic OF ps2kbd IS
 	SIGNAL sync_ffs     : STD_LOGIC_VECTOR(1 DOWNTO 0);       --synchronizer flip-flops for PS/2 signals
 	SIGNAL ps2_clk_int  : STD_LOGIC;                          --debounced clock signal from PS/2 keyboard
 	SIGNAL ps2_data_int : STD_LOGIC;                          --debounced data signal from PS/2 keyboard

@@ -1,5 +1,6 @@
+# vim: syntax=tcl
 # Richard Howe
-# TCL Script for GTKWave on test_bench.ghw for final year project 
+# TCL Script for GTKWave on tb.ghw 
 #
 
 set nfacs [ gtkwave::getNumFacs ]
@@ -9,13 +10,15 @@ set nfacs [ gtkwave::getNumFacs ]
 # puts "number of signals in dumpfile '$dumpname' of type $dmt: $nfacs"
 
 set names [list]
-lappend names "tb_clk"
-lappend names "tb_rst"
-lappend names "tb_debug_pc"
-lappend names "tb_debug_insn"
-lappend names "tb_debug_mem_daddr"
-lappend names "tb_debug_mem_dout"
-lappend names "tb_debug_mem_din"
+lappend names "top.tb.clk"
+lappend names "top.tb.rst"
+lappend names "top.tb.debug_pc"
+lappend names "top.tb.debug_insn"
+lappend names "top.tb.debug_mem_daddr"
+lappend names "top.tb.debug_mem_dout"
+lappend names "top.tb.debug_mem_din"
+lappend names "top.tb.hsync"
+lappend names "top.tb.vsync"
 
 set num_added [ gtkwave::addSignalsFromList $names ]
 puts "num signals added: $num_added"

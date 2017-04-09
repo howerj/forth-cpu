@@ -8,8 +8,7 @@
 # This file needs a lot of improving
 #
 
-DOXYFILE=doxygen.conf
-NETLIST=top_level
+NETLIST=top
 
 .PHONY: simulation viewer synthesis bitfile upload clean
 
@@ -17,18 +16,18 @@ NETLIST=top_level
 SOURCES = \
 	util.vhd \
 	uart.vhd \
-	edge_detector_rising.vhd \
+	edge.vhd \
 	debounce.vhd \
-	ps2_keyboard.vhd \
-	ps2_keyboard_to_ascii.vhd \
-	vga80x40.vhd \
+	ps2kbd.vhd \
+	ps2ascii.vhd \
+	vga.vhd \
 	vga_top.vhd \
 	irqh.vhd \
 	h2.vhd \
 	cpu.vhd \
-	ledseg.vhd \
+	ledseg.vhd 
 
-OBJECTS = $(SOURCES:.vhd=.o)
+OBJECTS = ${SOURCES:.vhd=.o}
 
 all:
 	@echo ""
@@ -52,14 +51,12 @@ all:
 	@echo ""
 	@echo "make clean          - delete temporary files and cleanup directory"
 	@echo ""
-	@echo "make doxygen"       - make doxygen documentation
-	@echo ""
 
 
 ## Assembler ===============================================================
 
-mem_h2.hexadecimal: assembler cpu.asm
-	./assembler
+%.hex: %.fth h2
+	./h2 -a $< > $@
 
 ## Virtual Machine =========================================================
 
@@ -68,32 +65,29 @@ h2: h2.c
 
 ## Simulation ==============================================================
 
-filter: filter.c
-	$(CC) $^ -o $@
-
 %.o: %.vhd
 	ghdl -a $<
 
-vga80x40: util.o
-vga_top.o: util.o vga80x40.o vga_top.vhd mem_text.binary mem_font.binary
-ps2_keyboard.o: ps2_keyboard.vhd debounce.o
-ps2_keyboard_to_ascii.o: ps2_keyboard_to_ascii.vhd ps2_keyboard.o debounce.o
-cpu.o: h2.o irqh.o util.o cpu.vhd mem_h2.hexadecimal
-top_level.o: util.o cpu.o uart.o vga_top.o ps2_keyboard_to_ascii.o ledseg.o top_level.vhd 
-test_bench.o: top_level.o test_bench.vhd
+vga: util.o
+vga_top.o: util.o vga.o vga_top.vhd text.bin font.bin
+ps2kbd.o: ps2kbd.vhd debounce.o
+ps2ascii.o: ps2ascii.vhd ps2kbd.o debounce.o
+cpu.o: h2.o irqh.o util.o cpu.vhd h2.hex
+top.o: util.o cpu.o uart.o vga_top.o ps2ascii.o ledseg.o top.vhd 
+tb.o: top.o tb.vhd
 
-test_bench: $(OBJECTS) test_bench.o
-	ghdl -e test_bench
+tb: ${OBJECTS} tb.o
+	ghdl -e tb
 
 %.ghw: %
 	ghdl -r $^ --wave=$^.ghw
 
-simulation: test_bench.ghw
+simulation: tb.ghw h2
 
 ## Simulation ==============================================================
 
-viewer: filter simulation
-	gtkwave -S gtkwave.tcl -f test_bench.ghw &> /dev/null&
+viewer: simulation
+	gtkwave -S signals -f tb.ghw &> /dev/null&
 
 bitfile: design.bit
 
@@ -104,38 +98,38 @@ tmp:
 tmp/_xmsgs:
 	@[ -d tmp/_xmsgs ]    || mkdir tmp/_xmsgs
 
-tmp/top_level.prj: tmp
-	@rm -f tmp/top_level.prj
+tmp/top.prj: tmp
+	@rm -f tmp/top.prj
 	@( \
 	    for f in $(SOURCES); do \
 	        echo "vhdl work \"$$f\""; \
 	    done; \
-	    echo "vhdl work \"top_level.vhd\"" \
-	) > tmp/top_level.prj
+	    echo "vhdl work \"top.vhd\"" \
+	) > tmp/top.prj
 
-tmp/top_level.lso: tmp
-	@echo "work" > tmp/top_level.lso
+tmp/top.lso: tmp
+	@echo "work" > tmp/top.lso
 
-tmp/top_level.xst: tmp tmp/_xmsgs tmp/top_level.lso tmp/top_level.lso
+tmp/top.xst: tmp tmp/_xmsgs tmp/top.lso tmp/top.lso
 	@( \
 	    echo "set -tmpdir \"tmp\""; \
 	    echo "set -xsthdpdir \"tmp\""; \
 	    echo "run"; \
-	    echo "-lso tmp/top_level.lso"; \
-	    echo "-ifn tmp/top_level.prj"; \
-	    echo "-ofn top_level"; \
+	    echo "-lso tmp/top.lso"; \
+	    echo "-ifn tmp/top.prj"; \
+	    echo "-ofn top"; \
 	    echo "-p xc6slx16-csg324-3"; \
-	    echo "-top top_level"; \
+	    echo "-top top"; \
 	    echo "-opt_mode speed"; \
 	    echo "-opt_level 2" \
-	) > tmp/top_level.xst
+	) > tmp/top.xst
 
-synthesis: reports tmp tmp/_xmsgs tmp/top_level.prj tmp/top_level.xst
+synthesis: reports tmp tmp/_xmsgs tmp/top.prj tmp/top.xst
 	@echo "Synthesis running..."
-	@xst -intstyle silent -ifn tmp/top_level.xst -ofn reports/xst.log
+	@xst -intstyle silent -ifn tmp/top.xst -ofn reports/xst.log
 	@mv _xmsgs/* tmp/_xmsgs
 	@rmdir _xmsgs
-	@mv top_level_xst.xrpt tmp
+	@mv top_xst.xrpt tmp
 	@grep "ERROR\|WARNING" reports/xst.log | \
 	 grep -v "WARNING.*has a constant value.*This FF/Latch will be trimmed during the optimization process." | \
 	 cat
@@ -145,50 +139,50 @@ implementation: reports tmp
 	
 	@[ -d tmp/xlnx_auto_0_xdb ] || mkdir tmp/xlnx_auto_0_xdb
 
-	@ngdbuild -intstyle silent -quiet -dd tmp -uc top_level.ucf -p xc6slx16-csg324-3 top_level.ngc top_level.ngd
-	@mv top_level.bld reports/ngdbuild.log
+	@ngdbuild -intstyle silent -quiet -dd tmp -uc top.ucf -p xc6slx16-csg324-3 top.ngc top.ngd
+	@mv top.bld reports/ngdbuild.log
 	@mv _xmsgs/* tmp/_xmsgs
 	@rmdir _xmsgs
 	@mv xlnx_auto_0_xdb/* tmp
 	@rmdir xlnx_auto_0_xdb
-	@mv top_level_ngdbuild.xrpt tmp
+	@mv top_ngdbuild.xrpt tmp
 
-	@map -intstyle silent -detail -p xc6slx16-csg324-3 -pr b -c 100 -w -o top_level_map.ncd top_level.ngd top_level.pcf
-	@mv top_level_map.mrp reports/map.log
+	@map -intstyle silent -detail -p xc6slx16-csg324-3 -pr b -c 100 -w -o top_map.ncd top.ngd top.pcf
+	@mv top_map.mrp reports/map.log
 	@mv _xmsgs/* tmp/_xmsgs
 	@rmdir _xmsgs
-	@mv top_level_usage.xml top_level_summary.xml top_level_map.map top_level_map.xrpt tmp
+	@mv top_usage.xml top_summary.xml top_map.map top_map.xrpt tmp
 
-	@par -intstyle silent -w -ol std top_level_map.ncd top_level.ncd top_level.pcf
-	@mv top_level.par reports/par.log
-	@mv top_level_pad.txt reports/par_pad.txt
+	@par -intstyle silent -w -ol std top_map.ncd top.ncd top.pcf
+	@mv top.par reports/par.log
+	@mv top_pad.txt reports/par_pad.txt
 	@mv _xmsgs/* tmp/_xmsgs
 	@rmdir _xmsgs
-	@mv par_usage_statistics.html top_level.ptwx top_level.pad top_level_pad.csv top_level.unroutes top_level.xpi top_level_par.xrpt tmp
+	@mv par_usage_statistics.html top.ptwx top.pad top_pad.csv top.unroutes top.xpi top_par.xrpt tmp
 	
-	@#trce -intstyle silent -v 3 -s 3 -n 3 -fastpaths -xml top_level.twx top_level.ncd -o top_level.twr top_level.pcf -ucf top_level.ucf
-	@#mv top_level.twr reports/trce.log
+	@#trce -intstyle silent -v 3 -s 3 -n 3 -fastpaths -xml top.twx top.ncd -o top.twr top.pcf -ucf top.ucf
+	@#mv top.twr reports/trce.log
 	@#mv _xmsgs/* tmp/_xmsgs
 	@#rmdir _xmsgs
-	@#mv top_level.twx tmp
+	@#mv top.twx tmp
 
-	@#netgen -intstyle silent -ofmt vhdl -sim -w top_level.ngc top_level_xsim.vhd
-	@#netgen -intstyle silent -ofmt vhdl -sim -w -pcf top_level.pcf top_level.ncd top_level_tsim.vhd
+	@#netgen -intstyle silent -ofmt vhdl -sim -w top.ngc top_xsim.vhd
+	@#netgen -intstyle silent -ofmt vhdl -sim -w -pcf top.pcf top.ncd top_tsim.vhd
 	@#mv _xmsgs/* tmp/_xmsgs
 	@#rmdir _xmsgs
-	@#mv top_level_xsim.nlf top_level_tsim.nlf tmp
+	@#mv top_xsim.nlf top_tsim.nlf tmp
 
 
 design.bit: reports tmp/_xmsgs
 	@echo "Generate bitfile running..."
 	@touch webtalk.log
-	@bitgen -intstyle silent -w top_level.ncd
-	@mv top_level.bit design.bit
-	@mv top_level.bgn reports/bitgen.log
+	@bitgen -intstyle silent -w top.ncd
+	@mv top.bit design.bit
+	@mv top.bgn reports/bitgen.log
 	@mv _xmsgs/* tmp/_xmsgs
 	@rmdir _xmsgs
 	@sleep 5
-	@mv top_level.drc top_level_bitgen.xwbt top_level_usage.xml top_level_summary.xml webtalk.log tmp
+	@mv top.drc top_bitgen.xwbt top_usage.xml top_summary.xml webtalk.log tmp
 	@grep -i '\(warning\|clock period\)' reports/xst.log
 
 upload: 
@@ -202,18 +196,15 @@ postsyn:
 	@netgen  -pcf $(NETLIST).pcf -w -ofmt vhdl -sim $(NETLIST).ncd post_map.vhd
 
 
-doxygen: $(DOXYFILE)
-	@doxygen $(DOXYFILE)
-
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."
-	@rm -vf *~ *.o trace.dat test_bench test_bench.ghw work-obj93.cf top_level.ngc top_level.ngd top_level_map.ngm \
-	      top_level.pcf top_level_map.ncd top_level.ncd top_level_xsim.vhd top_level_tsim.vhd top_level_tsim.sdf \
-	      top_level_tsim.nlf top_level_xst.xrpt top_level_ngdbuild.xrpt top_level_usage.xml top_level_summary.xml \
-	      top_level_map.map top_level_map.xrpt par_usage_statistics.html top_level.ptwx top_level.pad top_level_pad.csv \
-	      top_level.unroutes top_level.xpi top_level_par.xrpt top_level.twx top_level.nlf design.bit top_level_map.mrp 
+	@rm -vf *~ *.o trace.dat tb tb.ghw work-obj93.cf top.ngc top.ngd top_map.ngm \
+	      top.pcf top_map.ncd top.ncd top_xsim.vhd top_tsim.vhd top_tsim.sdf \
+	      top_tsim.nlf top_xst.xrpt top_ngdbuild.xrpt top_usage.xml top_summary.xml \
+	      top_map.map top_map.xrpt par_usage_statistics.html top.ptwx top.pad top_pad.csv \
+	      top.unroutes top.xpi top_par.xrpt top.twx top.nlf design.bit top_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf doxy/ filter
+	@rm -vrf h2
 	@rm -vf usage_statistics_webtalk.html
 	@rm -vf mem_h2.binary mem_h2.hexadecimal

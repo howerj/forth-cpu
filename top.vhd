@@ -1,17 +1,12 @@
 --------------------------------------------------------------------------------- 
---! @file top_level.vhd
+--! @file top.vhd
 --! @brief This file is the top level of the project.
 --!  It presents an interface between the CPU,
 --!  RAM, and all the I/O modules.
 --!
---!  TODO:
---!   * expand functionality (colors, etc)
---!   * switch between different sections of memory with addr bit
---!   * integrate VGA memory with CPU core
---!
 --! @author     Richard James Howe.
 --! @copyright  Copyright 2013 Richard James Howe.
---! @license    LGPL    
+--! @license    MIT
 --! @email      howe.r.j.89@gmail.com
 --------------------------------------------------------------------------------- 
 
@@ -19,7 +14,7 @@ library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity top_level is
+entity top is
 	generic(
 		clock_frequency:      positive := 100000000;
 		number_of_interrupts: positive := 8;
@@ -74,7 +69,7 @@ entity top_level is
 	);
 end;
 
-architecture behav of top_level is
+architecture behav of top is
 	constant number_of_segments: positive :=  4; -- number of 8 Segment LED displays
 
 	-- Signals
@@ -158,7 +153,7 @@ begin
 	-- cpu_wait <= btnc; -- Pause CPU
 	---------------------------------
 
-	cpu_instance: entity work.cpu
+	cpu_0: entity work.cpu
 	generic map(
 		number_of_interrupts => number_of_interrupts)
 	port map(
@@ -379,7 +374,7 @@ begin
 	end process;
 
 	--- UART ----------------------------------------------------------
-	uart_deglitch: process (clk)
+	uart_deglitch_0: process (clk)
 	begin
 	if rising_edge(clk) then
 		rx_sync <= rx;
@@ -388,7 +383,7 @@ begin
 	end if;
 	end process;
 
-	u_uart: entity work.uart 
+	uart_0: entity work.uart 
 	generic map(
 		baud_rate       => uart_baud_rate,
 		clock_frequency => clock_frequency)
@@ -409,7 +404,7 @@ begin
 	--- Timer ---------------------------------------------------------
 	gpt0_q  <= gpt0_q_internal;
 	gpt0_nq <= gpt0_nq_internal;
-	gptimer0_module: entity work.gptimer
+	gptimer0_0: entity work.gptimer
 	generic map(
 		gptimerbits => 16)
 	port map(
@@ -424,7 +419,7 @@ begin
 
 
 	--- VGA -----------------------------------------------------------
-	vga_module: entity work.vga_top
+	vga_0: entity work.vga_top
 	port map(
 		clk => clk,
 		clk25MHz => clk25MHz,
@@ -456,13 +451,13 @@ begin
 
 	-- Process a ascii_new into a single edge for the rest of the
 	-- system
-	ps2_edge_new_character: entity work.edge_detector_rising
+	ps2_edge_new_character_0: entity work.edge
 	port map(
 		clk => clk,
 		sin => ascii_new,
 		output => ascii_new_edge);
 
-	ps2_module: entity work.ps2_keyboard_to_ascii
+	ps2_0: entity work.ps2ascii
 	generic map(
 		clk_freq => clock_frequency,
 		ps2_debounce_counter_size => 8 )
@@ -477,7 +472,7 @@ begin
 	--- PS/2 ----------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------
-	ledseg_module: entity work.ledseg
+	ledseg_0: entity work.ledseg
 	generic map(
 		number_of_segments => number_of_segments, -- not used at the moment
 		clk_freq           => clock_frequency     -- --""--

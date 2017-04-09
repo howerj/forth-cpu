@@ -2,11 +2,11 @@
 --! @file irqh.vhd
 --! @brief Interrupt request handler, while the CPU can handle interrupts
 --!        it does not to a good job of it. This allows customization of
---!        prioritory and other such things.
+--!        priority and other such things.
 --! 
 --! @author     Richard James Howe.
 --! @copyright  Copyright 2013 Richard James Howe.
---! @license    LGPL    
+--! @license    MIT
 --! @email      howe.r.j.89@gmail.com
 --------------------------------------------------------------------------------
 

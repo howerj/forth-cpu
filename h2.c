@@ -147,15 +147,15 @@
 #define RSTACK_START    (2u)
 #define RSTACK(INST)    (((INST) >> RSTACK_START) & (RSTACK_LENGTH - 1))
 
-#define R_TO_PC_BIT     (4u)
-#define N_TO_ADDR_T_BIT (5u)
-#define T_TO_R_BIT      (6u)
-#define T_TO_N_BIT      (7u)
+#define R_TO_PC_BIT_INDEX     (4u)
+#define N_TO_ADDR_T_BIT_INDEX (5u)
+#define T_TO_R_BIT_INDEX      (6u)
+#define T_TO_N_BIT_INDEX      (7u)
 
-#define R_TO_PC         (1u << R_TO_PC_BIT)
-#define N_TO_ADDR_T     (1u << N_TO_ADDR_T_BIT)
-#define T_TO_R          (1u << T_TO_R_BIT)
-#define T_TO_N          (1u << T_TO_N_BIT)
+#define R_TO_PC         (1u << R_TO_PC_BIT_INDEX)
+#define N_TO_ADDR_T     (1u << N_TO_ADDR_T_BIT_INDEX)
+#define T_TO_R          (1u << T_TO_R_BIT_INDEX)
+#define T_TO_N          (1u << T_TO_N_BIT_INDEX)
 
 typedef enum {
 	ALU_OP_T,                /**< Top of Stack         */
@@ -259,7 +259,6 @@ typedef struct {
 
 /* ========================== Utilities ==================================== */
 
-/**@todo add in log levels and use an enum instead of isfatal and prefix*/
 int logger(log_level_e level, const char *func,
 		const unsigned line, const char *fmt, ...)
 {
@@ -378,6 +377,8 @@ h2_t *h2_new(void)
 {
 	h2_t *h = allocate_or_die(sizeof(h2_t));
 	h->pc = START_ADDR;
+	for(uint16_t i = 0; i < START_ADDR; i++)
+		h->core[i] = OP_BRANCH | START_ADDR;
 	return h;
 }
 
@@ -411,11 +412,6 @@ int h2_load(h2_t *h, FILE *hexfile)
 		debug("%zu %u", i, (unsigned)h->core[i]);
 	}
 
-	if(i < MAX_CORE-1) {
-		error("file contains too few lines: %zu", i);
-		return -1;
-	}
-
 	return 0;
 }
 
@@ -426,7 +422,7 @@ int h2_save(h2_t *h, FILE *output, bool full)
 
 	uint16_t max = full ? MAX_CORE : h->pc;
 	for(uint16_t i = 0; i < max; i++)
-		if(fprintf(output, "%"PRIx16"\n", h->core[i]) < 0) {
+		if(fprintf(output, "%04"PRIx16"\n", h->core[i]) < 0) {
 			error("failed to write line: %"PRId16, i);
 			return -1;
 		}
@@ -435,17 +431,162 @@ int h2_save(h2_t *h, FILE *output, bool full)
 
 /* ========================== Utilities ==================================== */
 
+/* ========================== Symbol Table ================================= */
+
+typedef enum {
+	SYMBOL_TYPE_LABEL,
+	SYMBOL_TYPE_CALL,
+	SYMBOL_TYPE_CONSTANT
+} symbol_type_e;
+
+typedef struct {
+	symbol_type_e type;
+	char *id;
+	uint16_t value;
+} symbol_t;
+
+typedef struct {
+	size_t length;
+	symbol_t **symbols;
+} symbol_table_t;
+
+static const char *symbol_names[] =
+{
+	[SYMBOL_TYPE_LABEL]    = "label",
+	[SYMBOL_TYPE_CALL]     = "call",
+	[SYMBOL_TYPE_CONSTANT] = "constant",
+	NULL
+};
+
+static symbol_t *symbol_new(symbol_type_e type, const char *id, uint16_t value)
+{
+	symbol_t *s = allocate_or_die(sizeof(*s));
+	assert(id);
+	s->id = duplicate(id);
+	s->value = value;
+	s->type = type;
+	return s;
+}
+
+static void symbol_free(symbol_t *s)
+{
+	if(!s)
+		return;
+	free(s->id);
+	memset(s, 0, sizeof(*s));
+	free(s);
+}
+
+static symbol_table_t *symbol_table_new(void)
+{
+	symbol_table_t *t = allocate_or_die(sizeof(*t));
+	return t;
+}
+
+static void symbol_table_free(symbol_table_t *t)
+{
+	if(!t)
+		return;
+	for(size_t i = 0; i < t->length; i++)
+		symbol_free(t->symbols[i]);
+	free(t->symbols);
+	memset(t, 0, sizeof(*t));
+	free(t);
+}
+
+static symbol_t *symbol_table_lookup(symbol_table_t *t, const char *id)
+{
+	for(size_t i = 0; i < t->length; i++)
+		if(!strcmp(t->symbols[i]->id, id))
+			return t->symbols[i];
+	return NULL;
+}
+
+static symbol_t *symbol_table_reverse_lookup(symbol_table_t *t, symbol_type_e type, uint16_t value)
+{
+	for(size_t i = 0; i < t->length; i++)
+		if(t->symbols[i]->type == type && t->symbols[i]->value == value)
+			return t->symbols[i];
+	return NULL;
+}
+
+static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *id, uint16_t value, error_t *e)
+{
+	symbol_t *s = symbol_new(type, id, value);
+	symbol_t **xs = NULL;
+	assert(t);
+
+	if(symbol_table_lookup(t, id)) {
+		error("definition of symbol: %s", id);
+		if(e)
+			ethrow(e);
+		else
+			return -1;
+	}
+
+	t->length++;
+	errno = 0;
+	xs = realloc(t->symbols, sizeof(*t->symbols) * t->length);
+	if(!xs)
+		fatal("reallocate of size %zu failed: %s", t->length, reason());
+	t->symbols = xs;
+	t->symbols[t->length - 1] = s;
+	return 0;
+}
+
+static int symbol_table_print(symbol_table_t *t, FILE *output)
+{
+
+	assert(t);
+	for(size_t i = 0; i < t->length; i++) {
+		symbol_t *s = t->symbols[i];
+		if(fprintf(output, "%s %s %"PRId16"\n", symbol_names[s->type], s->id, s->value) < 0)
+			return -1;
+	}
+	return 0;
+}
+
+static symbol_table_t *symbol_table_load(FILE *input)
+{
+	symbol_table_t *t = symbol_table_new();
+	assert(input);
+	char symbol[80];
+	char id[256];
+	uint16_t value;
+
+	while(!feof(input)) {
+		int r = 0;
+		memset(symbol, 0, sizeof(symbol));
+		memset(id,     0, sizeof(id));
+		value = 0;
+		r = fscanf(input, "%79s%255s%"SCNd16, symbol, id, &value);
+		if(r != 3 && r > 0) {
+			error("invalid symbol table: %d", r);
+			goto fail;
+		}
+		if(r == 3) {
+			size_t i = 0;
+			for(i = 0; symbol_names[i] && strcmp(symbol_names[i], symbol); i++)
+				/*do nothing*/;
+			if(symbol_names[i]) {
+				if(symbol_table_add(t, i, id, value, NULL) < 0)
+					goto fail;
+			} else {
+				error("invalid symbol: %s", symbol);
+				goto fail;
+			}
+		}
+	}
+	if(log_level >= LOG_DEBUG)
+		symbol_table_print(t, stderr);
+	return t;
+fail:
+	symbol_table_free(t);
+	return NULL;
+}
+/* ========================== Symbol Table ================================= */
+
 /* ========================== Disassembler ================================= */
-/* Plan: Use "filter.c"
- *
- * Have two modes: full/partial.
- *
- * Partial decompilation occurs line by line, a hexadecimal number is
- * recieved and an instruction is printed out. This can be used by GTKWave.
- *
- * Full decompilation involves reading in the entire binary and regenerating
- * labels, if possible.
- */
 
 static const char *instruction_to_string(uint16_t i)
 {
@@ -472,7 +613,7 @@ static const char *instruction_to_string(uint16_t i)
 	case  CODE_XOR:     return "xor";
 	case  CODE_OR:      return "or";
 	case  CODE_DEPTH:   return "depth";
-	case  CODE_T_N1:    return "m1";
+	case  CODE_T_N1:    return "m1"; /**@todo renamed 1- once lexer is fixed */
 	default: break;
 	}
 	return NULL;
@@ -520,8 +661,19 @@ static char *disassembler_alu(uint16_t instruction)
 	return duplicate(buf);
 }
 
+static const char *disassemble_jump(symbol_table_t *symbols, symbol_type_e type, uint16_t address)
+{
+	static const char *r = "";
+	symbol_t *found = NULL;
+	if(!symbols)
+		return r;
+	if((found = symbol_table_reverse_lookup(symbols, type, address)))
+		return found->id;
+	return r;
+}
+
 /**@todo lookup symbol address in symbol table if provided */
-static int disassembler_instruction(uint16_t instruction, FILE *output)
+static int disassembler_instruction(uint16_t instruction, FILE *output, symbol_table_t *symbols)
 {
 	int r = 0;
 	unsigned short literal, address;
@@ -536,18 +688,18 @@ static int disassembler_instruction(uint16_t instruction, FILE *output)
 	else if (IS_ALU_OP(instruction))
 		r = fprintf(output, "%s", s = disassembler_alu(instruction));
 	else if (IS_CALL(instruction))
-		r = fprintf(output, "call %hx", address);
+		r = fprintf(output, "call %hx %s", address, disassemble_jump(symbols, SYMBOL_TYPE_CALL, address));
 	else if (IS_0BRANCH(instruction))
-		r = fprintf(output, "0branch %hx", address);
+		r = fprintf(output, "0branch %hx %s", address, disassemble_jump(symbols, SYMBOL_TYPE_LABEL, address));
 	else if (IS_BRANCH(instruction))
-		r = fprintf(output, "branch %hx", address);
+		r = fprintf(output, "branch %hx %s", address, disassemble_jump(symbols, SYMBOL_TYPE_LABEL, address));
 	else
 		r = fprintf(output, "?(%hx)", instruction);
 	free(s);
 	return r < 0 ? -1 : 0;
 }
 
-int h2_disassemble(FILE *input, FILE *output)
+int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	assert(input);
 	assert(output);
@@ -561,7 +713,7 @@ int h2_disassemble(FILE *input, FILE *output)
 				error("invalid input to disassembler: %s", line);
 				return -1;
 			}
-			if(disassembler_instruction(instruction, output) < 0) {
+			if(disassembler_instruction(instruction, output, symbols) < 0) {
 				error("disassembly failed");
 				return -1;
 			}
@@ -613,20 +765,6 @@ static void rpush(h2_t *h, uint16_t r)
 	h->rp %= STK_SIZE;
 }
 
-#if 0
-static uint16_t rpop(h2_t *h)
-{
-	uint16_t r;
-	assert(h);
-	r = h->rstk[h->rp % STK_SIZE];
-	h->rp--;
-	if(h->sp >= STK_SIZE)
-		warning("return stack underflow");
-	h->rp %= STK_SIZE;
-	return r;
-}
-#endif
-
 static uint16_t stack_delta(uint16_t d)
 {
 	static const uint16_t i[4] = { 0x0000, 0x0001, 0xFFFE, 0xFFFF };
@@ -634,7 +772,7 @@ static uint16_t stack_delta(uint16_t d)
 	return i[d];
 }
 
-static int trace(FILE *output, uint16_t instruction, const char *fmt, ...)
+static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, const char *fmt, ...)
 {
 	int r = 0;
 	va_list ap;
@@ -648,7 +786,7 @@ static int trace(FILE *output, uint16_t instruction, const char *fmt, ...)
 		return r;
 	if(fputc('\t', output) != '\t')
 		return -1;
-	r = disassembler_instruction(instruction, output);
+	r = disassembler_instruction(instruction, output, symbols);
 	if(r < 0)
 		return r;
 	if(fputc('\n', output) != '\n')
@@ -660,7 +798,7 @@ static int trace(FILE *output, uint16_t instruction, const char *fmt, ...)
 
 /** @todo interrupt handling, CPU hold, implement instruction set and I/O
  *  @todo split into a step and a run function */
-int h2_run(h2_t *h, FILE *output, unsigned steps)
+int h2_run(h2_t *h, FILE *output, unsigned steps, symbol_table_t *symbols)
 {
 	assert(h);
 	for(unsigned i = 0; i < steps || steps == 0; i++) {
@@ -676,7 +814,7 @@ int h2_run(h2_t *h, FILE *output, unsigned steps)
 
 		pc_plus_one = h->pc + 1 % MAX_CORE;
 
-		trace(output, instruction,
+		trace(output, instruction, symbols,
 			"%04u: pc(%04x) inst(%04x) sp(%04x) rp(%04x)",
 			i,
 			(unsigned)h->pc,
@@ -693,6 +831,7 @@ int h2_run(h2_t *h, FILE *output, unsigned steps)
 			uint16_t dd = stack_delta(DSTACK(instruction));
 			uint16_t nos = h->dstk[h->sp % STK_SIZE];
 			uint16_t tos = h->tos;
+			uint16_t npc = pc_plus_one;
 
 			switch(ALU_OP(instruction)) {
 			case ALU_OP_T:           /* tos = tos; */ break;
@@ -702,17 +841,23 @@ int h2_run(h2_t *h, FILE *output, unsigned steps)
 			case ALU_OP_T_OR_N:      tos |= nos; break;
 			case ALU_OP_T_XOR_N:     tos ^= nos; break;
 			case ALU_OP_T_INVERT:    tos = ~nos; break;
-			case ALU_OP_T_EQUAL_N:   tos = tos == nos; break;
-			case ALU_OP_N_LESS_T:    tos = (int16_t)nos < (int16_t)nos; break;
+			case ALU_OP_T_EQUAL_N:   tos = -(tos == nos); break;
+			case ALU_OP_N_LESS_T:    tos = -((int16_t)nos < (int16_t)nos); break;
 			case ALU_OP_N_RSHIFT_T:  tos >>= nos; break;
 			case ALU_OP_T_DECREMENT: tos--; break;
 			case ALU_OP_R:           tos = h->rstk[h->rp % STK_SIZE]; break;
 			case ALU_OP_T_LOAD:
-				/** @todo This causes problems */
+				if(h->tos & 0x6000) {
+					/**@todo implement I/O*/
+
+				/**@note h->tos is divide by 2 on the original core */
+				} else { 
+					tos = h->core[h->tos % MAX_CORE];
+				}
 				break;
 			case ALU_OP_N_LSHIFT_T: tos <<= nos; break;
 			case ALU_OP_DEPTH:      tos = (h->rp << 12) | h->rp; break;
-			case ALU_OP_N_ULESS_T:  tos = nos < tos; break;
+			case ALU_OP_N_ULESS_T:  tos = -(nos < tos); break;
 			case ALU_OP_ENABLE_INTERRUPTS:
 				/** @todo implement this */
 				break;
@@ -730,7 +875,25 @@ int h2_run(h2_t *h, FILE *output, unsigned steps)
 				warning("return stack overflow");
 			h->rp %= STK_SIZE;
 
-			h->pc = pc_plus_one;
+			if(instruction & T_TO_N)
+				npc = h->dstk[h->sp % STK_SIZE];
+
+			if(instruction & R_TO_PC)
+				npc = h->rstk[h->rp % STK_SIZE];
+
+			if(instruction & T_TO_R)
+				h->rp = h->tos % STK_SIZE;
+
+			if(instruction & N_TO_ADDR_T) {
+				if(h->tos & 0x6000) {
+					/**@todo implement output */
+				} else {
+					h->core[h->tos % MAX_CORE] = nos;
+				}
+			}
+
+			h->tos = tos;
+			h->pc = npc;
 		} else if (IS_CALL(instruction)) {
 			rpush(h, pc_plus_one);
 			h->pc = address;
@@ -742,7 +905,7 @@ int h2_run(h2_t *h, FILE *output, unsigned steps)
 		} else if (IS_BRANCH(instruction)) {
 			h->pc = address;
 		} else {
-			/* ??? */
+			error("invalid instruction: %"PRId16, instruction);
 		}
 
 	}
@@ -750,8 +913,6 @@ int h2_run(h2_t *h, FILE *output, unsigned steps)
 }
 
 /* ========================== Simulation =================================== */
-
-
 
 /* ========================== Assembler ==================================== */
 /* This section is the most complex, it implements a lexer, parser and code
@@ -1032,6 +1193,7 @@ static uint16_t number(lexer_t *l, int *c, bool negate)
 	return negate ? i * -1 : i;
 }
 
+/** @bug There is a minor memory leak in the lexer: tokens are lost somewhere */
 static void lexer(lexer_t *l)
 {
 	assert(l);
@@ -1042,7 +1204,7 @@ static void lexer(lexer_t *l)
 again:
 	switch(ch) {
 	case '\n':
-		l->token->line++;
+		l->line++;
 	case ' ':
 	case '\t':
 	case '\r':
@@ -1056,10 +1218,11 @@ again:
 		for(; '\n' != (ch = next_char(l));)
 			if(ch == EOF)
 				syntax_error(l, "commented terminated by EOF");
-		l->token->line++;
+		ch = next_char(l);
+		l->line++;
 		goto again;
 	default:
-
+		/**@todo The way numeric input is handled is stupid - fix it */
 		if(ch == '-') {
 			char c = next_char(l);
 			if(isdigit(c)) {
@@ -1123,45 +1286,35 @@ fail:
 
 /* Grammar:
  *
- * Program     := Statements  EOF
- * Statements  := [ Label | Jump | CJump | Call | Literal | Instruction | Constant ]*
- * Label       := Identifier ':'
- * Jump        := "branch"  [ Identifier | Literal ]
- * CJump       := "0branch" [ Identifier | Literal ]
- * Call        := "call"    [ Identifier | Literal ]
+ * Program     := Statement* EOF
+ * Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
+ *                | Identifier | Constant | Definition | If | Begin
+ * Label       := Identifier ';'
+ * Branch      := "branch"  ( Identifier | Literal )
+ * 0Branch     := "0branch" ( Identifier | Literal )
+ * Call        := "call"    ( Identifier | Literal )
  * Constant    := "constant" Identifier Literal
  * Instruction := "@" | "!" | "exit" | ...
- * Literal     := Hex | Octal | Signed-Decimal
- * Identifier  := Alpha AlphaNumeric
+ * Definition  := ':' Statement* ';'
+ * If          := 'if' Statement* [ 'else' ] Statement* 'then'
+ * Literal     := [ '-' ] Number
+ * Number      := Octal | Hex | Decimal
+ * Octal       := '0' ... '7'
+ * Decimal     := '1' ... '9' ( '0' ... '9' )*
+ * Hex         := ( 'x' | 'X' ) HexDigit HexDigit*
+ * HexDigit    := ( 'a' ... 'f' | 'A' ... 'F' )
  *
- * These are Just notes:
+ * NB. Literals have higher priority than Identifiers, and comments are '\'
+ * until a new line is encountered.
  *
- * Function    := ':' Identifier Statements ';'
- * UntilLoop   := 'begin' Statements 'until'
- * If1         := 'if' Statements 'then'
- * If2         := 'if' Statements 'else' Statements 'then'
- * Include     := 'include' FileName
- * FileName    := Graphical Graphical*
- * Graphical   := Any ASCII Char expect space characters and EOF
- * Constant    := Literal 'constant' Identifier
- * Variable    := Literal 'variable' Identifier
+ * @bug The grammar allows nested word definitions.
  *
- * @todo Change syntax to be more Forth like, add begin...until and
- * if...else...then. Constant should be 'Literal "constant" Identifier',
- * exit should both be 'exit' and ';' - except the latter would perform
- * compile time optimization, labels should both be defined as '":" Identifier'
- * and "label:", calls should only be able to jump to the first. A mechanism
- * should be added to specify a start word as well. "include file.fs" should
- * be added as well.
+ * Add words:
  *
- * @todo A much simpler assembler could be made by integrating a
- * Forth interpreter into a modified version of the virtual machine. This
- * would involve an initialization procedure that would build up the
- * dictionary, like in <https://github.com/howerj/libforth>, or
- * <https://github.com/howerj/third> and an outer interpreter that is called
- * whenever the virtual machine tries to read from the serial interface
- * it should simulate. This could actually be used to make a limited
- * Forth interpreter for use on hosted platforms.
+ * 	_start    - set start routine
+ * 	include   - include a file
+ * 	[char]    - compile a character literal
+ * 	:compile  - compile values into dictionary
  *
  **/
 
@@ -1196,14 +1349,14 @@ static const char *names[] = {
 
 typedef struct node_t  {
 	parse_e type;
-	unsigned length;
+	size_t length;
 	token_t *token, *value;
 	struct node_t *o[];
 } node_t;
 
-node_t *node_new(lexer_t *l, parse_e type, unsigned size)
+static node_t *node_new(lexer_t *l, parse_e type, size_t size)
 {
-	node_t *r = allocate_or_die(sizeof(*r) + sizeof(r->o[0])*size);
+	node_t *r = allocate_or_die(sizeof(*r) + sizeof(r->o[0]) * size);
 	assert(l);
 	if(log_level >= LOG_DEBUG)
 		fprintf(stderr, "new> %s\n", names[type]);
@@ -1212,7 +1365,20 @@ node_t *node_new(lexer_t *l, parse_e type, unsigned size)
 	return r;
 }
 
-void node_free(node_t *n)
+static node_t *node_grow(lexer_t *l, node_t *n)
+{
+	node_t *r = NULL;
+	assert(l);
+	assert(n);
+	errno = 0;
+	r = realloc(n, sizeof(*n) + (sizeof(n->o[0]) * (n->length + 1)));
+	if(!r)
+		fatal("reallocate of size %zu failed: %s", n->length + 1, reason());
+	r->o[r->length++] = 0;
+	return r;
+}
+
+static void node_free(node_t *n)
 {
 	if(!n)
 		return;
@@ -1258,7 +1424,7 @@ static int token_print_enum(token_e sym, FILE *output)
 	return fprintf(stderr, "%u", sym);
 }
 
-void print_node(FILE *output, node_t *n, bool shallow, unsigned depth)
+static void node_print(FILE *output, node_t *n, bool shallow, unsigned depth)
 {
 	if(!n)
 		return;
@@ -1271,7 +1437,7 @@ void print_node(FILE *output, node_t *n, bool shallow, unsigned depth)
 	if(shallow)
 		return;
 	for(size_t i = 0; i < n->length; i++)
-		print_node(output, n->o[i], shallow, depth+1);
+		node_print(output, n->o[i], shallow, depth+1);
 }
 
 static int _expect(lexer_t *l, token_e token, const char *file, const char *func, unsigned line)
@@ -1361,44 +1527,47 @@ static node_t *define(lexer_t *l)
 	return r;
 }
 
-static node_t *statements(lexer_t *l) /* [ Label | Jump | Literal | Instruction | constant ] */
-{
+static node_t *statements(lexer_t *l)
+{ 
 	node_t *r;
+	size_t i = 0;
 	assert(l);
 	r = node_new(l, SYM_STATEMENTS, 2);
+again:
+	r = node_grow(l, r);
 	if(accept(l, LEX_CALL)) {
-		r->o[0] = jump(l, SYM_CALL);
-		r->o[1] = statements(l);
+		r->o[i++] = jump(l, SYM_CALL);
+		goto again;
 	} else if(accept(l, LEX_BRANCH)) {
-		r->o[0] = jump(l, SYM_BRANCH);
-		r->o[1] = statements(l);
+		r->o[i++] = jump(l, SYM_BRANCH);
+		goto again;
 	} else if(accept(l, LEX_0BRANCH)) {
-		r->o[0] = jump(l, SYM_0BRANCH);
-		r->o[1] = statements(l);
+		r->o[i++] = jump(l, SYM_0BRANCH);
+		goto again;
 	} else if(accept(l, LEX_LITERAL)) {
-		r->o[0] = defined_by_token(l, SYM_LITERAL);
-		r->o[1] = statements(l);
+		r->o[i++] = defined_by_token(l, SYM_LITERAL);
+		goto again;
 	} else if(accept(l, LEX_LABEL)) {
-		r->o[0] = defined_by_token(l, SYM_LABEL);
-		r->o[1] = statements(l);
+		r->o[i++] = defined_by_token(l, SYM_LABEL);
+		goto again;
 	} else if(accept(l, LEX_CONSTANT)) {
-		r->o[0] = constant(l);
-		r->o[1] = statements(l);
+		r->o[i++] = constant(l);
+		goto again;
 	} else if(accept(l, LEX_IF)) {
-		r->o[0] = if1(l);
-		r->o[1] = statements(l);
+		r->o[i++] = if1(l);
+		goto again;
 	} else if(accept(l, LEX_DEFINE)) {
-		r->o[0] = define(l);
-		r->o[1] = statements(l);
+		r->o[i++] = define(l);
+		goto again;
 	} else if(accept(l, LEX_BEGIN)) {
-		r->o[0] = begin(l);
-		r->o[1] = statements(l);
+		r->o[i++] = begin(l);
+		goto again;
 	} else if(accept(l, LEX_IDENTIFIER)) {
-		r->o[0] = defined_by_token(l, SYM_CALL_DEFINITION);
-		r->o[1] = statements(l);
+		r->o[i++] = defined_by_token(l, SYM_CALL_DEFINITION);
+		goto again;
 	} else if(accept_range(l, LEX_DUP, LEX_T_N1)) {
-		r->o[0] = defined_by_token(l, SYM_INSTRUCTION);
-		r->o[1] = statements(l);
+		r->o[i++] = defined_by_token(l, SYM_INSTRUCTION);
+		goto again;
 	}
 	return r;
 }
@@ -1432,149 +1601,6 @@ static node_t *parse(FILE *input)
 
 /********* CODE ***********/
 
-typedef enum {
-	SYMBOL_TYPE_LABEL,
-	SYMBOL_TYPE_CALL,
-	SYMBOL_TYPE_CONSTANT
-} symbol_type_e;
-
-typedef struct {
-	symbol_type_e type;
-	char *id;
-	uint16_t value;
-} symbol_t;
-
-typedef struct {
-	size_t length;
-	symbol_t **symbols;
-} symbol_table_t;
-
-static symbol_t *symbol_new(symbol_type_e type, const char *id, uint16_t value)
-{
-	symbol_t *s = allocate_or_die(sizeof(*s));
-	assert(id);
-	s->id = duplicate(id);
-	s->value = value;
-	s->type = type;
-	return s;
-}
-
-static void symbol_free(symbol_t *s)
-{
-	if(!s)
-		return;
-	free(s->id);
-	memset(s, 0, sizeof(*s));
-	free(s);
-}
-
-static symbol_table_t *symbol_table_new(void)
-{
-	symbol_table_t *t = allocate_or_die(sizeof(*t));
-	return t;
-}
-
-static void symbol_table_free(symbol_table_t *t)
-{
-	if(!t)
-		return;
-	for(size_t i = 0; i < t->length; i++)
-		symbol_free(t->symbols[i]);
-	free(t->symbols);
-	memset(t, 0, sizeof(*t));
-	free(t);
-}
-
-static symbol_t *symbol_table_lookup(symbol_table_t *t, const char *id)
-{
-	for(size_t i = 0; i < t->length; i++)
-		if(!strcmp(t->symbols[i]->id, id))
-			return t->symbols[i];
-	return NULL;
-}
-
-static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *id, uint16_t value, error_t *e)
-{
-	symbol_t *s = symbol_new(type, id, value);
-	symbol_t **xs = NULL;
-	assert(t);
-
-	if(symbol_table_lookup(t, id)) {
-		error("definition of symbol: %s", id);
-		if(e)
-			ethrow(e);
-		else
-			return -1;
-	}
-
-	t->length++;
-	errno = 0;
-	xs = realloc(t->symbols, sizeof(*t->symbols) * t->length);
-	if(!xs)
-		fatal("reallocate of size %zu failed: %s", t->length, reason());
-	t->symbols = xs;
-	t->symbols[t->length - 1] = s;
-	return 0;
-}
-
-static const char *symbol_names[] =
-{
-	[SYMBOL_TYPE_LABEL]    = "label",
-	[SYMBOL_TYPE_CALL]     = "call",
-	[SYMBOL_TYPE_CONSTANT] = "constant",
-	NULL
-};
-
-static int symbol_table_print(symbol_table_t *t, FILE *output)
-{
-
-	assert(t);
-	for(size_t i = 0; i < t->length; i++) {
-		symbol_t *s = t->symbols[i];
-		if(fprintf(output, "%s %s %"PRId16"\n", symbol_names[s->type], s->id, s->value) < 0)
-			return -1;
-	}
-	return 0;
-}
-
-static symbol_table_t *symbol_table_load(FILE *input)
-{
-	symbol_table_t *t = symbol_table_new();
-	assert(input);
-	char symbol[80];
-	char id[256];
-	uint16_t value;
-
-	while(!feof(input)) {
-		int r = 0;
-		memset(symbol, 0, sizeof(symbol));
-		memset(id,     0, sizeof(id));
-		value = 0;
-		r = fscanf(input, "%79s%255s%"SCNd16, symbol, id, &value);
-		if(r != 3 && r > 0) {
-			error("invalid symbol table: %d", r);
-			goto fail;
-		}
-		if(r == 3) {
-			size_t i = 0;
-			for(i = 0; symbol_names[i] && strcmp(symbol_names[i], symbol); i++)
-				/*do nothing*/;
-			if(symbol_names[i]) {
-				if(symbol_table_add(t, i, id, value, NULL) < 0)
-					goto fail;
-			} else {
-				error("invalid symbol: %s", symbol);
-				goto fail;
-			}
-		}
-	}
-	if(log_level >= LOG_DEBUG)
-		symbol_table_print(t, stderr);
-	return t;
-fail:
-	symbol_table_free(t);
-	return NULL;
-}
 
 static void generate(h2_t *h, uint16_t instruction)
 {
@@ -1693,8 +1719,8 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 		assemble(h, n->o[0], t, e);
 		break;
 	case SYM_STATEMENTS:
-		assemble(h, n->o[0], t, e);
-		assemble(h, n->o[1], t, e);
+		for(size_t i = 0; i < n->length; i++)
+			assemble(h, n->o[i], t, e);
 		break;
 	case SYM_LABEL:
 		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h), e);
@@ -1741,7 +1767,7 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 	case SYM_BEGIN_UNTIL:
 		hole1 = here(h);
 		assemble(h, n->o[0], t, e);
-		generate(h, OP_BRANCH | hole1);
+		generate(h, OP_0BRANCH | hole1);
 		break;
 	case SYM_IF1:
 		hole1 = hole(h);
@@ -1775,23 +1801,29 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 	case SYM_DEFINITION:
 		/**@bug allows for nested definitions, this should change STATE */
 		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
+		assemble(h, n->o[0], t, e);
+		generate(h, CODE_EXIT);
 		break;
 	default:
 		fatal("Invalid or unknown type: %u", n->type);
 	}
 }
 
-static h2_t *code(node_t *n)
+static h2_t *code(node_t *n, symbol_table_t *symbols)
 {
 	error_t e;
-	h2_t *h = h2_new();
-	symbol_table_t *t = symbol_table_new();
+	h2_t *h;
+	symbol_table_t *t = NULL; 
 	assert(n);
+
+	t = symbols ? symbols : symbol_table_new();
+	h = h2_new();
 
 	e.jmp_buf_valid = 1;
 	if(setjmp(e.j)) {
 		h2_free(h);
-		symbol_table_free(t);
+		if(!symbols)
+			symbol_table_free(t);
 		return NULL;
 	}
 
@@ -1799,11 +1831,12 @@ static h2_t *code(node_t *n)
 
 	if(log_level >= LOG_DEBUG)
 		symbol_table_print(t, stderr);
-	symbol_table_free(t);
+	if(!symbols)
+		symbol_table_free(t);
 	return h;
 }
 
-int h2_assemble(FILE *input, FILE *output)
+int h2_assemble(FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	int r = 0;
 	node_t *n;
@@ -1813,9 +1846,9 @@ int h2_assemble(FILE *input, FILE *output)
 	n = parse(input);
 
 	if(log_level >= LOG_DEBUG)
-		print_node(stderr, n, false, 0);
+		node_print(stderr, n, false, 0);
 	if(n) {
-		h2_t *h = code(n);
+		h2_t *h = code(n, symbols);
 		if(h)
 			r = h2_save(h, output, false);
 		h2_free(h);
@@ -1866,7 +1899,7 @@ given as arguments input is taken from stdin. Output is to\n\
 stdout. Program returns zero on success, non zero on failure.\n\n\
 ";
 
-static int run_command(command_args_t *cmd, FILE *input, FILE *output)
+static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	h2_t *h = NULL;
 	int r = 0;
@@ -1874,15 +1907,16 @@ static int run_command(command_args_t *cmd, FILE *input, FILE *output)
 	if(h2_load(h, input) < 0)
 		return -1;
 	note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
-	r = h2_run(h, output, cmd->steps);
+	r = h2_run(h, output, cmd->steps, symbols);
 	h2_free(h);
 	return r;
 }
 
-static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output)
+static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	int r = 0;
 	FILE *assembled = NULL;
+	symbol_table_t *t = NULL;
 
 	errno = 0;
 	assembled = tmpfile();
@@ -1891,7 +1925,9 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output)
 		return -1;
 	}
 
-	if((r = h2_assemble(input, assembled)) < 0)
+	t = symbols ? symbols : symbol_table_new();
+
+	if((r = h2_assemble(input, assembled, t)) < 0)
 		goto fail;
 
 	errno = 0;
@@ -1900,26 +1936,28 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output)
 		goto fail;
 	}
 
-	r = run_command(cmd, assembled, output);
+	r = run_command(cmd, assembled, output, t);
 	
 fail:
 	if(assembled)
 		fclose(assembled);
+	if(!symbols)
+		symbol_table_free(t);
 
 	return r < 0 ? -1 : 0;
 }
 
-int command(command_args_t *cmd, FILE *input, FILE *output)
+int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	assert(input);
 	assert(output);
 	assert(cmd);
 	switch(cmd->cmd) {
 	case DEFAULT_COMMAND:      /* fall through */
-	case DISASSEMBLE_COMMAND:  return h2_disassemble(input, output);
-	case ASSEMBLE_COMMAND:     return h2_assemble(input, output);
-	case RUN_COMMAND:          return run_command(cmd, input, output);
-	case ASSEMBLE_RUN_COMMAND: return assemble_run_command(cmd, input, output);
+	case DISASSEMBLE_COMMAND:  return h2_disassemble(input, output, symbols);
+	case ASSEMBLE_COMMAND:     return h2_assemble(input, output, symbols);
+	case RUN_COMMAND:          return run_command(cmd, input, output, symbols);
+	case ASSEMBLE_RUN_COMMAND: return assemble_run_command(cmd, input, output, symbols);
 	default:                   fatal("invalid command: %d", cmd->cmd);
 	}
 	return -1;
@@ -1933,7 +1971,8 @@ int main(int argc, char **argv)
 	const char *optarg = NULL;
 	long steps = 0;
 	command_args_t cmd;
-	FILE *symbols = NULL;
+	symbol_table_t *symbols = NULL;
+	FILE *symfile = NULL;
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.steps = DEFAULT_STEPS;
 
@@ -1987,8 +2026,8 @@ int main(int argc, char **argv)
 			if(i >= (argc - 1))
 				goto fail;
 			optarg = argv[++i];
-			symbols = fopen_or_die(optarg, "rb");
-			symbol_table_load(symbols);
+			symfile = fopen_or_die(optarg, "rb");
+			symbols = symbol_table_load(symfile);
 			break;
 		case 's':
 			if(i >= (argc - 1))
@@ -2004,14 +2043,14 @@ int main(int argc, char **argv)
 	}
 done:
 	if(i == argc)
-		if(command(&cmd, stdin, stdout) < 0) {
+		if(command(&cmd, stdin, stdout, symbols) < 0) {
 			fatal("failed to process standard input");
 			return 0;
 		}
 
 	for(; i < argc; i++) { /* process all files on command line */
 		FILE *input = fopen_or_die(argv[i], "rb");
-		if(command(&cmd, input, stdout) < 0)
+		if(command(&cmd, input, stdout, symbols) < 0)
 			fatal("failed to process file: %s", argv[i]);
 		fclose(input);
 	}
