@@ -769,6 +769,9 @@ static uint16_t stack_delta(uint16_t d)
 	return i[d];
 }
 
+/**@todo Trace should generate something consumable by the VHDL
+ * simulation so they can be compared (actually it would be easier
+ * to do it the other way around). */
 static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, const char *fmt, ...)
 {
 	int r = 0;

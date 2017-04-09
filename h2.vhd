@@ -90,6 +90,7 @@ architecture behav of h2 is
 	signal is_instr_cjmp:      std_logic :=  '0';
 	signal is_instr_call:      std_logic :=  '0';
 	signal is_instr_interrupt: std_logic :=  '0';
+	signal is_ram_write:       std_logic :=  '0';
 
 	-- Comparisons on stack items
 	signal comp_more:  std_logic :=  '0';
@@ -116,7 +117,6 @@ architecture behav of h2 is
 	signal dstkW: std_logic := '0';
 	signal rstkW: std_logic := '0';
 	signal rstkD: std_logic_vector(15 downto 0) := (others => '0');
-	-- data pointer
 begin
 
 	is_instr_alu        <=  '1' when insn(15 downto 13) = "011" else '0';
@@ -125,6 +125,7 @@ begin
 	is_instr_cjmp       <=  '1' when insn(15 downto 13) = "001" else '0';
 	is_instr_call       <=  '1' when insn(15 downto 13) = "010" else '0';
 	is_instr_interrupt  <=  '1' when irq_c = '1' else '0';
+	is_ram_write        <=  '1' when is_instr_alu = '1' and insn(5) = '1' else '0';
 
 	irq_n <= '1' when irq = '1' else '0';
 	irc_n <= irc when irq = '1' else (others => '0');
@@ -141,14 +142,17 @@ begin
 	-- I/O assignments
 	pco    <=  pc_n;
 
+	-- @note The loading and read timings really need looking at and
+	-- comparing with previous versions of this file, and with the original
+	-- j1.v source. 
 	dout   <=  nos; 
-	daddr  <=  tos_c(12 downto 0); 
-	dwe    <=  '1' when insn(5) = '1' and is_instr_alu = '1'  and tos_c(14 downto 13) /= "11" else '0';
-	dre    <=  '0' when tos_c(15 downto 14) = "00" else '0';
+	daddr  <=  tos_c(12 downto 0) when is_ram_write = '1' else tos_n(12 downto 0); 
+	dwe    <=  '1' when is_ram_write = '1' and tos_c(14 downto 13) /= "11" else '0';
+	dre    <=  '1' when tos_n(15 downto 14) = "00" else '0';
 
 	io_dout   <=  nos;
 	io_daddr  <=  tos_c(15 downto 0);
-	io_wr     <= '1' when insn(5) = '1' and is_instr_alu = '1' and tos_c(14 downto 13) = "11" else '0';
+	io_wr     <= '1' when is_ram_write = '1' and tos_c(14 downto 13) = "11" else '0';
 	-- io_re is handled in the ALU
 
 	-- misc

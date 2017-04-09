@@ -43,9 +43,9 @@ constant vgaInit       122
 
 constant cursor        1024
 
+
 init:
 	vgaInit oVgaCtrl ! \ Turn on VGA monitor
-
 start:
 
 	begin 
