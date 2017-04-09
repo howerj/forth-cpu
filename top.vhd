@@ -70,8 +70,6 @@ entity top is
 end;
 
 architecture behav of top is
-	constant number_of_segments: positive :=  4; -- number of 8 Segment LED displays
-
 	-- Signals
 	signal rst: std_logic := '0';
 	-- CPU H2 IO interface signals.
@@ -85,9 +83,13 @@ architecture behav of top is
 	signal cpu_irq: std_logic := '0';
 	signal cpu_irc: std_logic_vector(number_of_interrupts - 1 downto 0):= (others => '0');
 
-	-- VGA interface signals
 	signal clk25MHz: std_logic:= '0';
 	signal clk50MHz: std_logic:= '0';
+
+	attribute buffer_type : string; 
+	attribute buffer_type of clk50MHz : signal is "BUFG";
+	attribute buffer_type of clk25MHz : signal is "BUFG";
+
 	-- Basic IO register
 	---- LEDs/Switches
 
@@ -359,13 +361,6 @@ begin
 				cpu_io_din <= "000000000" &  kbd_char_c;
 				kbd_new_n <= '0';
 			when "1000" => cpu_io_din <= (others => '0');
-			when "1001" => cpu_io_din <= (others => '0');
-			when "1010" => cpu_io_din <= (others => '0');
-			when "1011" => cpu_io_din <= (others => '0');
-			when "1100" => cpu_io_din <= (others => '0');
-			when "1101" => cpu_io_din <= (others => '0');
-			when "1110" => cpu_io_din <= (others => '0');
-			when "1111" => cpu_io_din <= (others => '0');
 			when others => cpu_io_din <= (others => '0');
 			end case;
 		end if;

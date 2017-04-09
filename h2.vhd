@@ -12,6 +12,7 @@
 --! TODO:
 --!  * Interrupt handling needs to be improved
 --!  * Use more generics
+--!  * Assertions should be added to the core
 --!  * Turn this into a literate file, describing the CPU
 --!  * Sort out the load instruction
 --!  * Reset and setting pc_c to start_address does not seem to work
@@ -21,13 +22,14 @@
 library ieee,work,std;
 use ieee.std_logic_1164.all; 
 use ieee.numeric_std.all;
+use ieee.math_real.all; -- only needed for calculations relating to generics
 
 entity h2 is
 	generic(
-		-- Stack size and instruction width should be made to be 
-		-- generic options
+		-- Instruction width should be made to a generic option
 		number_of_interrupts: positive := 8;
-		start_address: positive := 8);
+		start_address:        positive := 8;
+		stack_size_log2:      positive := 5);
 	port(
 		clk:      in  std_logic;
 		rst:      in  std_logic;
@@ -57,31 +59,33 @@ entity h2 is
 end;
 
 architecture behav of h2 is
+	constant stack_size: integer := 2 ** stack_size_log2;
 
 	-- Program counter.
 	signal pc_c:  std_logic_vector(12 downto 0) := (others => '0');
 	signal pc_n:  std_logic_vector(12 downto 0) := (others => '0');
 
-	-- Stack Type!
-	type   stk  is array (31 downto 0) of std_logic_vector(15 downto 0);
+	-- Stack Type
+	type    stack is array (stack_size - 1 downto 0) of std_logic_vector(15 downto 0);
+	subtype depth is std_logic_vector(stack_size_log2 - 1 downto 0);
 
 	-- Variable stack (RAM Template)
-	signal vstkp_c:  std_logic_vector(4 downto 0)  := (others => '0');
-	signal vstkp_n:  std_logic_vector(4 downto 0)  := (others => '0');
-	signal vstk_ram: stk := (others => (others => '0'));
+	signal vstkp_c:  depth := (others => '0');
+	signal vstkp_n:  depth := (others => '0');
+	signal vstk_ram: stack := (others => (others => '0'));
 
 	-- Return stack (RAM Template)
-	signal rstkp_c:  std_logic_vector(4 downto 0)  := (others => '0');
-	signal rstkp_n:  std_logic_vector(4 downto 0)  := (others => '0');
-	signal rstk_ram: stk := (others => (others => '0'));
+	signal rstkp_c:  depth  := (others => '0');
+	signal rstkp_n:  depth  := (others => '0');
+	signal rstk_ram: stack := (others => (others => '0'));
 
 	attribute ram_style: string;
 	attribute ram_style of vstk_ram: signal is "distributed";
 	attribute ram_style of rstk_ram: signal is "distributed";
 
 	-- Stack deltas
-	signal dd: std_logic_vector(4 downto 0)  := (others => '0');
-	signal rd: std_logic_vector(4 downto 0)  := (others => '0');
+	signal dd: depth  := (others => '0');
+	signal rd: depth  := (others => '0');
 
 	-- is_instr_x signals, booleans, does the instruction have a certain property.
 	signal is_instr_alu:       std_logic :=  '0';
@@ -118,6 +122,8 @@ architecture behav of h2 is
 	signal rstkW: std_logic := '0';
 	signal rstkD: std_logic_vector(15 downto 0) := (others => '0');
 begin
+	assert(stack_size > 4 and stack_size < 128) 
+		report "stack size out of bounds";
 
 	is_instr_alu        <=  '1' when insn(15 downto 13) = "011" else '0';
 	is_instr_lit        <=  '1' when insn(15) = '1' else '0';
@@ -155,12 +161,11 @@ begin
 	io_wr     <= '1' when is_ram_write = '1' and tos_c(14 downto 13) = "11" else '0';
 	-- io_re is handled in the ALU
 
-	-- misc
 	pc_plus_one <=  std_logic_vector(unsigned(pc_c) + 1);
 
-	-- Signed addition!
-	dd        <=  insn(1) & insn(1) & insn(1) & insn(1) & insn(0);
-	rd        <=  insn(3) & insn(3) & insn(3) & insn(3) & insn(2);
+	-- Sign extend the stack deltas in the instruction
+	dd        <= (0 => insn(0), others => insn(1));
+	rd        <= (0 => insn(2), others => insn(3));
 
 	dstkW     <= '1' when is_instr_lit = '1' or (is_instr_alu = '1' and insn(7) = '1') else '0';
 
@@ -236,36 +241,14 @@ begin
 				tos_n <= din;  
 			end if;
 		when "01101" => tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-		when "01110" => 
-			-- get depth, comparisons flags and interrupt flag 
-			-- This instruction really should be split up into a
-			-- rdepth and a depth instruction.
-			tos_n(4 downto 0)  <=  vstkp_c;
-			tos_n(5) <= comp_zero; -- remove these?
-			tos_n(6) <= comp_umore;
-			tos_n(7) <= comp_equal;
-			tos_n(8) <= comp_more;
-			tos_n(9) <= int_en_c;
-			tos_n(10) <= '0';
-			tos_n(15 downto 11) <=  rstkp_c;
+		when "01110" => tos_n(4 downto 0)  <=  vstkp_c;
 		when "01111" => tos_n <=  (others => comp_umore); 
 		when "10000" => int_en_n <= tos_c(0); 
-		when "10001" => tos_n <= tos_c;
-		when "10010" => tos_n <= tos_c;
-		when "10011" => tos_n <= tos_c;
-		when "10100" => tos_n <= tos_c;
-		when "10101" => tos_n <= tos_c;
-		when "10110" => tos_n <= tos_c;
-		when "10111" => tos_n <= tos_c;
-		when "11000" => tos_n <= tos_c;
-		when "11001" => tos_n <= tos_c;
-		when "11010" => tos_n <= tos_c;
-		when "11011" => tos_n <= tos_c;
-		when "11100" => tos_n <= tos_c;
-		when "11101" => tos_n <= tos_c;
-		when "11110" => tos_n <= tos_c;
-		when "11111" => tos_n <= tos_c;
+		when "10001" => tos_n <= (others => int_en_c); 
+		when "10010" => tos_n(4 downto 0) <= rstkp_c; 
+		when "10011" => tos_n <= (others => comp_zero);
 		when others  => tos_n <= tos_c;
+				assert false report "Invalid ALU operation."; 
 		end case;
 	end if;
 	end process;

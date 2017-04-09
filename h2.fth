@@ -1,6 +1,10 @@
 \ This program is written in a pseudo Forth like language, it is *not* Forth
 \ and does not behave like it, it just looks like it. This should be thought
 \ of as assembly code and not Forth.
+\ 
+\ For a grammar of the language look into the file "h2.c". 
+\ 
+\ Execution begins at a label called "start". 
 
 \ Outputs: 0x6000 - 0x7FFF
 \ NB. 0x6000 itself is not used.
@@ -46,6 +50,17 @@ constant vgaY          40
 \ Place a variable here
 constant cursor        1024
 
+: 1+ 1 + ;
+: 2+ 2 + ;
+: - invert 1+ + ;
+: 2/ 1 rshift ;
+: 2* 1 lshift ;
+: >= < invert ;
+: u>= u< invert ;
+: <> = invert ;
+\ : 0<> 0= invert ;
+: 2dup over over ;
+
 start:
 	vgaInit oVgaCtrl ! \ Turn on VGA monitor
 
@@ -67,7 +82,6 @@ nextChar:
 branch nextChar
 
 
-: x 2 + ;
 
 \ : 2+ 2 + ;
 \ : 3+ 3 + ;

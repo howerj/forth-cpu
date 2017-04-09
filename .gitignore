@@ -107,3 +107,4 @@ xst/
 *_xst.xrpt
 core
 vgcore.*
+*.txt
