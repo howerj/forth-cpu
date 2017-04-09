@@ -25,8 +25,8 @@ constant iVgaTxtDout   0x6002
 constant iUartRead     0x6003 
 constant iUartAckWrite 0x6004 
 constant iUartStbDout  0x6005 
-constant iAscii_new    0x6006 
-constant iAscii_char   0x6007 
+constant iPs2New       0x6006 
+constant iPs2Char      0x6007 
 
 \ Interrupt service Routine: Memory locations
 constant isrReset      0
@@ -40,28 +40,31 @@ constant isrUnused06   7
 
 \ Initial value of VGA
 constant vgaInit       122
+constant vgaX          80
+constant vgaY          40
 
+\ Place a variable here
 constant cursor        1024
 
-
-init:
-	vgaInit oVgaCtrl ! \ Turn on VGA monitor
 start:
+	vgaInit oVgaCtrl ! \ Turn on VGA monitor
+
+nextChar:
 
 	begin 
-		iSwitches  @ oLeds ! \ Set LEDs to switches
-		iAscii_new @         \ Wait for a character
+		iSwitches @ oLeds !  \ Set LEDs to switches
+		iPs2New   @          \ Wait for a character
 	until 
 
-	cursor      @ oVgaTxtAddr !  \ Set index into VGA memory
-	iAscii_char @ oVgaTxtDin  !  \ Character to write
-	            0 oVgaWrite   !  \ Perform write
+	cursor   @ oVgaTxtAddr !     \ Set index into VGA memory
+	iPs2Char @ oVgaTxtDin  !     \ Character to write
+	         0 oVgaWrite   !     \ Perform write
 
-	cursor @ 1 + cursor !        \ Increment cursor value
+	cursor   @ 1 + cursor  !     \ Increment cursor value
 
-	cursor @ oVgaCursor !        \ Update cursor position
+	cursor   @ oVgaCursor  !     \ Update cursor position
 
-branch start
+branch nextChar
 
 
 : x 2 + ;

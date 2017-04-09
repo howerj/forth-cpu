@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 --
---   FileName:         ps2ascii.vhd
+--   FileName:         ps2top.vhd
 --   Dependencies:     ps2kbd.vhd, debounce.vhd
 --   Design Software:  Quartus II 32-bit Version 12.1 Build 177 SJ Full Version
 --
@@ -26,7 +26,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
-entity ps2ascii is
+entity ps2top is
 	generic(
 		clk_freq                  : integer := 50000000; --system clock frequency in hz
 		ps2_debounce_counter_size : integer := 8);       --set such that 2^size/clk_freq = 5us (size = 8 for 50mhz)
@@ -36,9 +36,9 @@ entity ps2ascii is
 		ps2_data   : in  std_logic;                     --data signal from PS2 keyboard
 		ascii_new  : out std_logic := '0';              --output flag indicating new ascii value
 		ascii_code : out std_logic_vector(6 downto 0)); --ASCII value
-end ps2ascii;
+end ps2top;
 
-architecture behavior OF ps2ascii is
+architecture behavior OF ps2top is
 	type machine is(ready, new_code, translate, output);              --needed states
 	signal state             : machine;                               --state machine
 	signal ps2_code_new      : std_logic;                             --new PS2 code flag from ps2kbd component

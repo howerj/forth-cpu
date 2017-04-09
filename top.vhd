@@ -23,13 +23,13 @@ entity top is
 	port
 	(
 -- synthesis translate_off
-		-- This is only used for the test bench
+		-- These signals are only used for the test bench
 		debug_irq:        in  std_logic;
 		debug_irc:        in  std_logic_vector(3 downto 0);
 
 		debug_pc:         out std_logic_vector(12 downto 0);
 		debug_insn:       out std_logic_vector(15 downto 0);
-		debug_mem_dwe:    out std_logic:= '0';   
+		debug_mem_dwe:    out std_logic := '0';   
 		debug_mem_din:    out std_logic_vector(15 downto 0);
 		debug_mem_dout:   out std_logic_vector(15 downto 0);
 		debug_mem_daddr:  out std_logic_vector(12 downto 0);
@@ -126,11 +126,11 @@ architecture behav of top is
 	signal gpt0_nq_internal:  std_logic;
 
 	---- PS/2
-	signal ascii_new: std_logic := '0';  -- new ASCII char available
-	signal ascii_new_edge: std_logic := '0';
-	signal ascii_new_c, ascii_new_n: std_logic := '0';
-	signal ascii_code:  std_logic_vector(6 downto 0); -- ASCII char
-	signal ascii_code_c, ascii_code_n:  std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
+	signal kbd_new:      std_logic := '0';  -- new ASCII char available
+	signal kbd_new_edge: std_logic := '0';
+	signal kbd_char:     std_logic_vector(6 downto 0); -- ASCII char
+	signal kbd_new_c, kbd_new_n: std_logic := '0';
+	signal kbd_char_c, kbd_char_n:  std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
 
 	---- 8 Segment Display
 	signal led_0_1:    std_logic_vector(15 downto 0) := (others => '0'); -- leds 0 and 1
@@ -177,13 +177,11 @@ begin
 	cpu_daddr => cpu_io_daddr,
 
 	cpu_irq   => cpu_irq,
-	cpu_irc   => cpu_irc
-	);
+	cpu_irc   => cpu_irc);
 
 -------------------------------------------------------------------------------
 -- IO
 -------------------------------------------------------------------------------
-
 	-- Xilinx Application Note:
 	-- It seems like it buffers the clock correctly here, so no need to
 	-- use a DCM. However, see:
@@ -206,8 +204,8 @@ begin
 			stb_dout_c  <=  '0';
 
 			-- PS/2
-			ascii_code_c <= (others => '0');
-			ascii_new_c  <= '0';
+			kbd_char_c <= (others => '0');
+			kbd_new_c  <= '0';
 		elsif rising_edge(clk) then
 			-- LEDs/Switches
 			ld_c        <=  ld_n;
@@ -217,8 +215,8 @@ begin
 			uart_dout_c <=  uart_dout_n;
 			stb_dout_c  <=  stb_dout_n;
 			-- PS/2
-			ascii_code_c <= ascii_code_n;
-			ascii_new_c  <= ascii_new_n;
+			kbd_char_c  <= kbd_char_n;
+			kbd_new_c   <= kbd_new_n;
 		end if;
 	end process;
 
@@ -230,8 +228,8 @@ begin
 		uart_dout_c,  
 		uart_dout, stb_dout, ack_din, 
 		stb_dout, stb_dout_c, vga_dout, 
-		ascii_code, ascii_new_c, ascii_code_c, 
-		ascii_new_edge,
+		kbd_char, kbd_new_c, kbd_char_c, 
+		kbd_new_edge,
 
 		gpt0_ctr_r_we)
 	begin
@@ -259,10 +257,10 @@ begin
 		ctl <= (others => '0');
 
 		vga_we_ram <= '0';
-		vga_a_we <= '0';
-		vga_d_we <= '0';
-		vga_din <= (others => '0');
-		vga_addr <= (others => '0');
+		vga_a_we   <= '0';
+		vga_d_we   <= '0';
+		vga_din    <= (others => '0');
+		vga_addr   <= (others => '0');
 
 		uart_din_n  <=  uart_din_c; 
 
@@ -270,12 +268,12 @@ begin
 		gpt0_ctr_r_we <= '0';
 		gpt0_ctr_r <= (others => '0');
 
-		if ascii_new_edge = '1' then
-			ascii_new_n  <= '1';
-			ascii_code_n <= ascii_code;
+		if kbd_new_edge = '1' then
+			kbd_new_n  <= '1';
+			kbd_char_n <= kbd_char;
 		else
-			ascii_new_n  <= ascii_new_c;
-			ascii_code_n <= ascii_code_c;
+			kbd_new_n  <= kbd_new_c;
+			kbd_char_n <= kbd_char_c;
 		end if;
 
 		if ack_din = '1' then
@@ -356,10 +354,10 @@ begin
 				cpu_io_din <= (0 => stb_dout_c, others => '0');
 				stb_dout_n <= '0';
 			when "0110" =>  -- PS/2 Keyboard, Check for new char
-				cpu_io_din <= (0 => ascii_new_c, others => '0');
+				cpu_io_din <= (0 => kbd_new_c, others => '0');
 			when "0111" =>  -- PS/2 ASCII In and ACK
-				cpu_io_din <= "000000000" &  ascii_code_c;
-				ascii_new_n <= '0';
+				cpu_io_din <= "000000000" &  kbd_char_c;
+				kbd_new_n <= '0';
 			when "1000" => cpu_io_din <= (others => '0');
 			when "1001" => cpu_io_din <= (others => '0');
 			when "1010" => cpu_io_din <= (others => '0');
@@ -374,6 +372,7 @@ begin
 	end process;
 
 	--- UART ----------------------------------------------------------
+	--! @todo integrate this into the UART module
 	uart_deglitch_0: process (clk)
 	begin
 	if rising_edge(clk) then
@@ -397,16 +396,14 @@ begin
 		data_stream_out_stb => stb_dout,
 		data_stream_out_ack => ack_dout,
 		rx                  => rx_uart,
-		tx                  => tx_uart
-	);
+		tx                  => tx_uart);
 	--- UART ----------------------------------------------------------
 
 	--- Timer ---------------------------------------------------------
 	gpt0_q  <= gpt0_q_internal;
 	gpt0_nq <= gpt0_nq_internal;
-	gptimer0_0: entity work.gptimer
-	generic map(
-		gptimerbits => 16)
+	timer0_0: entity work.timer
+	generic map(gptimerbits => 16)
 	port map(
 		clk       => clk,
 		rst       => rst,
@@ -444,39 +441,33 @@ begin
 		green => green,  
 		blue => blue,  
 		hsync => hsync,  
-		vsync => vsync );
+		vsync => vsync);
 	--- VGA -----------------------------------------------------------
 
 	--- PS/2 ----------------------------------------------------------
 
-	-- Process a ascii_new into a single edge for the rest of the
+	-- Process a kbd_new into a single edge for the rest of the
 	-- system
 	ps2_edge_new_character_0: entity work.edge
 	port map(
 		clk => clk,
-		sin => ascii_new,
-		output => ascii_new_edge);
+		sin => kbd_new,
+		output => kbd_new_edge);
 
-	ps2_0: entity work.ps2ascii
+	ps2_0: entity work.ps2top
 	generic map(
 		clk_freq => clock_frequency,
-		ps2_debounce_counter_size => 8 )
+		ps2_debounce_counter_size => 8)
 	port map(
-		clk => clk,
-
-		ps2_clk => ps2_keyboard_clk,
-		ps2_data => ps2_keyboard_data,
-
-		ascii_new => ascii_new,
-		ascii_code => ascii_code);
+		clk        => clk,
+		ps2_clk    => ps2_keyboard_clk,
+		ps2_data   => ps2_keyboard_data,
+		ascii_new  => kbd_new,
+		ascii_code => kbd_char);
 	--- PS/2 ----------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------
 	ledseg_0: entity work.ledseg
-	generic map(
-		number_of_segments => number_of_segments, -- not used at the moment
-		clk_freq           => clock_frequency     -- --""--
-	)
 	port map(
 		clk        => clk,
 		rst        => rst,

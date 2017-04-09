@@ -55,7 +55,6 @@ You will require:
 
 * [GCC][], or a suitable [C][] compiler capable of compiling [C99][]
 * [Make][]
-* [Perl][], version 5
 * [Xilinx ISE][] version 14.7
 * [GHDL][]
 * [GTKWave][]
@@ -121,6 +120,8 @@ registers. This should all be memory mapped.
 * For CRC VHDL code see <http://outputlogic.com/?page_id=321>
 * Better instructions for installation and building the project should be
   given.
+* Each of the modules that I have made really need tests
+benches written for them.
 
 ## Ideas
 
@@ -158,7 +159,6 @@ project.
 [Debian]: https://en.wikipedia.org/wiki/Debian
 [Linux]: https://en.wikipedia.org/wiki/Linux
 [GCC]: https://en.wikipedia.org/wiki/GNU_Compiler_Collection
-[Perl]: https://en.wikipedia.org/wiki/Perl
 [Xilinx ISE]: https://www.xilinx.com/products/design-tools/ise-design-suite.html
 [GHDL]: http://ghdl.free.fr/
 [GTKWave]: http://gtkwave.sourceforge.net/

@@ -75,8 +75,7 @@ architecture behav of vga is
 	  clk   : in  std_logic;
 	  ce    : in  std_logic;            -- enable counting
 	  rs    : in  std_logic;            -- syncronous reset
-	  do    : out integer range (M-1) downto 0
-	  );
+	  do    : out integer range (M-1) downto 0);
 	end component;
 
 	component losr

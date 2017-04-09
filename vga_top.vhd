@@ -46,17 +46,17 @@ end;
 
 architecture behav of vga_top is
 	-- Setup for text buffer memory
-	constant text_addr_bitlen: positive := 13;
-	constant text_data_bitlen: positive := 16;
-	constant text_filename:    string   := "text.bin";
-	constant text_filetype:    string   := "bin"; -- binary
+	constant text_addr_length: positive := 13;
+	constant text_data_length: positive := 16;
+	constant text_file_name:   string   := "text.bin";
+	constant text_file_type:   string   := "bin"; 
 	-- Setup for font buffer memory
-	constant font_addr_bitlen: positive := 12;
-	constant font_data_bitlen: positive := 8;
-	constant font_filename:    string   := "font.bin";
-	constant font_filetype:    string   := "bin"; -- binary
+	constant font_addr_length: positive := 12;
+	constant font_data_length: positive := 8;
+	constant font_file_name:   string   := "font.bin";
+	constant font_file_type:   string   := "bin";
 
-	-- Internal signals for mapping ouput<-->VGA module
+	-- Internal signals for mapping ouptut<-->VGA module
 	signal  R_internal:      std_logic:= '0';
 	signal  G_internal:      std_logic:= '0';
 	signal  B_internal:      std_logic:= '0';
@@ -76,7 +76,7 @@ architecture behav of vga_top is
 	signal  ocry_c, ocry_n:  std_logic_vector( 5 downto 0) := (others => '0');
 	signal  octl_c, octl_n:  std_logic_vector( 7 downto 0) := (others => '0');
 	-- Internal registers for buffering write operation to RAM memory
-	signal  din_c, din_n:    std_logic_vector(15 downto 0) := (others => '0');
+	signal  din_c,  din_n:   std_logic_vector(15 downto 0) := (others => '0');
 	signal  addr_c, addr_n:  std_logic_vector(12 downto 0) := (others => '0');
 begin
 	-- Output assignments, syncs elsewhere
@@ -161,17 +161,15 @@ begin
 		hsync     => hsync,
 		vsync     => vsync);
 
-
 	text_addr_full <= octl_c(7) & text_addr;
-	--! @brief This RAM module holds the text we want to
-	--!  display on to the monitor. The text buffer
-	--!  holds at least 80*40 characters.
+	--! @brief This RAM module holds the text we want to display on to the 
+	--! monitor. The text buffer holds at least 80*40 characters.
 	u_text: entity work.memory
 	generic map(
-	    addr_bitlen   => text_addr_bitlen,
-	    data_bitlen   => text_data_bitlen,
-	    filename      => text_filename,
-	    filetype      => text_filetype)
+	    addr_length   => text_addr_length,
+	    data_length   => text_data_length,
+	    file_name     => text_file_name,
+	    file_type     => text_file_type)
 	port map (
 	a_clk  => clk, 
 	-- External interface
@@ -191,10 +189,10 @@ begin
 	--! VGA Font memory
 	u_font: entity work.memory 
 	generic map(
-		addr_bitlen   => font_addr_bitlen,
-		data_bitlen   => font_data_bitlen,
-		filename      => font_filename,
-		filetype      => font_filetype)
+		addr_length   => font_addr_length,
+		data_length   => font_data_length,
+		file_name     => font_file_name,
+		file_type     => font_file_type)
 	port map (
 		-- External interface
 		a_clk => clk,

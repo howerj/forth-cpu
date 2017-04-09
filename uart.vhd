@@ -32,8 +32,7 @@ entity uart is
 	        data_stream_out_stb :   out     std_logic;
 	        data_stream_out_ack :   in      std_logic;
 	        tx                  :   out     std_logic;
-	        rx                  :   in      std_logic
-	     );
+	        rx                  :   in      std_logic);
 end uart;
 
 architecture behav of uart is

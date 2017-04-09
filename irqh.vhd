@@ -33,7 +33,7 @@ begin
 	-- interrupts should be remapped according to a lookup table, which
 	-- require changing the interface to this module. Interrupts should
 	-- also be held in a queue and interrupts paused until they are
-	-- renabled
+	-- reenabled
 	processed_irq <= raw_irq;
 	processed_irc <= raw_irc;
 end architecture;

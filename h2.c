@@ -856,6 +856,7 @@ int h2_run(h2_t *h, FILE *output, unsigned steps, symbol_table_t *symbols)
 				}
 				break;
 			case ALU_OP_N_LSHIFT_T: tos <<= nos; break;
+				/**@todo change depth into depth and rdepth */
 			case ALU_OP_DEPTH:      tos = (h->rp << 12) | h->rp; break;
 			case ALU_OP_N_ULESS_T:  tos = -(nos < tos); break;
 			case ALU_OP_ENABLE_INTERRUPTS:
@@ -1309,6 +1310,8 @@ fail:
  * 	include   - include a file
  * 	[char]    - compile a character literal
  * 	:compile  - compile values into dictionary
+ * 	begin...again
+ * 	never...then
  *
  **/
 
@@ -1595,6 +1598,11 @@ static node_t *parse(FILE *input)
 
 /********* CODE ***********/
 
+typedef struct {
+	bool in_definition;
+	bool start_defined;
+	uint16_t start;
+} assembler_t;
 
 static void generate(h2_t *h, uint16_t instruction)
 {
@@ -1693,7 +1701,10 @@ static uint16_t lexer_to_alu_op(token_e t)
 	return 0;
 }
 
-static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
+/**@todo print line number of error */
+#define asmfail(ERROR, FMT, ...) do{ error(FMT, ##__VA_ARGS__); ethrow(e); }while(0)
+
+static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
 {
 	uint16_t hole1, hole2;
 	assert(h);
@@ -1703,18 +1714,16 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 	if(!n)
 		return;
 
-	if(h->pc > MAX_CORE) {
-		error("PC/Dictionary overflow: %"PRId16, h->pc);
-		ethrow(e);
-	}
+	if(h->pc > MAX_CORE)
+		asmfail(e, "PC/Dictionary overflow: %"PRId16, h->pc);
 
 	switch(n->type) {
 	case SYM_PROGRAM:
-		assemble(h, n->o[0], t, e);
+		assemble(h, a, n->o[0], t, e);
 		break;
 	case SYM_STATEMENTS:
 		for(size_t i = 0; i < n->length; i++)
-			assemble(h, n->o[i], t, e);
+			assemble(h, a, n->o[i], t, e);
 		break;
 	case SYM_LABEL:
 		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h), e);
@@ -1760,16 +1769,16 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 
 	case SYM_BEGIN_UNTIL:
 		hole1 = here(h);
-		assemble(h, n->o[0], t, e);
+		assemble(h, a, n->o[0], t, e);
 		generate(h, OP_0BRANCH | hole1);
 		break;
 	case SYM_IF1:
 		hole1 = hole(h);
-		assemble(h, n->o[0], t, e);
+		assemble(h, a, n->o[0], t, e);
 		if(n->o[1]) { /* if ... else .. then */
 			hole2 = hole(h);
 			fix(h, hole1, OP_0BRANCH | (hole2   + 2));
-			assemble(h, n->o[1], t, e);
+			assemble(h, a, n->o[1], t, e);
 			fix(h, hole2, OP_BRANCH  | (here(h) + 1));
 		} else { /* if ... then */
 			fix(h, hole1, OP_0BRANCH | (here(h) + 1));
@@ -1778,10 +1787,8 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 	case SYM_CALL_DEFINITION:
 	{
 		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
-		if(!s) {
-			error("not a constant or a defined procedure: %s", n->token->p.id);
-			ethrow(e);
-		}
+		if(!s)
+			asmfail(e, "not a constant or a defined procedure: %s", n->token->p.id);
 		if(s->type == SYMBOL_TYPE_CALL) {
 			generate(h, OP_CALL | s->value);
 		} else if(s->type == SYMBOL_TYPE_CONSTANT) {
@@ -1795,8 +1802,12 @@ static void assemble(h2_t *h, node_t *n, symbol_table_t *t, error_t *e)
 	case SYM_DEFINITION:
 		/**@bug allows for nested definitions, this should change STATE */
 		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
-		assemble(h, n->o[0], t, e);
+		if(a->in_definition)
+			asmfail(e, "nested word definition is not allowed");
+		a->in_definition = true;
+		assemble(h, a, n->o[0], t, e);
 		generate(h, CODE_EXIT);
+		a->in_definition = false;
 		break;
 	default:
 		fatal("Invalid or unknown type: %u", n->type);
@@ -1808,6 +1819,7 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	error_t e;
 	h2_t *h;
 	symbol_table_t *t = NULL; 
+	assembler_t a = { false, false, 0 };
 	assert(n);
 
 	t = symbols ? symbols : symbol_table_new();
@@ -1821,7 +1833,7 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 		return NULL;
 	}
 
-	assemble(h, n, t, &e);
+	assemble(h, &a, n, t, &e);
 
 	if(log_level >= LOG_DEBUG)
 		symbol_table_print(t, stderr);

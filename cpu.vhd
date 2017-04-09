@@ -11,16 +11,14 @@
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.util.memory;
 
 entity cpu is
-	generic(
-		number_of_interrupts: positive := 8);
+	generic(number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
 		debug_pc:         out std_logic_vector(12 downto 0);
 		debug_insn:       out std_logic_vector(15 downto 0);
-		debug_mem_dwe:    out std_logic:= '0';   
+		debug_mem_dwe:    out std_logic := '0';   
 		debug_mem_din:    out std_logic_vector(15 downto 0);
 		debug_mem_dout:   out std_logic_vector(15 downto 0);
 		debug_mem_daddr:  out std_logic_vector(12 downto 0);
@@ -30,8 +28,8 @@ entity cpu is
 		rst:        in   std_logic;
 
 		-- CPU External interface, I/O
-		cpu_wait:   in   std_logic; -- Halt the CPU
-		cpu_wr:     out  std_logic;
+		cpu_wait:   in   std_logic; -- Halts the CPU
+		cpu_wr:     out  std_logic; -- I/O Write enable
 		cpu_re:     out  std_logic; -- hardware *READS* can have side effects
 		cpu_din:    in   std_logic_vector(15 downto 0);
 		cpu_dout:   out  std_logic_vector(15 downto 0):= (others => 'X');
@@ -42,24 +40,18 @@ entity cpu is
 end;
 
 architecture behav of cpu is
-	--! CPU, Internal Memory interface to RAM/ROM
-	----! This should interface with some dual port RAM, it forms the
-	----! brains of the system; a CPU with some RAM that should contain
-	----! the bootloader (or the entire system).
+	constant addr_length: positive := 13;
+	constant data_length: positive := 16;
+	constant file_name:   string   := "h2.hex";
+	constant file_type:   string   := "hex";
 
-	--! memory constants
-	constant addr_bitlen: positive := 13;
-	constant data_bitlen: positive := 16;
-	constant filename:    string   := "h2.hex";
-	constant filetype:    string   := "hex";
-	--! memory <-> cpu signals
-	signal pc:           std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0'); -- Program counter
-	signal insn:         std_logic_vector(data_bitlen - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
+	signal pc:           std_logic_vector(addr_length - 1 downto 0):= (others => '0'); -- Program counter
+	signal insn:         std_logic_vector(data_length - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
 	signal mem_dwe:      std_logic := '0'; -- Read/Write toggle, 0=Read, 1=Write
 	signal mem_dre:      std_logic := '0'; -- Read enable
-	signal mem_din:      std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
-	signal mem_dout:     std_logic_vector(data_bitlen - 1 downto 0):= (others => '0');
-	signal mem_daddr:    std_logic_vector(addr_bitlen - 1 downto 0):= (others => '0');
+	signal mem_din:      std_logic_vector(data_length - 1 downto 0):= (others => '0');
+	signal mem_dout:     std_logic_vector(data_length - 1 downto 0):= (others => '0');
+	signal mem_daddr:    std_logic_vector(addr_length - 1 downto 0):= (others => '0');
 
 	signal processed_irq: std_logic := '0';
 	signal processed_irc: std_logic_vector(number_of_interrupts - 1 downto 0):=(others=>'0');
@@ -85,8 +77,7 @@ begin
 		processed_irq => processed_irq,
 		processed_irc => processed_irc);
 
-	-- The actual CPU instance (H2)
-	h2_0: entity work.h2
+	h2_0: entity work.h2 -- The actual CPU instance (H2)
 	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 		clk       =>    clk,
@@ -113,15 +104,12 @@ begin
 		dout      =>    mem_dout,
 		daddr     =>    mem_daddr);
 		
-
-	--! Dual port RAM for the CPU, acts as bootloader or
-	--! contains the full system software
 	mem_h2_0: entity work.memory
 	generic map(
-		addr_bitlen   => addr_bitlen,
-		data_bitlen   => data_bitlen,
-		filename      => filename,
-		filetype      => filetype)
+		addr_length   => addr_length,
+		data_length   => data_length,
+		file_name     => file_name,
+		file_type     => file_type)
 	port map(
 		-- Port A, Read only, CPU instruction/address
 		a_clk   =>    clk,

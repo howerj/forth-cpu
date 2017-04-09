@@ -7,6 +7,10 @@
 --! @copyright  Copyright 2013 Richard James Howe.
 --! @license    MIT
 --! @email      howe.r.j.89@gmail.com
+--!
+--! @note This module could be made more generic, but the interface would
+--! have to change. There would be little value in this. What should be
+--! changed so it accepts bytes no 16-bit values.
 --------------------------------------------------------------------------------
 
 library ieee,work;
@@ -14,9 +18,6 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity ledseg is
-	generic(
-		number_of_segments: positive := 4;        -- not used at the moment
-		clk_freq:           positive := 100000000);
 	port(
 		clk:        in   std_logic;
 		rst:        in   std_logic;
@@ -31,8 +32,7 @@ entity ledseg is
 
 		-- Physical outputs
 		an:         out  std_logic_vector(3 downto 0); -- anodes, controls on/off
-		ka:         out  std_logic_vector(7 downto 0) -- cathodes, data on display
-	);
+		ka:         out  std_logic_vector(7 downto 0)); -- cathodes, data on display
 end;
 
 architecture behav of ledseg is

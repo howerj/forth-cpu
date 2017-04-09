@@ -15,11 +15,13 @@ NETLIST=top
 ## Remember to update the synthesis section as well
 SOURCES = \
 	util.vhd \
+	timer.vhd \
+	bram.vhd \
 	uart.vhd \
 	edge.vhd \
 	debounce.vhd \
 	ps2kbd.vhd \
-	ps2ascii.vhd \
+	ps2top.vhd \
 	vga.vhd \
 	vga_top.vhd \
 	irqh.vhd \
@@ -69,11 +71,11 @@ h2: h2.c
 	ghdl -a $<
 
 vga: util.o
-vga_top.o: util.o vga.o vga_top.vhd text.bin font.bin
+vga_top.o: util.o bram.o vga.o vga_top.vhd text.bin font.bin
 ps2kbd.o: ps2kbd.vhd debounce.o
-ps2ascii.o: ps2ascii.vhd ps2kbd.o debounce.o
-cpu.o: h2.o irqh.o util.o cpu.vhd h2.hex
-top.o: util.o cpu.o uart.o vga_top.o ps2ascii.o ledseg.o top.vhd 
+ps2top.o: ps2top.vhd ps2kbd.o debounce.o
+cpu.o: h2.o irqh.o bram.o cpu.vhd h2.hex
+top.o: util.o timer.o cpu.o uart.o vga_top.o ps2top.o ledseg.o top.vhd 
 tb.o: top.o tb.vhd
 
 tb: ${OBJECTS} tb.o
@@ -191,9 +193,9 @@ upload:
 design: clean simulation synthesis implementation bitfile
 
 postsyn:
-	@netgen -w -ofmt vhdl -sim $(NETLIST).ngc post_synthesis.vhd
-	@netgen -w -ofmt vhdl -sim $(NETLIST).ngd post_translate.vhd
-	@netgen  -pcf $(NETLIST).pcf -w -ofmt vhdl -sim $(NETLIST).ncd post_map.vhd
+	@netgen -w -ofmt vhdl -sim ${NETLIST}.ngc post_synthesis.vhd
+	@netgen -w -ofmt vhdl -sim ${NETLIST}.ngd post_translate.vhd
+	@netgen  -pcf ${NETLIST}.pcf -w -ofmt vhdl -sim ${NETLIST}.ncd post_map.vhd
 
 
 clean:
