@@ -8,9 +8,9 @@
 --! @license    MIT
 --! @email      howe.r.j.89@gmail.com
 --!
---! @note This module could be made more generic, but the interface would
---! have to change. There would be little value in this. What should be
---! changed so it accepts bytes no 16-bit values.
+--! @todo Convert a number into a character for the display, also make sure
+--! the timing for this module is correct. Also if this module was a package
+--! then an array of LED segments could be created and used as the interface.
 --------------------------------------------------------------------------------
 
 library ieee,work;
