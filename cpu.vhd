@@ -53,8 +53,8 @@ architecture behav of cpu is
 	signal mem_dout:     std_logic_vector(data_length - 1 downto 0):= (others => '0');
 	signal mem_daddr:    std_logic_vector(addr_length - 1 downto 0):= (others => '0');
 
-	signal processed_irq: std_logic := '0';
-	signal processed_irc: std_logic_vector(number_of_interrupts - 1 downto 0):=(others=>'0');
+	signal h2_irq:       std_logic := '0';
+	signal h2_irq_addr:  std_logic_vector(2 downto 0):=(others=>'0');
 begin
 	-- synthesis translate_off
 	debug_pc          <= pc;
@@ -68,17 +68,17 @@ begin
 	irqh_0: entity work.irqh
 	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
-		clk       =>    clk,
-		rst       =>    rst,
+		clk    => clk,
+		rst    => rst,
 
-		raw_irq   =>    cpu_irq,
-		raw_irc   =>    cpu_irc,
+		irq_i  => cpu_irq,
+		irc_i  => cpu_irc,
 
-		processed_irq => processed_irq,
-		processed_irc => processed_irc);
+		irq_o  => h2_irq,
+		addr_o => h2_irq_addr);
 
 	h2_0: entity work.h2 -- The actual CPU instance (H2)
-	generic map(number_of_interrupts => number_of_interrupts)
+	generic map(interrupt_address_length => 3)
 	port map(
 		clk       =>    clk,
 		rst       =>    rst,
@@ -91,8 +91,8 @@ begin
 		io_dout   =>  cpu_dout,
 		io_daddr  =>  cpu_daddr,
 
-		irq       =>  processed_irq,
-		irc       =>  processed_irc,
+		irq       =>  h2_irq,
+		irq_addr  =>  h2_irq_addr,
 
 		-- Instruction and instruction address to CPU
 		pco       =>    pc,

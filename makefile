@@ -27,6 +27,8 @@ SOURCES = \
 	irqh.vhd \
 	h2.vhd \
 	cpu.vhd \
+	ctrm.vhd \
+	losr.vhd \
 	ledseg.vhd 
 
 OBJECTS = ${SOURCES:.vhd=.o}
@@ -70,8 +72,8 @@ h2: h2.c
 %.o: %.vhd
 	ghdl -a $<
 
-vga: util.o
-vga_top.o: util.o bram.o vga.o vga_top.vhd text.bin font.bin
+vga: losr.o ctrm.o
+vga_top.o: bram.o vga.o vga_top.vhd text.bin font.bin
 ps2kbd.o: ps2kbd.vhd debounce.o
 ps2top.o: ps2top.vhd ps2kbd.o debounce.o
 cpu.o: h2.o irqh.o bram.o cpu.vhd h2.hex

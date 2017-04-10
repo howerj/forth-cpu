@@ -16,6 +16,7 @@
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.util;
 
 entity ledseg is
 	port(
@@ -39,11 +40,15 @@ end;
 
 architecture behav of ledseg is
 	-- use smaller counter number for testing.
+	-- @todo This speed should depend on a generic clock parameter
 	constant highest_counter_bit: integer := 18;
-	signal led_0_c, led_0_n: std_logic_vector(7 downto 0) := (others => '0');
-	signal led_1_c, led_1_n: std_logic_vector(7 downto 0) := (others => '0');
-	signal led_2_c, led_2_n: std_logic_vector(7 downto 0) := (others => '0');
-	signal led_3_c, led_3_n: std_logic_vector(7 downto 0) := (others => '0');
+	constant segment_length: positive := 8;
+	subtype led8segment is std_logic_vector(segment_length - 1 downto 0);
+
+	signal led_0_o: led8segment := (others => '0');
+	signal led_1_o: led8segment := (others => '0');
+	signal led_2_o: led8segment := (others => '0');
+	signal led_3_o: led8segment := (others => '0');
 
 	signal counter:    unsigned(highest_counter_bit downto 0) := (others => '0');
 	signal counter_hb: std_logic := '0';
@@ -52,19 +57,17 @@ begin
 	counter_hb <= counter(highest_counter_bit);
 	an <= shift_reg;
 
+	led0: entity work.reg generic map(N => segment_length) port map(clk => clk, rst => rst, we => led_0_we, di => led_0, do => led_0_o); 
+	led1: entity work.reg generic map(N => segment_length) port map(clk => clk, rst => rst, we => led_1_we, di => led_1, do => led_1_o); 
+	led2: entity work.reg generic map(N => segment_length) port map(clk => clk, rst => rst, we => led_2_we, di => led_2, do => led_2_o); 
+	led3: entity work.reg generic map(N => segment_length) port map(clk => clk, rst => rst, we => led_3_we, di => led_3, do => led_3_o); 
+
+	-- @todo generic counter and shift register modules should be made
 	process(clk, rst)
 	begin
 		if rst = '1' then
-			led_0_c <= (others => '0');
-			led_1_c <= (others => '0');
-			led_2_c <= (others => '0');
-			led_3_c <= (others => '0');
 			counter <= (others => '0');
 		elsif rising_edge(clk) then
-			led_0_c <= led_0_n;
-			led_1_c <= led_1_n;
-			led_2_c <= led_2_n;
-			led_3_c <= led_3_n;
 			counter   <= counter + 1;
 		end if;
 	end process;
@@ -78,35 +81,18 @@ begin
 		end if;
 	end process;
 
-	process(
-		led_0_c, led_0_we, led_0,
-		led_1_c, led_1_we, led_1,
-		led_2_c, led_2_we, led_2,
-		led_3_c, led_3_we, led_3,
-
-		shift_reg)
+	process(led_0_o, led_1_o, led_2_o, led_3_o, shift_reg)
 	begin
-		led_0_n <= led_0_c;
-		led_1_n <= led_1_c;
-		led_2_n <= led_2_c;
-		led_3_n <= led_3_c;
-
 		ka <= (others => '0');
 
-		if '1' = led_0_we then led_0_n <= led_0; end if;
-		if '1' = led_1_we then led_1_n <= led_1; end if;
-		if '1' = led_2_we then led_2_n <= led_2; end if;
-		if '1' = led_3_we then led_3_n <= led_3; end if;
-
-
 		if '1' = shift_reg(0) then
-			ka <= led_0;
+			ka <= led_0_o;
 		elsif '1' = shift_reg(1) then
-			ka <= led_1;
+			ka <= led_1_o;
 		elsif '1' = shift_reg(2) then
-			ka <= led_2;
+			ka <= led_2_o;
 		elsif '1' = shift_reg(3) then
-			ka <= led_3;
+			ka <= led_3_o;
 		end if;
 	end process;
 end architecture;

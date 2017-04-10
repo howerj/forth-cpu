@@ -22,7 +22,7 @@ entity timer is
 	rst:          in std_logic;
 
 	we:           in std_logic; -- write enable for control register
-	control:        in std_logic_vector(timer_length - 1 downto 0); -- control register
+	control:      in std_logic_vector(timer_length - 1 downto 0); -- control register
 
 	-- Timer interrupts
 	irq:          out std_logic;  -- Compare Interrupt
@@ -33,31 +33,29 @@ end entity;
 architecture behav of timer is
 	constant highest_bit:         positive := timer_length - 1;
 	constant control_enable_bit:  positive := highest_bit;
-	constant local_rst_bit:       positive := highest_bit - 1;
+	constant timer_reset_bit:     positive := highest_bit - 1;
 	constant irq_enable_bit:      positive := highest_bit - 2;
 	constant timer_highest_bit:   positive := highest_bit - 3;
 
-	signal ctrl_c, ctrl_n:  std_logic_vector(control_enable_bit downto 0) := (others => '0');
+	signal ctrl_c, ctrl_n:  std_logic_vector(highest_bit downto 0) := (others => '0');
 	signal q_c, q_n:        std_logic:= '0';
 
 	signal ctr_localrst:    std_logic  := '0';
 	signal ctr_enabled:     std_logic  := '0';
 	signal ctr_irq_en:      std_logic  := '0';
 
-	signal internalrst:     std_logic  := '0';
+	signal timer_reset:     std_logic  := '0';
 
 	signal compare:         std_logic_vector(timer_highest_bit downto 0) := (others => '0');
 	signal count:           unsigned(timer_highest_bit downto 0)         := (others => '0');
 begin
-
-	assert (timer_length >= 4) report
-	"timer needs to be *at least* 4 bits wide, 3 bits for control, one for the counter" severity failure;
+	assert (timer_length >= 4) report "Timer needs to be at least 4 bits wide: 3 bits for control - 1 for counter" severity failure;
 
 	Q  <= q_c;
 	NQ <= not q_c;
 
 	ctr_enabled     <= ctrl_c(control_enable_bit);
-	ctr_localrst    <= ctrl_c(local_rst_bit);
+	ctr_localrst    <= ctrl_c(timer_reset_bit);
 	ctr_irq_en      <= ctrl_c(irq_enable_bit);
 	compare         <= ctrl_c(timer_highest_bit downto 0);
 
@@ -77,7 +75,7 @@ begin
 		if rst = '1' then
 			count <= (others => '0');
 		elsif rising_edge(clk) then
-			if ctr_localrst = '1' or internalrst = '1' then
+			if ctr_localrst = '1' or timer_reset = '1' then
 				count <= (others => '0');
 			elsif ctr_enabled = '1' then
 				count <= count + 1;
@@ -92,9 +90,9 @@ begin
 		irq         <= '0';
 		q_n         <= q_c;
 		ctrl_n      <= ctrl_c;
-		internalrst <= '0';
+		timer_reset <= '0';
 
-		ctrl_n(local_rst_bit)  <= '0'; -- reset!
+		ctrl_n(timer_reset_bit)  <= '0'; -- reset!
 
 		if we = '1' then
 			ctrl_n <= control;
@@ -104,7 +102,7 @@ begin
 			if ctr_irq_en = '1' then
 				irq <= '1';
 			end if;
-			internalrst <= '1';
+			timer_reset <= '1';
 			q_n <= not q_c;
 		end if;
 	end process;

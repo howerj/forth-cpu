@@ -36,6 +36,7 @@ entity top is
 -- synthesis translate_on
 
 		clk:      in  std_logic                    :=      'X';  -- clock
+--              rst:      in  std_logic                    :=      'X';
 --		cpu_wait: in  std_logic                    :=      'X';  -- CPU wait
 		-- Buttons
 		btnu:     in  std_logic                    :=      'X';  -- button up
@@ -136,29 +137,43 @@ architecture behav of top is
 	signal kbd_char_c, kbd_char_n:  std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
 
 	---- 8 Segment Display
-	signal led_0_1:    std_logic_vector(15 downto 0) := (others => '0'); -- leds 0 and 1
-	signal led_2_3:    std_logic_vector(15 downto 0) := (others => '0'); -- leds 2 and 3
-	signal led_0_1_we: std_logic := '0';
-	signal led_2_3_we: std_logic := '0';
+	signal led_0:    std_logic_vector(7 downto 0) := (others => '0'); 
+	signal led_1:    std_logic_vector(7 downto 0) := (others => '0'); 
+	signal led_2:    std_logic_vector(7 downto 0) := (others => '0'); 
+	signal led_3:    std_logic_vector(7 downto 0) := (others => '0'); 
+	signal led_0_we: std_logic := '0';
+	signal led_1_we: std_logic := '0';
+	signal led_2_we: std_logic := '0';
+	signal led_3_we: std_logic := '0';
+
+	---- Buttons
+	signal btnu_d: std_logic := '0';  -- button up
+	signal btnd_d: std_logic := '0';  -- button down
+	signal btnc_d: std_logic := '0';  -- button centre
+	signal btnl_d: std_logic := '0';  -- button left
+	signal btnr_d: std_logic := '0';  -- button right
+
 begin
-------- Output assignments (Not in a process) ---------------------------------
-	rst   <=  '0';
 -------------------------------------------------------------------------------
 -- The Main components
 -------------------------------------------------------------------------------
-	cpu_irc(0) <= rst;
+
+------- Output assignments (Not in a process) ---------------------------------
+	rst        <= '0';
+	cpu_irc(0) <= '0';
 	cpu_irc(1) <= gpt0_irq_comp1;
 	cpu_irc(2) <= ack_din;
 	cpu_irc(3) <= stb_dout;
+	-- @todo These interrupts should come from debounced button inputs
+	-- until something more useful is found for them. Whether they
+	-- act as interrupts or not should be controlled by a register
+	-- set by the user.
 	cpu_irc(number_of_interrupts -1 downto 4) <= (others => '0');
-
-	-- Testing only -----------------
-	-- cpu_wait <= btnc; -- Pause CPU
-	---------------------------------
+	cpu_wait   <= '0';
+	cpu_irq    <= '1' when gpt0_irq_comp1 = '1' or ack_din = '1' or stb_dout = '1' else '0';
 
 	cpu_0: entity work.cpu
-	generic map(
-		number_of_interrupts => number_of_interrupts)
+	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 -- synthesis translate_off
 	debug_pc        => debug_pc,
@@ -196,7 +211,7 @@ begin
 	clk25MHz <= '0' when rst = '1' else not clk25MHz when rising_edge(clk50MHz);
 	---- End note.
 
-	io_nextState: process(clk,rst)
+	io_nextState: process(clk, rst)
 	begin
 		if rst = '1' then
 			-- LEDs/Switches
@@ -226,7 +241,7 @@ begin
 	io_select: process(
 		cpu_io_wr, cpu_io_re, cpu_io_dout, cpu_io_daddr,
 		ld_c,
-		sw, rx, btnu, btnd, btnl, btnr, btnc,
+		sw, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
 		uart_din_c, ack_din_c,
 		uart_dout_c,
 		uart_dout, stb_dout, ack_din,
@@ -243,10 +258,16 @@ begin
 		stb_din  <= '0';
 		ack_dout <= '0';
 
-		led_0_1 <= (others => '0');
-		led_2_3 <= (others => '0');
-		led_0_1_we <= '0';
-		led_2_3_we <= '0';
+		-- LEDs
+		led_0 <= (others => '0');
+		led_1 <= (others => '0');
+		led_2 <= (others => '0');
+		led_3 <= (others => '0');
+
+		led_0_we <= '0';
+		led_1_we <= '0';
+		led_2_we <= '0';
+		led_3_we <= '0';
 
 		-- Register defaults
 		ld_n <= ld_c;
@@ -328,13 +349,17 @@ begin
 				gpt0_ctr_r_we <= '1';
 				gpt0_ctr_r    <= cpu_io_dout(15 downto 0);
 			when "01011" => -- LED 8 Segment display
-				led_0_1 <= cpu_io_dout(15 downto 0);
-				led_0_1_we <= '1';
+				led_0    <= cpu_io_dout(7 downto 0);
+				led_0_we <= '1';
 			when "01100" => -- LED 8 Segment display
-				led_2_3 <= cpu_io_dout(15 downto 0);
-				led_2_3_we <= '1';
+				led_1    <= cpu_io_dout(7 downto 0);
+				led_1_we <= '1';
 			when "01101" =>
+				led_2    <= cpu_io_dout(7 downto 0);
+				led_2_we <= '1';
 			when "01110" =>
+				led_3    <= cpu_io_dout(7 downto 0);
+				led_3_we <= '1';
 			when "01111" =>
 			when "10000" =>
 			when others =>
@@ -343,7 +368,7 @@ begin
 			-- Get input.
 			case cpu_io_daddr(3 downto 0) is
 			when "0000" => -- Switches, plus direct access to UART bit.
-				cpu_io_din <= "0000000000" & rx & btnu & btnd & btnl & btnr & btnc;
+				cpu_io_din <= "0000000000" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d;
 			when "0001" =>
 				cpu_io_din <= X"00" & sw;
 			when "0010" => -- VGA, Read VGA text buffer.
@@ -469,19 +494,29 @@ begin
 		clk        => clk,
 		rst        => rst,
 
-		led_0      => led_0_1(7 downto 0),
-		led_1      => led_0_1(15 downto 8),
-		led_2      => led_2_3(7 downto 0),
-		led_3      => led_2_3(15 downto 8),
+		led_0      => led_0,
+		led_1      => led_1,
+		led_2      => led_2,
+		led_3      => led_3,
 
-		led_0_we   => led_0_1_we,
-		led_1_we   => led_0_1_we,
-		led_2_we   => led_2_3_we,
-		led_3_we   => led_2_3_we,
+		led_0_we   => led_0_we,
+		led_1_we   => led_1_we,
+		led_2_we   => led_2_we,
+		led_3_we   => led_3_we,
 
 		an         => an,
 		ka         => ka);
 	--- LED 8 Segment display -----------------------------------------
+
+	--- Buttons -------------------------------------------------------
+
+	btnu_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnu, result => btnu_d);
+	btnd_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnd, result => btnd_d);
+	btnc_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnc, result => btnc_d);
+	btnl_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnl, result => btnl_d);
+	btnr_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnr, result => btnr_d);
+
+	--- Buttons -------------------------------------------------------
 
 -------------------------------------------------------------------------------
 end architecture;

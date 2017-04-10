@@ -119,7 +119,11 @@ begin
 			if a_dwe = '1' then
 				ram(to_integer(unsigned(a_addr))) := a_din;
 			end if;
-			a_dout <= ram(to_integer(unsigned(a_addr)));
+			if a_dre = '1' then
+				a_dout <= ram(to_integer(unsigned(a_addr)));
+			else
+				a_dout <= (others => '0');
+			end if;
 		end if;
 	end process;
 
@@ -129,7 +133,11 @@ begin
 			if b_dwe = '1' then
 				ram(to_integer(unsigned(b_addr))) := b_din;
 			end if;
-			b_dout <= ram(to_integer(unsigned(b_addr)));
+			if b_dre = '1' then
+				b_dout <= ram(to_integer(unsigned(b_addr)));
+			else
+				b_dout <= (others => '0');
+			end if;
 		end if;
 	end process;
 end architecture;

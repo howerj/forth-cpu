@@ -20,6 +20,7 @@
 --
 -- @note This file has been modified from the original one found
 -- on the web from: <https://eewiki.net/pages/viewpage.action?pageId=28279002>
+-- @todo make a module that accepts an array std_logic_vector to be debounced.
 --
 --------------------------------------------------------------------------------
 
@@ -28,8 +29,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity debounce is
-	generic(
-		counter_size  :  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
+	generic(counter_size  :  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
 	port(
 		clk     : in  std_logic;  --input clock
 		button  : in  std_logic;  --input signal to be debounced

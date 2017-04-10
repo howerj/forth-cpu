@@ -10,7 +10,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.util.all;
 
 entity vga is
 	port (

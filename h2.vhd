@@ -27,9 +27,9 @@ use ieee.math_real.all; -- only needed for calculations relating to generics
 entity h2 is
 	generic(
 		-- Instruction width should be made to a generic option
-		number_of_interrupts: positive := 8;
-		start_address:        positive := 8;
-		stack_size_log2:      positive := 5);
+		interrupt_address_length: positive := 3;
+		start_address:            positive := 8;
+		stack_size_log2:          positive := 5);
 	port(
 		clk:      in  std_logic;
 		rst:      in  std_logic;
@@ -42,9 +42,9 @@ entity h2 is
 		io_dout:  out std_logic_vector(15 downto 0);
 		io_daddr: out std_logic_vector(15 downto 0);
 
-		-- Interrupts; irq == request, irc == channel
+		-- Interrupts; irq = request, irq_addr = place to jump to 
 		irq:      in  std_logic;
-		irc:      in  std_logic_vector(number_of_interrupts - 1 downto 0);
+		irq_addr: in  std_logic_vector(2 downto 0);
 
 		-- RAM interface, Dual port
 		pco:      out std_logic_vector(12 downto 0); -- program counter
@@ -75,17 +75,17 @@ architecture behav of h2 is
 	signal vstk_ram: stack := (others => (others => '0'));
 
 	-- Return stack (RAM Template)
-	signal rstkp_c:  depth  := (others => '0');
-	signal rstkp_n:  depth  := (others => '0');
+	signal rstkp_c:  depth := (others => '0');
+	signal rstkp_n:  depth := (others => '0');
 	signal rstk_ram: stack := (others => (others => '0'));
 
-	attribute ram_style: string;
-	attribute ram_style of vstk_ram: signal is "distributed";
-	attribute ram_style of rstk_ram: signal is "distributed";
+	--attribute ram_style: string;
+	--attribute ram_style of vstk_ram: signal is "distributed";
+	--attribute ram_style of rstk_ram: signal is "distributed";
 
 	-- Stack deltas
-	signal dd: depth  := (others => '0');
-	signal rd: depth  := (others => '0');
+	signal dd: depth := (others => '0');
+	signal rd: depth := (others => '0');
 
 	-- is_instr_x signals, booleans, does the instruction have a certain property.
 	signal is_instr_alu:       std_logic :=  '0';
@@ -104,11 +104,11 @@ architecture behav of h2 is
 
 	signal int_en_c, int_en_n:  std_logic :=  '0';
 	signal irq_c, irq_n: std_logic :=  '0';
-	signal irc_c, irc_n: std_logic_vector(number_of_interrupts - 1 downto 0) :=  (others => '0');
+	signal irq_addr_c, irq_addr_n: std_logic_vector(interrupt_address_length - 1 downto 0) :=  (others => '0');
 
 	-- Top of stack, and next on stack.
-	signal tos_c, tos_n:  std_logic_vector(15 downto 0) := (others => '0');
-	signal nos: std_logic_vector(15 downto 0) := (others => '0');
+	signal tos_c, tos_n: std_logic_vector(15 downto 0) := (others => '0');
+	signal nos:          std_logic_vector(15 downto 0) := (others => '0');
 
 	-- Top of return stack.
 	signal rtos_c: std_logic_vector(15 downto 0) := (others => '0');
@@ -122,21 +122,17 @@ architecture behav of h2 is
 	signal rstkW: std_logic := '0';
 	signal rstkD: std_logic_vector(15 downto 0) := (others => '0');
 begin
-	assert(stack_size > 4 and stack_size < 128)
-		report "stack size out of bounds";
+	assert(stack_size > 4 and stack_size < 128) report "stack size out of bounds";
 
 	is_instr_alu        <=  '1' when insn(15 downto 13) = "011" else '0';
 	is_instr_lit        <=  '1' when insn(15) = '1' else '0';
 	is_instr_jmp        <=  '1' when insn(15 downto 13) = "000" else '0';
 	is_instr_cjmp       <=  '1' when insn(15 downto 13) = "001" else '0';
 	is_instr_call       <=  '1' when insn(15 downto 13) = "010" else '0';
-	is_instr_interrupt  <=  '1' when irq_c = '1' else '0';
+	is_instr_interrupt  <=  '1' when irq_c = '1' and int_en_c = '1' else '0';
 	is_ram_write        <=  '1' when is_instr_alu = '1' and insn(5) = '1' else '0';
 
-	irq_n <= '1' when irq = '1' else '0';
-	irc_n <= irc when irq = '1' else (others => '0');
-
-	comp_more  <= '1' when signed(tos_c) > signed(nos) else '0';
+	comp_more  <= '1' when signed(tos_c)   > signed(nos)   else '0';
 	comp_umore <= '1' when unsigned(tos_c) > unsigned(nos) else '0';
 	comp_equal <= '1' when tos_c = nos else '0';
 	comp_zero  <= '1' when unsigned(tos_c(15 downto 0)) = 0 else '0';
@@ -161,7 +157,7 @@ begin
 	io_wr     <= '1' when is_ram_write = '1' and tos_c(14 downto 13) = "11" else '0';
 	-- io_re is handled in the ALU
 
-	pc_plus_one <=  std_logic_vector(unsigned(pc_c) + 1);
+	pc_plus_one <= std_logic_vector(unsigned(pc_c) + 1);
 
 	-- Sign extend the stack deltas in the instruction
 	dd        <= (0 => insn(0), others => insn(1));
@@ -181,12 +177,9 @@ begin
 		end if;
 	end process;
 
-	alu_sel: process(
-		insn,
-		is_instr_interrupt,
-		int_en_c)
+	alu_sel: process(insn, is_instr_interrupt)
 	begin
-		if is_instr_interrupt = '1' and int_en_c = '1' then -- same as call or ubranch
+		if is_instr_interrupt = '1' then -- same as call or ubranch
 			aluop <= (others => '0');
 		else
 			case insn(14 downto 13) is
@@ -241,7 +234,7 @@ begin
 				tos_n <= din;
 			end if;
 		when "01101" => tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-		when "01110" => tos_n(4 downto 0)  <=  vstkp_c;
+		when "01110" => tos_n(4 downto 0) <= vstkp_c;
 		when "01111" => tos_n <=  (others => comp_umore);
 		when "10000" => int_en_n <= tos_c(0);
 		when "10001" => tos_n <= (others => int_en_c);
@@ -257,21 +250,21 @@ begin
 	nextState: process(clk, rst)
 	begin
 		if rst = '1' then
-			vstkp_c  <= (others => '0');
-			rstkp_c  <= (others => '0');
-			pc_c     <= std_logic_vector(to_unsigned(start_address, pc_c'length));
-			tos_c    <= (others => '0');
-			int_en_c <= '0';
-			irq_c    <= '0';
-			irc_c    <= (others => '0');
+			vstkp_c    <= (others => '0');
+			rstkp_c    <= (others => '0');
+			pc_c       <= std_logic_vector(to_unsigned(start_address, pc_c'length));
+			tos_c      <= (others => '0');
+			int_en_c   <= '0';
+			irq_c      <= '0';
+			irq_addr_c <= (others => '0');
 		elsif rising_edge(clk) then
-			vstkp_c  <= vstkp_n;
-			rstkp_c  <= rstkp_n;
-			pc_c     <= pc_n;
-			tos_c    <= tos_n;
-			int_en_c <= int_en_n;
-			irq_c    <= irq_n;
-			irc_c    <= irc_n;
+			vstkp_c    <= vstkp_n;
+			rstkp_c    <= rstkp_n;
+			pc_c       <= pc_n;
+			tos_c      <= tos_n;
+			int_en_c   <= int_en_n;
+			irq_c      <= irq_n;
+			irq_addr_c <= irq_addr_n;
 		end if;
 	end process;
 
@@ -282,7 +275,7 @@ begin
 		rstkp_c, rstk_ram, rd,
 		tos_c,
 		is_instr_jmp, is_instr_cjmp, is_instr_call, is_instr_lit, is_instr_alu,
-		is_instr_interrupt, int_en_c,
+		is_instr_interrupt, 
 		pc_plus_one,
 		cpu_wait)
 	begin
@@ -294,7 +287,7 @@ begin
 			-- Do nothing
 			rstkW <= '0';
 			rstkD <= (others => '0');
-		elsif is_instr_interrupt = '1' and int_en_c = '1' then
+		elsif is_instr_interrupt = '1' then
 			-- Interrupts are similar to a call
 			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
 			rstkW   <= '1';
@@ -307,7 +300,7 @@ begin
 		elsif is_instr_alu = '1' then
 			rstkW   <= insn(6);
 			rstkD   <= tos_c;
-			-- Signed addition, trust me, it's signed.
+			-- @todo Add assertions for stack over and underflow
 			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + unsigned(dd));
 			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + unsigned(rd));
 		else
@@ -329,22 +322,24 @@ begin
 	pcUpdate: process(
 		pc_c,insn,rtos_c,pc_plus_one,
 		is_instr_jmp,is_instr_cjmp,is_instr_call,is_instr_alu,
-		is_instr_interrupt, int_en_c,
-		irc_c,
+		is_instr_interrupt,irq_c,irq_addr_c,irq_addr,irq,
 		comp_zero,
 		cpu_wait)
 	begin
-		pc_n    <=  pc_c;
+		pc_n       <= pc_c;
+		irq_n      <= irq_c;
+		irq_addr_n <= irq_addr_c;
+		irq_n      <= irq;
+
+		if irq = '1' then irq_addr_n <= irq_addr; end if;
+
 		if cpu_wait = '1' then
 			-- Do nothing
-		elsif is_instr_interrupt = '1' and int_en_c = '1' then -- Update PC on interrupt
-			-- Priority encoded, MSB has higher priority, more
-			-- complex interrupt handling should be done externally
-			interrupts: for i in 1 to number_of_interrupts loop
-				if irc_c(i-1) = '1' then
-					pc_n <= std_logic_vector(to_unsigned(i-1,pc_n'length));
-				end if;
-			end loop;
+		elsif is_instr_interrupt = '1' then -- Update PC on interrupt
+			irq_n      <= '0';
+			irq_addr_n <= (others => '0');
+			pc_n       <= (others => '0');
+			pc_n(interrupt_address_length - 1 downto 0) <= irq_addr_c;
 		else -- Update PC on normal operations
 			if is_instr_jmp = '1' or (is_instr_cjmp = '1' and comp_zero = '1') or is_instr_call = '1' then
 				pc_n    <=  insn(12 downto 0);

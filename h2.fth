@@ -19,8 +19,11 @@ constant oUartWrite    0x6007
 constant oUartStbWrite 0x6008  
 constant oUartAckDout  0x6009  
 constant oTimerCtrl    0x600a
-constant o8SegLED_0_1  0x600b 
-constant o8SegLED_2_3  0x600c
+constant o8SegLED_0    0x600b 
+constant o8SegLED_1    0x600c
+constant o8SegLED_2    0x600d 
+constant o8SegLED_3    0x600e
+
 
 \ Inputs: 0x6000 - 0x7FFF
 constant iButtons      0x6000 
@@ -56,12 +59,15 @@ constant vgaInit       122 \ 0x007A
 constant vgaX          80
 constant vgaY          40
 
-\ Initial value of timer, top three bits are timer control,
-\ which are (from highest to lowest);
-\ Enable Timer, Reset Timer, Interrupt Enable
-\ All other bits are a value to compare against, which when
-\ reach can optionally trigger an interrupt.
+\ Initial value of timer
+\ BIT     MEANING
+\ 15   -  Enable Timer
+\ 14   -  Reset Timer Value immediately
+\ 13   -  Interrupt Enable
+\ 12-0 -  Value to compare against
 constant timerInit     0x8032
+
+constant ledInit       0xF
 
 \ Place a variable here
 constant cursor        1024
@@ -86,6 +92,10 @@ constant cursor        1024
 start:
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
+	ledInit   o8SegLED_0 !
+	ledInit   o8SegLED_1 !
+	ledInit   o8SegLED_2 !
+	ledInit   o8SegLED_3 !
 
 nextChar:
 
