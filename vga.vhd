@@ -1,11 +1,11 @@
 -------------------------------------------------------------------------------
---! @file vga.vhd
---! @brief Monochrome TexT Mode Video Controller VHDL Macro.
---! @author         Javier Valcarce García
---! @copyright      Copyright 2007 Javier Valcarce García
---! @license        LGPL version 3
---! @email          javier.valcarce@gmail.com
---! (RJHOWE: I made some minor modifications, mainly to the coding style)
+--| @file vga.vhd
+--| @brief Monochrome TexT Mode Video Controller VHDL Macro.
+--| @author         Javier Valcarce García
+--| @copyright      Copyright 2007 Javier Valcarce García
+--| @license        LGPL version 3
+--| @email          javier.valcarce@gmail.com
+--| (RJHOWE: I made some minor modifications, mainly to the coding style)
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -38,8 +38,8 @@ architecture behav of vga is
 	signal R_int : std_logic := '0';
 	signal G_int : std_logic := '0';
 	signal B_int : std_logic := '0';
-	signal hsync_int : std_logic := '0';
-	signal vsync_int : std_logic := '0';
+	signal hsync_int : std_logic := '1';
+	signal vsync_int : std_logic := '1';
 	
 	signal blank : std_logic := '0';
 	signal hctr  : integer range 793 downto 0 := 0;
@@ -95,17 +95,15 @@ begin
 -- hsync generator, initialized with '1'
 	process (reset, clk25MHz)
 	begin
-	if reset = '1' then
-	  hsync_int <= '1';
-	elsif rising_edge(clk25MHz) then
-	
-	  if (hctr > 663) and (hctr < 757) then
-	    hsync_int <= '0';
-	  else
-	    hsync_int <= '1';
-	  end if;
-
-	end if;
+		if reset = '1' then
+			hsync_int <= '1';
+		elsif rising_edge(clk25MHz) then
+			if (hctr > 663) and (hctr < 757) then
+				hsync_int <= '0';
+			else
+				hsync_int <= '1';
+			end if;
+		end if;
 	end process;
 
 
@@ -114,15 +112,15 @@ begin
 -- vsync generator, initialized with '1'
 	process (reset, clk25MHz)
 	begin
-	if reset = '1' then
-	  vsync_int <= '1';
-	elsif rising_edge(clk25MHz) then
-	  if (vctr > 499) and (vctr < 502) then
-	    vsync_int <= '0';
-	  else
-	    vsync_int <= '1';
-	  end if;
-	end if;
+		if reset = '1' then
+			vsync_int <= '1';
+		elsif rising_edge(clk25MHz) then
+			if (vctr > 499) and (vctr < 502) then
+				vsync_int <= '0';
+			else
+				vsync_int <= '1';
+			end if;
+		end if;
 	end process;
 
 -------------------------------------------------------------------------------
@@ -185,7 +183,6 @@ begin
 	signal vctr_479 : std_logic;
 	signal chrx_007 : std_logic;
 	signal chry_011 : std_logic;
---    signal scrx_079 : std_logic;
 
 	-- RAM read, ROM read
 	signal ram_tmp : integer range 3200 downto 0;  --12 bits
@@ -223,19 +220,13 @@ begin
 	chry_ce <= hctr_639 and blank;
 	scry_ce <= chry_011 and hctr_639;
 
-	-- Replace x 80 with (scry << 4) + (scry << 6)?
---    ram_tmp <= (scry * 80) + scrx;
 	ram_tmp <=  to_integer(to_unsigned(scry,12) sll 4) +
-	            to_integer(to_unsigned(scry,12) sll 6) +
-	            scrx;
+			to_integer(to_unsigned(scry,12) sll 6) +
+	        	scrx;
 
 	text_a <= std_logic_vector(to_unsigned(ram_tmp, 12));
 
-	-- replace x 12 with (scry << 2) + (scry << 3)?
 	rom_tmp <= to_integer(unsigned(text_d)) * 12 + chry;
---    rom_tmp <=  to_integer(unsigned(text_d) sll 2) +
---                to_integer(unsigned(text_d) sll 3) +
---                chry;
 
 	FONT_A <= std_logic_vector(TO_UNSIGNED(rom_tmp, 12));
 

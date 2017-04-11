@@ -116,6 +116,7 @@
 #ifdef _WIN32
 #include <io.h>
 #include <fcntl.h>
+extern int _fileno(FILE *stream); 
 #endif
 
 /**@note STK_SIZE is fixed to 32, but h2.vhd allows for the instantiation of
@@ -124,7 +125,7 @@
 #define MAX_CORE      (8192u)
 #define STK_SIZE      (32u)
 #define START_ADDR    (8u)
-#define DEFAULT_STEPS (64)
+#define DEFAULT_STEPS (256)
 #define MAX(X, Y)  ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y)  ((X) > (Y) ? (Y) : (X))
 
@@ -705,9 +706,6 @@ static int disassembler_instruction(uint16_t instruction, FILE *output, symbol_t
 
 	literal = instruction & 0x7FFF;
 	address = instruction & 0x1FFF;
-
-	/**@todo optionally (based on log level) current address in symbol
-	 * table and print it out*/
 
 	if (IS_LITERAL(instruction))
 		r = fprintf(output, "%hx", literal);
@@ -1861,7 +1859,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		/**@bug definitions are allowed after start symbol has been declared */
 		/**@todo compile a word header into the dictionary (optionally) with an
 		 * immediate and a hidden bit */
-		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
+		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h)+1, e);
 		if(a->in_definition)
 			asmfail(e, "nested word definition is not allowed");
 		a->in_definition = true;

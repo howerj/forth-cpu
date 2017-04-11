@@ -1,16 +1,17 @@
 --------------------------------------------------------------------------------
---! @file cpu.vhd
---! @brief This contains the CPU/main memory instances
---!
---! @author     Richard James Howe.
---! @copyright  Copyright 2013 Richard James Howe.
---! @license    MIT
---! @email      howe.r.j.89@gmail.com
+--| @file cpu.vhd
+--| @brief This contains the CPU/main memory instances
+--|
+--| @author     Richard James Howe.
+--| @copyright  Copyright 2013 Richard James Howe.
+--| @license    MIT
+--| @email      howe.r.j.89@gmail.com
 --------------------------------------------------------------------------------
 
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.util.n_bits;
 
 entity cpu is
 	generic(number_of_interrupts: positive := 8);
@@ -18,10 +19,10 @@ entity cpu is
 		-- synthesis translate_off
 		debug_pc:         out std_logic_vector(12 downto 0);
 		debug_insn:       out std_logic_vector(15 downto 0);
-		debug_mem_dwe:    out std_logic := '0';
-		debug_mem_din:    out std_logic_vector(15 downto 0);
-		debug_mem_dout:   out std_logic_vector(15 downto 0);
-		debug_mem_daddr:  out std_logic_vector(12 downto 0);
+		debug_dwe:    out std_logic := '0';
+		debug_din:    out std_logic_vector(15 downto 0);
+		debug_dout:   out std_logic_vector(15 downto 0);
+		debug_daddr:  out std_logic_vector(12 downto 0);
 		-- synthesis translate_on
 
 		clk:        in   std_logic;
@@ -40,29 +41,30 @@ entity cpu is
 end;
 
 architecture behav of cpu is
-	constant addr_length: positive := 13;
-	constant data_length: positive := 16;
-	constant file_name:   string   := "h2.hex";
-	constant file_type:   string   := "hex";
+	constant interrupt_address_length: natural  := n_bits(number_of_interrupts);
+	constant addr_length:              positive := 13;
+	constant data_length:              positive := 16;
+	constant file_name:                string   := "h2.hex";
+	constant file_type:                string   := "hex";
 
-	signal pc:           std_logic_vector(addr_length - 1 downto 0):= (others => '0'); -- Program counter
-	signal insn:         std_logic_vector(data_length - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
-	signal mem_dwe:      std_logic := '0'; -- Read/Write toggle, 0=Read, 1=Write
-	signal mem_dre:      std_logic := '0'; -- Read enable
-	signal mem_din:      std_logic_vector(data_length - 1 downto 0):= (others => '0');
-	signal mem_dout:     std_logic_vector(data_length - 1 downto 0):= (others => '0');
-	signal mem_daddr:    std_logic_vector(addr_length - 1 downto 0):= (others => '0');
+	signal pc:    std_logic_vector(addr_length - 1 downto 0):= (others => '0'); -- Program counter
+	signal insn:  std_logic_vector(data_length - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
+	signal dwe:   std_logic := '0'; -- Write enable
+	signal dre:   std_logic := '0'; -- Read enable
+	signal din:   std_logic_vector(data_length - 1 downto 0):= (others => '0');
+	signal dout:  std_logic_vector(data_length - 1 downto 0):= (others => '0');
+	signal daddr: std_logic_vector(addr_length - 1 downto 0):= (others => '0');
 
 	signal h2_irq:       std_logic := '0';
-	signal h2_irq_addr:  std_logic_vector(2 downto 0):=(others=>'0');
+	signal h2_irq_addr:  std_logic_vector(interrupt_address_length - 1 downto 0) := (others=>'0');
 begin
 	-- synthesis translate_off
 	debug_pc          <= pc;
 	debug_insn        <= insn;
-	debug_mem_dwe     <= mem_dwe;
-	debug_mem_din     <= mem_din;
-	debug_mem_dout    <= mem_dout;
-	debug_mem_daddr   <= mem_daddr;
+	debug_dwe     <= dwe;
+	debug_din     <= din;
+	debug_dout    <= dout;
+	debug_daddr   <= daddr;
 	-- synthesis translate_on
 
 	irqh_0: entity work.irqh
@@ -78,7 +80,7 @@ begin
 		addr_o => h2_irq_addr);
 
 	h2_0: entity work.h2 -- The actual CPU instance (H2)
-	generic map(interrupt_address_length => 3)
+	generic map(interrupt_address_length => interrupt_address_length)
 	port map(
 		clk       =>    clk,
 		rst       =>    rst,
@@ -98,11 +100,11 @@ begin
 		pco       =>    pc,
 		insn      =>    insn,
 		-- Fetch/Store
-		dwe       =>    mem_dwe,
-		dre       =>    mem_dre,
-		din       =>    mem_din,
-		dout      =>    mem_dout,
-		daddr     =>    mem_daddr);
+		dwe       =>    dwe,
+		dre       =>    dre,
+		din       =>    din,
+		dout      =>    dout,
+		daddr     =>    daddr);
 		
 	mem_h2_0: entity work.memory
 	generic map(
@@ -120,10 +122,10 @@ begin
 		a_dout  =>    insn,
 		-- Port B, Read/Write controlled by CPU instructions
 		b_clk   =>    clk,
-		b_dwe   =>    mem_dwe,
-		b_dre   =>    mem_dre,
-		b_addr  =>    mem_daddr,
-		b_din   =>    mem_dout,
-		b_dout  =>    mem_din);
+		b_dwe   =>    dwe,
+		b_dre   =>    dre,
+		b_addr  =>    daddr,
+		b_din   =>    dout,
+		b_dout  =>    din);
 
 end architecture;

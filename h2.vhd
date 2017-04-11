@@ -1,22 +1,19 @@
 -------------------------------------------------------------------------------
---! @file h2.vhd
---! @brief The H2 Processor:
---! J1 processor translation and extension. Moved bit 12 to bit 4 to
---! allow for more ALU instructions.
---!
---! @author         Richard James Howe.
---! @copyright      Copyright 2013 Richard James Howe.
---! @license        MIT
---! @email          howe.r.j.89@gmail.com
---!
---! TODO:
---!  * Interrupt handling needs to be improved
---!  * Use more generics
---!  * Assertions should be added to the core
---!  * Turn this into a literate file, describing the CPU
---!  * Sort out the load instruction
---!  * Reset and setting pc_c to start_address does not seem to work
---!
+--| @file h2.vhd
+--| @brief The H2 Processor:
+--| J1 processor translation and extension. Moved bit 12 to bit 4 to
+--| allow for more ALU instructions.
+--|
+--| @author         Richard James Howe.
+--| @copyright      Copyright 2013 Richard James Howe.
+--| @license        MIT
+--| @email          howe.r.j.89@gmail.com
+--|
+--| TODO:
+--|  * Use more generics
+--|  * Assertions should be added to the core
+--|  * Turn this into a literate file, describing the CPU
+--|
 -------------------------------------------------------------------------------
 
 library ieee,work,std;
@@ -44,7 +41,7 @@ entity h2 is
 
 		-- Interrupts; irq = request, irq_addr = place to jump to 
 		irq:      in  std_logic;
-		irq_addr: in  std_logic_vector(2 downto 0);
+		irq_addr: in  std_logic_vector(interrupt_address_length - 1 downto 0);
 
 		-- RAM interface, Dual port
 		pco:      out std_logic_vector(12 downto 0); -- program counter
@@ -62,7 +59,7 @@ architecture behav of h2 is
 	constant stack_size: integer := 2 ** stack_size_log2;
 
 	-- Program counter.
-	signal pc_c:  std_logic_vector(12 downto 0) := (others => '0');
+	signal pc_c:  std_logic_vector(12 downto 0) := std_logic_vector(to_unsigned(start_address, 13));
 	signal pc_n:  std_logic_vector(12 downto 0) := (others => '0');
 
 	-- Stack Type

@@ -67,16 +67,23 @@ all:
 h2: h2.c
 	${CC} -Wall -Wextra -g -std=c99 $^ -o $@
 
+disassemble: h2 h2.fth
+	./h2 -b syms.txt -a h2.fth > h2.hex
+	./h2 -l syms.txt h2.hex | awk '{printf "%04x %s\n", NR, $$0;}' | less -
+	
+
 ## Simulation ==============================================================
 
 %.o: %.vhd
 	ghdl -a $<
 
-vga: losr.o ctrm.o
+irqh.o: util.o
+ledseg.o: util.o
+vga.o: losr.o ctrm.o
 vga_top.o: bram.o vga.o vga_top.vhd text.bin font.bin
 ps2kbd.o: ps2kbd.vhd debounce.o
 ps2top.o: ps2top.vhd ps2kbd.o debounce.o
-cpu.o: h2.o irqh.o bram.o cpu.vhd h2.hex
+cpu.o: util.o h2.o irqh.o bram.o cpu.vhd h2.hex
 top.o: util.o timer.o cpu.o uart.o vga_top.o ps2top.o ledseg.o top.vhd 
 tb.o: top.o tb.vhd
 

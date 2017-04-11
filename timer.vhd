@@ -1,14 +1,14 @@
 -------------------------------------------------------------------------------
---! @file timer.vhd
---! @brief General Purpose Timer. It is of customizable length,
---!        the minimum being 4-bits, one for the actual timing, the other
---!        three for control. (timer.vhd, original file name)
---!
---! @author         Richard James Howe.
---! @copyright      Copyright 2013 Richard James Howe.
---! @license        MIT
---! @email          howe.r.j.89@gmail.com
---! @todo Check this synthesizes correctly.
+--| @file timer.vhd
+--| @brief General Purpose Timer. It is of customizable length,
+--|        the minimum being 4-bits, one for the actual timing, the other
+--|        three for control. (timer.vhd, original file name)
+--|
+--| @author         Richard James Howe.
+--| @copyright      Copyright 2013 Richard James Howe.
+--| @license        MIT
+--| @email          howe.r.j.89@gmail.com
+--| @todo Check this synthesizes correctly.
 -------------------------------------------------------------------------------
 
 library ieee,work,std;

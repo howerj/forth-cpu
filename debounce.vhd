@@ -31,7 +31,7 @@ use ieee.numeric_std.all;
 entity debounce is
 	generic(counter_size  :  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
 	port(
-		clk     : in  std_logic;  --input clock
+		clk     : in  std_logic;  
 		button  : in  std_logic;  --input signal to be debounced
 		result  : out std_logic); --debounced signal
 end debounce;
@@ -46,7 +46,7 @@ begin
 	
 	process(clk)
 	begin
-		if(clk'event and clk = '1') then
+		if rising_edge(clk) then
 			flipflops(0) <= button;
 			flipflops(1) <= flipflops(0);
 			if(counter_set = '1') then                  --reset counter because input is changing

@@ -1,22 +1,23 @@
 -------------------------------------------------------------------------------
---! @file tb.vhd
---! @brief Main test bench.
---!
---! @author         Richard James Howe.
---! @copyright      Copyright 2013 Richard James Howe.
---! @license        MIT
---! @email          howe.r.j.89@gmail.com
---!
---! @todo Optionally read expected inputs and commands from a file;
---! Expected results could be read in from a file along with the signal
---! they are supposed to check, although this should be done optionally,
---!
+--| @file tb.vhd
+--| @brief Main test bench.
+--|
+--| @author         Richard James Howe.
+--| @copyright      Copyright 2013 Richard James Howe.
+--| @license        MIT
+--| @email          howe.r.j.89@gmail.com
+--|
+--| @todo Optionally read expected inputs and commands from a file;
+--| Expected results could be read in from a file along with the signal
+--| they are supposed to check, although this should be done optionally,
+--|
 -------------------------------------------------------------------------------
 
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use std.textio.all;
+use work.util.shift_register_tb;
 
 entity tb is
 end tb;
@@ -29,18 +30,18 @@ architecture testing of tb is
 
 	constant clk_period: time   :=  1000 ms / clk_freq;
 
-	signal  wait_flag:       std_logic                    :=  '0';
-	signal  debug_irq:       std_logic                    :=  '0';
+	signal  wait_flag:       std_logic :=  '0';
+	signal  debug_irq:       std_logic :=  '0';
 	signal  debug_irc:       std_logic_vector(3 downto 0) := (others => '0');
 	signal  debug_pc:        std_logic_vector(12 downto 0);
 	signal  debug_insn:      std_logic_vector(15 downto 0);
-	signal  debug_mem_dwe:   std_logic := '0';
-	signal  debug_mem_din:   std_logic_vector(15 downto 0);
-	signal  debug_mem_dout:  std_logic_vector(15 downto 0);
-	signal  debug_mem_daddr: std_logic_vector(12 downto 0);
+	signal  debug_dwe:   std_logic := '0';
+	signal  debug_din:   std_logic_vector(15 downto 0);
+	signal  debug_dout:  std_logic_vector(15 downto 0);
+	signal  debug_daddr: std_logic_vector(12 downto 0);
 
-	signal  clk:   std_logic :=  '0';
-	signal  rst:   std_logic;
+	signal  clk:   std_logic := '0';
+	signal  rst:   std_logic := '0';
 
 --  signal  cpu_wait: std_logic := '0'; -- CPU wait flag
 
@@ -51,8 +52,8 @@ architecture testing of tb is
 	signal  btnl:  std_logic := '0';  -- button left
 	signal  btnr:  std_logic := '0';  -- button right
 	signal  sw:    std_logic_vector(7 downto 0) := (others => '0'); -- switches
-	signal  an:    std_logic_vector(3 downto 0) := (others => '0'); -- anodes   7 segment display
-	signal  ka:    std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 7 segment display
+	signal  an:    std_logic_vector(3 downto 0) := (others => '0'); -- anodes   8 segment display
+	signal  ka:    std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 8 segment display
 	signal  ld:    std_logic_vector(7 downto 0) := (others => '0'); -- leds
 
 	-- UART
@@ -69,27 +70,25 @@ architecture testing of tb is
 	-- HID
 	signal  ps2_keyboard_data: std_logic := '0';
 	signal  ps2_keyboard_clk:  std_logic := '0';
---  signal  ps2_mouse_data:    std_logic := '0';
---  signal  ps2_mouse_clk:     std_logic := '0';
---  signal  pic_gpio:          std_logic_vector(1 downto 0):= (others => 'X');
+
 begin
 ---- Units under test ----------------------------------------------------------
 
 	uut: entity work.top
 	generic map(
-		clock_frequency => clk_freq,
+		clock_frequency      => clk_freq,
 		number_of_interrupts => number_of_interrupts,
-		uart_baud_rate => uart_baud_rate)
+		uart_baud_rate       => uart_baud_rate)
 	port map(
 		debug_irq       => debug_irq,
 		debug_irc       => debug_irc,
 		debug_pc        => debug_pc,
 		debug_insn      => debug_insn,
-		debug_mem_dwe   => debug_mem_dwe,
-		debug_mem_din   => debug_mem_din,
-		debug_mem_dout  => debug_mem_dout,
-		debug_mem_daddr => debug_mem_daddr,
-		clk => clk,
+		debug_dwe   => debug_dwe,
+		debug_din   => debug_din,
+		debug_dout  => debug_dout,
+		debug_daddr => debug_daddr,
+		clk  => clk,
 		btnu => btnu,
 		btnd => btnd,
 		btnc => btnc,
@@ -102,27 +101,24 @@ begin
 		rx => rx,
 		tx => tx,
 		red => red,
-
 		green => green,
 		blue  => blue,
 		hsync => hsync,
 		vsync => vsync,
 
 		ps2_keyboard_data => ps2_keyboard_data,
-		ps2_keyboard_clk  => ps2_keyboard_clk
---		ps2_mouse_data    => ps2_mouse_data,
---		ps2_mouse_clk     => ps2_mouse_clk,
---		pic_gpio          => pic_gpio
-	        );
+		ps2_keyboard_clk  => ps2_keyboard_clk);
+
+	uut_shiftReg: entity work.shift_register_tb generic map(clk_freq => clk_freq) port map(clk => clk, rst => rst, stop => wait_flag);
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
 	begin
 		while wait_flag = '0' loop
 			clk <= '1';
-		wait for clk_period/2;
+			wait for clk_period / 2;
 			clk <= '0';
-		wait for clk_period / 2;
+			wait for clk_period / 2;
 		end loop;
 		wait;
 	end process;
@@ -131,6 +127,7 @@ begin
 	stimulus_process: process
 		variable rt: boolean;
 
+		-- @todo write numbers out as hex, with a cleaner output format
 		function reportln(pc, insn: std_logic_vector) return boolean is
 		begin
 			report
@@ -145,11 +142,11 @@ begin
 		rst <= '0';
 		for i in 0 to number_of_iterations loop
 			rt := reportln(debug_pc, debug_insn);
-		wait for clk_period * 1;
-	end loop;
-
-	wait_flag   <=  '1';
-	wait;
+			assert rt = true;
+			wait for clk_period * 1;
+		end loop;
+		wait_flag   <=  '1';
+		wait;
 	end process;
 ------ END ---------------------------------------------------------------------
 end architecture;

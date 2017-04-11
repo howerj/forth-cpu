@@ -162,8 +162,8 @@ begin
 		vsync     => vsync);
 
 	text_addr_full <= octl_c(7) & text_addr;
-	--! @brief This RAM module holds the text we want to display on to the
-	--! monitor. The text buffer holds at least 80*40 characters.
+	--| @brief This RAM module holds the text we want to display on to the
+	--| monitor. The text buffer holds at least 80*40 characters.
 	u_text: entity work.memory
 	generic map(
 	    addr_length   => text_addr_length,
@@ -186,7 +186,7 @@ begin
 	b_din  => (others => '0'),
 	b_dout => text_dout);
 
-	--! VGA Font memory
+	--| VGA Font memory
 	u_font: entity work.memory
 	generic map(
 		addr_length   => font_addr_length,

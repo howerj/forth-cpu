@@ -1,11 +1,11 @@
 -------------------------------------------------------------------------------
---! @file ctrm.vhd
---! @brief Counter, asynchronous *and* synchronous reset, up only.
---!        (ctrm.vhd, original filename)
---! @author         Javier Valcarce García
---! @copyright      Copyright 2007 Javier Valcarce García
---! @license        LGPL version 3
---! @email          javier.valcarce@gmail.com
+--| @file ctrm.vhd
+--| @brief Counter, asynchronous *and* synchronous reset, up only.
+--|        (ctrm.vhd, original filename)
+--| @author         Javier Valcarce García
+--| @copyright      Copyright 2007 Javier Valcarce García
+--| @license        LGPL version 3
+--| @email          javier.valcarce@gmail.com
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;

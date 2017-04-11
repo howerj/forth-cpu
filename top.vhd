@@ -1,13 +1,13 @@
 ---------------------------------------------------------------------------------
---! @file top.vhd
---! @brief This file is the top level of the project.
---!  It presents an interface between the CPU,
---!  RAM, and all the I/O modules.
---!
---! @author     Richard James Howe.
---! @copyright  Copyright 2013 Richard James Howe.
---! @license    MIT
---! @email      howe.r.j.89@gmail.com
+--| @file top.vhd
+--| @brief This file is the top level of the project.
+--|  It presents an interface between the CPU,
+--|  RAM, and all the I/O modules.
+--|
+--| @author     Richard James Howe.
+--| @copyright  Copyright 2013 Richard James Howe.
+--| @license    MIT
+--| @email      howe.r.j.89@gmail.com
 ---------------------------------------------------------------------------------
 
 library ieee,work;
@@ -18,8 +18,7 @@ entity top is
 	generic(
 		clock_frequency:      positive := 100000000;
 		number_of_interrupts: positive := 8;
-		uart_baud_rate:       positive := 115200
-	);
+		uart_baud_rate:       positive := 115200);
 	port
 	(
 -- synthesis translate_off
@@ -29,45 +28,41 @@ entity top is
 
 		debug_pc:         out std_logic_vector(12 downto 0);
 		debug_insn:       out std_logic_vector(15 downto 0);
-		debug_mem_dwe:    out std_logic := '0';
-		debug_mem_din:    out std_logic_vector(15 downto 0);
-		debug_mem_dout:   out std_logic_vector(15 downto 0);
-		debug_mem_daddr:  out std_logic_vector(12 downto 0);
+		debug_dwe:    out std_logic := '0';
+		debug_din:    out std_logic_vector(15 downto 0);
+		debug_dout:   out std_logic_vector(15 downto 0);
+		debug_daddr:  out std_logic_vector(12 downto 0);
 -- synthesis translate_on
 
-		clk:      in  std_logic                    :=      'X';  -- clock
---              rst:      in  std_logic                    :=      'X';
---		cpu_wait: in  std_logic                    :=      'X';  -- CPU wait
+		clk:      in  std_logic                    := 'X';  -- clock
 		-- Buttons
-		btnu:     in  std_logic                    :=      'X';  -- button up
-		btnd:     in  std_logic                    :=      'X';  -- button down
-		btnc:     in  std_logic                    :=      'X';  -- button centre
-		btnl:     in  std_logic                    :=      'X';  -- button left
-		btnr:     in  std_logic                    :=      'X';  -- button right
+		btnu:     in  std_logic                    := 'X';  -- button up
+		btnd:     in  std_logic                    := 'X';  -- button down
+		btnc:     in  std_logic                    := 'X';  -- button centre
+		btnl:     in  std_logic                    := 'X';  -- button left
+		btnr:     in  std_logic                    := 'X';  -- button right
 		-- Switches
-		sw:       in  std_logic_vector(7 downto 0) :=      (others => 'X'); -- switches
+		sw:       in  std_logic_vector(7 downto 0) := (others => 'X'); -- switches
 		-- Simple LED outputs
-		an:       out std_logic_vector(3 downto 0) :=      (others => '0'); -- anodes   7 segment display
-		ka:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- kathodes 7 segment display
+		an:       out std_logic_vector(3 downto 0) := (others => '0'); -- anodes   7 segment display
+		ka:       out std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 7 segment display
 
-		ld:       out std_logic_vector(7 downto 0) :=      (others => '0'); -- leds
+		ld:       out std_logic_vector(7 downto 0) := (others => '0'); -- leds
 		-- UART
-		rx:       in  std_logic                    :=      'X';  -- uart rx
-		tx:       out std_logic                    :=      '0';  -- uart tx
+		rx:       in  std_logic                    := 'X';  -- uart rx
+		tx:       out std_logic                    := '0';  -- uart tx
 		-- VGA
-		red:      out std_logic_vector(2 downto 0) :=      (others => '0');
-		green:    out std_logic_vector(2 downto 0) :=      (others => '0');
-		blue:     out std_logic_vector(1 downto 0) :=      (others => '0');
-		hsync:    out std_logic                    :=      '0';
-		vsync:    out std_logic                    :=      '0';
+		red:      out std_logic_vector(2 downto 0) := (others => '0');
+		green:    out std_logic_vector(2 downto 0) := (others => '0');
+		blue:     out std_logic_vector(1 downto 0) := (others => '0');
+		hsync:    out std_logic                    := '0';
+		vsync:    out std_logic                    := '0';
 		-- PWM from timer
-		gpt0_q:   out std_logic                    :=      '0';
-		gpt0_nq:  out std_logic                    :=      '0';
+		gpt0_q:   out std_logic                    := '0';
+		gpt0_nq:  out std_logic                    := '0';
 		-- PS/2 Interface
-		ps2_keyboard_data:  in std_logic           :=      '0';
-		ps2_keyboard_clk:   in std_logic           :=      '0'
-
-	);
+		ps2_keyboard_data:  in std_logic           := '0';
+		ps2_keyboard_clk:   in std_logic           := '0');
 end;
 
 architecture behav of top is
@@ -80,9 +75,11 @@ architecture behav of top is
 	signal cpu_io_din:   std_logic_vector(15 downto 0):= (others => '0');
 	signal cpu_io_dout:  std_logic_vector(15 downto 0):= (others => '0');
 	signal cpu_io_daddr: std_logic_vector(15 downto 0):= (others => '0');
+
 	-- CPU H2 Interrupts
 	signal cpu_irq: std_logic := '0';
 	signal cpu_irc: std_logic_vector(number_of_interrupts - 1 downto 0):= (others => '0');
+	signal cpu_irc_mask_c, cpu_irc_mask_n: std_logic_vector(number_of_interrupts - 1 downto 0) := (others => '1');
 
 	signal clk25MHz: std_logic:= '0';
 	signal clk50MHz: std_logic:= '0';
@@ -137,10 +134,10 @@ architecture behav of top is
 	signal kbd_char_c, kbd_char_n:  std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
 
 	---- 8 Segment Display
-	signal led_0:    std_logic_vector(7 downto 0) := (others => '0'); 
-	signal led_1:    std_logic_vector(7 downto 0) := (others => '0'); 
-	signal led_2:    std_logic_vector(7 downto 0) := (others => '0'); 
-	signal led_3:    std_logic_vector(7 downto 0) := (others => '0'); 
+	signal led_0:    std_logic_vector(3 downto 0) := (others => '0'); 
+	signal led_1:    std_logic_vector(3 downto 0) := (others => '0'); 
+	signal led_2:    std_logic_vector(3 downto 0) := (others => '0'); 
+	signal led_3:    std_logic_vector(3 downto 0) := (others => '0'); 
 	signal led_0_we: std_logic := '0';
 	signal led_1_we: std_logic := '0';
 	signal led_2_we: std_logic := '0';
@@ -159,17 +156,21 @@ begin
 -------------------------------------------------------------------------------
 
 ------- Output assignments (Not in a process) ---------------------------------
-	rst        <= '0';
-	cpu_irc(0) <= '0';
+	rst        <= btnu_d;
+	cpu_irc(0) <= btnl_d;
 	cpu_irc(1) <= gpt0_irq_comp1;
 	cpu_irc(2) <= ack_din;
 	cpu_irc(3) <= stb_dout;
+	cpu_irc(4) <= btnr_d;
+	cpu_irc(5) <= '0';
+	cpu_irc(6) <= '0';
+	cpu_irc(7) <= '0';
+
 	-- @todo These interrupts should come from debounced button inputs
 	-- until something more useful is found for them. Whether they
 	-- act as interrupts or not should be controlled by a register
 	-- set by the user.
-	cpu_irc(number_of_interrupts -1 downto 4) <= (others => '0');
-	cpu_wait   <= '0';
+	cpu_wait   <= btnc_d;
 	cpu_irq    <= '1' when gpt0_irq_comp1 = '1' or ack_din = '1' or stb_dout = '1' else '0';
 
 	cpu_0: entity work.cpu
@@ -178,10 +179,10 @@ begin
 -- synthesis translate_off
 	debug_pc        => debug_pc,
 	debug_insn      => debug_insn,
-	debug_mem_dwe   => debug_mem_dwe,
-	debug_mem_din   => debug_mem_din,
-	debug_mem_dout  => debug_mem_dout,
-	debug_mem_daddr => debug_mem_daddr,
+	debug_dwe   => debug_dwe,
+	debug_din   => debug_din,
+	debug_dout  => debug_dout,
+	debug_daddr => debug_daddr,
 -- synthesis translate_on
 
 	clk => clk,
@@ -224,6 +225,7 @@ begin
 			-- PS/2
 			kbd_char_c <= (others => '0');
 			kbd_new_c  <= '0';
+			cpu_irc_mask_c <= (others => '0');
 		elsif rising_edge(clk) then
 			-- LEDs/Switches
 			ld_c        <=  ld_n;
@@ -235,11 +237,12 @@ begin
 			-- PS/2
 			kbd_char_c  <= kbd_char_n;
 			kbd_new_c   <= kbd_new_n;
+			cpu_irc_mask_c <= cpu_irc_mask_n;
 		end if;
 	end process;
 
 	io_select: process(
-		cpu_io_wr, cpu_io_re, cpu_io_dout, cpu_io_daddr,
+		cpu_io_wr, cpu_io_re, cpu_io_dout, cpu_io_daddr, cpu_irc_mask_c,
 		ld_c,
 		sw, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
 		uart_din_c, ack_din_c,
@@ -251,28 +254,26 @@ begin
 
 		gpt0_ctr_r_we)
 	begin
-		-- Outputs
+		cpu_irc_mask_n <= cpu_irc_mask_c;
+
 		ld <= ld_c;
 
 		uart_din <= uart_din_c;
 		stb_din  <= '0';
 		ack_dout <= '0';
+		uart_din_n  <=  uart_din_c;
 
-		-- LEDs
 		led_0 <= (others => '0');
 		led_1 <= (others => '0');
 		led_2 <= (others => '0');
 		led_3 <= (others => '0');
-
 		led_0_we <= '0';
 		led_1_we <= '0';
 		led_2_we <= '0';
 		led_3_we <= '0';
 
-		-- Register defaults
 		ld_n <= ld_c;
 
-		-- VGA
 		crx_we <= '0';
 		cry_we <= '0';
 		ctl_we <= '0';
@@ -286,9 +287,6 @@ begin
 		vga_din    <= (others => '0');
 		vga_addr   <= (others => '0');
 
-		uart_din_n  <=  uart_din_c;
-
-		-- General Purpose Timer
 		gpt0_ctr_r_we <= '0';
 		gpt0_ctr_r <= (others => '0');
 
@@ -349,18 +347,19 @@ begin
 				gpt0_ctr_r_we <= '1';
 				gpt0_ctr_r    <= cpu_io_dout(15 downto 0);
 			when "01011" => -- LED 8 Segment display
-				led_0    <= cpu_io_dout(7 downto 0);
+				led_0    <= cpu_io_dout(3 downto 0);
 				led_0_we <= '1';
 			when "01100" => -- LED 8 Segment display
-				led_1    <= cpu_io_dout(7 downto 0);
+				led_1    <= cpu_io_dout(3 downto 0);
 				led_1_we <= '1';
 			when "01101" =>
-				led_2    <= cpu_io_dout(7 downto 0);
+				led_2    <= cpu_io_dout(3 downto 0);
 				led_2_we <= '1';
 			when "01110" =>
-				led_3    <= cpu_io_dout(7 downto 0);
+				led_3    <= cpu_io_dout(3 downto 0);
 				led_3_we <= '1';
 			when "01111" =>
+				cpu_irc_mask_n <= cpu_io_dout(number_of_interrupts - 1 downto 0);
 			when "10000" =>
 			when others =>
 			end case;
@@ -393,7 +392,7 @@ begin
 	end process;
 
 	--- UART ----------------------------------------------------------
-	--! @todo integrate this into the UART module
+	--| @todo integrate this into the UART module
 	uart_deglitch_0: process (clk)
 	begin
 	if rising_edge(clk) then

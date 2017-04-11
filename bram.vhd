@@ -1,14 +1,14 @@
 ---------------------------------------------------------------------------------
---! @file bram.vhd
---! @brief Implements a generic dual port block RAM
---! which according to Xilinx's XST guide will synthesize with
---! a file you can specify with a string as the RAMs initial
---! value, stored in ASCII encoded binary.
---!
---! @author         Richard James Howe.
---! @copyright      Copyright 2013 Richard James Howe.
---! @license        MIT
---! @email          howe.r.j.89@gmail.com
+--| @file bram.vhd
+--| @brief Implements a generic dual port block RAM which according to Xilinx's 
+--| XST guide will synthesize. Initial memory contents are specified by a file
+--| containing one of two formats; either one ASCII hexadecimal or binary number
+--| per memory cell.
+--|
+--| @author         Richard James Howe.
+--| @copyright      Copyright 2013 Richard James Howe.
+--| @license        MIT
+--| @email          howe.r.j.89@gmail.com
 ---------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -21,17 +21,17 @@ entity memory is
 	-- chosen so as to fill the block RAM available on a Spartan 6
 	generic(addr_length: positive  := 12;
 		data_length: positive  := 16;
-		file_name:    string   := "memory.binary"; --! initial RAM contents
-		file_type:    string   := "bin");          --! ASCII 0/1s
+		file_name:    string   := "memory.binary"; --| initial RAM contents
+		file_type:    string   := "bin");          --| ASCII 0/1s
 	port(
-		--! Port A of dual port RAM
+		--| Port A of dual port RAM
 		a_clk:  in  std_logic;
 		a_dwe:  in  std_logic;
 		a_dre:  in  std_logic;
 		a_addr: in  std_logic_vector(addr_length - 1 downto 0);
 		a_din:  in  std_logic_vector(data_length - 1 downto 0);
 		a_dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0');
-		--! Port B of dual port RAM
+		--| Port B of dual port RAM
 		b_clk:  in  std_logic;
 		b_dwe:  in  std_logic;
 		b_dre:  in  std_logic;
@@ -77,8 +77,8 @@ architecture behav of memory is
 		return slv;
 	end hexCharToStdLogicVector;
 
-	--! @brief This function will initialize the RAM, it reads from
-	--! a file that can be specified in a generic way
+	--| @brief This function will initialize the RAM, it reads from
+	--| a file that can be specified in a generic way
 	function initRam(file_name, file_type: in string) return ramArray_t is
 		variable ramData:   ramArray_t;
 		file     inFile:    text is in file_name;

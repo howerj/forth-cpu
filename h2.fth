@@ -67,8 +67,6 @@ constant vgaY          40
 \ 12-0 -  Value to compare against
 constant timerInit     0x8032
 
-constant ledInit       0xF
-
 \ Place a variable here
 constant cursor        1024
 
@@ -80,22 +78,30 @@ constant cursor        1024
 
 : 1+ 1 + ;
 : 2+ 2 + ;
-: - invert 1+ + ;
 : 2/ 1 rshift ;
 : 2* 1 lshift ;
 : >= < invert ;
+: >  swap < ;
+: u> swap u< ;
 : u>= u< invert ;
 : <> = invert ;
 \ : 0<> 0= invert ;
 : 2dup over over ;
+: 2drop drop drop ;
+: negate invert 1+ ;
+: - negate + ;
+: tuck swap over ;
+: +! tuck @ + swap ! ;
 
 start:
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
-	ledInit   o8SegLED_0 !
-	ledInit   o8SegLED_1 !
-	ledInit   o8SegLED_2 !
-	ledInit   o8SegLED_3 !
+
+	\ This is buggy at the moment
+	1         o8SegLED_0 !
+	2         o8SegLED_1 !
+	1         o8SegLED_2 !
+	1         o8SegLED_3 !
 
 nextChar:
 
@@ -109,6 +115,7 @@ nextChar:
 	         0 oVgaWrite   !     \ Perform write
 
 	cursor   @ 1 + cursor  !     \ Increment cursor value
+	\ 1 cursor +!
 
 	cursor   @ oVgaCursor  !     \ Update cursor position
 

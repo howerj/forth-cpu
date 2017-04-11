@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
---! @file util.vhd
---! @brief Shift register N-bit, asynchronous reset, synchronous load,
---!        (losr.vhd, original file name)
---! and enable
---! @author         Javier Valcarce García
---! @copyright      Copyright 2007 Javier Valcarce García
---! @license        LGPL version 3
---! @email          javier.valcarce@gmail.com
+--| @file util.vhd
+--| @brief Shift register N-bit, asynchronous reset, synchronous load,
+--|        (losr.vhd, original file name)
+--| and enable
+--| @author         Javier Valcarce García
+--| @copyright      Copyright 2007 Javier Valcarce García
+--| @license        LGPL version 3
+--| @email          javier.valcarce@gmail.com
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;

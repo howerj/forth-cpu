@@ -1,16 +1,18 @@
 --------------------------------------------------------------------------------
---! @file uart.vhd
---! @brief implements a universal asynchronous receiver transmitter with
---! parameterisable baud rate. tested on a spartan 6 lx9 connected to a
---! silicon labs cp210 usb-uart bridge.
---!
---! @author         peter a bennett
---! @copyright      (c) 2012 peter a bennett
---! @license        lgpl
---! @email          pab850@googlemail.com
---! @contact        www.bytebash.com
---!
---! RJH: Changes made to range to stop Xilinx warnings
+--| @file uart.vhd
+--| @brief implements a universal asynchronous receiver transmitter with
+--| parameterisable baud rate. tested on a spartan 6 lx9 connected to a
+--| silicon labs cp210 usb-uart bridge.
+--|
+--| @author         peter a bennett
+--| @copyright      (c) 2012 peter a bennett
+--| @license        lgpl
+--| @email          pab850@googlemail.com
+--| @contact        www.bytebash.com
+--|
+--| @note Changes made to range to stop Xilinx warnings and with formatting
+--| @todo This needs either replacing with something simpler, and/or fully 
+--| testing, it currently does not have a test bench.
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -20,8 +22,7 @@ use ieee.numeric_std.all;
 entity uart is
 	generic (
 	        baud_rate           : positive;
-	        clock_frequency     : positive
-	    );
+	        clock_frequency     : positive);
 	port (  -- general
 	        clock               :   in      std_logic;
 	        reset               :   in      std_logic;
@@ -75,10 +76,10 @@ architecture behav of uart is
 	                            rx_send_block);
 	
 	signal  uart_rx_state       : uart_rx_states := rx_get_start_bit;
-	signal  uart_rx_bit         : std_logic := '0';
+	signal  uart_rx_bit         : std_logic := '1'; -- @note should the be 0 or 1?
 	signal  uart_rx_data_block  : std_logic_vector(7 downto 0) := (others => '0');
 	signal  uart_rx_data_vec    : std_logic_vector(1 downto 0) := (others => '0');
-	signal  uart_rx_filter      : unsigned(1 downto 0)  := (others => '0');
+	signal  uart_rx_filter      : unsigned(1 downto 0)  := (others => '1');
 	signal  uart_rx_count       : integer range 0 to uart_rx_count_max  := 0;
 	signal  uart_rx_data_out_stb: std_logic := '0';
 	signal  uart_rx_bit_spacing : unsigned (3 downto 0) := (others => '0');

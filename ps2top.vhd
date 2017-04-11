@@ -246,7 +246,7 @@ begin
 	          --translate numbers and symbols (these depend on shift but not caps lock)
 	          if(shift_l = '1' OR shift_r = '1') then  --key's secondary character is desired
 	            case ps2_code is
-	              when x"16" => ascii <= x"21"; --!
+	              when x"16" => ascii <= x"21"; --|
 	              when x"52" => ascii <= x"22"; --"
 	              when x"26" => ascii <= x"23"; --#
 	              when x"25" => ascii <= x"24"; --$
