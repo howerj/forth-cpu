@@ -10,7 +10,8 @@
 --| @email          howe.r.j.89@gmail.com
 --|
 --| @todo Make these components type generic if possible
---| @todo Add mux, demux (X To N, IN/OUT), and other generic functions and components
+--| @todo Add mux, demux (X To N, IN/OUT), debouncer, and other generic 
+--| functions and components
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -19,17 +20,17 @@ use ieee.numeric_std.all;
 package util is
 
 	component reg
-	generic(N: positive := 8);
+	generic(N: positive);
 	port(
 		clk: in  std_logic;
 		rst: in  std_logic;
 		we:  in  std_logic;
-		di:  in  std_logic_vector(N-1 downto 0);
-		do:  out std_logic_vector(N-1 downto 0));
+		di:  in  std_logic_vector(N - 1 downto 0);
+		do:  out std_logic_vector(N - 1 downto 0));
 	end component;
 
 	component shift_register
-	generic(N: positive := 8);
+	generic(N: positive);
 	port(
 		clk: in  std_logic;
 		rst: in  std_logic;
@@ -39,12 +40,27 @@ package util is
 	end component;
 
 	component shift_register_tb
-	generic(clk_freq: positive := 1000000000;
-		N: positive := 8);
+	generic(clock_frequency: positive; N: positive);
 	port(
 		clk:  in std_logic;
 		rst:  in std_logic;
 		stop: in std_logic);
+	end component;
+
+	component timer_us 
+		generic(clock_frequency: positive; timer_period_us: natural);
+		port(
+			rst: in  std_logic;
+			clk: in  std_logic;
+			co:  out std_logic);
+	end component;
+
+	component timer_us_tb
+		generic(clock_frequency: positive);
+		port(
+			clk:  in std_logic;
+			rst:  in std_logic;
+			stop: in std_logic);
 	end component;
 
 	function max(a: natural; b: natural) return natural;
@@ -53,7 +69,8 @@ package util is
 	function reverse (a: in std_logic_vector) return std_logic_vector;
 	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector;
 	function invert(slv:std_logic_vector) return std_logic_vector;
-end util;
+
+end;
 
 package body util is
 
@@ -92,25 +109,20 @@ package body util is
 	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector is
 		variable m: std_logic_vector(a'range);
 	begin
-		if(sel = '0') then
-			m := a;
-		else
-			m := b;
-		end if;
+		if sel = '0' then m := a; else m := b; end if;
 		return m;
 	end; 
 
 	function invert(slv:std_logic_vector) return std_logic_vector is 
 		variable z : std_logic_vector(slv'range);
 	begin
-		for i in (slv'low) to slv'high
-		loop
+		for i in slv'range loop
 			z(i) := not(slv(i));
 		end loop;
-	return z;
+		return z;
 	end;
 
-end util;
+end;
 
 ------------------------- Generic Register of std_logic_vector ----------------------
 
@@ -129,7 +141,7 @@ entity reg is
 		do:  out std_logic_vector(N-1 downto 0));
 end reg;
 
-architecture behav of reg is
+architecture rtl of reg is
 	signal r_c, r_n : std_logic_vector(N-1 downto 0) := (others => '0');
 begin
 	do <= r_c;
@@ -150,7 +162,7 @@ begin
 			r_n <= di;
 		end if;
 	end process;
-end behav;
+end;
 
 ------------------------- Generic Register of std_logic_vector ----------------------
 
@@ -159,8 +171,10 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+-- @todo Add optional parallel load and store
+-- https://stackoverflow.com/questions/36342960/optional-ports-in-vhdl
 entity shift_register is
-	generic(N: positive := 8);
+	generic(N: positive);
 	port
 	(
 		clk: in  std_logic;
@@ -170,7 +184,7 @@ entity shift_register is
 		do:  out std_logic);
 end shift_register;
 
-architecture behav of shift_register is
+architecture rtl of shift_register is
 	signal r_c, r_n : std_logic_vector(N-1 downto 0) := (others => '0');
 begin
 	do <= r_c(0);
@@ -191,15 +205,14 @@ begin
 			r_n(N-1) <= di;
 		end if;
 	end process;
-end behav;
+end;
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity shift_register_tb is
-	generic(clk_freq: positive :=  1000000000;
-		N: positive := 8);
+	generic(clock_frequency: positive);
 	port(
 		clk:  in std_logic;
 		rst:  in std_logic;
@@ -207,8 +220,8 @@ entity shift_register_tb is
 end shift_register_tb;
 
 architecture behav of shift_register_tb is
-	constant clk_period: time   :=  1000 ms / clk_freq;
-
+	constant N: positive := 8;
+	constant clock_period: time   :=  1000 ms / clock_frequency;
 	signal we: std_logic := '0';
 	signal di: std_logic := '0';
 	signal do: std_logic := '0';
@@ -223,22 +236,98 @@ begin
 		wait until rst = '0';
 		di <= '1';
 		we <= '1';
-		wait for clk_period;
+		wait for clock_period;
 		di <= '0';
 		we <= '0';
 		for I in 0 to 7 loop
 			assert do = '0' report "bit appeared to quickly";
-			wait for clk_period;
+			wait for clock_period;
 		end loop;
 		assert do = '1' report "bit disappeared in shift register"; 
-		wait for clk_period * 1;
+		wait for clock_period * 1;
 		assert do = '0' report "extra bit set in shift register";
 
 		while stop = '0' loop
 			assert do = '0' report "extra bit in shift register";
-			wait for clk_period;
+			wait for clock_period;
 		end loop;
 		wait;
 	end process;
-end behav;
+end;
 ------------------------- Shift register --------------------------------------------
+
+------------------------- Microsecond Timer -----------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.max;
+use work.util.n_bits;
+
+entity timer_us is
+	generic(
+		clock_frequency: positive;        
+		timer_period_us: natural  := 0);
+	port(
+		rst:  in std_logic := 'X';
+		clk:  in std_logic := 'X';
+		co:  out std_logic := '0'); 
+end timer_us;
+
+architecture rtl of timer_us is
+    constant cycles:   natural := (clock_frequency / 1000000) * timer_period_us;
+    subtype  counter is unsigned(max(1, n_bits(cycles) - 1) downto 0);
+    signal   c_c, c_n: counter := (others => '0');
+begin
+	process (clk, rst)
+	begin
+		if rst = '1' then
+			c_c <= (others => '0');
+		elsif rising_edge(clk) then
+			c_c <= c_n;
+		end if;
+	end process;
+
+	process (c_c)
+	begin
+		if c_c = (cycles - 1) then
+			c_n <= (others => '0');
+			co <= '1';
+		else
+			c_n <= c_c + 1;
+			co <= '0';
+		end if;
+	end process;
+end;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity timer_us_tb is
+	generic(clock_frequency: positive);
+	port(
+		clk:  in std_logic;
+		rst:  in std_logic;
+		stop: in std_logic);
+end timer_us_tb;
+
+architecture behav of timer_us_tb is
+	constant clock_period: time := 1000 ms / clock_frequency;
+	signal co: std_logic := 'X';
+begin
+	uut: entity work.timer_us
+	generic map(clock_frequency => clock_frequency, timer_period_us => 1) port map(clk => clk, rst => rst, co => co);
+
+	stimulus_process: process
+	begin
+		wait for 1 us;
+		assert co = '0';
+		wait for clock_period;
+		assert co = '1';
+		wait;
+	end process;
+
+end;
+
+------------------------- Microsecond Timer -----------------------------------------

@@ -12,7 +12,7 @@
 --|
 --| @note Changes made to range to stop Xilinx warnings and with formatting
 --| @todo This needs either replacing with something simpler, and/or fully 
---| testing, it currently does not have a test bench.
+--| testing, it currently does not have a test bench. 
 --------------------------------------------------------------------------------
 
 library ieee;
@@ -20,20 +20,18 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity uart is
-	generic (
-	        baud_rate           : positive;
-	        clock_frequency     : positive);
-	port (  -- general
-	        clock               :   in      std_logic;
-	        reset               :   in      std_logic;
-	        data_stream_in      :   in      std_logic_vector(7 downto 0);
-	        data_stream_in_stb  :   in      std_logic;
-	        data_stream_in_ack  :   out     std_logic := '0';
-	        data_stream_out     :   out     std_logic_vector(7 downto 0);
-	        data_stream_out_stb :   out     std_logic;
-	        data_stream_out_ack :   in      std_logic;
-	        tx                  :   out     std_logic;
-	        rx                  :   in      std_logic);
+	generic (baud_rate: positive; clock_frequency: positive);
+	port (  
+	        clock:               in      std_logic;
+	        reset:               in      std_logic;
+	        data_stream_in:      in      std_logic_vector(7 downto 0);
+	        data_stream_in_stb:  in      std_logic;
+	        data_stream_in_ack:  out     std_logic := '0';
+	        data_stream_out:     out     std_logic_vector(7 downto 0);
+	        data_stream_out_stb: out     std_logic;
+	        data_stream_out_ack: in      std_logic;
+	        tx:                  out     std_logic;
+	        rx:                  in      std_logic);
 end uart;
 
 architecture behav of uart is

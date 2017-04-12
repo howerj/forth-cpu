@@ -108,15 +108,17 @@ used.
 * For CRC VHDL code see <http://outputlogic.com/?page_id=321>
 * Better instructions for installation and building the project should be
   given.
+* Add coding standards for VHDL.
 * Each of the modules that I have made really need tests
 benches written for them.
-* Add "after" and try to model gate delays.
+* Add "after" and try to model gate delays, this could be done incrementally,
+  each entity only assigning its outputs after a delay after the timing for it
+  has been worked out.
 * Make test benches for all units I have made:
 	- irqh.vhd
 	- ledseg.vhd
 	- util.vhd
-* Improve the "util.vhd"
-	- Add a generic multiplexer, shift register, and other basic constructs
+* GPIO should be added, and perhaps a wave form generator.
 
 ## Ideas
 

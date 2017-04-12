@@ -13,6 +13,7 @@
  * @todo turn this into a library, and into a literate program
  * @todo make a peephole optimizer for the assembler and a super optimizer
  * utility.
+ * @todo Fix code generation of jumps
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
@@ -444,6 +445,57 @@ int h2_save(h2_t *h, FILE *output, bool full)
 	return 0;
 }
 
+
+/**@todo move non-portable I/O stuff to external program that calls h2_run */
+#ifdef __unix__
+#include <unistd.h>
+#include <termios.h>
+int getch(void) 
+{ 
+	struct termios oldattr, newattr;
+	int ch;
+	tcgetattr( STDIN_FILENO, &oldattr );
+	newattr = oldattr;
+	newattr.c_iflag &= ~( ICRNL );
+	newattr.c_lflag &= ~( ICANON | ECHO );
+
+	tcsetattr( STDIN_FILENO, TCSANOW, &newattr );
+	ch = getchar();
+
+	tcsetattr( STDIN_FILENO, TCSANOW, &oldattr );
+
+	if(ch==0x1b) 
+		exit(0);
+
+	return ch == 127 ? 8 : ch;
+}
+
+int putch(int c) 
+{ 
+	int res = putchar(c);
+	fflush(stdout);
+	return res;
+}
+#else
+#ifdef _WIN32
+
+extern int getch(void);
+extern int putch(int c);
+
+#else
+int getch(void)
+{
+	return getchar();
+}
+
+int putch(int c)
+{
+	return putchar(c);
+}
+#endif 
+#endif /** __unix__ **/
+
+
 /* ========================== Utilities ==================================== */
 
 /* ========================== Symbol Table ================================= */
@@ -755,7 +807,17 @@ int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 
 /* ========================== Simulation =================================== */
 
-/** @warning Can only push or pop once per cycle */
+typedef uint16_t (*get)(void *p, uint16_t addr);
+typedef void     (*set)(void *p, uint16_t addr, uint16_t value);
+
+/**@todo populate a default that only contains a UART driver and a timer,
+ * VGA and other stuff can be done later */
+typedef struct {
+	get in;
+	set out;
+	void *p;
+} h2_io_t;
+
 static void dpush(h2_t *h, uint16_t v)
 {
 	assert(h);
@@ -825,7 +887,7 @@ static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, co
 
 /** @todo interrupt handling, CPU hold, implement instruction set and I/O
  *  @todo split into a step and a run function */
-int h2_run(h2_t *h, FILE *output, unsigned steps, symbol_table_t *symbols)
+int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols)
 {
 	assert(h);
 	for(unsigned i = 0; i < steps || steps == 0; i++) {
@@ -877,10 +939,12 @@ int h2_run(h2_t *h, FILE *output, unsigned steps, symbol_table_t *symbols)
 			case ALU_OP_R:           tos = h->rstk[h->rp % STK_SIZE]; break;
 			case ALU_OP_T_LOAD:
 				if(h->tos & 0x6000) {
-					/**@todo implement I/O*/
-
-				/**@note h->tos is divided by 2 on the original core */
+					if(io)
+						tos = io->in(io->p, tos);
+					else
+						warning("I/O read attempted on addr: %"PRIx16, h->tos);
 				} else {
+					/**@note h->tos is divided by 2 on the original j1 core */
 					tos = h->core[h->tos % MAX_CORE];
 				}
 				break;
@@ -916,9 +980,12 @@ int h2_run(h2_t *h, FILE *output, unsigned steps, symbol_table_t *symbols)
 
 			if(instruction & N_TO_ADDR_T) {
 				if(h->tos & 0x6000) {
-					/**@todo implement output */
+					if(io)
+						io->out(io->p, tos, nos);
+					else
+						warning("I/O write attempted wth addr/value: %"PRIx16 "/%"PRIx16, tos, nos);
 				} else {
-					/**@note h->tos is divided by 2 on the original core */
+					/**@note h->tos is divided by 2 on the original j1 core */
 					h->core[h->tos % MAX_CORE] = nos;
 				}
 			}
@@ -1974,7 +2041,7 @@ static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_ta
 	if(h2_load(h, input) < 0)
 		return -1;
 	note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
-	r = h2_run(h, output, cmd->steps, symbols);
+	r = h2_run(h, NULL, output, cmd->steps, symbols);
 	h2_free(h);
 	return r;
 }

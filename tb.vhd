@@ -7,9 +7,7 @@
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
---| @todo Optionally read expected inputs and commands from a file;
---| Expected results could be read in from a file along with the signal
---| they are supposed to check, although this should be done optionally,
+--| @todo Optionally read expected inputs and commands from a file.
 --|
 -------------------------------------------------------------------------------
 
@@ -18,24 +16,26 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use std.textio.all;
 use work.util.shift_register_tb;
+use work.util.timer_us_tb;
 
 entity tb is
 end tb;
 
 architecture testing of tb is
-	constant clk_freq: positive :=  1000000000;
+	constant clock_frequency:      positive := 100000000;
 	constant number_of_interrupts: positive := 8;
 	constant uart_baud_rate:       positive := 115200;
 	constant number_of_iterations: positive := 256;
 
-	constant clk_period: time   :=  1000 ms / clk_freq;
+	constant clk_period: time   :=  1000 ms / clock_frequency;
 
-	signal  wait_flag:       std_logic :=  '0';
-	signal  debug_irq:       std_logic :=  '0';
-	signal  debug_irc:       std_logic_vector(3 downto 0) := (others => '0');
-	signal  debug_pc:        std_logic_vector(12 downto 0);
-	signal  debug_insn:      std_logic_vector(15 downto 0);
+	signal  wait_flag:   std_logic :=  '0';
+	signal  debug_irq:   std_logic :=  '0';
+	signal  debug_irc:   std_logic_vector(3 downto 0) := (others => '0');
+	signal  debug_pc:    std_logic_vector(12 downto 0);
+	signal  debug_insn:  std_logic_vector(15 downto 0);
 	signal  debug_dwe:   std_logic := '0';
+	signal  debug_dre:   std_logic := '0';
 	signal  debug_din:   std_logic_vector(15 downto 0);
 	signal  debug_dout:  std_logic_vector(15 downto 0);
 	signal  debug_daddr: std_logic_vector(12 downto 0);
@@ -57,8 +57,8 @@ architecture testing of tb is
 	signal  ld:    std_logic_vector(7 downto 0) := (others => '0'); -- leds
 
 	-- UART
-	signal  rx:    std_logic := '0';  -- uart rx
-	signal  tx:    std_logic := '0';  -- uart tx
+	signal  rx:    std_logic := '0'; 
+	signal  tx:    std_logic := '0';
 
 	-- VGA
 	signal  red:   std_logic_vector(2 downto 0) := (others => '0');
@@ -76,15 +76,16 @@ begin
 
 	uut: entity work.top
 	generic map(
-		clock_frequency      => clk_freq,
+		clock_frequency      => clock_frequency,
 		number_of_interrupts => number_of_interrupts,
 		uart_baud_rate       => uart_baud_rate)
 	port map(
-		debug_irq       => debug_irq,
-		debug_irc       => debug_irc,
-		debug_pc        => debug_pc,
-		debug_insn      => debug_insn,
+		debug_irq   => debug_irq,
+		debug_irc   => debug_irc,
+		debug_pc    => debug_pc,
+		debug_insn  => debug_insn,
 		debug_dwe   => debug_dwe,
+		debug_dre   => debug_dre,
 		debug_din   => debug_din,
 		debug_dout  => debug_dout,
 		debug_daddr => debug_daddr,
@@ -109,7 +110,8 @@ begin
 		ps2_keyboard_data => ps2_keyboard_data,
 		ps2_keyboard_clk  => ps2_keyboard_clk);
 
-	uut_shiftReg: entity work.shift_register_tb generic map(clk_freq => clk_freq) port map(clk => clk, rst => rst, stop => wait_flag);
+	uut_shiftReg: entity work.shift_register_tb generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
+	uut_timer_us: entity work.timer_us_tb generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
@@ -145,9 +147,14 @@ begin
 			assert rt = true;
 			wait for clk_period * 1;
 		end loop;
+
+		assert hsync = '1' report "HSYNC not active - H2 failed to initialize VGA module";
+		assert vsync = '1' report "VSYNC not active - H2 failed to initialize VGA module";
+
 		wait_flag   <=  '1';
 		wait;
 	end process;
+
 ------ END ---------------------------------------------------------------------
 end architecture;
 

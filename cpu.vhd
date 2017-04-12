@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 --| @file cpu.vhd
---| @brief This contains the CPU/main memory instances
+--| @brief This contains the CPU, memory and interrupt handler instances
 --|
 --| @author     Richard James Howe.
 --| @copyright  Copyright 2013 Richard James Howe.
@@ -10,16 +10,16 @@
 
 library ieee,work;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
 use work.util.n_bits;
 
 entity cpu is
 	generic(number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
-		debug_pc:         out std_logic_vector(12 downto 0);
-		debug_insn:       out std_logic_vector(15 downto 0);
+		debug_pc:     out std_logic_vector(12 downto 0);
+		debug_insn:   out std_logic_vector(15 downto 0);
 		debug_dwe:    out std_logic := '0';
+		debug_dre:    out std_logic := '0';
 		debug_din:    out std_logic_vector(15 downto 0);
 		debug_dout:   out std_logic_vector(15 downto 0);
 		debug_daddr:  out std_logic_vector(12 downto 0);
@@ -29,18 +29,18 @@ entity cpu is
 		rst:        in   std_logic;
 
 		-- CPU External interface, I/O
-		cpu_wait:   in   std_logic; -- Halts the CPU
-		cpu_wr:     out  std_logic; -- I/O Write enable
-		cpu_re:     out  std_logic; -- hardware *READS* can have side effects
-		cpu_din:    in   std_logic_vector(15 downto 0);
-		cpu_dout:   out  std_logic_vector(15 downto 0):= (others => 'X');
-		cpu_daddr:  out  std_logic_vector(15 downto 0):= (others => 'X');
+		stop:     in   std_logic; -- Halts the CPU
+		io_wr:    out  std_logic; -- I/O Write enable
+		io_re:    out  std_logic; -- hardware *READS* can have side effects
+		io_din:   in   std_logic_vector(15 downto 0);
+		io_dout:  out  std_logic_vector(15 downto 0):= (others => 'X');
+		io_daddr: out  std_logic_vector(15 downto 0):= (others => 'X');
 		-- Interrupts
-		cpu_irq:    in   std_logic;
-		cpu_irc:    in   std_logic_vector(number_of_interrupts - 1 downto 0));
+		cpu_irq:  in   std_logic;
+		cpu_irc:  in   std_logic_vector(number_of_interrupts - 1 downto 0));
 end;
 
-architecture behav of cpu is
+architecture structural of cpu is
 	constant interrupt_address_length: natural  := n_bits(number_of_interrupts);
 	constant addr_length:              positive := 13;
 	constant data_length:              positive := 16;
@@ -59,12 +59,13 @@ architecture behav of cpu is
 	signal h2_irq_addr:  std_logic_vector(interrupt_address_length - 1 downto 0) := (others=>'0');
 begin
 	-- synthesis translate_off
-	debug_pc          <= pc;
-	debug_insn        <= insn;
-	debug_dwe     <= dwe;
-	debug_din     <= din;
-	debug_dout    <= dout;
-	debug_daddr   <= daddr;
+	debug_pc    <= pc;
+	debug_insn  <= insn;
+	debug_dwe   <= dwe;
+	debug_dre   <= dre;
+	debug_din   <= din;
+	debug_dout  <= dout;
+	debug_daddr <= daddr;
 	-- synthesis translate_on
 
 	irqh_0: entity work.irqh
@@ -86,25 +87,25 @@ begin
 		rst       =>    rst,
 
 		-- External interface with the 'outside world'
-		cpu_wait  =>  cpu_wait,
-		io_wr     =>  cpu_wr,
-		io_re     =>  cpu_re,
-		io_din    =>  cpu_din,
-		io_dout   =>  cpu_dout,
-		io_daddr  =>  cpu_daddr,
+		stop      =>  stop,
+		io_wr     =>  io_wr,
+		io_re     =>  io_re,
+		io_din    =>  io_din,
+		io_dout   =>  io_dout,
+		io_daddr  =>  io_daddr,
 
 		irq       =>  h2_irq,
 		irq_addr  =>  h2_irq_addr,
 
 		-- Instruction and instruction address to CPU
-		pco       =>    pc,
-		insn      =>    insn,
+		pco       =>  pc,
+		insn      =>  insn,
 		-- Fetch/Store
-		dwe       =>    dwe,
-		dre       =>    dre,
-		din       =>    din,
-		dout      =>    dout,
-		daddr     =>    daddr);
+		dwe       =>  dwe,
+		dre       =>  dre,
+		din       =>  din,
+		dout      =>  dout,
+		daddr     =>  daddr);
 		
 	mem_h2_0: entity work.memory
 	generic map(

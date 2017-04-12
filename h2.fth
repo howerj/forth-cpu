@@ -93,7 +93,14 @@ constant cursor        1024
 : tuck swap over ;
 : +! tuck @ + swap ! ;
 
+: init
+	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
+	timerInit oTimerCtrl ! \ Enable timer
+	;
+
+
 start:
+	\ init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
 

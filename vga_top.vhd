@@ -142,7 +142,7 @@ begin
 
 	-- The actual VGA module
 	u_vga : entity work.vga port map (
-		reset     => rst,
+		rst       => rst,
 		clk25MHz  => clk25MHz,
 
 		text_a    => text_addr,

@@ -13,89 +13,65 @@ use ieee.numeric_std.all;
 
 entity vga is
 	port (
-	reset       : in  std_logic;
-	clk25MHz    : in  std_logic;
-	TEXT_A      : out std_logic_vector(11 downto 0); -- text buffer
-	TEXT_D      : in  std_logic_vector(7 downto 0);
-	FONT_A      : out std_logic_vector(11 downto 0); -- font buffer
-	FONT_D      : in  std_logic_vector(7 downto 0);
-	 --
-	ocrx        : in  std_logic_vector(6 downto 0); -- OUTPUT regs
-	ocry        : in  std_logic_vector(5 downto 0);
-	octl        : in  std_logic_vector(6 downto 0);
-	--
-	R           : out std_logic;
-	G           : out std_logic;
-	B           : out std_logic;
-	hsync       : out std_logic;
-	vsync       : out std_logic);
+		rst:      in  std_logic;
+		clk25MHz: in  std_logic;
+		TEXT_A:   out std_logic_vector(11 downto 0); -- text buffer
+		TEXT_D:   in  std_logic_vector(7 downto 0);
+		FONT_A:   out std_logic_vector(11 downto 0); -- font buffer
+		FONT_D:   in  std_logic_vector(7 downto 0);
+		 --
+		ocrx:     in  std_logic_vector(6 downto 0); 
+		ocry:     in  std_logic_vector(5 downto 0);
+		octl:     in  std_logic_vector(6 downto 0);
+		--
+		R:        out std_logic;
+		G:        out std_logic;
+		B:        out std_logic;
+		hsync:    out std_logic;
+		vsync:    out std_logic);
 end vga;
 
+architecture rtl of vga is
 
-
-architecture behav of vga is
-
-	signal R_int : std_logic := '0';
-	signal G_int : std_logic := '0';
-	signal B_int : std_logic := '0';
-	signal hsync_int : std_logic := '1';
-	signal vsync_int : std_logic := '1';
+	signal R_int:     std_logic := '0';
+	signal G_int:     std_logic := '0';
+	signal B_int:     std_logic := '0';
+	signal hsync_int: std_logic := '1';
+	signal vsync_int: std_logic := '1';
 	
-	signal blank : std_logic := '0';
-	signal hctr  : integer range 793 downto 0 := 0;
-	signal vctr  : integer range 524 downto 0 := 0;
+	signal blank: std_logic := '0';
+	signal hctr:  integer range 793 downto 0 := 0;
+	signal vctr:  integer range 524 downto 0 := 0;
+
 	-- character/pixel position on the screen
-	signal scry  : integer range 39 downto 0 := 0;  -- chr row   < 40 (6 bits)
-	signal scrx  : integer range 79 downto 0 := 0;  -- chr col   < 80 (7 bits)
-	signal chry  : integer range 11 downto 0 := 0;  -- chr high  < 12 (4 bits)
-	signal chrx  : integer range 7  downto 0 := 0;  -- chr width < 08 (3 bits)
+	signal scry:  integer range 39 downto 0 := 0;  -- chr row   < 40 (6 bits)
+	signal scrx:  integer range 79 downto 0 := 0;  -- chr col   < 80 (7 bits)
+	signal chry:  integer range 11 downto 0 := 0;  -- chr high  < 12 (4 bits)
+	signal chrx:  integer range 7  downto 0 := 0;  -- chr width < 08 (3 bits)
 	
-	signal losr_ce : std_logic :='0';
-	signal losr_ld : std_logic :='0';
-	signal losr_do : std_logic :='0';
-	signal y       : std_logic :='0';  -- character luminance pixel value (0 or 1)
+	signal losr_ce: std_logic := '0';
+	signal losr_ld: std_logic := '0';
+	signal losr_do: std_logic := '0';
+	signal y:       std_logic := '0';  -- character luminance pixel value (0 or 1)
 
 	-- control io register
-	signal ctl       : std_logic_vector(7 downto 0):= (others =>'0');
-	signal vga_en    : std_logic :='0';
-	signal cur_en    : std_logic :='0';
-	signal cur_mode  : std_logic :='0';
-	signal cur_blink : std_logic :='0';
-	signal ctl_r     : std_logic :='0';
-	signal ctl_g     : std_logic :='0';
-	signal ctl_b     : std_logic :='0';
+	signal ctl:       std_logic_vector(7 downto 0):= (others =>'0');
+	signal vga_en:    std_logic := '0';
+	signal cur_en:    std_logic := '0';
+	signal cur_mode:  std_logic := '0';
+	signal cur_blink: std_logic := '0';
+	signal ctl_r:     std_logic := '0';
+	signal ctl_g:     std_logic := '0';
+	signal ctl_b:     std_logic := '0';
 
-	component ctrm
-	generic (
-	  M : integer := 8);
-	port (
-	  reset : in  std_logic;            -- asyncronous reset
-	  clk   : in  std_logic;
-	  ce    : in  std_logic;            -- enable counting
-	  rs    : in  std_logic;            -- syncronous reset
-	  do    : out integer range (M-1) downto 0);
-	end component;
-
-	component losr
-	generic (
-	  N : integer := 4);
-	port (
-	  reset : in  std_logic;
-	  clk   : in  std_logic;
-	  load  : in  std_logic;
-	  ce    : in  std_logic;
-	  do    : out std_logic;
-	  di    : in  std_logic_vector(N-1 downto 0));
-	end component;
-	
 begin
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -- hsync generator, initialized with '1'
-	process (reset, clk25MHz)
+	process (rst, clk25MHz)
 	begin
-		if reset = '1' then
+		if rst = '1' then
 			hsync_int <= '1';
 		elsif rising_edge(clk25MHz) then
 			if (hctr > 663) and (hctr < 757) then
@@ -110,9 +86,9 @@ begin
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -- vsync generator, initialized with '1'
-	process (reset, clk25MHz)
+	process (rst, clk25MHz)
 	begin
-		if reset = '1' then
+		if rst = '1' then
 			vsync_int <= '1';
 		elsif rising_edge(clk25MHz) then
 			if (vctr > 499) and (vctr < 502) then
@@ -133,9 +109,9 @@ begin
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -- flip-flips for sync of R, G y B signal, initialized with '0'
-	process (reset, clk25MHz)
+	process (rst, clk25MHz)
 	begin
-	if reset = '1' then
+	if rst = '1' then
 	  R <= '0';
 	  G <= '0';
 	  B <= '0';
@@ -153,7 +129,7 @@ begin
 -------------------------------------------------------------------------------
 	-- Control register. Individual control signal
 
-	-- RHOWE, Reorganized this.
+	-- @note This has been reorganized from the original
 	vga_en    <= octl(6);
 	cur_en    <= octl(5);
 	cur_blink <= octl(4);
@@ -190,20 +166,18 @@ begin
 
 	begin
 	
-	U_HCTR : ctrm generic map (M => 794) port map (
-	 reset =>reset, clk=>clk25MHz, ce =>hctr_ce, rs =>hctr_rs, do => hctr);
-	
-	U_VCTR : ctrm generic map (M => 525) port map (reset, clk25MHz, vctr_ce, vctr_rs, vctr);
+	U_HCTR: entity work.ctrm generic map (M => 794) port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
+	U_VCTR: entity work.ctrm generic map (M => 525) port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
 
 	hctr_ce <= '1';
 	hctr_rs <= '1' when hctr = 793 else '0';
 	vctr_ce <= '1' when hctr = 663 else '0';
 	vctr_rs <= '1' when vctr = 524 else '0';
 
-	U_CHRX: ctrm generic map (M => 8) port map (reset, clk25MHz, chrx_ce, chrx_rs, chrx);
-	U_CHRY: ctrm generic map (M => 12) port map (reset, clk25MHz, chry_ce, chry_rs, chry);
-	U_SCRX: ctrm generic map (M => 80) port map (reset, clk25MHz, scrx_ce, scrx_rs, scrx);
-	U_SCRY: ctrm generic map (M => 40) port map (reset, clk25MHz, scry_ce, scry_rs, scry);
+	U_CHRX: entity work.ctrm generic map (M => 8)  port map (rst, clk25MHz, chrx_ce, chrx_rs, chrx);
+	U_CHRY: entity work.ctrm generic map (M => 12) port map (rst, clk25MHz, chry_ce, chry_rs, chry);
+	U_SCRX: entity work.ctrm generic map (M => 80) port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx);
+	U_SCRY: entity work.ctrm generic map (M => 40) port map (rst, clk25MHz, scry_ce, scry_rs, scry);
 
 	hctr_639 <= '1' when hctr = 639 else '0';
 	vctr_479 <= '1' when vctr = 479 else '0';
@@ -235,8 +209,8 @@ begin
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
-	U_LOSR : losr generic map (N => 8)
-	port map (reset, clk25MHz, losr_ld, losr_ce, losr_do, FONT_D);
+	U_LOSR : entity work.losr generic map (N => 8)
+	port map (rst, clk25MHz, losr_ld, losr_ce, losr_do, FONT_D);
 	
 	losr_ce <= blank;
 	losr_ld <= '1' when (chrx = 7) else '0';
@@ -283,4 +257,4 @@ begin
 	
 	end block;
 	
-end behav;
+end;

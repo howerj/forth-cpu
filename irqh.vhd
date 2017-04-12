@@ -33,7 +33,7 @@ entity irqh is
 		addr_o: out std_logic_vector(n_bits(number_of_interrupts) - 1 downto 0)); 
 end;
 
-architecture behav of irqh is
+architecture rtl of irqh is
 	constant addr_length: natural := n_bits(number_of_interrupts) - 1;
 	signal irq_n: std_logic := '0';
 	signal irc_n: std_logic_vector(number_of_interrupts - 1 downto 0) := (others => '0');

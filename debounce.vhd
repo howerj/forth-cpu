@@ -31,15 +31,15 @@ use ieee.numeric_std.all;
 entity debounce is
 	generic(counter_size  :  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
 	port(
-		clk     : in  std_logic;  
-		button  : in  std_logic;  --input signal to be debounced
-		result  : out std_logic); --debounced signal
+		clk:    in  std_logic;  
+		button: in  std_logic;  --input signal to be debounced
+		result: out std_logic); --debounced signal
 end debounce;
 
-architecture logic of debounce is
-	signal flipflops   : std_logic_vector(1 downto 0); --input flip flops
-	signal counter_set : std_logic;                    --sync reset to zero
-	signal counter_out : unsigned(counter_size downto 0) := (others => '0'); --counter output
+architecture rtl of debounce is
+	signal flipflops:   std_logic_vector(1 downto 0); --input flip flops
+	signal counter_set: std_logic;                    --sync reset to zero
+	signal counter_out: unsigned(counter_size downto 0) := (others => '0'); --counter output
 begin
 
 	counter_set <= flipflops(0) xor flipflops(1);   --determine when to start/reset counter
@@ -58,4 +58,5 @@ begin
 			end if;
 		end if;
 	end process;
-end logic;
+end;
+

@@ -1,14 +1,14 @@
 ---------------------------------------------------------------------------------
 --| @file bram.vhd
---| @brief Implements a generic dual port block RAM which according to Xilinx's 
---| XST guide will synthesize. Initial memory contents are specified by a file
---| containing one of two formats; either one ASCII hexadecimal or binary number
---| per memory cell.
+--| @brief Implements a generic dual port block RAM which.
 --|
 --| @author         Richard James Howe.
 --| @copyright      Copyright 2013 Richard James Howe.
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
+--|
+--| @note GHDL complains about the function "inFile" not being a pure function,
+--| as it reads from a file, it simulates correctly however. 
 ---------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -17,12 +17,27 @@ use std.textio.all;
 
 entity memory is
 
+	-- The dual port Block RAM module can be initialized from a file,
+	-- or initialized to all zeros. The model can be synthesized (with
+	-- Xilinx's ISE) into BRAM.
+	--	
+	-- Valid file_type options include:
+	--
+	-- "bin"  - A binary file (ASCII '0' and '1', one number per line)
+	-- "hex"  - A Hex file (ASCII '0-9' 'a-f', 'A-F', one number per line)
+	-- "nil"  - RAM contents will be defaulted to all zeros, no file will
+	--          be read from
+	--
+	-- The data length must be divisible by 4 if the "hex" option is
+	-- given.
+	--
 	-- These default values for addr_length and data_length have been
-	-- chosen so as to fill the block RAM available on a Spartan 6
+	-- chosen so as to fill the block RAM available on a Spartan 6.
+	--
 	generic(addr_length: positive  := 12;
 		data_length: positive  := 16;
-		file_name:    string   := "memory.binary"; --| initial RAM contents
-		file_type:    string   := "bin");          --| ASCII 0/1s
+		file_name:    string   := "memory.bin"; 
+		file_type:    string   := "bin");
 	port(
 		--| Port A of dual port RAM
 		a_clk:  in  std_logic;
@@ -73,12 +88,10 @@ architecture behav of memory is
 		when 'f' => slv := "1111";
 		when others => slv := "XXXX";
 		end case;
-		assert (slv /= "XXXX") report " not a valid hex character" severity failure;
+		assert (slv /= "XXXX") report " not a valid hex character: " & hc  severity failure;
 		return slv;
 	end hexCharToStdLogicVector;
 
-	--| @brief This function will initialize the RAM, it reads from
-	--| a file that can be specified in a generic way
 	function initRam(file_name, file_type: in string) return ramArray_t is
 		variable ramData:   ramArray_t;
 		file     inFile:    text is in file_name;
@@ -87,24 +100,26 @@ architecture behav of memory is
 		variable c:         character;
 		variable slv:       std_logic_vector(data_length - 1 downto 0);
 	begin
-		assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 		for i in 0 to ramSz - 1 loop
-			if not endfile(inFile) then
+			if file_type = "nil" then
+				ramData(i):=(others => '0');
+			elsif not endfile(inFile) then
 				readline(inFile,inputLine);
 				if file_type = "bin" then -- binary
-					read(inputLine,tmpVar);
-					ramData(i):=to_stdlogicvector(tmpVar);
+					read(inputLine, tmpVar);
+					ramData(i) := to_stdlogicvector(tmpVar);
 				elsif file_type = "hex" then -- hexadecimal
+					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 					for j in 1 to (data_length/4) loop
 						c:= inputLine((data_length/4) - j + 1);
 						slv((j*4)-1 downto (j*4)-4) := hexCharToStdLogicVector(c);
 					end loop;
-					ramData(i):= slv;
+					ramData(i) := slv;
 				else
-					assert false report "Incorrect type given" severity failure;
+					report "Incorrect file type given: " & file_type severity failure;
 				end if;
 			else
-				ramData(i):=(others => '0');
+				ramData(i) := (others => '0');
 			end if;
 		end loop;
 		return ramData;

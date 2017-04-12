@@ -23,12 +23,13 @@ entity top is
 	(
 -- synthesis translate_off
 		-- These signals are only used for the test bench
-		debug_irq:        in  std_logic;
-		debug_irc:        in  std_logic_vector(3 downto 0);
+		debug_irq:    in  std_logic;
+		debug_irc:    in  std_logic_vector(3 downto 0);
 
-		debug_pc:         out std_logic_vector(12 downto 0);
-		debug_insn:       out std_logic_vector(15 downto 0);
+		debug_pc:     out std_logic_vector(12 downto 0);
+		debug_insn:   out std_logic_vector(15 downto 0);
 		debug_dwe:    out std_logic := '0';
+		debug_dre:    out std_logic := '0';
 		debug_din:    out std_logic_vector(15 downto 0);
 		debug_dout:   out std_logic_vector(15 downto 0);
 		debug_daddr:  out std_logic_vector(12 downto 0);
@@ -66,15 +67,17 @@ entity top is
 end;
 
 architecture behav of top is
+	constant timer_length: positive := 16;
+
 	-- Signals
 	signal rst: std_logic := '0';
 	-- CPU H2 IO interface signals.
 	signal cpu_wait:     std_logic := '0';
-	signal cpu_io_wr:    std_logic := '0';
-	signal cpu_io_re:    std_logic := '0';
-	signal cpu_io_din:   std_logic_vector(15 downto 0):= (others => '0');
-	signal cpu_io_dout:  std_logic_vector(15 downto 0):= (others => '0');
-	signal cpu_io_daddr: std_logic_vector(15 downto 0):= (others => '0');
+	signal io_wr:    std_logic := '0';
+	signal io_re:    std_logic := '0';
+	signal io_din:   std_logic_vector(15 downto 0):= (others => '0');
+	signal io_dout:  std_logic_vector(15 downto 0):= (others => '0');
+	signal io_daddr: std_logic_vector(15 downto 0):= (others => '0');
 
 	-- CPU H2 Interrupts
 	signal cpu_irq: std_logic := '0';
@@ -109,7 +112,7 @@ architecture behav of top is
 	signal vga_din:    std_logic_vector(15 downto 0) := (others => '0');
 
 	---- UART
-	-- @todo move this to its own module
+	-- @todo move this into the UART module
 	signal uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
 	signal ack_din_c, ack_din_n:     std_logic:= '0';
 	signal uart_dout_c, uart_dout_n: std_logic_vector(7 downto 0):= (others => '0');
@@ -121,7 +124,7 @@ architecture behav of top is
 
 	---- Timer
 	signal gpt0_ctr_r_we:     std_logic := '0';
-	signal gpt0_ctr_r:        std_logic_vector(15 downto 0) := (others =>'0');
+	signal gpt0_ctr_r:        std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
 	signal gpt0_irq_comp1:    std_logic;
 	signal gpt0_q_internal:   std_logic;
 	signal gpt0_nq_internal:  std_logic;
@@ -171,15 +174,22 @@ begin
 	-- act as interrupts or not should be controlled by a register
 	-- set by the user.
 	cpu_wait   <= btnc_d;
-	cpu_irq    <= '1' when gpt0_irq_comp1 = '1' or ack_din = '1' or stb_dout = '1' else '0';
+	cpu_irq    <= '1' when 
+			gpt0_irq_comp1 = '1' or 
+			ack_din        = '1' or 
+			stb_dout       = '1' or 
+			btnl_d         = '1' or 
+			btnr_d         = '1' 
+			else '0';
 
 	cpu_0: entity work.cpu
 	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 -- synthesis translate_off
-	debug_pc        => debug_pc,
-	debug_insn      => debug_insn,
+	debug_pc    => debug_pc,
+	debug_insn  => debug_insn,
 	debug_dwe   => debug_dwe,
+	debug_dre   => debug_dre,
 	debug_din   => debug_din,
 	debug_dout  => debug_dout,
 	debug_daddr => debug_daddr,
@@ -188,12 +198,12 @@ begin
 	clk => clk,
 	rst => rst,
 
-	cpu_wait  => cpu_wait,
-	cpu_wr    => cpu_io_wr,
-	cpu_re    => cpu_io_re,
-	cpu_din   => cpu_io_din,
-	cpu_dout  => cpu_io_dout,
-	cpu_daddr => cpu_io_daddr,
+	stop     => cpu_wait,
+	io_wr    => io_wr,
+	io_re    => io_re,
+	io_din   => io_din,
+	io_dout  => io_dout,
+	io_daddr => io_daddr,
 
 	cpu_irq   => cpu_irq,
 	cpu_irc   => cpu_irc);
@@ -242,7 +252,7 @@ begin
 	end process;
 
 	io_select: process(
-		cpu_io_wr, cpu_io_re, cpu_io_dout, cpu_io_daddr, cpu_irc_mask_c,
+		io_wr, io_re, io_dout, io_daddr, cpu_irc_mask_c,
 		ld_c,
 		sw, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
 		uart_din_c, ack_din_c,
@@ -313,99 +323,100 @@ begin
 			stb_dout_n  <= stb_dout_c;
 		end if;
 
-		cpu_io_din <= (others => '0');
+		io_din <= (others => '0');
 
-		if cpu_io_wr = '1' then
+		if io_wr = '1' then
 			-- Write output.
-			case cpu_io_daddr(4 downto 0) is
+			case io_daddr(4 downto 0) is
 			when "00000" => -- Not used!
 			when "00001" => -- LEDs, next to switches.
-				ld_n <= cpu_io_dout(7 downto 0);
+				ld_n <= io_dout(7 downto 0);
 			when "00010" => -- VGA, cursor registers.
 				crx_we <= '1';
 				cry_we <= '1';
-				crx <= cpu_io_dout(6 downto 0);
-				cry <= cpu_io_dout(13 downto 8);
+				crx <= io_dout(6 downto 0);
+				cry <= io_dout(13 downto 8);
 			when "00011" => -- VGA, control register.
 				ctl_we <= '1';
-				ctl <= cpu_io_dout(7 downto 0);
+				ctl <= io_dout(7 downto 0);
 			when "00100" => -- VGA update address register.
 				vga_a_we <= '1';
-				vga_addr <= cpu_io_dout(12 downto 0);
+				vga_addr <= io_dout(12 downto 0);
 			when "00101" => -- VGA, update register.
 				vga_d_we <= '1';
-				vga_din <= cpu_io_dout(15 downto 0);
+				vga_din <= io_dout(15 downto 0);
 			when "00110" => -- VGA write RAM write
 				vga_we_ram <= '1';
 			when "00111" => -- UART write output.
-				uart_din_n <= cpu_io_dout(7 downto 0);
+				uart_din_n <= io_dout(7 downto 0);
 			when "01000" => -- UART strobe input.
 				stb_din <= '1';
 			when "01001" => -- UART acknowledge output.
 				ack_dout <= '1';
 			when "01010" => -- General purpose timer
 				gpt0_ctr_r_we <= '1';
-				gpt0_ctr_r    <= cpu_io_dout(15 downto 0);
+				gpt0_ctr_r    <= io_dout(timer_length - 1 downto 0);
 			when "01011" => -- LED 8 Segment display
-				led_0    <= cpu_io_dout(3 downto 0);
+				led_0    <= io_dout(3 downto 0);
 				led_0_we <= '1';
 			when "01100" => -- LED 8 Segment display
-				led_1    <= cpu_io_dout(3 downto 0);
+				led_1    <= io_dout(3 downto 0);
 				led_1_we <= '1';
 			when "01101" =>
-				led_2    <= cpu_io_dout(3 downto 0);
+				led_2    <= io_dout(3 downto 0);
 				led_2_we <= '1';
 			when "01110" =>
-				led_3    <= cpu_io_dout(3 downto 0);
+				led_3    <= io_dout(3 downto 0);
 				led_3_we <= '1';
 			when "01111" =>
-				cpu_irc_mask_n <= cpu_io_dout(number_of_interrupts - 1 downto 0);
+				cpu_irc_mask_n <= io_dout(number_of_interrupts - 1 downto 0);
 			when "10000" =>
 			when others =>
 			end case;
-		elsif cpu_io_re = '1' then
+		elsif io_re = '1' then
 			-- Get input.
-			case cpu_io_daddr(3 downto 0) is
+			case io_daddr(3 downto 0) is
 			when "0000" => -- Switches, plus direct access to UART bit.
-				cpu_io_din <= "0000000000" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d;
+				io_din <= "0000000000" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d;
 			when "0001" =>
-				cpu_io_din <= X"00" & sw;
+				io_din <= X"00" & sw;
 			when "0010" => -- VGA, Read VGA text buffer.
-				cpu_io_din <= vga_dout;
+				io_din <= vga_dout;
 			when "0011" => -- UART get input.
-				cpu_io_din <= X"00" & uart_dout_c;
+				io_din <= X"00" & uart_dout_c;
 			when "0100" => -- UART acknowledged input.
-				cpu_io_din <= (0 => ack_din_c, others => '0');
+				io_din <= (0 => ack_din_c, others => '0');
 				ack_din_n <= '0';
 			when "0101" => -- UART strobe output (write output).
-				cpu_io_din <= (0 => stb_dout_c, others => '0');
+				io_din <= (0 => stb_dout_c, others => '0');
 				stb_dout_n <= '0';
 			when "0110" =>  -- PS/2 Keyboard, Check for new char
-				cpu_io_din <= (0 => kbd_new_c, others => '0');
+				io_din <= (0 => kbd_new_c, others => '0');
 			when "0111" =>  -- PS/2 ASCII In and ACK
-				cpu_io_din <= "000000000" &  kbd_char_c;
+				io_din <= "000000000" &  kbd_char_c;
 				kbd_new_n <= '0';
-			when "1000" => cpu_io_din <= (others => '0');
-			when others => cpu_io_din <= (others => '0');
+			when "1000" => io_din <= (others => '0');
+			when others => io_din <= (others => '0');
 			end case;
 		end if;
 	end process;
 
 	--- UART ----------------------------------------------------------
-	--| @todo integrate this into the UART module
+	--| @todo integrate this into the UART module along with the
+	--| UART registers present in this module
 	uart_deglitch_0: process (clk)
 	begin
 	if rising_edge(clk) then
 		rx_sync <= rx;
 		rx_uart <= rx_sync;
-		tx <= tx_uart;
+		tx      <= tx_uart;
 	end if;
 	end process;
 
 	uart_0: entity work.uart
 	generic map(
-		baud_rate       => uart_baud_rate,
-		clock_frequency => clock_frequency)
+		baud_rate           => uart_baud_rate,
+		clock_frequency     => clock_frequency)
 	port map(
 		clock               => clk,
 		reset               => rst,
@@ -423,7 +434,7 @@ begin
 	gpt0_q  <= gpt0_q_internal;
 	gpt0_nq <= gpt0_nq_internal;
 	timer0_0: entity work.timer
-	generic map(timer_length => 16)
+	generic map(timer_length => timer_length)
 	port map(
 		clk       => clk,
 		rst       => rst,
@@ -476,7 +487,7 @@ begin
 
 	ps2_0: entity work.ps2top
 	generic map(
-		clk_freq => clock_frequency,
+		clock_frequency => clock_frequency,
 		ps2_debounce_counter_size => 8)
 	port map(
 		clk        => clk,
@@ -487,8 +498,8 @@ begin
 	--- PS/2 ----------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------
-	-- @todo split writes to each segment up
 	ledseg_0: entity work.ledseg
+	generic map(clock_frequency => clock_frequency)
 	port map(
 		clk        => clk,
 		rst        => rst,

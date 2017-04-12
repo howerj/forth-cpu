@@ -8,10 +8,7 @@
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
---| @todo Convert a number into a character for the display, also make sure
---| the timing for this module is correct. Also if this module was a package
---| then an array of LED segments could be created and used as the interface.
---| @todo This needs fixing, it's buggy and does not work correctly.
+--| @todo Turn this module into a package and use generics 
 --------------------------------------------------------------------------------
 
 --| This module implements a 8 segment display driver, with 4 displays in total:
@@ -31,9 +28,12 @@
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.util.all;
+use work.util.reg;
+use work.util.timer_us;
+use work.util.invert;
 
 entity ledseg is
+	generic(clock_frequency: positive);
 	port(
 		clk:      in   std_logic;
 		rst:      in   std_logic;
@@ -54,10 +54,8 @@ entity ledseg is
 end;
 
 architecture behav of ledseg is
-	-- use smaller counter number for testing.
-	-- @todo This speed should depend on a generic clock parameter
-	constant highest_counter_bit: integer := 20;
 	constant bcd_length: positive := 4;
+	constant timer_period_us: natural := 1500; -- 15 milliseconds
 	subtype bcd  is std_logic_vector(bcd_length - 1 downto 0);
 	subtype eseg is std_logic_vector(7 downto 0);
 
@@ -66,9 +64,8 @@ architecture behav of ledseg is
 	signal led_2_o: bcd := (others => '0');
 	signal led_3_o: bcd := (others => '0');
 
-	signal counter:    unsigned(highest_counter_bit downto 0) := (others => '0');
-	signal counter_hb: std_logic := '0';
-	signal shift_reg:  std_logic_vector(3 downto 0) := (0 => '1', others => '0');
+	signal do_shift:  std_logic := '0';
+	signal shift_reg: std_logic_vector(3 downto 0) := (0 => '1', others => '0');
 
 	-- 8 Segment LED lookup table converts a BCD character into a value
 	-- that can be displayed on an 8 segment display. The layout of which
@@ -104,6 +101,8 @@ architecture behav of ledseg is
 	-- | - |   | 1 |   |   |   |   |   |   | 4 0 |
 	--  -----------------------------------------
 	--
+	-- The table is then inverted before it goes to the output.
+	--
 	function bcd_to_8segment(a: bcd) return eseg is
 		variable r: std_logic_vector(7 downto 0);
 	begin
@@ -126,10 +125,9 @@ architecture behav of ledseg is
 			when "1111" => r := x"00"; -- Unused
 			when others => r := x"00"; -- Unused
 		end case;
-		return r;
+		return invert(r);
 	end function bcd_to_8segment;
 begin
-	counter_hb <= counter(highest_counter_bit);
 	an <= invert(shift_reg);
 
 	led0: entity work.reg generic map(N => bcd_length) port map(clk => clk, rst => rst, we => led_0_we, di => led_0, do => led_0_o); 
@@ -137,20 +135,16 @@ begin
 	led2: entity work.reg generic map(N => bcd_length) port map(clk => clk, rst => rst, we => led_2_we, di => led_2, do => led_2_o); 
 	led3: entity work.reg generic map(N => bcd_length) port map(clk => clk, rst => rst, we => led_3_we, di => led_3, do => led_3_o); 
 
-	-- @todo generic counter and shift register modules should be made
-	process(clk, rst)
-	begin
-		if rst = '1' then
-			counter <= (others => '0');
-		elsif rising_edge(clk) then
-			counter <= counter + 1;
-		end if;
-	end process;
+	timer: entity work.timer_us
+		generic map(clock_frequency => clock_frequency, timer_period_us => timer_period_us) 
+		port map(clk => clk, rst => rst, co => do_shift);
 
-	process(counter_hb, shift_reg)
+	process(clk, do_shift, shift_reg)
 	begin
-		if rising_edge(counter_hb) then
-			shift_reg <= shift_reg(2 downto 0) & shift_reg(3);
+		if rising_edge(clk) then
+			if do_shift = '1' then
+				shift_reg <= shift_reg(2 downto 0) & shift_reg(3);
+			end if;
 		else
 			shift_reg <= shift_reg;
 		end if;
@@ -161,13 +155,13 @@ begin
 		ka <= (others => '0');
 
 		if '1' = shift_reg(0) then
-			ka <= invert(bcd_to_8segment(led_0_o));
+			ka <= bcd_to_8segment(led_0_o);
 		elsif '1' = shift_reg(1) then
-			ka <= invert(bcd_to_8segment(led_1_o));
+			ka <= bcd_to_8segment(led_1_o);
 		elsif '1' = shift_reg(2) then
-			ka <= invert(bcd_to_8segment(led_2_o));
+			ka <= bcd_to_8segment(led_2_o);
 		elsif '1' = shift_reg(3) then
-			ka <= invert(bcd_to_8segment(led_3_o));
+			ka <= bcd_to_8segment(led_3_o);
 		end if;
 	end process;
 end architecture;

@@ -10,7 +10,8 @@
 --| @email          howe.r.j.89@gmail.com
 --|
 --| TODO:
---|  * Use more generics
+--|  * Use more generics: The instruction width and even features of this
+--|  CPU could be made to be optional.
 --|  * Assertions should be added to the core
 --|  * Turn this into a literate file, describing the CPU
 --|
@@ -32,7 +33,7 @@ entity h2 is
 		rst:      in  std_logic;
 
 		-- IO interface
-		cpu_wait: in  std_logic;
+		stop: in  std_logic;
 		io_wr:    out std_logic;
 		io_re:    out std_logic; -- hardware reads can have side effects
 		io_din:   in  std_logic_vector(15 downto 0);
@@ -55,7 +56,7 @@ entity h2 is
 	);
 end;
 
-architecture behav of h2 is
+architecture rtl of h2 is
 	constant stack_size: integer := 2 ** stack_size_log2;
 
 	-- Program counter.
@@ -75,10 +76,6 @@ architecture behav of h2 is
 	signal rstkp_c:  depth := (others => '0');
 	signal rstkp_n:  depth := (others => '0');
 	signal rstk_ram: stack := (others => (others => '0'));
-
-	--attribute ram_style: string;
-	--attribute ram_style of vstk_ram: signal is "distributed";
-	--attribute ram_style of rstk_ram: signal is "distributed";
 
 	-- Stack deltas
 	signal dd: depth := (others => '0');
@@ -166,10 +163,10 @@ begin
 	begin
 		if rising_edge(clk) then
 			if dstkW = '1' then
-				vstk_ram(to_integer(unsigned(vstkp_n))) <=  tos_c(15 downto 0);
+				vstk_ram(to_integer(unsigned(vstkp_n))) <= tos_c(15 downto 0);
 			end if;
 			if rstkW = '1' then
-				rstk_ram(to_integer(unsigned(rstkp_n))) <=  rstkD;
+				rstk_ram(to_integer(unsigned(rstkp_n))) <= rstkD;
 			end if;
 		end if;
 	end process;
@@ -199,12 +196,12 @@ begin
 		comp_more,
 		comp_equal,comp_umore,comp_zero,
 		int_en_c,
-		cpu_wait)
+		stop)
 	begin
 		io_re          <=  '0'; -- hardware *READS* can have side effects
 		tos_n          <=  tos_c;
 		int_en_n       <=  int_en_c;
-	if cpu_wait = '1' then
+	if stop = '1' then
 		-- Do nothing
 	elsif is_instr_lit = '1' then
 		tos_n   <=  "0" & insn(14 downto 0);
@@ -238,7 +235,7 @@ begin
 		when "10010" => tos_n(4 downto 0) <= rstkp_c;
 		when "10011" => tos_n <= (others => comp_zero);
 		when others  => tos_n <= tos_c;
-				assert false report "Invalid ALU operation.";
+				report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
 		end case;
 	end if;
 	end process;
@@ -274,38 +271,45 @@ begin
 		is_instr_jmp, is_instr_cjmp, is_instr_call, is_instr_lit, is_instr_alu,
 		is_instr_interrupt, 
 		pc_plus_one,
-		cpu_wait)
+		stop)
 	begin
 		vstkp_n <= vstkp_c;
 		rstkp_n <= rstkp_c;
 
 		-- main control
-		if cpu_wait = '1' then
+		if stop = '1' then
 			-- Do nothing
 			rstkW <= '0';
 			rstkD <= (others => '0');
 		elsif is_instr_interrupt = '1' then
+			assert unsigned(rstkp_c) + 1 < stack_size;
+
 			-- Interrupts are similar to a call
 			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
 			rstkW   <= '1';
-			-- return to *current* instruction
-			rstkD   <= "000" & pc_c;
+			rstkD   <= "000" & pc_c; -- return to *current* instruction
 		elsif is_instr_lit = '1' then
+			assert unsigned(vstkp_c) + 1 < stack_size;
+
 			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + 1);
 			rstkW   <= '0';
 			rstkD   <= "000" & pc_plus_one;
 		elsif is_instr_alu = '1' then
+			assert (unsigned(vstkp_c) + unsigned(dd)) < stack_size;
+			assert (unsigned(rstkp_c) + unsigned(rd)) < stack_size;
+
 			rstkW   <= insn(6);
 			rstkD   <= tos_c;
-			-- @todo Add assertions for stack over and underflow
 			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + unsigned(dd));
 			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + unsigned(rd));
 		else
 			if is_instr_cjmp = '1' then
+				-- @todo add in assertion here
 				vstkp_n <= std_logic_vector(unsigned(vstkp_c) - 1);
 			end if;
 
-			if is_instr_call = '1' then -- A call!
+			if is_instr_call = '1' then
+				assert unsigned(rstkp_c) < stack_size;
 				rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
 				rstkW   <= '1';
 				rstkD   <= "000" & pc_plus_one;
@@ -321,7 +325,7 @@ begin
 		is_instr_jmp,is_instr_cjmp,is_instr_call,is_instr_alu,
 		is_instr_interrupt,irq_c,irq_addr_c,irq_addr,irq,
 		comp_zero,
-		cpu_wait)
+		stop)
 	begin
 		pc_n       <= pc_c;
 		irq_n      <= irq_c;
@@ -330,7 +334,7 @@ begin
 
 		if irq = '1' then irq_addr_n <= irq_addr; end if;
 
-		if cpu_wait = '1' then
+		if stop = '1' then
 			-- Do nothing
 		elsif is_instr_interrupt = '1' then -- Update PC on interrupt
 			irq_n      <= '0';
