@@ -1729,7 +1729,8 @@ static uint16_t hole(h2_t *h)
 {
 	assert(h);
 	assert(h->pc < MAX_CORE);
-	return h->pc++;
+	h->pc++;
+	return h->pc;
 }
 
 static void fix(h2_t *h, uint16_t hole, uint16_t patch)
@@ -1845,7 +1846,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_PROGRAM:
 	{
 		symbol_t *s;
-		uint16_t start = hole(h);
+		uint16_t start = hole(h) - 1;
 		assemble(h, a, n->o[0], t, e);
 		if(!(s = symbol_table_lookup(t, start_symbol)))
 			asmfail(e, "unable to locate start symbol: %s", start_symbol);
@@ -1896,15 +1897,15 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate(h, OP_0BRANCH | hole1);
 		break;
 	case SYM_IF1:
-		hole1 = hole(h);
+		hole1 = hole(h) - 1;
 		assemble(h, a, n->o[0], t, e);
 		if(n->o[1]) { /* if ... else .. then */
-			hole2 = hole(h);
-			fix(h, hole1, OP_0BRANCH | (hole2   + 2));
+			hole2 = hole(h) - 1;
+			fix(h, hole1, OP_0BRANCH | (hole2 + 1));
 			assemble(h, a, n->o[1], t, e);
-			fix(h, hole2, OP_BRANCH  | (here(h) + 1));
+			fix(h, hole2, OP_BRANCH  | here(h));
 		} else { /* if ... then */
-			fix(h, hole1, OP_0BRANCH | (here(h) + 1));
+			fix(h, hole1, OP_0BRANCH | here(h));
 		}
 		break;
 	case SYM_CALL_DEFINITION:
@@ -1926,7 +1927,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		/**@bug definitions are allowed after start symbol has been declared */
 		/**@todo compile a word header into the dictionary (optionally) with an
 		 * immediate and a hidden bit */
-		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h)+1, e);
+		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
 		if(a->in_definition)
 			asmfail(e, "nested word definition is not allowed");
 		a->in_definition = true;

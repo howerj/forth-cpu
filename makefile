@@ -69,7 +69,7 @@ h2: h2.c
 
 disassemble: h2 h2.fth
 	./h2 -b syms.txt -a h2.fth > h2.hex
-	./h2 -l syms.txt h2.hex | awk '{printf "%04x %s\n", NR, $$0;}' | less -
+	./h2 -l syms.txt h2.hex | awk '{printf "%04x %s\n", NR-1, $$0;}' | less -
 	
 
 ## Simulation ==============================================================

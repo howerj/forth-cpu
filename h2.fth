@@ -68,7 +68,10 @@ constant vgaY          40
 constant timerInit     0x8032
 
 \ Place a variable here
-constant cursor        1024
+constant cursorX        1024
+constant cursorY        1025
+constant cursorT        1026
+constant cursor         1027
 
 \ TODO: 
 \ * Function for displaying numbers on the display
@@ -92,23 +95,20 @@ constant cursor        1024
 : - negate + ;
 : tuck swap over ;
 : +! tuck @ + swap ! ;
+: y1+ 1 cursorY +! cursorY @ vgaY u> if 0 cursorY ! then ;
+: x1+ 1 cursorX +! cursorX @ vgaX u> if 0 cursorX ! y1+ then ;
 
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
-	;
-
+	5         o8SegLED_0 !
+	6         o8SegLED_1 !
+	7         o8SegLED_2 !
+	8         o8SegLED_3 ! ;
 
 start:
-	\ init
-	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
-	timerInit oTimerCtrl ! \ Enable timer
+	init
 
-	\ This is buggy at the moment
-	1         o8SegLED_0 !
-	2         o8SegLED_1 !
-	1         o8SegLED_2 !
-	1         o8SegLED_3 !
 
 nextChar:
 
@@ -117,14 +117,16 @@ nextChar:
 		iPs2New   @          \ Wait for a character
 	until 
 
-	cursor   @ oVgaTxtAddr !     \ Set index into VGA memory
+	cursorT @ oVgaTxtAddr !     \ Set index into VGA memory
 	iPs2Char @ oVgaTxtDin  !     \ Character to write
 	         0 oVgaWrite   !     \ Perform write
 
-	cursor   @ 1 + cursor  !     \ Increment cursor value
-	\ 1 cursor +!
+	x1+
+	cursorT @ 1 + cursorT  !     \ Increment cursor value
+	\ 1 cursorT +!
 
-	cursor   @ oVgaCursor  !     \ Update cursor position
+	cursorX @ cursorY @ 8 lshift or oVgaCursor !
+	cursorT @ oVgaCursor  !     \ Update cursor position
 
 branch nextChar
 
