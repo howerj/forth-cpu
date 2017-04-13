@@ -399,6 +399,7 @@ begin
 			when "0111" =>  -- PS/2 ASCII In and ACK
 				io_din <= "000000000" &  kbd_char_c;
 				kbd_new_n <= '0';
+			-- @todo Read timer value back in
 			when "1000" => io_din <= (others => '0');
 			when others => io_din <= (others => '0');
 			end case;

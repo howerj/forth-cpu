@@ -834,6 +834,7 @@ typedef struct {
 	bool wait;
 } h2_soc_state_t;
 
+/**@todo add function for print h2_soc_state_t */
 typedef uint16_t (*h2_io_get)(h2_soc_state_t *soc, uint16_t addr);
 typedef void     (*h2_io_set)(h2_soc_state_t *soc, uint16_t addr, uint16_t value);
 typedef void     (*h2_io_update)(h2_soc_state_t *soc);
@@ -886,23 +887,14 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 		fprintf(stderr, "IO read addr: %"PRIx16"\n", addr);
 
 	switch(addr) {
-	case iButtons:
-		return soc->buttons;
-	case iSwitches:
-		return soc->switches;
-	case iVgaTxtDout:
-		break;
-	case iUartRead:
-		/* @bug This does not reflect accurate timing */
-		return getch();
-	case iUartAckWrite:
-		return 1;
-	case iUartStbDout:
-		return 1;
-	case iPs2New:
-		return 1;
-	case iPs2Char:
-		return getch();
+	case iButtons:      return soc->buttons;
+	case iSwitches:     return soc->switches;
+	case iVgaTxtDout:   return soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH];
+	case iUartRead:     return getch(); /* @bug This does not reflect accurate timing */
+	case iUartAckWrite: return 1;
+	case iUartStbDout:  return 1;
+	case iPs2New:       return 1;
+	case iPs2Char:      return getch();
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 	}
@@ -915,35 +907,26 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	if(log_level >= LOG_DEBUG)
 		fprintf(stderr, "IO write addr/value: %"PRIx16"/%"PRIx16"\n", addr, value);
 	switch(addr) {
-	case oNotUsed:
-		break;
-	case oLeds:
-		soc->leds = value;
-		break;
-	case oVgaCursor:
-		soc->vga_cursor = value;
-		break;
-	case oVgaCtrl:
-		soc->vga_control = value;
-		break;
-	case oVgaTxtAddr:
-		soc->vga_text_addr = value;
-		break;
-	case oVgaTxtDin:
+	case oNotUsed:    break;
+	case oLeds:       soc->leds           = value; break;
+	case oVgaCursor:  soc->vga_cursor     = value; break;
+	case oVgaCtrl:    soc->vga_control    = value; break;
+	case oVgaTxtAddr: soc->vga_text_addr  = value % VGA_BUFFER_LENGTH; break;
+	case oVgaTxtDin:  soc->vga_text_write = value;
 		/**@bug This is not quite right, this should occur only on a
 		 * VGA write */
 		putchar(0xFF & value);
 		return;
-	case oVgaWrite:
-		break;
+	case oVgaWrite:     soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH] = soc->vga_text_write; break;
 	case oUartWrite:
 	case oUartStbWrite:
 	case oUartAckDout:
-	case oTimerCtrl:
-	case o8SegLED_0:
-	case o8SegLED_1:
-	case o8SegLED_2:
-	case o8SegLED_3:
+		break;
+	case oTimerCtrl: soc->timer = value; break;
+	case o8SegLED_0: soc->led0  = value; break;
+	case o8SegLED_1: soc->led1  = value; break;
+	case o8SegLED_2: soc->led2  = value; break;
+	case o8SegLED_3: soc->led3  = value; break;
 		break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
