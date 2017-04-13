@@ -53,7 +53,7 @@ entity ledseg is
 		ka:       out  std_logic_vector(7 downto 0)); -- cathodes, data on display
 end;
 
-architecture behav of ledseg is
+architecture rtl of ledseg is
 	constant bcd_length: positive := 4;
 	constant timer_period_us: natural := 1500; -- 15 milliseconds
 	subtype bcd  is std_logic_vector(bcd_length - 1 downto 0);

@@ -325,6 +325,9 @@ begin
 
 		io_din <= (others => '0');
 
+		-- @todo split up io_wr and io_re?
+
+		--if io_wr = '1' and io_daddr(15 downto 5) = "01100000000" then
 		if io_wr = '1' then
 			-- Write output.
 			case io_daddr(4 downto 0) is
@@ -373,6 +376,7 @@ begin
 			when "10000" =>
 			when others =>
 			end case;
+		-- elsif io_re = '1' and io_daddr(15 downto 4) = "011000000000" then
 		elsif io_re = '1' then
 			-- Get input.
 			case io_daddr(3 downto 0) is

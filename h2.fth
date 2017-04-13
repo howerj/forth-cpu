@@ -95,6 +95,7 @@ constant cursor         1027
 : - negate + ;
 : tuck swap over ;
 : +! tuck @ + swap ! ;
+\ @todo AT-XY
 : y1+ 1 cursorY +! cursorY @ vgaY u> if 0 cursorY ! then ;
 : x1+ 1 cursorX +! cursorX @ vgaX u> if 0 cursorX ! y1+ then ;
 
@@ -107,8 +108,7 @@ constant cursor         1027
 	8         o8SegLED_3 ! ;
 
 start:
-	init
-
+	 init
 
 nextChar:
 
@@ -117,20 +117,14 @@ nextChar:
 		iPs2New   @          \ Wait for a character
 	until 
 
-	cursorT @ oVgaTxtAddr !     \ Set index into VGA memory
+	cursorT  @ oVgaTxtAddr !     \ Set index into VGA memory
 	iPs2Char @ oVgaTxtDin  !     \ Character to write
 	         0 oVgaWrite   !     \ Perform write
 
 	x1+
-	cursorT @ 1 + cursorT  !     \ Increment cursor value
-	\ 1 cursorT +!
+	1 cursorT +!
 
 	cursorX @ cursorY @ 8 lshift or oVgaCursor !
-	cursorT @ oVgaCursor  !     \ Update cursor position
 
 branch nextChar
 
-
-
-\ : 2+ 2 + ;
-\ : 3+ 3 + ;

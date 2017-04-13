@@ -144,15 +144,15 @@ extern int _fileno(FILE *stream);
 
 #define ALU_OP_LENGTH   (5u)
 #define ALU_OP_START    (8u)
-#define ALU_OP(INST)    (((INST) >> ALU_OP_START) & (ALU_OP_LENGTH - 1))
+#define ALU_OP(INST)    (((INST) >> ALU_OP_START) & ((1 << ALU_OP_LENGTH) - 1))
 
 #define DSTACK_LENGTH   (2u)
 #define DSTACK_START    (0u)
-#define DSTACK(INST)    (((INST) >> DSTACK_START) & (DSTACK_LENGTH - 1))
+#define DSTACK(INST)    (((INST) >> DSTACK_START) & ((1 << DSTACK_LENGTH) - 1))
 
 #define RSTACK_LENGTH   (2u)
 #define RSTACK_START    (2u)
-#define RSTACK(INST)    (((INST) >> RSTACK_START) & (RSTACK_LENGTH - 1))
+#define RSTACK(INST)    (((INST) >> RSTACK_START) & ((1 << RSTACK_LENGTH) - 1))
 
 #define R_TO_PC_BIT_INDEX     (4u)
 #define N_TO_ADDR_T_BIT_INDEX (5u)
@@ -464,7 +464,7 @@ int getch(void)
 
 	tcsetattr( STDIN_FILENO, TCSANOW, &oldattr );
 
-	if(ch==0x1b) 
+	if(ch == 0x1b) 
 		exit(0);
 
 	return ch == 127 ? 8 : ch;
@@ -807,23 +807,192 @@ int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 
 /* ========================== Simulation =================================== */
 
-typedef uint16_t (*get)(void *p, uint16_t addr);
-typedef void     (*set)(void *p, uint16_t addr, uint16_t value);
+#define VGA_BUFFER_LENGTH (1 << 13)
+
+typedef struct {
+	uint8_t leds;
+	uint16_t vga_cursor;
+	uint16_t vga_control;
+	uint16_t vga_text_addr;
+	uint16_t vga_text_write;
+	uint16_t vga[VGA_BUFFER_LENGTH];
+	uint16_t timer;
+	bool uart_stb_write;
+	bool uart_ack_read;
+	uint8_t led0;
+	uint8_t led1;
+	uint8_t led2;
+	uint8_t led3;
+	
+	uint8_t buttons;
+	uint8_t switches;
+	bool uart_ack_write;
+	bool uart_stb_read;
+	bool ps2_new;
+	bool ps2_char;
+
+	bool wait;
+} h2_soc_state_t;
+
+typedef uint16_t (*h2_io_get)(h2_soc_state_t *soc, uint16_t addr);
+typedef void     (*h2_io_set)(h2_soc_state_t *soc, uint16_t addr, uint16_t value);
+typedef void     (*h2_io_update)(h2_soc_state_t *soc);
 
 /**@todo populate a default that only contains a UART driver and a timer,
  * VGA and other stuff can be done later */
 typedef struct {
-	get in;
-	set out;
-	void *p;
+	h2_io_get in;
+	h2_io_set out;
+	h2_io_update update;
+	h2_soc_state_t *soc;
 } h2_io_t;
+
+/**@todo used the enumerations h2_input_addr_t and h2_output_addr_t to 
+ * generate constants for use with the assembler */
+
+typedef enum {
+	iButtons      = 0x6000,
+	iSwitches     = 0x6001,
+	iVgaTxtDout   = 0x6002,
+	iUartRead     = 0x6003,
+	iUartAckWrite = 0x6004,
+	iUartStbDout  = 0x6005,
+	iPs2New       = 0x6006,
+	iPs2Char      = 0x6007
+} h2_input_addr_t;
+
+typedef enum {
+	oNotUsed      = 0x6000,
+	oLeds         = 0x6001,
+	oVgaCursor    = 0x6002,
+	oVgaCtrl      = 0x6003,
+	oVgaTxtAddr   = 0x6004,
+	oVgaTxtDin    = 0x6005,
+	oVgaWrite     = 0x6006,
+	oUartWrite    = 0x6007,
+	oUartStbWrite = 0x6008,
+	oUartAckDout  = 0x6009,
+	oTimerCtrl    = 0x600a,
+	o8SegLED_0    = 0x600b,
+	o8SegLED_1    = 0x600c,
+	o8SegLED_2    = 0x600d,
+	o8SegLED_3    = 0x600e
+} h2_output_addr_t;
+
+static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
+{
+	assert(soc);
+	if(log_level >= LOG_DEBUG)
+		fprintf(stderr, "IO read addr: %"PRIx16"\n", addr);
+
+	switch(addr) {
+	case iButtons:
+		return soc->buttons;
+	case iSwitches:
+		return soc->switches;
+	case iVgaTxtDout:
+		break;
+	case iUartRead:
+		/* @bug This does not reflect accurate timing */
+		return getch();
+	case iUartAckWrite:
+		return 1;
+	case iUartStbDout:
+		return 1;
+	case iPs2New:
+		return 1;
+	case iPs2Char:
+		return getch();
+	default:
+		warning("invalid read from %04"PRIx16, addr);
+	}
+	return 0;
+}
+
+static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value)
+{
+	assert(soc);
+	if(log_level >= LOG_DEBUG)
+		fprintf(stderr, "IO write addr/value: %"PRIx16"/%"PRIx16"\n", addr, value);
+	switch(addr) {
+	case oNotUsed:
+		break;
+	case oLeds:
+		soc->leds = value;
+		break;
+	case oVgaCursor:
+		soc->vga_cursor = value;
+		break;
+	case oVgaCtrl:
+		soc->vga_control = value;
+		break;
+	case oVgaTxtAddr:
+		soc->vga_text_addr = value;
+		break;
+	case oVgaTxtDin:
+		/**@bug This is not quite right, this should occur only on a
+		 * VGA write */
+		putchar(0xFF & value);
+		return;
+	case oVgaWrite:
+		break;
+	case oUartWrite:
+	case oUartStbWrite:
+	case oUartAckDout:
+	case oTimerCtrl:
+	case o8SegLED_0:
+	case o8SegLED_1:
+	case o8SegLED_2:
+	case o8SegLED_3:
+		break;
+	default:
+		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
+	}
+}
+
+static void h2_io_update_default(h2_soc_state_t *soc)
+{
+	assert(soc);
+}
+
+static h2_soc_state_t *h2_soc_state_new(void)
+{
+	return allocate_or_die(sizeof(h2_soc_state_t));
+}
+
+static void h2_soc_state_free(h2_soc_state_t *soc)
+{
+	if(!soc)
+		return;
+	memset(soc, 0, sizeof(*soc));
+	free(soc);
+}
+
+static h2_io_t *h2_io_new(void)
+{
+	h2_io_t *io =  allocate_or_die(sizeof(*io));
+	io->in      = h2_io_get_default;
+	io->out     = h2_io_set_default;
+	io->update  = h2_io_update_default;
+	io->soc     = h2_soc_state_new();
+	return io;
+}
+
+static void h2_io_free(h2_io_t *io)
+{
+	if(!io)
+		return;
+	h2_soc_state_free(io->soc);
+	memset(io, 0, sizeof(*io));
+	free(io);
+}
 
 static void dpush(h2_t *h, uint16_t v)
 {
 	assert(h);
-	h->dstk[(h->sp + 1) % STK_SIZE] = h->tos;
-	h->tos = v;
 	h->sp++;
+	h->dstk[h->sp % STK_SIZE] = h->tos;
+	h->tos = v;
 	if(h->sp >= STK_SIZE)
 		warning("data stack overflow");
 	h->sp %= STK_SIZE;
@@ -844,7 +1013,7 @@ static uint16_t dpop(h2_t *h)
 
 static void rpush(h2_t *h, uint16_t r)
 {
-	h->rstk[(h->rp + 1) % STK_SIZE] = r;
+	h->rstk[(h->rp) % STK_SIZE] = r;
 	h->rp++;
 	if(h->rp >= STK_SIZE)
 		warning("return stack overflow");
@@ -898,18 +1067,23 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 
 		instruction = h->core[h->pc];
 
+		if(io)
+			io->update(io->soc);
+
 		literal = instruction & 0x7FFF;
 		address = instruction & 0x1FFF; /* NB. also used for ALU OP */
 
 		pc_plus_one = h->pc + 1 % MAX_CORE;
 
-		trace(output, instruction, symbols,
-			"%04u: pc(%04x) inst(%04x) sp(%04x) rp(%04x)",
-			i,
-			(unsigned)h->pc,
-			(unsigned)instruction,
-			(unsigned)h->sp,
-			(unsigned)h->rp);
+		if(log_level >= LOG_DEBUG)
+			trace(output, instruction, symbols,
+				"%04u: pc(%04x) inst(%04x) sp(%x) rp(%x) tos(%04x)",
+				i,
+				(unsigned)h->pc,
+				(unsigned)instruction,
+				(unsigned)h->sp,
+				(unsigned)h->rp,
+				(unsigned)h->tos);
 
 		/**@todo interrupt handling and wait */
 
@@ -918,8 +1092,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			dpush(h, literal);
 			h->pc = pc_plus_one;
 		} else if (IS_ALU_OP(instruction)) {
-			uint16_t rd = stack_delta(RSTACK(instruction));
-			uint16_t dd = stack_delta(DSTACK(instruction));
+			uint16_t rd  = stack_delta(RSTACK(instruction));
+			uint16_t dd  = stack_delta(DSTACK(instruction));
 			uint16_t nos = h->dstk[h->sp % STK_SIZE];
 			uint16_t tos = h->tos;
 			uint16_t npc = pc_plus_one;
@@ -940,7 +1114,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			case ALU_OP_T_LOAD:
 				if(h->tos & 0x6000) {
 					if(io)
-						tos = io->in(io->p, tos);
+						tos = io->in(io->soc, h->tos);
 					else
 						warning("I/O read attempted on addr: %"PRIx16, h->tos);
 				} else {
@@ -959,12 +1133,12 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 				warning("unknown ALU operation: %u", (unsigned)ALU_OP(instruction));
 			}
 
-			h->sp -= dd;
+			h->sp += dd;
 			if(h->sp >= STK_SIZE)
 				warning("data stack overflow");
 			h->sp %= STK_SIZE;
 
-			h->rp -= rd;
+			h->rp += rd;
 			if(h->rp >= STK_SIZE)
 				warning("return stack overflow");
 			h->rp %= STK_SIZE;
@@ -981,12 +1155,12 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			if(instruction & N_TO_ADDR_T) {
 				if(h->tos & 0x6000) {
 					if(io)
-						io->out(io->p, tos, nos);
+						io->out(io->soc, h->tos, nos);
 					else
 						warning("I/O write attempted wth addr/value: %"PRIx16 "/%"PRIx16, tos, nos);
 				} else {
 					/**@note h->tos is divided by 2 on the original j1 core */
-					h->core[h->tos % MAX_CORE] = nos;
+					h->core[tos % MAX_CORE] = nos;
 				}
 			}
 
@@ -2037,13 +2211,16 @@ stdout. Program returns zero on success, non zero on failure.\n\n\
 static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	h2_t *h = NULL;
+	h2_io_t *io = NULL;
 	int r = 0;
 	h = h2_new(START_ADDR);
 	if(h2_load(h, input) < 0)
 		return -1;
 	note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
-	r = h2_run(h, NULL, output, cmd->steps, symbols);
+	io = h2_io_new();
+	r = h2_run(h, h2_io_new(), output, cmd->steps, symbols);
 	h2_free(h);
+	h2_io_free(io);
 	return r;
 }
 

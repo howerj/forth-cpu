@@ -11,7 +11,7 @@
 --|
 --| TODO:
 --|  * Use more generics: The instruction width and even features of this
---|  CPU could be made to be optional.
+--|  CPU (such as interrupts and ALU operations) could be made to be optional.
 --|  * Assertions should be added to the core
 --|  * Turn this into a literate file, describing the CPU
 --|
@@ -27,7 +27,8 @@ entity h2 is
 		-- Instruction width should be made to a generic option
 		interrupt_address_length: positive := 3;
 		start_address:            positive := 8;
-		stack_size_log2:          positive := 5);
+		stack_size_log2:          positive := 5;
+		use_interrupts:           boolean  := true);
 	port(
 		clk:      in  std_logic;
 		rst:      in  std_logic;
@@ -82,13 +83,13 @@ architecture rtl of h2 is
 	signal rd: depth := (others => '0');
 
 	-- is_instr_x signals, booleans, does the instruction have a certain property.
-	signal is_instr_alu:       std_logic :=  '0';
-	signal is_instr_lit:       std_logic :=  '0';
-	signal is_instr_jmp:       std_logic :=  '0';
-	signal is_instr_cjmp:      std_logic :=  '0';
-	signal is_instr_call:      std_logic :=  '0';
-	signal is_instr_interrupt: std_logic :=  '0';
-	signal is_ram_write:       std_logic :=  '0';
+	signal is_instr_alu:     std_logic :=  '0';
+	signal is_instr_lit:     std_logic :=  '0';
+	signal is_instr_branch:  std_logic :=  '0';
+	signal is_instr_0branch: std_logic :=  '0';
+	signal is_instr_call:    std_logic :=  '0';
+	signal is_interrupt:     std_logic :=  '0';
+	signal is_ram_write:     std_logic :=  '0';
 
 	-- Comparisons on stack items
 	signal comp_more:  std_logic :=  '0';
@@ -116,15 +117,16 @@ architecture rtl of h2 is
 	signal rstkW: std_logic := '0';
 	signal rstkD: std_logic_vector(15 downto 0) := (others => '0');
 begin
-	assert(stack_size > 4 and stack_size < 128) report "stack size out of bounds";
+	assert(stack_size > 4)   report "stack size too small";
+	assert(stack_size < 128) report "stack size too large";
 
-	is_instr_alu        <=  '1' when insn(15 downto 13) = "011" else '0';
-	is_instr_lit        <=  '1' when insn(15) = '1' else '0';
-	is_instr_jmp        <=  '1' when insn(15 downto 13) = "000" else '0';
-	is_instr_cjmp       <=  '1' when insn(15 downto 13) = "001" else '0';
-	is_instr_call       <=  '1' when insn(15 downto 13) = "010" else '0';
-	is_instr_interrupt  <=  '1' when irq_c = '1' and int_en_c = '1' else '0';
-	is_ram_write        <=  '1' when is_instr_alu = '1' and insn(5) = '1' else '0';
+	is_instr_alu     <=  '1' when insn(15 downto 13) = "011" else '0';
+	is_instr_lit     <=  '1' when insn(15) = '1' else '0';
+	is_instr_branch  <=  '1' when insn(15 downto 13) = "000" else '0';
+	is_instr_0branch <=  '1' when insn(15 downto 13) = "001" else '0';
+	is_instr_call    <=  '1' when insn(15 downto 13) = "010" else '0';
+	is_interrupt     <=  '1' when irq_c = '1' and int_en_c = '1' and use_interrupts else '0';
+	is_ram_write     <=  '1' when is_instr_alu = '1' and insn(5) = '1' else '0';
 
 	comp_more  <= '1' when signed(tos_c)   > signed(nos)   else '0';
 	comp_umore <= '1' when unsigned(tos_c) > unsigned(nos) else '0';
@@ -171,18 +173,20 @@ begin
 		end if;
 	end process;
 
-	alu_sel: process(insn, is_instr_interrupt)
+	alu_sel: process(
+		insn, 
+		is_interrupt, is_instr_0branch, is_instr_branch,
+		is_instr_alu, is_instr_call,    is_instr_lit)
 	begin
-		if is_instr_interrupt = '1' then -- same as call or ubranch
+		if is_interrupt = '1' or is_instr_call = '1' or is_instr_branch = '1' then 
 			aluop <= (others => '0');
-		else
-			case insn(14 downto 13) is
-			when "00" => aluop <= (others => '0');            -- ubranch
-			when "01" => aluop <= (others => '0');            -- call
-			when "10" => aluop <= (0 => '1', others => '0');  -- 0branch
-			when "11" => aluop <= insn(12 downto 8);          -- alu operation.
-			when others => aluop <= (others => '0');
-			end case;
+		elsif is_instr_0branch = '1' then
+			aluop <= (0 => '1', others => '0'); 
+		elsif is_instr_alu = '1' then
+			aluop <= insn(12 downto 8);  
+		else 
+			aluop <= (others => '0');
+			assert is_instr_lit = '1' report "undefined ALUOP" severity error;
 		end if;
 	end process;
 
@@ -268,8 +272,8 @@ begin
 		vstkp_c, vstk_ram, dd,
 		rstkp_c, rstk_ram, rd,
 		tos_c,
-		is_instr_jmp, is_instr_cjmp, is_instr_call, is_instr_lit, is_instr_alu,
-		is_instr_interrupt, 
+		is_instr_branch, is_instr_0branch, is_instr_call, is_instr_lit, is_instr_alu,
+		is_interrupt, 
 		pc_plus_one,
 		stop)
 	begin
@@ -281,7 +285,7 @@ begin
 			-- Do nothing
 			rstkW <= '0';
 			rstkD <= (others => '0');
-		elsif is_instr_interrupt = '1' then
+		elsif is_interrupt = '1' then
 			assert unsigned(rstkp_c) + 1 < stack_size;
 
 			-- Interrupts are similar to a call
@@ -303,7 +307,7 @@ begin
 			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + unsigned(dd));
 			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + unsigned(rd));
 		else
-			if is_instr_cjmp = '1' then
+			if is_instr_0branch = '1' then
 				-- @todo add in assertion here
 				vstkp_n <= std_logic_vector(unsigned(vstkp_c) - 1);
 			end if;
@@ -322,8 +326,8 @@ begin
 
 	pcUpdate: process(
 		pc_c,insn,rtos_c,pc_plus_one,
-		is_instr_jmp,is_instr_cjmp,is_instr_call,is_instr_alu,
-		is_instr_interrupt,irq_c,irq_addr_c,irq_addr,irq,
+		is_instr_branch,is_instr_0branch,is_instr_call,is_instr_alu,
+		is_interrupt,irq_c,irq_addr_c,irq_addr,irq,
 		comp_zero,
 		stop)
 	begin
@@ -336,13 +340,13 @@ begin
 
 		if stop = '1' then
 			-- Do nothing
-		elsif is_instr_interrupt = '1' then -- Update PC on interrupt
+		elsif is_interrupt = '1' then -- Update PC on interrupt
 			irq_n      <= '0';
 			irq_addr_n <= (others => '0');
 			pc_n       <= (others => '0');
 			pc_n(interrupt_address_length - 1 downto 0) <= irq_addr_c;
 		else -- Update PC on normal operations
-			if is_instr_jmp = '1' or (is_instr_cjmp = '1' and comp_zero = '1') or is_instr_call = '1' then
+			if is_instr_branch = '1' or (is_instr_0branch = '1' and comp_zero = '1') or is_instr_call = '1' then
 				pc_n    <=  insn(12 downto 0);
 			elsif is_instr_alu = '1' and insn(4) = '1' then
 				pc_n    <=  rtos_c(12 downto 0);
