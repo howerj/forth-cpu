@@ -96,8 +96,8 @@ constant cursor         1027
 : tuck swap over ;
 : +! tuck @ + swap ! ;
 \ @todo AT-XY
-: y1+ 1 cursorY +! cursorY @ vgaY u> if 0 cursorY ! then ;
-: x1+ 1 cursorX +! cursorX @ vgaX u> if 0 cursorX ! y1+ then ;
+: y1+ 1 cursorY +! cursorY @ vgaY u>= if 0 cursorY ! then ;
+: x1+ 1 cursorX +! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
 
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor

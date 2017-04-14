@@ -445,6 +445,9 @@ int h2_save(h2_t *h, FILE *output, bool full)
 	return 0;
 }
 
+#define CHAR_BACKSPACE (8)    /* ASCII backspace */
+#define CHAR_ESCAPE    (27)   /* ASCII escape character value */
+#define CHAR_DELETE    (127)  /* ASCII delete */
 
 /**@todo move non-portable I/O stuff to external program that calls h2_run */
 #ifdef __unix__
@@ -454,20 +457,22 @@ int getch(void)
 { 
 	struct termios oldattr, newattr;
 	int ch;
-	tcgetattr( STDIN_FILENO, &oldattr );
+	tcgetattr(STDIN_FILENO, &oldattr);
 	newattr = oldattr;
-	newattr.c_iflag &= ~( ICRNL );
-	newattr.c_lflag &= ~( ICANON | ECHO );
+	newattr.c_iflag &= ~(ICRNL);
+	newattr.c_lflag &= ~(ICANON | ECHO);
 
-	tcsetattr( STDIN_FILENO, TCSANOW, &newattr );
+	tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
 	ch = getchar();
 
-	tcsetattr( STDIN_FILENO, TCSANOW, &oldattr );
+	tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
 
-	if(ch == 0x1b) 
-		exit(0);
+	if(ch == CHAR_ESCAPE) {
+		note("Escape character read in: Exiting");
+		exit(EXIT_SUCCESS);
+	}
 
-	return ch == 127 ? 8 : ch;
+	return ch == CHAR_DELETE ? CHAR_BACKSPACE : ch;
 }
 
 int putch(int c) 
@@ -1048,10 +1053,13 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			 address,
 			 pc_plus_one;
 
-		instruction = h->core[h->pc];
-
 		if(io)
 			io->update(io->soc);
+		if(io && io->soc->wait) /* wait only applies to the H2 core not the rest of the SoC */
+			continue;
+
+		instruction = h->core[h->pc];
+
 
 		literal = instruction & 0x7FFF;
 		address = instruction & 0x1FFF; /* NB. also used for ALU OP */
@@ -1430,6 +1438,8 @@ static int number(lexer_t *l, uint16_t *o, size_t length)
 		start = ++i;
 	}
 
+	/**@bug this does not quite work correctly, it accepts
+	 * things as numbers that is should not */
 	if(s[i] == '0') {
 		base = 8;
 		/* if(!numeric(s[i+1], base))
@@ -1480,9 +1490,17 @@ again:
 	case '\\':
 		for(; '\n' != (ch = next_char(l));)
 			if(ch == EOF)
-				syntax_error(l, "commented terminated by EOF");
+				syntax_error(l, "'\\' commented terminated by EOF");
 		ch = next_char(l);
 		l->line++;
+		goto again;
+	case '(':
+		for(; ')' != (ch = next_char(l));)
+			if(ch == EOF)
+				syntax_error(l, "'(' comment terminated by EOF");
+			else if(ch == '\n')
+				l->line++;
+		ch = next_char(l);
 		goto again;
 	default:
 		i = 0;
@@ -1603,7 +1621,7 @@ static node_t *node_new(lexer_t *l, parse_e type, size_t size)
 	node_t *r = allocate_or_die(sizeof(*r) + sizeof(r->o[0]) * size);
 	assert(l);
 	if(log_level >= LOG_DEBUG)
-		fprintf(stderr, "new> %s\n", names[type]);
+		fprintf(stderr, "node> %s\n", names[type]);
 	r->length = size;
 	r->type = type;
 	return r;

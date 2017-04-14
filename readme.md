@@ -139,6 +139,7 @@ project.
 * <https://opencores.org/>
 * <https://en.wikipedia.org/wiki/Peephole_optimization>
 * <https://en.wikipedia.org/wiki/Superoptimization>
+* <https://github.com/samawati/j1eforth>
 
 [J1]: http://www.excamera.com/sphinx/fpga-j1.html
 [PL/0]: https://github.com/howerj/pl0

@@ -11,8 +11,8 @@
 --|
 --| TODO:
 --|  * Use more generics: The instruction width and even features of this
---|  CPU (such as interrupts and ALU operations) could be made to be optional.
---|  * Assertions should be added to the core
+--|  CPU (such as interrupts and ALU operations) could be made to be optional
+--|  * Assertions should be added to the core and check they work as intended
 --|  * Turn this into a literate file, describing the CPU
 --|
 -------------------------------------------------------------------------------
@@ -95,10 +95,11 @@ architecture rtl of h2 is
 	signal comp_more:  std_logic :=  '0';
 	signal comp_equal: std_logic :=  '0';
 	signal comp_umore: std_logic :=  '0';
-	signal comp_zero:  std_logic :=  '0';
+	signal comp_zero:           std_logic :=  '0';
 
+	-- Interrupts
 	signal int_en_c, int_en_n:  std_logic :=  '0';
-	signal irq_c, irq_n: std_logic :=  '0';
+	signal irq_c, irq_n:        std_logic :=  '0';
 	signal irq_addr_c, irq_addr_n: std_logic_vector(interrupt_address_length - 1 downto 0) :=  (others => '0');
 
 	-- Top of stack, and next on stack.
@@ -106,11 +107,11 @@ architecture rtl of h2 is
 	signal nos:          std_logic_vector(15 downto 0) := (others => '0');
 
 	-- Top of return stack.
-	signal rtos_c: std_logic_vector(15 downto 0) := (others => '0');
+	signal rtos_c:       std_logic_vector(15 downto 0) := (others => '0');
 
 	-- aluop is what is fed into the alu.
-	signal aluop: std_logic_vector(4 downto 0)  := (others => '0');
-	signal pc_plus_one: std_logic_vector(12 downto 0) := (others => '0');
+	signal aluop: std_logic_vector(4 downto 0)         := (others => '0');
+	signal pc_plus_one: std_logic_vector(12 downto 0)  := (others => '0');
 
 	-- Stack signals
 	signal dstkW: std_logic := '0';
@@ -202,7 +203,7 @@ begin
 		int_en_c,
 		stop)
 	begin
-		io_re          <=  '0'; -- hardware *READS* can have side effects
+		io_re          <=  '0'; -- hardware reads can have side effects
 		tos_n          <=  tos_c;
 		int_en_n       <=  int_en_c;
 	if stop = '1' then
@@ -291,7 +292,7 @@ begin
 			-- Interrupts are similar to a call
 			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
 			rstkW   <= '1';
-			rstkD   <= "000" & pc_c; -- return to *current* instruction
+			rstkD   <= "000" & pc_c; -- return to current instruction
 		elsif is_instr_lit = '1' then
 			assert unsigned(vstkp_c) + 1 < stack_size;
 
@@ -347,11 +348,11 @@ begin
 			pc_n(interrupt_address_length - 1 downto 0) <= irq_addr_c;
 		else -- Update PC on normal operations
 			if is_instr_branch = '1' or (is_instr_0branch = '1' and comp_zero = '1') or is_instr_call = '1' then
-				pc_n    <=  insn(12 downto 0);
+				pc_n <=  insn(12 downto 0);
 			elsif is_instr_alu = '1' and insn(4) = '1' then
-				pc_n    <=  rtos_c(12 downto 0);
+				pc_n <=  rtos_c(12 downto 0);
 			else
-				pc_n    <=  pc_plus_one;
+				pc_n <=  pc_plus_one;
 			end if;
 		end if;
 	end process;
