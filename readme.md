@@ -52,7 +52,8 @@ removed if you have some aversion to [LGPL][] code.
 The only target board available at the moment is the [Nexys3][], this should
 change in the future as the board is currently at it's End Of Life. The next
 boards I am looking to support are it's successor, the Nexys 4, and the myStorm
-BlackIce (<https://mystorm.uk/>).
+BlackIce (<https://mystorm.uk/>). The myStorm board uses a completely open
+source toolchain for synthesis, place and route and bit file generation.
 
 ## Build requirements
 

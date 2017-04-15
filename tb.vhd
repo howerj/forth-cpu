@@ -26,7 +26,7 @@ architecture testing of tb is
 	constant number_of_interrupts: positive := 8;
 	constant uart_baud_rate:       positive := 115200;
 	constant number_of_iterations: positive := 30000;
-	constant report_number:        positive := 1024;
+	constant report_number:        positive := 256;
 
 	constant clk_period: time   :=  1000 ms / clock_frequency;
 
@@ -90,34 +90,36 @@ begin
 		debug_din   => debug_din,
 		debug_dout  => debug_dout,
 		debug_daddr => debug_daddr,
-		clk  => clk,
-		btnu => btnu,
-		btnd => btnd,
-		btnc => btnc,
-		btnl => btnl,
-		btnr => btnr,
-		sw => sw,
-		an => an,
-		ka => ka,
-		ld => ld,
-		rx => rx,
-		tx => tx,
-		red => red,
-		green => green,
-		blue  => blue,
-		hsync => hsync,
-		vsync => vsync,
+		clk         => clk,
+		-- reset    => rst,
+		btnu        => btnu,
+		btnd        => btnd,
+		btnc        => btnc,
+		btnl        => btnl,
+		btnr        => btnr,
+		sw          => sw,
+		an          => an,
+		ka          => ka,
+		ld          => ld,
+		rx          => rx,
+		tx          => tx,
+		red         => red,
+		green       => green,
+		blue        => blue,
+		hsync       => hsync,
+		vsync       => vsync,
 
 		ps2_keyboard_data => ps2_keyboard_data,
 		ps2_keyboard_clk  => ps2_keyboard_clk);
 
 	uut_shiftReg: entity work.shift_register_tb generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
-	uut_timer_us: entity work.timer_us_tb generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
+	uut_timer_us: entity work.timer_us_tb       generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
 
-	uut_uart: entity work.uart generic map(baud_rate => uart_baud_rate,
-	clock_frequency => clock_frequency) 
-	port map(clock => clk, reset => rst, 
-		 data_stream_in => x"AA", data_stream_in_stb => '1', tx => rx, rx => tx, data_stream_out_ack => '0');
+	-- @note a more advanced test bench would send out a string and expect
+	-- the same one back using a loopback circuit. For the moment this
+	-- is just used for testing the SoC.
+	uut_uart: entity work.uart generic map(baud_rate => uart_baud_rate, clock_frequency => clock_frequency) 
+	port map(clk => clk, rst => rst, data_stream_in => x"AA", data_stream_in_stb => '1', tx => rx, rx => tx, data_stream_out_ack => '0');
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
@@ -133,26 +135,38 @@ begin
 
 	-- I/O settings go here.
 	stimulus_process: process
-		variable rt: boolean;
+		variable w: line;
+		variable count: integer := 0;
 
-		-- @todo write numbers out as hex, with a cleaner output format
-		function reportln(pc, insn: std_logic_vector) return boolean is
+		function stringify(slv: std_logic_vector) return string is
 		begin
-			if number_of_iterations < report_number then
-			report
-				"pc("   & integer'image(to_integer(unsigned(pc)))    &") " &
-				"insn(" & integer'image(to_integer(unsigned(insn)))  & ") ";
-			end if;
-			return true;
-		end reportln;
+			return integer'image(to_integer(unsigned(slv)));
+		end stringify;
 
+		-- @todo write numbers out as hexadecimal
+		function reportln(pc, insn, daddr, dout: std_logic_vector; cycles: integer) return line is
+			variable l: line;
+		begin
+			write(l, integer'image(cycles) & ": ");
+			write(l, "pc("    & stringify(pc)    & ") ");
+			write(l, "insn("  & stringify(insn)  & ") ");
+			write(l, "daddr(" & stringify(daddr) & ") ");
+			write(l, "dout("  & stringify(dout)  & ") ");
+			return l;
+		end reportln;
 	begin
-		rst <= '1';
+		rst  <= '1';
 		wait for clk_period * 2;
-		rst <= '0';
+		rst  <= '0';
 		for i in 0 to number_of_iterations loop
-			rt := reportln(debug_pc, debug_insn);
-			assert rt = true;
+			if count < report_number then
+				w := reportln(debug_pc, debug_insn, debug_daddr, debug_dout, count);
+				writeline(OUTPUT, w);
+				count := count + 1;
+			elsif count < report_number + 1 then
+				report "Simulation continuing: Reporting turned off";
+				count := count + 1;
+			end if;
 			wait for clk_period * 1;
 		end loop;
 

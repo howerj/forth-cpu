@@ -69,13 +69,11 @@ architecture rtl of h2 is
 	subtype depth is std_logic_vector(stack_size_log2 - 1 downto 0);
 
 	-- Variable stack (RAM Template)
-	signal vstkp_c:  depth := (others => '0');
-	signal vstkp_n:  depth := (others => '0');
+	signal vstkp_c, vstkp_n:  depth := (others => '0');
 	signal vstk_ram: stack := (others => (others => '0'));
 
 	-- Return stack (RAM Template)
-	signal rstkp_c:  depth := (others => '0');
-	signal rstkp_n:  depth := (others => '0');
+	signal rstkp_c, rstkp_n:  depth := (others => '0');
 	signal rstk_ram: stack := (others => (others => '0'));
 
 	-- Stack deltas
@@ -92,14 +90,14 @@ architecture rtl of h2 is
 	signal is_ram_write:     std_logic :=  '0';
 
 	-- Comparisons on stack items
-	signal comp_more:  std_logic :=  '0';
-	signal comp_equal: std_logic :=  '0';
-	signal comp_umore: std_logic :=  '0';
-	signal comp_zero:           std_logic :=  '0';
+	signal comp_more:        std_logic :=  '0';
+	signal comp_equal:       std_logic :=  '0';
+	signal comp_umore:       std_logic :=  '0';
+	signal comp_zero:        std_logic :=  '0';
 
 	-- Interrupts
-	signal int_en_c, int_en_n:  std_logic :=  '0';
-	signal irq_c, irq_n:        std_logic :=  '0';
+	signal int_en_c, int_en_n:     std_logic :=  '0';
+	signal irq_c, irq_n:           std_logic :=  '0';
 	signal irq_addr_c, irq_addr_n: std_logic_vector(interrupt_address_length - 1 downto 0) :=  (others => '0');
 
 	-- Top of stack, and next on stack.
@@ -118,8 +116,8 @@ architecture rtl of h2 is
 	signal rstkW: std_logic := '0';
 	signal rstkD: std_logic_vector(15 downto 0) := (others => '0');
 begin
-	assert(stack_size > 4)   report "stack size too small";
-	assert(stack_size < 128) report "stack size too large";
+	assert(stack_size > 4)   report "stack size too small: " & integer'image(stack_size);
+	assert(stack_size < 128) report "stack size too large: " & integer'image(stack_size);
 
 	is_instr_alu     <=  '1' when insn(15 downto 13) = "011" else '0';
 	is_instr_lit     <=  '1' when insn(15) = '1' else '0';
@@ -187,7 +185,8 @@ begin
 			aluop <= insn(12 downto 8);  
 		else 
 			aluop <= (others => '0');
-			assert is_instr_lit = '1' report "undefined ALUOP" severity error;
+			-- This assert fails at time = 0 ns
+			-- assert is_instr_lit = '1' report "undefined ALUOP";
 		end if;
 	end process;
 
@@ -198,8 +197,7 @@ begin
 		din, insn, aluop,
 		io_din,
 		vstkp_c, rstkp_c,
-		comp_more,
-		comp_equal,comp_umore,comp_zero,
+		comp_more, comp_equal,comp_umore,comp_zero,
 		int_en_c,
 		stop)
 	begin
@@ -239,6 +237,9 @@ begin
 		when "10001" => tos_n <= (others => int_en_c);
 		when "10010" => tos_n(4 downto 0) <= rstkp_c;
 		when "10011" => tos_n <= (others => comp_zero);
+		-- Experimental instructions
+		-- when "10100" => tos_n <= tos_c(0) & tos_c(15 downto 1);  -- rotate right by one
+		-- when "10101" => tos_n <= tos_c(14 downto 0) & tos_c(15); -- rotate left by one
 		when others  => tos_n <= tos_c;
 				report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
 		end case;
@@ -287,21 +288,22 @@ begin
 			rstkW <= '0';
 			rstkD <= (others => '0');
 		elsif is_interrupt = '1' then
-			assert unsigned(rstkp_c) + 1 < stack_size;
+			assert to_integer(unsigned(rstkp_c)) + 1 < stack_size;
 
 			-- Interrupts are similar to a call
 			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
 			rstkW   <= '1';
 			rstkD   <= "000" & pc_c; -- return to current instruction
 		elsif is_instr_lit = '1' then
-			assert unsigned(vstkp_c) + 1 < stack_size;
+			assert to_integer(unsigned(vstkp_c)) + 1 < stack_size;
 
 			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + 1);
 			rstkW   <= '0';
 			rstkD   <= "000" & pc_plus_one;
 		elsif is_instr_alu = '1' then
-			assert (unsigned(vstkp_c) + unsigned(dd)) < stack_size;
-			assert (unsigned(rstkp_c) + unsigned(rd)) < stack_size;
+			-- For return stack: implication insn(6) -> stack within bounds
+			assert (not insn(6) = '1') or ((to_integer(unsigned(rstkp_c)) + to_integer(signed(rd))) < stack_size);
+			assert                        ((to_integer(unsigned(vstkp_c)) + to_integer(signed(dd))) < stack_size);
 
 			rstkW   <= insn(6);
 			rstkD   <= tos_c;
@@ -314,7 +316,6 @@ begin
 			end if;
 
 			if is_instr_call = '1' then
-				assert unsigned(rstkp_c) < stack_size;
 				rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
 				rstkW   <= '1';
 				rstkD   <= "000" & pc_plus_one;

@@ -436,8 +436,8 @@ begin
 		baud_rate           => uart_baud_rate,
 		clock_frequency     => clock_frequency)
 	port map(
-		clock               => clk,
-		reset               => rst,
+		clk                 => clk,
+		rst                 => rst,
 		data_stream_in      => uart_din,
 		data_stream_in_stb  => stb_din,
 		data_stream_in_ack  => ack_din,

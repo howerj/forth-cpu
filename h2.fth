@@ -99,10 +99,13 @@ constant cursor         1027
 \ @todo AT-XY
 : y1+ 1 cursorY +! cursorY @ vgaY u>= if 0 cursorY ! then ;
 : x1+ 1 cursorX +! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
-: cursorT1+ 1 cursorT +! cursorT @ 3069 u> if 0 cursorT ! then ;
+: cursorT1+ 1 cursorT +! cursorT @ 3200 u>= if 0 cursorT ! then ;
 
-: uart-write begin iUartAckWrite @ 0 = until oUartWrite ! 1 oUartStbWrite ! iUartAckWrite @ ; 
-: uart-read  begin iUartStbDout @ 0 = until iUartRead  @ 1 oUartAckDout  ! ;
+: uart-write ( char -- bool : write out a character ) 
+	begin iUartAckWrite @ 0 = until oUartWrite ! 1 oUartStbWrite ! iUartAckWrite @ ; 
+
+: uart-read  ( -- char : blocks until character read in )
+	begin iUartStbDout @ 0 = until iUartRead  @ 1 oUartAckDout  ! ;
 
 : init
 	

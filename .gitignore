@@ -5,6 +5,7 @@
 *_bitgen.xwbt
 *.bld
 *.cmd_log
+core
 design.bit
 doc/doxy/
 doc/doxy/*
@@ -22,6 +23,7 @@ h2
 h2.bin
 h2.hex
 h2_tb
+hack
 iseconfig/
 *.ll
 *.log
@@ -85,11 +87,13 @@ top_level.pcf
 top_level_xst.xrpt
 *.twr
 *.twx
+*.txt
 *.unroutes
 usage_statistics_webtalk.html
 *_usage.xml
 *.ut
 vga_tb
+vgcore.*
 vhd/doxy/*
 vhd/post/
 vhd/post/*
@@ -105,6 +109,3 @@ _xmsgs/*
 *.xst
 xst/
 *_xst.xrpt
-core
-vgcore.*
-*.txt

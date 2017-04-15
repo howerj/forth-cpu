@@ -33,7 +33,7 @@ entity debounce is
 	port(
 		clk:    in  std_logic;  
 		button: in  std_logic;  --input signal to be debounced
-		result: out std_logic); --debounced signal
+		result: out std_logic := '0'); --debounced signal
 end debounce;
 
 architecture rtl of debounce is
@@ -54,7 +54,7 @@ begin
 			elsif(counter_out(counter_size) = '0') then --stable input time is not yet met
 				counter_out <= counter_out + 1;
 			else                                        --stable input time is met
-			result <= flipflops(1);
+				result <= flipflops(1);
 			end if;
 		end if;
 	end process;

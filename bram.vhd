@@ -56,7 +56,7 @@ entity memory is
 end memory;
 
 architecture behav of memory is
-	constant ramSz  : positive := 2 ** addr_length;
+	constant ramSz: positive := 2 ** addr_length;
 
 	type ramArray_t is array ((ramSz - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
 

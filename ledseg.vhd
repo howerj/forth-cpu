@@ -9,6 +9,7 @@
 --| @email      howe.r.j.89@gmail.com
 --|
 --| @todo Turn this module into a package and use generics 
+--| @todo Make BCD/Hexadecimal output optional
 --------------------------------------------------------------------------------
 
 --| This module implements a 8 segment display driver, with 4 displays in total:
@@ -84,7 +85,7 @@ architecture rtl of ledseg is
 	--
 	--  -----------------------------------------
 	-- |   | DP| G | F | E | D | C | B | A | Hex |
-	-- |BCD| 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | Hex |
+	-- |BCD| 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |Hi Lo|
 	--  -----------------------------------------
 	-- | 0 |   |   | 1 | 1 | 1 | 1 | 1 | 1 | 3 F |
 	-- | 1 |   |   |   |   |   | 1 | 1 |   | 0 6 |
