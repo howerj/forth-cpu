@@ -200,6 +200,7 @@ begin
 
 	text_a <= std_logic_vector(to_unsigned(ram_tmp, 12));
 
+	-- @bug causes bounds error if simulation is run for too long
 	rom_tmp <= to_integer(unsigned(text_d)) * 12 + chry;
 
 	FONT_A <= std_logic_vector(TO_UNSIGNED(rom_tmp, 12));

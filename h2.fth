@@ -34,6 +34,7 @@ constant iUartAckWrite 0x6004
 constant iUartStbDout  0x6005 
 constant iPs2New       0x6006 
 constant iPs2Char      0x6007 
+constant iTimerCtrl    0x6008
 
 \ Interrupt service Routine: Memory locations
 constant isrReset      0
@@ -98,8 +99,13 @@ constant cursor         1027
 \ @todo AT-XY
 : y1+ 1 cursorY +! cursorY @ vgaY u>= if 0 cursorY ! then ;
 : x1+ 1 cursorX +! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
+: cursorT1+ 1 cursorT +! cursorT @ 3069 u> if 0 cursorT ! then ;
+
+: uart-write begin iUartAckWrite @ 0 = until oUartWrite ! 1 oUartStbWrite ! iUartAckWrite @ ; 
+: uart-read  begin iUartStbDout @ 0 = until iUartRead  @ 1 oUartAckDout  ! ;
 
 : init
+	
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
 	5         o8SegLED_0 !
@@ -114,15 +120,15 @@ nextChar:
 
 	begin 
 		iSwitches @ oLeds !  \ Set LEDs to switches
-		iPs2New   @          \ Wait for a character
+		\ iPs2New   @        \ Wait for PS/2 a character
+		iUartStbDout @       \ Wait for UART character
 	until 
-
-	cursorT  @ oVgaTxtAddr !     \ Set index into VGA memory
-	iPs2Char @ oVgaTxtDin  !     \ Character to write
-	         0 oVgaWrite   !     \ Perform write
+	cursorT   @ oVgaTxtAddr !     \ Set index into VGA memory
+	uart-read dup uart-write drop oVgaTxtDin  !     \ Character to write
+	         1 oVgaWrite   !     \ Perform write
 
 	x1+
-	1 cursorT +!
+	cursorT1+
 
 	cursorX @ cursorY @ 8 lshift or oVgaCursor !
 

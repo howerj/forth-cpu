@@ -6,11 +6,17 @@
 --|
 --| @author         peter a bennett
 --| @copyright      (c) 2012 peter a bennett
---| @license        lgpl
+--| @license        Apache 2.0
 --| @email          pab850@googlemail.com
 --| @contact        www.bytebash.com
 --|
+--| See https://github.com/pabennett/uart
+--|
+--| There have been many changes to the original code, consult the git logs
+--| for a full list of changes.
+--|
 --| @note Changes made to range to stop Xilinx warnings and with formatting
+--| @todo Loopback test bench
 --| @todo This needs either replacing with something simpler, and/or fully 
 --| testing, it currently does not have a test bench. 
 --------------------------------------------------------------------------------

@@ -47,6 +47,13 @@ removed if you have some aversion to [LGPL][] code.
 
 ## Structure 
 
+## Target Board
+
+The only target board available at the moment is the [Nexys3][], this should
+change in the future as the board is currently at it's End Of Life. The next
+boards I am looking to support are it's successor, the Nexys 4, and the myStorm
+BlackIce (<https://mystorm.uk/>).
+
 ## Build requirements
 
 The build has been tested under [Debian][] [Linux][], version 8.
@@ -59,6 +66,8 @@ You will require:
 * [GHDL][]
 * [GTKWave][]
 * [tcl][] version 8.6
+* Digilent Adept2 runtime and Digilent Adept2 utilities available at
+  <http://store.digilentinc.com/digilent-adept-2-download-only/>
 
 [Xilinx ISE][] can (or could be) downloaded for free, but requires
 registration. ISE needs to be on your path:

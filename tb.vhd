@@ -22,10 +22,11 @@ entity tb is
 end tb;
 
 architecture testing of tb is
-	constant clock_frequency:      positive := 100000000;
+	constant clock_frequency:      positive := 100_000_000;
 	constant number_of_interrupts: positive := 8;
 	constant uart_baud_rate:       positive := 115200;
-	constant number_of_iterations: positive := 256;
+	constant number_of_iterations: positive := 30000;
+	constant report_number:        positive := 1024;
 
 	constant clk_period: time   :=  1000 ms / clock_frequency;
 
@@ -113,6 +114,11 @@ begin
 	uut_shiftReg: entity work.shift_register_tb generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
 	uut_timer_us: entity work.timer_us_tb generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
 
+	uut_uart: entity work.uart generic map(baud_rate => uart_baud_rate,
+	clock_frequency => clock_frequency) 
+	port map(clock => clk, reset => rst, 
+		 data_stream_in => x"AA", data_stream_in_stb => '1', tx => rx, rx => tx, data_stream_out_ack => '0');
+
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
 	begin
@@ -132,9 +138,11 @@ begin
 		-- @todo write numbers out as hex, with a cleaner output format
 		function reportln(pc, insn: std_logic_vector) return boolean is
 		begin
+			if number_of_iterations < report_number then
 			report
 				"pc("   & integer'image(to_integer(unsigned(pc)))    &") " &
 				"insn(" & integer'image(to_integer(unsigned(insn)))  & ") ";
+			end if;
 			return true;
 		end reportln;
 

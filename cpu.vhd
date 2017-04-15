@@ -47,13 +47,13 @@ architecture structural of cpu is
 	constant file_name:                string   := "h2.hex";
 	constant file_type:                string   := "hex";
 
-	signal pc:    std_logic_vector(addr_length - 1 downto 0):= (others => '0'); -- Program counter
-	signal insn:  std_logic_vector(data_length - 1 downto 0):= (others => '0'); -- Instruction issued by program counter
+	signal pc:    std_logic_vector(addr_length - 1 downto 0) := (others => '0'); -- Program counter
+	signal insn:  std_logic_vector(data_length - 1 downto 0) := (others => '0'); -- Instruction issued by program counter
 	signal dwe:   std_logic := '0'; -- Write enable
 	signal dre:   std_logic := '0'; -- Read enable
-	signal din:   std_logic_vector(data_length - 1 downto 0):= (others => '0');
-	signal dout:  std_logic_vector(data_length - 1 downto 0):= (others => '0');
-	signal daddr: std_logic_vector(addr_length - 1 downto 0):= (others => '0');
+	signal din:   std_logic_vector(data_length - 1 downto 0) := (others => '0');
+	signal dout:  std_logic_vector(data_length - 1 downto 0) := (others => '0');
+	signal daddr: std_logic_vector(addr_length - 1 downto 0) := (others => '0');
 
 	signal h2_irq:       std_logic := '0';
 	signal h2_irq_addr:  std_logic_vector(interrupt_address_length - 1 downto 0) := (others=>'0');

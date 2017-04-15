@@ -16,7 +16,7 @@ use ieee.numeric_std.all;
 
 entity top is
 	generic(
-		clock_frequency:      positive := 100000000;
+		clock_frequency:      positive := 100_000_000;
 		number_of_interrupts: positive := 8;
 		uart_baud_rate:       positive := 115200);
 	port
@@ -114,20 +114,21 @@ architecture behav of top is
 	---- UART
 	-- @todo move this into the UART module
 	signal uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
-	signal ack_din_c, ack_din_n:     std_logic:= '0';
+	signal ack_din_c, ack_din_n:     std_logic := '0';
 	signal uart_dout_c, uart_dout_n: std_logic_vector(7 downto 0):= (others => '0');
-	signal stb_dout_c, stb_dout_n:   std_logic:= '0';
+	signal stb_dout_c, stb_dout_n:   std_logic := '0';
 	signal uart_din, uart_dout:      std_logic_vector(7 downto 0):= (others => '0');
-	signal stb_din, stb_dout:        std_logic:= '0';
-	signal ack_din, ack_dout:        std_logic:= '0';
-	signal tx_uart, rx_uart,rx_sync: std_logic:= '0';
+	signal stb_din, stb_dout:        std_logic := '0';
+	signal ack_din, ack_dout:        std_logic := '0';
+	signal tx_uart, rx_uart,rx_sync: std_logic := '0';
 
 	---- Timer
-	signal gpt0_ctr_r_we:     std_logic := '0';
-	signal gpt0_ctr_r:        std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
-	signal gpt0_irq_comp1:    std_logic;
-	signal gpt0_q_internal:   std_logic;
-	signal gpt0_nq_internal:  std_logic;
+	signal timer_control_we:       std_logic := '0';
+	signal timer_control_i:        std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
+	signal timer_control_o:        std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
+	signal timer_irq:    std_logic;
+	signal timer_q:   std_logic;
+	signal timer_nq:  std_logic;
 
 	---- PS/2
 	signal kbd_new:      std_logic := '0';  -- new ASCII char available
@@ -159,9 +160,13 @@ begin
 -------------------------------------------------------------------------------
 
 ------- Output assignments (Not in a process) ---------------------------------
+
+	gpt0_q  <= timer_q;
+	gpt0_nq <= timer_nq;
+
 	rst        <= btnu_d;
 	cpu_irc(0) <= btnl_d;
-	cpu_irc(1) <= gpt0_irq_comp1;
+	cpu_irc(1) <= timer_irq;
 	cpu_irc(2) <= ack_din;
 	cpu_irc(3) <= stb_dout;
 	cpu_irc(4) <= btnr_d;
@@ -175,7 +180,7 @@ begin
 	-- set by the user.
 	cpu_wait   <= btnc_d;
 	cpu_irq    <= '1' when 
-			gpt0_irq_comp1 = '1' or 
+			timer_irq = '1' or 
 			ack_din        = '1' or 
 			stb_dout       = '1' or 
 			btnl_d         = '1' or 
@@ -262,7 +267,7 @@ begin
 		kbd_char, kbd_new_c, kbd_char_c,
 		kbd_new_edge,
 
-		gpt0_ctr_r_we)
+		timer_control_o)
 	begin
 		cpu_irc_mask_n <= cpu_irc_mask_c;
 
@@ -297,8 +302,8 @@ begin
 		vga_din    <= (others => '0');
 		vga_addr   <= (others => '0');
 
-		gpt0_ctr_r_we <= '0';
-		gpt0_ctr_r <= (others => '0');
+		timer_control_we <= '0';
+		timer_control_i <= (others => '0');
 
 		if kbd_new_edge = '1' then
 			kbd_new_n  <= '1';
@@ -325,7 +330,12 @@ begin
 
 		io_din <= (others => '0');
 
-		-- @todo split up io_wr and io_re?
+		-- @note it might speed things up to delay writes to registers
+		-- one cycle in a register.
+		-- @todo split up io_wr and io_re into two processes?
+		-- @todo It would make a lot more sense if these registers
+		-- somewhat matched up instead of being the crazy values
+		-- that they are at the moment.
 
 		--if io_wr = '1' and io_daddr(15 downto 5) = "01100000000" then
 		if io_wr = '1' then
@@ -349,16 +359,16 @@ begin
 				vga_d_we <= '1';
 				vga_din <= io_dout(15 downto 0);
 			when "00110" => -- VGA write RAM write
-				vga_we_ram <= '1';
+				vga_we_ram <= io_dout(0);
 			when "00111" => -- UART write output.
 				uart_din_n <= io_dout(7 downto 0);
 			when "01000" => -- UART strobe input.
-				stb_din <= '1';
+				stb_din <= io_dout(0);
 			when "01001" => -- UART acknowledge output.
-				ack_dout <= '1';
+				ack_dout <= io_dout(0);
 			when "01010" => -- General purpose timer
-				gpt0_ctr_r_we <= '1';
-				gpt0_ctr_r    <= io_dout(timer_length - 1 downto 0);
+				timer_control_we <= '1';
+				timer_control_i  <= io_dout(timer_length - 1 downto 0);
 			when "01011" => -- LED 8 Segment display
 				led_0    <= io_dout(3 downto 0);
 				led_0_we <= '1';
@@ -388,6 +398,9 @@ begin
 				io_din <= vga_dout;
 			when "0011" => -- UART get input.
 				io_din <= X"00" & uart_dout_c;
+				-- if stb_dout = '0' then
+					uart_dout_n <= (others => '0');
+				-- end if;
 			when "0100" => -- UART acknowledged input.
 				io_din <= (0 => ack_din_c, others => '0');
 				ack_din_n <= '0';
@@ -399,8 +412,8 @@ begin
 			when "0111" =>  -- PS/2 ASCII In and ACK
 				io_din <= "000000000" &  kbd_char_c;
 				kbd_new_n <= '0';
-			-- @todo Read timer value back in
-			when "1000" => io_din <= (others => '0');
+			when "1000" => 
+				io_din <= timer_control_o;
 			when others => io_din <= (others => '0');
 			end case;
 		end if;
@@ -436,18 +449,17 @@ begin
 	--- UART ----------------------------------------------------------
 
 	--- Timer ---------------------------------------------------------
-	gpt0_q  <= gpt0_q_internal;
-	gpt0_nq <= gpt0_nq_internal;
 	timer0_0: entity work.timer
 	generic map(timer_length => timer_length)
 	port map(
 		clk       => clk,
 		rst       => rst,
-		we        => gpt0_ctr_r_we,
-		control   => gpt0_ctr_r,
-		irq       => gpt0_irq_comp1,
-		Q         => gpt0_q_internal,
-		NQ        => gpt0_nq_internal);
+		we        => timer_control_we,
+		control_i => timer_control_i,
+		control_o => timer_control_o,
+		irq       => timer_irq,
+		Q         => timer_q,
+		NQ        => timer_nq);
 	--- Timer ---------------------------------------------------------
 
 

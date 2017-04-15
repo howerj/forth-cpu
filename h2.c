@@ -126,7 +126,7 @@ extern int _fileno(FILE *stream);
 #define MAX_CORE      (8192u)
 #define STK_SIZE      (32u)
 #define START_ADDR    (8u)
-#define DEFAULT_STEPS (256)
+#define DEFAULT_STEPS (512)
 #define MAX(X, Y)  ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y)  ((X) > (Y) ? (Y) : (X))
 
@@ -263,7 +263,7 @@ static const char *log_levels[] =
 #undef X
 };
 
-static log_level_e log_level = LOG_NOTE;
+static log_level_e log_level = LOG_WARNING;
 
 typedef struct {
 	int error;
@@ -468,7 +468,7 @@ int getch(void)
 	tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
 
 	if(ch == CHAR_ESCAPE) {
-		note("Escape character read in: Exiting");
+		note("escape character (%d) read in - exiting", CHAR_ESCAPE);
 		exit(EXIT_SUCCESS);
 	}
 
@@ -812,7 +812,15 @@ int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 
 /* ========================== Simulation =================================== */
 
-#define VGA_BUFFER_LENGTH (1 << 13)
+#define CLOCK_SPEED_HZ             (100000000ULL)
+#define VGA_BUFFER_LENGTH          (1 << 13)
+
+#define TIMER_ENABLE_BIT           (15)
+#define TIMER_RESET_BIT            (14)
+#define TIMER_INTERRUPT_ENABLE_BIT (13)
+#define TIMER_ENABLE               (1 << TIMER_INTERRUPT_ENABLE_BIT)
+#define TIMER_RESET                (1 << TIMER_RESET_BIT)
+#define TIMER_INTERRUPT_ENABLE     (1 << TIMER_INTERRUPT_ENABLE)
 
 typedef struct {
 	uint8_t leds;
@@ -821,7 +829,10 @@ typedef struct {
 	uint16_t vga_text_addr;
 	uint16_t vga_text_write;
 	uint16_t vga[VGA_BUFFER_LENGTH];
+
+	uint16_t timer_control;
 	uint16_t timer;
+
 	bool uart_stb_write;
 	bool uart_ack_read;
 	uint8_t led0;
@@ -829,6 +840,7 @@ typedef struct {
 	uint8_t led2;
 	uint8_t led3;
 	
+
 	uint8_t buttons;
 	uint8_t switches;
 	bool uart_ack_write;
@@ -864,7 +876,8 @@ typedef enum {
 	iUartAckWrite = 0x6004,
 	iUartStbDout  = 0x6005,
 	iPs2New       = 0x6006,
-	iPs2Char      = 0x6007
+	iPs2Char      = 0x6007,
+	iTimerCtrl    = 0x6008
 } h2_input_addr_t;
 
 typedef enum {
@@ -900,6 +913,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 	case iUartStbDout:  return 1;
 	case iPs2New:       return 1;
 	case iPs2Char:      return getch();
+	case iTimerCtrl:    return (soc->timer & 0x1FFF) | (soc->timer_control & 0xE000);
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 	}
@@ -917,17 +931,15 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	case oVgaCursor:  soc->vga_cursor     = value; break;
 	case oVgaCtrl:    soc->vga_control    = value; break;
 	case oVgaTxtAddr: soc->vga_text_addr  = value % VGA_BUFFER_LENGTH; break;
-	case oVgaTxtDin:  soc->vga_text_write = value;
-		/**@bug This is not quite right, this should occur only on a
-		 * VGA write */
-		putchar(0xFF & value);
-		return;
-	case oVgaWrite:     soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH] = soc->vga_text_write; break;
+	case oVgaTxtDin:  soc->vga_text_write = value; break;
+	case oVgaWrite:   soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH] = soc->vga_text_write; 
+			  putchar(0xFF & soc->vga_text_write);
+			  break;
 	case oUartWrite:
 	case oUartStbWrite:
 	case oUartAckDout:
 		break;
-	case oTimerCtrl: soc->timer = value; break;
+	case oTimerCtrl: soc->timer_control = value; break;
 	case o8SegLED_0: soc->led0  = value; break;
 	case o8SegLED_1: soc->led1  = value; break;
 	case o8SegLED_2: soc->led2  = value; break;
@@ -938,9 +950,23 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	}
 }
 
+/**@todo allow for realistic timing of things like the UART, debounce time outs
+ * and other events */
 static void h2_io_update_default(h2_soc_state_t *soc)
 {
 	assert(soc);
+
+	if(soc->timer_control & TIMER_ENABLE) {
+		if(soc->timer_control & TIMER_RESET) {
+			soc->timer = 0;
+		} else {
+			soc->timer++;
+			if((soc->timer > soc->timer_control) & 0x1FFF) {
+				/**@todo generate interrupt*/
+				soc->timer = 0;
+			}	
+		}
+	}
 }
 
 static h2_soc_state_t *h2_soc_state_new(void)
@@ -1869,7 +1895,7 @@ static node_t *parse(FILE *input)
 	l->error.jmp_buf_valid = 1;
 	if(setjmp(l->error.j)) {
 		lexer_free(l);
-		/** @warning leaks parsed nodes */
+		/**@bug leaks parsed nodes */
 		return NULL;
 	}
 	node_t *n = program(l);
@@ -2276,13 +2302,11 @@ int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symb
 	return -1;
 }
 
-/**@todo command line options to make this program more friendly to use
- * need to be added */
+/**@todo limit number of input files to one? */
 int main(int argc, char **argv)
 {
 	int i;
 	const char *optarg = NULL;
-	long steps = 0;
 	command_args_t cmd;
 	symbol_table_t *symbols = NULL;
 	FILE *symfile = NULL;
@@ -2354,7 +2378,7 @@ int main(int argc, char **argv)
 			if(i >= (argc - 1))
 				goto fail;
 			optarg = argv[++i];
-			if(string_to_long(0, &steps, optarg))
+			if(string_to_long(0, &cmd.steps, optarg))
 				goto fail;
 			break;
 		default:
