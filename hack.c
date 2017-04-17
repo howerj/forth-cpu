@@ -17,16 +17,16 @@
 #include <fcntl.h>
 #include <termios.h>
 
-static int open_tty(constchar * port)
+static int open_tty(const char * port)
 {
-	intfd;
+	int fd;
 	errno = 0;
 	fd = open(port, O_RDWR | O_NOCTTY);
 	if (fd == -1) {
 		fprintf(stderr, "open_tty unable to open '%s': %s\n", port, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-	returnfd;
+	return fd;
 }
 
 int main(int argc, char **argv)
@@ -46,8 +46,7 @@ int main(int argc, char **argv)
 
 	errno = 0;
 	if (tcgetattr(fd, &options) < 0) {
-		fprintf(stderr, "failedtogetterminaloptions:%d,%s\n", fd,
-			strerror(errno));
+		fprintf(stderr, "failed to get terminal options on fd %d: %s\n", fd, strerror(errno));
 		return -1;
 	}
 
@@ -58,13 +57,12 @@ int main(int argc, char **argv)
 	options.c_cflag |= (CLOCAL | CREAD); /* Enable the receiver and set local mode */
 	options.c_cflag &= ~CSTOPB;	     /* 1 stopbit */
 	options.c_cflag &= ~CRTSCTS;         /* Disable hardware flow control */
-	options.c_cc[VMIN] = 0;
+	options.c_cc[VMIN]  = 0;
 	options.c_cc[VTIME] = 1;             /* Timeout read after 1 second */
 
 	errno = 0;
 	if (tcsetattr(fd, TCSANOW, &options) < 0) {
-		fprintf(stderr, "failed to set terminal options:%d,%s\n", fd,
-			strerror(errno));
+		fprintf(stderr, "failed to set terminal options on fd %d: %s\n", fd, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
@@ -82,19 +80,18 @@ int main(int argc, char **argv)
 		if (r == 0) {
 			/*fprintf(stderr,"retransmitting...\n"); */
 			goto again;
-		}
-		elseif(r < 0) {
+		} else if(r < 0) {
 			fprintf(stderr, "read error:%s\n", strerror(errno));
 			return -1;
 		}
 
 		if (c1 != c2)
-			fprintf(stderr, "error: transmitted '%d' got back '%d'",
-				c1, c2);
+			fprintf(stderr, "error: transmitted '%d' got back '%d'", c1, c2);
 
 		write(2, &c1, 1);
 	}
 
 	close(fd);
-	return0;
+	return 0;
 }
+

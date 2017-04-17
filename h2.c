@@ -13,7 +13,9 @@
  * @todo turn this into a library, and into a literate program
  * @todo make a peephole optimizer for the assembler and a super optimizer
  * utility.
- * @todo Fix code generation of jumps
+ * @todo Make code generator character aligned.
+ * @todo Allow code generation to produce a bootloader with a program
+ * loaded to an address specified by the user.
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
@@ -127,8 +129,10 @@ extern int _fileno(FILE *stream);
 #define STK_SIZE      (32u)
 #define START_ADDR    (8u)
 #define DEFAULT_STEPS (512)
-#define MAX(X, Y)  ((X) > (Y) ? (X) : (Y))
-#define MIN(X, Y)  ((X) > (Y) ? (Y) : (X))
+#define MAX(X, Y)     ((X) > (Y) ? (X) : (Y))
+#define MIN(X, Y)     ((X) > (Y) ? (Y) : (X))
+
+#define NUMBER_OF_INTERRUPTS (8u)
 
 #define OP_BRANCH        (0x0000)
 #define OP_0BRANCH       (0x2000)
@@ -908,9 +912,9 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 	case iButtons:      return soc->buttons;
 	case iSwitches:     return soc->switches;
 	case iVgaTxtDout:   return soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH];
-	case iUartRead:     return getch(); /* @bug This does not reflect accurate timing */
+	case iUartRead:     return getch(); /** @bug This does not reflect accurate timing */
 	case iUartAckWrite: return 1;
-	case iUartStbDout:  return 1;
+	case iUartStbDout:  return rand()%2; /** @note needed to implement blocking on read */
 	case iPs2New:       return 1;
 	case iPs2Char:      return getch();
 	case iTimerCtrl:    return (soc->timer & 0x1FFF) | (soc->timer_control & 0xE000);
@@ -1221,6 +1225,7 @@ typedef enum {
 	LEX_BRANCH,
 	LEX_0BRANCH,
 	LEX_BEGIN,
+	LEX_AGAIN,
 	LEX_UNTIL,
 	LEX_IF,
 	LEX_ELSE,
@@ -1229,6 +1234,8 @@ typedef enum {
 	LEX_ENDDEFINE,
 	LEX_CHAR,
 	LEX_COMPILE,
+	LEX_VARIABLE,
+	LEX_ISR,
 	LEX_DUP,   /* start of instructions */
 	LEX_OVER,
 	LEX_INVERT,
@@ -1270,6 +1277,7 @@ static const char *keywords[] =
 	[LEX_BRANCH]    =  "branch",
 	[LEX_0BRANCH]   =  "0branch",
 	[LEX_BEGIN]     =  "begin",
+	[LEX_AGAIN]     =  "again",
 	[LEX_UNTIL]     =  "until",
 	[LEX_IF]        =  "if",
 	[LEX_ELSE]      =  "else",
@@ -1278,6 +1286,8 @@ static const char *keywords[] =
 	[LEX_ENDDEFINE] =  ";",
 	[LEX_CHAR]      =  "[char]",
 	[LEX_COMPILE]   =  ",",
+	[LEX_VARIABLE]  =  "variable",
+	[LEX_ISR]       =  "isr",
 	[LEX_DUP]       =  "dup",
 	[LEX_OVER]      =  "over",
 	[LEX_INVERT]    =  "invert",
@@ -1572,25 +1582,29 @@ again:
  *
  * Program     := Statement* EOF
  * Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
- *                | Identifier | Constant | Definition | If | Begin | Char
- * Label       := Identifier ';'
+ *                | Identifier | Constant | Variable | Definition | If 
+ *                | Begin | Char
+ * Label       := Identifier ";"
  * Branch      := "branch"  ( Identifier | Literal )
  * 0Branch     := "0branch" ( Identifier | Literal )
  * Call        := "call"    ( Identifier | Literal )
  * Constant    := "constant" Identifier Literal
+ * Variable    := "variable" Identifier Literal
  * Instruction := "@" | "!" | "exit" | ...
- * Definition  := ':' Statement* ';'
- * If          := 'if' Statement* [ 'else' ] Statement* 'then'
- * Literal     := [ '-' ] Number
- * Char        := 'char' ASCII ','
+ * Definition  := ":" Statement* ";"
+ * If          := "if" Statement* [ "else" ] Statement* "then"
+ * Begin       := "begin" Statement* ("until" | "again")
+ * Isr         := "isr" Identifier (Identifier | Literal)
+ * Literal     := [ "-" ] Number
+ * Char        := "char" ASCII ","
  * Number      := Octal | Hex | Decimal
- * Octal       := '0' ... '7'
- * Decimal     := '1' ... '9' ( '0' ... '9' )*
- * Hex         := ( 'x' | 'X' ) HexDigit HexDigit*
- * HexDigit    := ( 'a' ... 'f' | 'A' ... 'F' )
+ * Octal       := "0" ... "7"
+ * Decimal     := "1" ... "9" ( "0" ... "9" )*
+ * Hex         := ( "x" | "X" ) HexDigit HexDigit*
+ * HexDigit    := ( "a" ... "f" | "A" ... "F" )
  *
  * NB. Literals have higher priority than Identifiers, and comments are '\'
- * until a new line is encountered.
+ * until a new line is encountered, or '(' until a ')' is encountered.
  *
  * @bug The grammar allows nested word definitions.
  *
@@ -1614,12 +1628,15 @@ again:
 	X(SYM_0BRANCH,     "0branch")\
 	X(SYM_CALL,        "call")\
 	X(SYM_CONSTANT,    "constant")\
+	X(SYM_VARIABLE,    "variable")\
 	X(SYM_LITERAL,     "literal")\
 	X(SYM_INSTRUCTION, "instruction")\
 	X(SYM_BEGIN_UNTIL, "begin...until")\
+	X(SYM_BEGIN_AGAIN, "begin...again")\
 	X(SYM_IF1,         "if1")\
-	X(SYM_DEFINITION,  "defintion")\
+	X(SYM_DEFINITION,  "definition")\
 	X(SYM_CHAR,        "char")\
+	X(SYM_ISR,         "isr")\
 	X(SYM_CALL_DEFINITION, "call definition")
 
 typedef enum {
@@ -1702,7 +1719,10 @@ static void use(lexer_t *l, node_t *n)
 { /* move ownership of token from lexer to parse tree */
 	assert(l);
 	assert(n);
-	n->token = l->accepted;
+	if(n->token)
+		n->value = l->accepted;
+	else
+		n->token = l->accepted;
 	l->accepted = NULL;
 }
 
@@ -1757,11 +1777,11 @@ static node_t *defined_by_token(lexer_t *l, parse_e type)
 	return r;
 }
 
-static node_t *constant(lexer_t *l)
+static node_t *variable_or_constant(lexer_t *l, bool variable)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_CONSTANT, 1);
+	r = node_new(l, variable ? SYM_VARIABLE : SYM_CONSTANT, 1);
 	expect(l, LEX_IDENTIFIER);
 	use(l, r);
 	expect(l, LEX_LITERAL);
@@ -1787,7 +1807,10 @@ static node_t *begin(lexer_t *l)
 	assert(l);
 	r = node_new(l, SYM_BEGIN_UNTIL, 1);
 	r->o[0] = statements(l);
-	expect(l, LEX_UNTIL);
+	if(accept(l, LEX_AGAIN))
+		r->type = SYM_BEGIN_AGAIN;
+	else
+		expect(l, LEX_UNTIL);
 	return r;
 }
 
@@ -1828,6 +1851,22 @@ static node_t *charcompile(lexer_t *l)
 	return r;
 }
 
+static node_t *isr(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_ISR, 0);
+	expect(l, LEX_IDENTIFIER);
+	use(l, r);
+	if(accept(l, LEX_IDENTIFIER)) {
+		use(l, r);
+	} else {
+		expect(l, LEX_LITERAL);
+		use(l, r);
+	}
+	return r;
+}
+
 static node_t *statements(lexer_t *l)
 {
 	node_t *r;
@@ -1852,7 +1891,10 @@ again:
 		r->o[i++] = defined_by_token(l, SYM_LABEL);
 		goto again;
 	} else if(accept(l, LEX_CONSTANT)) {
-		r->o[i++] = constant(l);
+		r->o[i++] = variable_or_constant(l, false);
+		goto again;
+	} else if(accept(l, LEX_VARIABLE)) {
+		r->o[i++] = variable_or_constant(l, true);
 		goto again;
 	} else if(accept(l, LEX_IF)) {
 		r->o[i++] = if1(l);
@@ -1868,6 +1910,9 @@ again:
 		goto again;
 	} else if(accept(l, LEX_IDENTIFIER)) {
 		r->o[i++] = defined_by_token(l, SYM_CALL_DEFINITION);
+		goto again;
+	} else if(accept(l, LEX_ISR)) {
+		r->o[i++] = isr(l);
 		goto again;
 	} else if(accept_range(l, LEX_DUP, LEX_T_N1)) {
 		r->o[i++] = defined_by_token(l, SYM_INSTRUCTION);
@@ -2071,6 +2116,11 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_CONSTANT:
 		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e);
 		break;
+	case SYM_VARIABLE:
+		hole1 = hole(h) - 1;
+		fix(h, hole1, n->o[0]->token->p.number);
+		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, hole1, e);
+		break;
 	case SYM_LITERAL:
 		generate_literal(h, n->token->p.number);
 		break;
@@ -2139,6 +2189,28 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_CHAR: /* char A , */
 		generate(h, OP_LITERAL | n->token->p.id[0]);
 		break;
+	case SYM_ISR:
+	{
+		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
+		uint16_t fixme = 0, fixval = 0;
+		if(!s || s->type != SYMBOL_TYPE_CALL)
+			asmfail(e, "not a function call/defined symbol: %s", n->token->p.id);
+		if(n->value->type == LEX_IDENTIFIER) {
+			symbol_t *l = symbol_table_lookup(t, n->value->p.id);
+			if(!l || l->type != SYMBOL_TYPE_CONSTANT)
+				asmfail(e, "identifier is not a constant: %s", n->value->p.id);
+			fixme  = l->value;
+			fixval = s->value;
+		} else {
+			assert(n->value->type == LEX_LITERAL);
+			fixme  = n->value->p.number;
+			fixval = s->value;
+		}
+		if(fixme > NUMBER_OF_INTERRUPTS)
+			asmfail(e, "invalid interrupt number: %"PRId16, fixme);
+		fix(h, fixme, fixval);
+		break;
+	}
 	default:
 		fatal("Invalid or unknown type: %u", n->type);
 	}

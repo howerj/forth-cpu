@@ -5,7 +5,7 @@
 --|        three for control. (timer.vhd, original file name)
 --|
 --| @author         Richard James Howe.
---| @copyright      Copyright 2013 Richard James Howe.
+--| @copyright      Copyright 2017 Richard James Howe.
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --| @todo Check this synthesizes correctly.

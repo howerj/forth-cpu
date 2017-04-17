@@ -336,6 +336,8 @@ begin
 		-- @todo It would make a lot more sense if these registers
 		-- somewhat matched up instead of being the crazy values
 		-- that they are at the moment.
+		-- @todo Hardware cores of computation could be added, like a
+		-- multiplier, or a CORDIC unit.
 
 		--if io_wr = '1' and io_daddr(15 downto 5) = "01100000000" then
 		if io_wr = '1' then
@@ -516,7 +518,7 @@ begin
 
 	--- LED 8 Segment display -----------------------------------------
 	ledseg_0: entity work.ledseg
-	generic map(clock_frequency => clock_frequency)
+	generic map(clock_frequency => clock_frequency, use_bcd_not_hex => false)
 	port map(
 		clk        => clk,
 		rst        => rst,

@@ -1,11 +1,17 @@
 -------------------------------------------------------------------------------
 --| @file vga.vhd
---| @brief Monochrome TexT Mode Video Controller VHDL Macro.
+--| @brief Monochrome Text Mode Video Controller VHDL Macro.
 --| @author         Javier Valcarce García
 --| @copyright      Copyright 2007 Javier Valcarce García
 --| @license        LGPL version 3
 --| @email          javier.valcarce@gmail.com
---| (RJHOWE: I made some minor modifications, mainly to the coding style)
+--| 
+--| @note Only minor changes from the original have been made, mostly
+--| relating to formatting.
+--|
+--| This core originated from:
+--| https://opencores.org/project,interface_vga80x40
+--| https://www.javiervalcarce.eu/html/index.html
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;

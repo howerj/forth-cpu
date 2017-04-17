@@ -129,6 +129,10 @@ benches written for them.
 	- ledseg.vhd
 	- util.vhd
 * GPIO should be added, and perhaps a wave form generator.
+* A [Wishbone interface][] could be implemented for the H2 core
+and peripherals
+* Cores for CORDIC, XXTEA/XTEA/TEA could be added, these would be
+best being developed as separate projects first. 
 
 ## Ideas
 
@@ -172,5 +176,6 @@ project.
 [GTKWave]: http://gtkwave.sourceforge.net/
 [C99]: https://en.wikipedia.org/wiki/C99
 [tcl]: https://en.wikipedia.org/wiki/Tcl
+[Wishbone interface]: https://en.wikipedia.org/wiki/Wishbone_%28computer_bus%29
 
 <style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}</style>

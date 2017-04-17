@@ -8,8 +8,6 @@
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
---| @todo Turn this module into a package and use generics 
---| @todo Make BCD/Hexadecimal output optional
 --------------------------------------------------------------------------------
 
 --| This module implements a 8 segment display driver, with 4 displays in total:
@@ -34,7 +32,9 @@ use work.util.timer_us;
 use work.util.invert;
 
 entity ledseg is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; 
+		use_bcd_not_hex: boolean := true;
+		refresh_rate_us: natural := 1500);
 	port(
 		clk:      in   std_logic;
 		rst:      in   std_logic;
@@ -55,15 +55,14 @@ entity ledseg is
 end;
 
 architecture rtl of ledseg is
-	constant bcd_length: positive := 4;
-	constant timer_period_us: natural := 1500; -- 15 milliseconds
-	subtype bcd  is std_logic_vector(bcd_length - 1 downto 0);
+	constant character_length: positive := 4;
+	subtype char is std_logic_vector(character_length - 1 downto 0);
 	subtype eseg is std_logic_vector(7 downto 0);
 
-	signal led_0_o: bcd := (others => '0');
-	signal led_1_o: bcd := (others => '0');
-	signal led_2_o: bcd := (others => '0');
-	signal led_3_o: bcd := (others => '0');
+	signal led_0_o: char := (others => '0');
+	signal led_1_o: char := (others => '0');
+	signal led_2_o: char := (others => '0');
+	signal led_3_o: char := (others => '0');
 
 	signal do_shift:  std_logic := '0';
 	signal shift_reg: std_logic_vector(3 downto 0) := (0 => '1', others => '0');
@@ -101,10 +100,43 @@ architecture rtl of ledseg is
 	-- | . | 1 |   |   |   |   |   |   |   | 8 0 |
 	-- | - |   | 1 |   |   |   |   |   |   | 4 0 |
 	--  -----------------------------------------
+	-- | A |   | 1 | 1 | 1 |   | 1 | 1 | 1 | 7 7 |
+	-- | b |   | 1 | 1 | 1 | 1 | 1 |   |   | 7 C |
+	-- | C |   |   | 1 | 1 | 1 |   |   | 1 | 3 9 |
+	-- | d |   | 1 |   | 1 | 1 | 1 | 1 |   | 5 E |
+	-- | E |   | 1 | 1 | 1 | 1 |   |   | 1 | 7 9 |
+	-- | F |   | 1 | 1 | 1 |   |   |   | 1 | 7 1 |
+	--  -----------------------------------------
 	--
 	-- The table is then inverted before it goes to the output.
 	--
-	function bcd_to_8segment(a: bcd) return eseg is
+
+	function hex_to_8segment(a: char) return eseg is
+		variable r: std_logic_vector(7 downto 0);
+	begin
+		case a is
+			when "0000" => r := x"3F"; -- 0        
+			when "0001" => r := x"06"; -- 1
+			when "0010" => r := x"5B"; -- 2
+			when "0011" => r := x"4F"; -- 3
+			when "0100" => r := x"66"; -- 4
+			when "0101" => r := x"6D"; -- 5
+			when "0110" => r := x"7D"; -- 6
+			when "0111" => r := x"07"; -- 7
+			when "1000" => r := x"7F"; -- 8
+			when "1001" => r := x"6F"; -- 9
+			when "1010" => r := x"77"; -- A
+			when "1011" => r := x"7C"; -- b
+			when "1100" => r := x"39"; -- C
+			when "1101" => r := x"5E"; -- d
+			when "1110" => r := x"79"; -- E
+			when "1111" => r := x"71"; -- F
+			when others => r := x"00"; -- Unused
+		end case;
+		return r;
+	end function;
+
+	function bcd_to_8segment(a: char) return eseg is
 		variable r: std_logic_vector(7 downto 0);
 	begin
 		case a is
@@ -126,18 +158,27 @@ architecture rtl of ledseg is
 			when "1111" => r := x"00"; -- Unused
 			when others => r := x"00"; -- Unused
 		end case;
-		return invert(r);
-	end function bcd_to_8segment;
+		return r;
+	end function;
+
+	function char_to_8segment(a: char) return eseg is
+	begin
+		if use_bcd_not_hex then
+			return invert(bcd_to_8segment(a));
+		else
+			return invert(hex_to_8segment(a));
+		end if;
+	end function;
 begin
 	an <= invert(shift_reg);
 
-	led0: entity work.reg generic map(N => bcd_length) port map(clk => clk, rst => rst, we => led_0_we, di => led_0, do => led_0_o); 
-	led1: entity work.reg generic map(N => bcd_length) port map(clk => clk, rst => rst, we => led_1_we, di => led_1, do => led_1_o); 
-	led2: entity work.reg generic map(N => bcd_length) port map(clk => clk, rst => rst, we => led_2_we, di => led_2, do => led_2_o); 
-	led3: entity work.reg generic map(N => bcd_length) port map(clk => clk, rst => rst, we => led_3_we, di => led_3, do => led_3_o); 
+	led0: entity work.reg generic map(N => character_length) port map(clk => clk, rst => rst, we => led_0_we, di => led_0, do => led_0_o); 
+	led1: entity work.reg generic map(N => character_length) port map(clk => clk, rst => rst, we => led_1_we, di => led_1, do => led_1_o); 
+	led2: entity work.reg generic map(N => character_length) port map(clk => clk, rst => rst, we => led_2_we, di => led_2, do => led_2_o); 
+	led3: entity work.reg generic map(N => character_length) port map(clk => clk, rst => rst, we => led_3_we, di => led_3, do => led_3_o); 
 
 	timer: entity work.timer_us
-		generic map(clock_frequency => clock_frequency, timer_period_us => timer_period_us) 
+		generic map(clock_frequency => clock_frequency, timer_period_us => refresh_rate_us) 
 		port map(clk => clk, rst => rst, co => do_shift);
 
 	process(clk, do_shift, shift_reg)
@@ -156,13 +197,13 @@ begin
 		ka <= (others => '0');
 
 		if '1' = shift_reg(0) then
-			ka <= bcd_to_8segment(led_0_o);
+			ka <= char_to_8segment(led_0_o);
 		elsif '1' = shift_reg(1) then
-			ka <= bcd_to_8segment(led_1_o);
+			ka <= char_to_8segment(led_1_o);
 		elsif '1' = shift_reg(2) then
-			ka <= bcd_to_8segment(led_2_o);
+			ka <= char_to_8segment(led_2_o);
 		elsif '1' = shift_reg(3) then
-			ka <= bcd_to_8segment(led_3_o);
+			ka <= char_to_8segment(led_3_o);
 		end if;
 	end process;
 end architecture;
