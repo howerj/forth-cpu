@@ -16,9 +16,13 @@
 --| for a full list of changes.
 --|
 --| @note Changes made to range to stop Xilinx warnings and with formatting
---| @todo Loopback test bench
---| @todo This needs either replacing with something simpler, and/or fully 
---| testing, it currently does not have a test bench. 
+--| @todo A better interface to the outside world should be created, instead
+--| of using strobe/acknowledge the module should indicate whether a new
+--| character is available (level high until acknowledged) and it should indicate
+--| when a write can be done (level high when a write is in operation).
+--| @note Somewhere along the chain from the computer, to the Nexys3 board,
+--| to the UART module, and finally to the H2 core, bytes are being lost in
+--| transmission to from the computer. 
 --------------------------------------------------------------------------------
 
 library ieee;

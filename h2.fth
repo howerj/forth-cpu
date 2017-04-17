@@ -9,7 +9,8 @@ Execution begins at a label called "start".
 
 TODO:
 * Function for displaying numbers on the display
-* key? key emit and a VGA driver
+* VGA driver
+* Hex number printer
 * Bootloader 
 * Minimal Forth interpreter )
 
@@ -19,7 +20,6 @@ TODO:
 ( ======================== System Constants ================= )
 ( Outputs: 0x6000 - 0x7FFF
 NB. 0x6000 itself is not used. )
-
 
 constant oNotUsed      0x6000  
 constant oLeds         0x6001  
@@ -138,6 +138,13 @@ variable cursorT 0  ( index into VGA text memory )
 
 : key ( -- char : read in a key, echoing to output )
 	uart-read dup uart-write drop ;
+
+: char
+	uart-read ;
+
+: emit
+	uart-write drop ;
+
 
 : led ( n -- : display a number on the LED 8 display )
 	dup 12 rshift o8SegLED_0 !

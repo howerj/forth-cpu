@@ -150,7 +150,7 @@ begin
 	io_dout   <=  nos;
 	io_daddr  <=  tos_c(15 downto 0);
 	io_wr     <= '1' when is_ram_write = '1' and tos_c(14 downto 13) = "11" else '0';
-	-- io_re is handled in the ALU
+	-- @note io_re is handled in the ALU
 
 	pc_plus_one <= std_logic_vector(unsigned(pc_c) + 1);
 
@@ -231,15 +231,20 @@ begin
 				tos_n <= din;
 			end if;
 		when "01101" => tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-		when "01110" => tos_n(4 downto 0) <= vstkp_c;
-		when "01111" => tos_n <=  (others => comp_umore);
+		when "01110" => tos_n(vstkp_c'range) <= vstkp_c;
+		when "01111" => tos_n    <= (others => comp_umore);
 		when "10000" => int_en_n <= tos_c(0);
-		when "10001" => tos_n <= (others => int_en_c);
-		when "10010" => tos_n(4 downto 0) <= rstkp_c;
-		when "10011" => tos_n <= (others => comp_zero);
+		when "10001" => tos_n    <= (others => int_en_c);
+		when "10010" => tos_n(rstkp_c'range) <= rstkp_c;
+		when "10011" => tos_n    <= (others => comp_zero);
 		-- Experimental instructions
+		-- @note multiplication could be done in stages
 		-- when "10100" => tos_n <= tos_c(0) & tos_c(15 downto 1);  -- rotate right by one
 		-- when "10101" => tos_n <= tos_c(14 downto 0) & tos_c(15); -- rotate left by one
+		-- when "10110" => tos_n <= (others => tos_c(0));  -- odd
+		-- when "10111" => tos_n <= (others => tos_c(15)); -- negative
+		-- when "11000" => tos_n <= std_logic_vector(unsigned(nos) ror to_integer(unsigned(tos_c(3 downto 0))));
+		-- when "11001" => tos_n <= std_logic_vector(unsigned(nos) rol to_integer(unsigned(tos_c(3 downto 0))));
 		when others  => tos_n <= tos_c;
 				report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
 		end case;

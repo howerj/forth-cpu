@@ -8,6 +8,8 @@
 --| @copyright  Copyright 2013 Richard James Howe.
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
+--|
+--| @todo debounce switch inputs
 ---------------------------------------------------------------------------------
 
 library ieee,work;
@@ -80,9 +82,10 @@ architecture behav of top is
 	signal io_daddr: std_logic_vector(15 downto 0):= (others => '0');
 
 	-- CPU H2 Interrupts
-	signal cpu_irq: std_logic := '0';
-	signal cpu_irc: std_logic_vector(number_of_interrupts - 1 downto 0):= (others => '0');
-	signal cpu_irc_mask_c, cpu_irc_mask_n: std_logic_vector(number_of_interrupts - 1 downto 0) := (others => '1');
+	signal cpu_irq:         std_logic := '0';
+	signal cpu_irc:         std_logic_vector(number_of_interrupts - 1 downto 0):= (others => '0');
+	signal cpu_irc_mask:    std_logic_vector(number_of_interrupts - 1 downto 0) := (others => '1');
+	signal cpu_irc_mask_we: std_logic := '0';
 
 	signal clk25MHz: std_logic:= '0';
 	signal clk50MHz: std_logic:= '0';
@@ -123,12 +126,12 @@ architecture behav of top is
 	signal tx_uart, rx_uart,rx_sync: std_logic := '0';
 
 	---- Timer
-	signal timer_control_we:       std_logic := '0';
-	signal timer_control_i:        std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
-	signal timer_control_o:        std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
-	signal timer_irq:    std_logic;
-	signal timer_q:   std_logic;
-	signal timer_nq:  std_logic;
+	signal timer_control_we: std_logic := '0';
+	signal timer_control_i:  std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
+	signal timer_control_o:  std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
+	signal timer_irq:        std_logic;
+	signal timer_q:          std_logic;
+	signal timer_nq:         std_logic;
 
 	---- PS/2
 	signal kbd_new:      std_logic := '0';  -- new ASCII char available
@@ -154,6 +157,7 @@ architecture behav of top is
 	signal btnl_d: std_logic := '0';  -- button left
 	signal btnr_d: std_logic := '0';  -- button right
 
+	signal sw_d:   std_logic_vector(sw'range) := (others => '0');
 begin
 -------------------------------------------------------------------------------
 -- The Main components
@@ -211,7 +215,9 @@ begin
 	io_daddr => io_daddr,
 
 	cpu_irq   => cpu_irq,
-	cpu_irc   => cpu_irc);
+	cpu_irc   => cpu_irc,
+	cpu_irc_mask    => cpu_irc_mask,
+	cpu_irc_mask_we => cpu_irc_mask_we);
 
 -------------------------------------------------------------------------------
 -- IO
@@ -240,7 +246,6 @@ begin
 			-- PS/2
 			kbd_char_c <= (others => '0');
 			kbd_new_c  <= '0';
-			cpu_irc_mask_c <= (others => '0');
 		elsif rising_edge(clk) then
 			-- LEDs/Switches
 			ld_c        <=  ld_n;
@@ -252,14 +257,13 @@ begin
 			-- PS/2
 			kbd_char_c  <= kbd_char_n;
 			kbd_new_c   <= kbd_new_n;
-			cpu_irc_mask_c <= cpu_irc_mask_n;
 		end if;
 	end process;
 
 	io_select: process(
-		io_wr, io_re, io_dout, io_daddr, cpu_irc_mask_c,
+		io_wr, io_re, io_dout, io_daddr, 
 		ld_c,
-		sw, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
+		sw_d, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
 		uart_din_c, ack_din_c,
 		uart_dout_c,
 		uart_dout, stb_dout, ack_din,
@@ -269,8 +273,6 @@ begin
 
 		timer_control_o)
 	begin
-		cpu_irc_mask_n <= cpu_irc_mask_c;
-
 		ld <= ld_c;
 
 		uart_din <= uart_din_c;
@@ -304,6 +306,9 @@ begin
 
 		timer_control_we <= '0';
 		timer_control_i <= (others => '0');
+
+		cpu_irc_mask <= (others => '0');
+		cpu_irc_mask_we <= '0';
 
 		if kbd_new_edge = '1' then
 			kbd_new_n  <= '1';
@@ -346,6 +351,7 @@ begin
 			when "00000" => -- Not used!
 			when "00001" => -- LEDs, next to switches.
 				ld_n <= io_dout(7 downto 0);
+
 			when "00010" => -- VGA, cursor registers.
 				crx_we <= '1';
 				cry_we <= '1';
@@ -362,15 +368,18 @@ begin
 				vga_din <= io_dout(15 downto 0);
 			when "00110" => -- VGA write RAM write
 				vga_we_ram <= io_dout(0);
+
 			when "00111" => -- UART write output.
 				uart_din_n <= io_dout(7 downto 0);
 			when "01000" => -- UART strobe input.
 				stb_din <= io_dout(0);
 			when "01001" => -- UART acknowledge output.
 				ack_dout <= io_dout(0);
+
 			when "01010" => -- General purpose timer
 				timer_control_we <= '1';
 				timer_control_i  <= io_dout(timer_length - 1 downto 0);
+
 			when "01011" => -- LED 8 Segment display
 				led_0    <= io_dout(3 downto 0);
 				led_0_we <= '1';
@@ -383,38 +392,43 @@ begin
 			when "01110" =>
 				led_3    <= io_dout(3 downto 0);
 				led_3_we <= '1';
+
 			when "01111" =>
-				cpu_irc_mask_n <= io_dout(number_of_interrupts - 1 downto 0);
+				cpu_irc_mask <= io_dout(number_of_interrupts - 1 downto 0);
+				cpu_irc_mask_we <= '1';
 			when "10000" =>
 			when others =>
 			end case;
-		-- elsif io_re = '1' and io_daddr(15 downto 4) = "011000000000" then
+		-- elsif io_re = '1' and io_daddr(15 downto 5) = "01100000000" then
 		elsif io_re = '1' then
 			-- Get input.
-			case io_daddr(3 downto 0) is
-			when "0000" => -- Switches, plus direct access to UART bit.
+			case io_daddr(4 downto 0) is
+			when "00000" => -- Switches, plus direct access to UART bit.
 				io_din <= "0000000000" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d;
-			when "0001" =>
-				io_din <= X"00" & sw;
-			when "0010" => -- VGA, Read VGA text buffer.
+			when "00001" =>
+				io_din <= X"00" & sw_d;
+			when "00010" => -- VGA, Read VGA text buffer.
 				io_din <= vga_dout;
-			when "0011" => -- UART get input.
+
+			when "00011" => -- UART get input.
 				io_din <= X"00" & uart_dout_c;
 				-- if stb_dout = '0' then
 					uart_dout_n <= (others => '0');
 				-- end if;
-			when "0100" => -- UART acknowledged input.
+
+			when "00100" => -- UART acknowledged input.
 				io_din <= (0 => ack_din_c, others => '0');
 				ack_din_n <= '0';
-			when "0101" => -- UART strobe output (write output).
+			when "00101" => -- UART strobe output (write output).
 				io_din <= (0 => stb_dout_c, others => '0');
 				stb_dout_n <= '0';
-			when "0110" =>  -- PS/2 Keyboard, Check for new char
+
+			when "00110" =>  -- PS/2 Keyboard, Check for new char
 				io_din <= (0 => kbd_new_c, others => '0');
-			when "0111" =>  -- PS/2 ASCII In and ACK
+			when "00111" =>  -- PS/2 ASCII In and ACK
 				io_din <= "000000000" &  kbd_char_c;
 				kbd_new_n <= '0';
-			when "1000" => 
+			when "01000" => 
 				io_din <= timer_control_o;
 			when others => io_din <= (others => '0');
 			end case;
@@ -546,6 +560,14 @@ begin
 	btnr_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnr, result => btnr_d);
 
 	--- Buttons -------------------------------------------------------
+
+	--- Switches ------------------------------------------------------
+
+	sw_debouncer: for i in sw'range generate
+		sw_d_instance: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => sw(i), result => sw_d(i));
+	end generate;
+
+	--- Switches ------------------------------------------------------
 
 -------------------------------------------------------------------------------
 end architecture;

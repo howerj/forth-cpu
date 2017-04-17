@@ -12,6 +12,7 @@
 --| @todo Make these components type generic if possible
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, and other generic 
 --| functions and components
+--| @todo A test bench for the functions should be created.
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -66,10 +67,12 @@ package util is
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
 	function n_bits(x: natural) return natural;
+	function n_bits(x: std_logic_vector) return natural;
 	function reverse (a: in std_logic_vector) return std_logic_vector;
 	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector;
 	function invert(slv:std_logic_vector) return std_logic_vector;
-
+	function parity(slv:std_logic_vector; even: boolean) return std_logic;
+	function select_bit(indexed, selector: std_logic_vector) return std_logic;
 end;
 
 package body util is
@@ -77,12 +80,12 @@ package body util is
 	function max(a: natural; b: natural) return natural is
 	begin
 		if (a > b) then return a; else return b; end if;
-	end function max;
+	end function;
 
 	function min(a: natural; b: natural) return natural is
 	begin
 		if (a < b) then return a; else return b; end if;
-	end function min;
+	end function;
 
 	function n_bits(x: natural) return natural is
 		variable x1: natural := max(x, 1) - 1;
@@ -93,7 +96,13 @@ package body util is
 			n  := n + 1;
 		end loop;
 		return n;
-	end function n_bits;
+	end function;
+
+
+	function n_bits(x: std_logic_vector) return natural is
+	begin
+		return n_bits(x'high);
+	end function;
 
 	-- https://stackoverflow.com/questions/13584307
 	function reverse (a: in std_logic_vector) return std_logic_vector is
@@ -113,8 +122,8 @@ package body util is
 		return m;
 	end; 
 
-	function invert(slv:std_logic_vector) return std_logic_vector is 
-		variable z : std_logic_vector(slv'range);
+	function invert(slv: std_logic_vector) return std_logic_vector is 
+		variable z: std_logic_vector(slv'range);
 	begin
 		for i in slv'range loop
 			z(i) := not(slv(i));
@@ -122,6 +131,30 @@ package body util is
 		return z;
 	end;
 
+
+	function parity(slv: std_logic_vector; even: boolean) return std_logic is
+		variable z: std_logic := '0';
+	begin
+		if not even then
+			z := '1';
+		end if;
+		for i in slv'range loop
+			z := z xor slv(i);
+		end loop;
+		return z;
+	end;
+
+	function select_bit(indexed, selector: std_logic_vector) return std_logic is
+		variable z: std_logic := 'X';
+	begin
+		assert n_bits(indexed) = (selector'high + 1);
+		for i in indexed'range loop
+			if i = to_integer(unsigned(selector)) then
+				z := indexed(i);
+			end if;
+		end loop;
+		return z;
+	end;
 end;
 
 ------------------------- Generic Register of std_logic_vector ----------------------
@@ -257,6 +290,11 @@ end;
 ------------------------- Shift register --------------------------------------------
 
 ------------------------- Microsecond Timer -----------------------------------------
+--| @todo There is a special case for the microsecond timer, one where we do
+--| not have to use a comparator, but instead we can use the top bit of a
+--| counter to signal the timer has elapsed. This special case could be
+--| selected for with generics. The situation occurs when the cycles variable
+--| is a power of two less one.
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -275,9 +313,9 @@ entity timer_us is
 end timer_us;
 
 architecture rtl of timer_us is
-    constant cycles:   natural := (clock_frequency / 1000000) * timer_period_us;
-    subtype  counter is unsigned(max(1, n_bits(cycles) - 1) downto 0);
-    signal   c_c, c_n: counter := (others => '0');
+	constant cycles:   natural := (clock_frequency / 1000000) * timer_period_us;
+	subtype  counter is unsigned(max(1, n_bits(cycles) - 1) downto 0);
+	signal   c_c, c_n: counter := (others => '0');
 begin
 	process (clk, rst)
 	begin
@@ -292,10 +330,10 @@ begin
 	begin
 		if c_c = (cycles - 1) then
 			c_n <= (others => '0');
-			co <= '1';
+			co  <= '1';
 		else
 			c_n <= c_c + 1;
-			co <= '0';
+			co  <= '0';
 		end if;
 	end process;
 end;

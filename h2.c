@@ -913,7 +913,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 	case iSwitches:     return soc->switches;
 	case iVgaTxtDout:   return soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH];
 	case iUartRead:     return getch(); /** @bug This does not reflect accurate timing */
-	case iUartAckWrite: return 1;
+	case iUartAckWrite: return rand()%2;
 	case iUartStbDout:  return rand()%2; /** @note needed to implement blocking on read */
 	case iPs2New:       return 1;
 	case iPs2Char:      return getch();

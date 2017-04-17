@@ -16,28 +16,30 @@ entity cpu is
 	generic(number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
-		debug_pc:     out std_logic_vector(12 downto 0);
-		debug_insn:   out std_logic_vector(15 downto 0);
-		debug_dwe:    out std_logic := '0';
-		debug_dre:    out std_logic := '0';
-		debug_din:    out std_logic_vector(15 downto 0);
-		debug_dout:   out std_logic_vector(15 downto 0);
-		debug_daddr:  out std_logic_vector(12 downto 0);
+		debug_pc:        out std_logic_vector(12 downto 0);
+		debug_insn:      out std_logic_vector(15 downto 0);
+		debug_dwe:       out std_logic := '0';
+		debug_dre:       out std_logic := '0';
+		debug_din:       out std_logic_vector(15 downto 0);
+		debug_dout:      out std_logic_vector(15 downto 0);
+		debug_daddr:     out std_logic_vector(12 downto 0);
 		-- synthesis translate_on
 
-		clk:        in   std_logic;
-		rst:        in   std_logic;
+		clk:             in   std_logic;
+		rst:             in   std_logic;
 
 		-- CPU External interface, I/O
-		stop:     in   std_logic; -- Halts the CPU
-		io_wr:    out  std_logic; -- I/O Write enable
-		io_re:    out  std_logic; -- hardware *READS* can have side effects
-		io_din:   in   std_logic_vector(15 downto 0);
-		io_dout:  out  std_logic_vector(15 downto 0):= (others => 'X');
-		io_daddr: out  std_logic_vector(15 downto 0):= (others => 'X');
+		stop:            in   std_logic; -- Halts the CPU
+		io_wr:           out  std_logic; -- I/O Write enable
+		io_re:           out  std_logic; -- hardware *READS* can have side effects
+		io_din:          in   std_logic_vector(15 downto 0);
+		io_dout:         out  std_logic_vector(15 downto 0):= (others => 'X');
+		io_daddr:        out  std_logic_vector(15 downto 0):= (others => 'X');
 		-- Interrupts
-		cpu_irq:  in   std_logic;
-		cpu_irc:  in   std_logic_vector(number_of_interrupts - 1 downto 0));
+		cpu_irq:         in   std_logic;
+		cpu_irc:         in std_logic_vector(number_of_interrupts - 1 downto 0);
+		cpu_irc_mask:    in std_logic_vector(number_of_interrupts - 1 downto 0);
+		cpu_irc_mask_we: in std_logic);
 end;
 
 architecture structural of cpu is
@@ -78,7 +80,10 @@ begin
 		irc_i  => cpu_irc,
 
 		irq_o  => h2_irq,
-		addr_o => h2_irq_addr);
+		addr_o => h2_irq_addr,
+	
+		mask    => cpu_irc_mask,
+		mask_we => cpu_irc_mask_we);
 
 	h2_0: entity work.h2 -- The actual CPU instance (H2)
 	generic map(interrupt_address_length => interrupt_address_length)
