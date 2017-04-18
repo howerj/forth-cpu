@@ -114,6 +114,7 @@ begin
 
 	uut_shiftReg: entity work.shift_register_tb generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
 	uut_timer_us: entity work.timer_us_tb       generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
+	uut_edge:     entity work.edge_tb           generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
 
 	-- @note a more advanced test bench would send out a string and expect
 	-- the same one back using a loopback circuit. For the moment this

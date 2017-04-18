@@ -64,6 +64,21 @@ package util is
 			stop: in std_logic);
 	end component;
 
+	component edge is
+	port(
+		clk:    in  std_logic;
+		sin:    in  std_logic;
+       		output: out std_logic);
+	end component;
+
+	component edge_tb is
+		generic(clock_frequency: positive);
+		port(
+			clk:  in std_logic;
+			rst:  in std_logic;
+			stop: in std_logic);
+	end component;
+
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
 	function n_bits(x: natural) return natural;
@@ -348,7 +363,7 @@ entity timer_us_tb is
 		clk:  in std_logic;
 		rst:  in std_logic;
 		stop: in std_logic);
-end timer_us_tb;
+end;
 
 architecture behav of timer_us_tb is
 	constant clock_period: time := 1000 ms / clock_frequency;
@@ -369,3 +384,64 @@ begin
 end;
 
 ------------------------- Microsecond Timer -----------------------------------------
+
+------------------------- Edge Detector ---------------------------------------------
+
+-- @brief rising edge detector
+library ieee,work,std;
+use ieee.std_logic_1164.all;
+
+entity edge is
+	port(
+		clk:    in  std_logic;
+		sin:    in  std_logic;
+       		output: out std_logic);
+end;
+
+architecture rtl of edge is
+	signal d: std_logic := '0';
+begin
+	process(clk)
+	begin
+		if rising_edge(clk) then
+			d <= sin;
+		end if;
+	end process;
+	output <= (not d) and sin;
+end;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity edge_tb is
+	generic(clock_frequency: positive);
+	port(
+		clk:  in std_logic;
+		rst:  in std_logic;
+		stop: in std_logic);
+end;
+
+architecture behav of edge_tb is
+	constant clock_period: time := 1000 ms / clock_frequency;
+	signal sin:    std_logic := '0';
+	signal output: std_logic := 'X';
+begin
+	uut: entity work.edge
+	port map(clk => clk, sin => sin, output => output);
+
+	stimulus_process: process
+	begin
+		wait for 1 us;
+		assert output = '0';
+		wait for clock_period;
+		sin <= '1';
+		wait for clock_period;
+		assert output = '1';
+		wait for clock_period;
+		assert output = '0';
+		wait;
+	end process;
+end architecture;
+
+------------------------- Edge Detector ---------------------------------------------

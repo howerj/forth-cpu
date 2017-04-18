@@ -50,28 +50,29 @@ constant iPs2Char      0x6007
 constant iTimerCtrl    0x6008
 
 ( Interrupt service Routine: Memory locations )
-constant isrReset      0
+( @todo update interrupt list )
+constant isrBtnl       0
 constant isrClock      1
 constant isrUartAck    2
 constant isrUartStb    3
-constant isrUnused03   4
-constant isrUnused04   5
-constant isrUnused05   6
-constant isrUnused06   7
+constant isrBtnr       4
+constant isrKbdNew     5
+constant isrSw0        6
+constant isrSw1        7
 
 : noop ;
 : reset >r drop branch 8 ;
 ( @todo fix setting isr 0: perhaps by moving
 interrupts to the end of main memory: The problem is caused by the fact
 that the reset is not propagated to the h2 core in the VHDL simulation )
-\ isr reset isrReset 
+\ isr reset isrBtnl
 isr noop isrClock
 isr noop isrUartAck
 isr noop isrUartStb
-isr noop isrUnused03
-isr noop isrUnused04
-isr noop isrUnused05
-isr noop isrUnused06
+isr noop isrBtnr
+isr noop isrKbdNew
+isr noop isrSw0
+isr noop isrSw1
 
 ( ======================== System Constants ================= )
 

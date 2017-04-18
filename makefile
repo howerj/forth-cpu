@@ -18,7 +18,6 @@ SOURCES = \
 	timer.vhd \
 	bram.vhd \
 	uart.vhd \
-	edge.vhd \
 	debounce.vhd \
 	ps2kbd.vhd \
 	ps2top.vhd \

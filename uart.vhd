@@ -83,7 +83,7 @@ architecture behav of uart is
 	                            rx_get_stop_bit,
 	                            rx_send_block);
 	
-	signal  uart_rx_state: uart_rx_states := rx_get_start_bit;
+	signal  uart_rx_state:        uart_rx_states := rx_get_start_bit;
 	signal  uart_rx_bit:          std_logic := '1'; -- @note should the be 0 or 1?
 	signal  uart_rx_data_block:   std_logic_vector(7 downto 0) := (others => '0');
 	signal  uart_rx_data_vec:     std_logic_vector(1 downto 0) := (others => '0');

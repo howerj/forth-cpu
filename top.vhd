@@ -174,21 +174,20 @@ begin
 	cpu_irc(2) <= ack_din;
 	cpu_irc(3) <= stb_dout;
 	cpu_irc(4) <= btnr_d;
-	cpu_irc(5) <= '0';
-	cpu_irc(6) <= '0';
-	cpu_irc(7) <= '0';
+	cpu_irc(5) <= kbd_new;
+	cpu_irc(6) <= sw_d(0);
+	cpu_irc(7) <= sw_d(1);
 
-	-- @todo These interrupts should come from debounced button inputs
-	-- until something more useful is found for them. Whether they
-	-- act as interrupts or not should be controlled by a register
-	-- set by the user.
 	cpu_wait   <= btnc_d;
 	cpu_irq    <= '1' when 
 			timer_irq = '1' or 
-			ack_din        = '1' or 
-			stb_dout       = '1' or 
-			btnl_d         = '1' or 
-			btnr_d         = '1' 
+			ack_din   = '1' or 
+			stb_dout  = '1' or 
+			btnl_d    = '1' or 
+			btnr_d    = '1' or
+			kbd_new   = '1' or
+			sw_d(0)   = '1' or
+			sw_d(1)   = '1' 
 			else '0';
 
 	cpu_0: entity work.cpu
