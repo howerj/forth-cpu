@@ -5,11 +5,10 @@
 --|  RAM, and all the I/O modules.
 --|
 --| @author     Richard James Howe.
---| @copyright  Copyright 2013 Richard James Howe.
+--| @copyright  Copyright 2017 Richard James Howe.
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
---| @todo debounce switch inputs
 ---------------------------------------------------------------------------------
 
 library ieee,work;
@@ -90,9 +89,9 @@ architecture behav of top is
 	signal clk25MHz: std_logic:= '0';
 	signal clk50MHz: std_logic:= '0';
 
-	attribute buffer_type : string;
-	attribute buffer_type of clk50MHz : signal is "BUFG";
-	attribute buffer_type of clk25MHz : signal is "BUFG";
+	attribute buffer_type: string;
+	attribute buffer_type of clk50MHz: signal is "BUFG";
+	attribute buffer_type of clk25MHz: signal is "BUFG";
 
 	-- Basic IO register
 	---- LEDs/Switches
@@ -426,7 +425,7 @@ begin
 				io_din <= (0 => kbd_new_c, others => '0');
 			when "00111" =>  -- PS/2 ASCII In and ACK
 				io_din <= "000000000" &  kbd_char_c;
-				kbd_new_n <= '0';
+				-- kbd_new_n <= '0';
 			when "01000" => 
 				io_din <= timer_control_o;
 			when others => io_din <= (others => '0');

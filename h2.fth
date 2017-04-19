@@ -36,7 +36,7 @@ constant o8SegLED_0    0x600b
 constant o8SegLED_1    0x600c
 constant o8SegLED_2    0x600d 
 constant o8SegLED_3    0x600e
-
+constant oIrcMask      0x600f
 
 ( Inputs: 0x6000 - 0x7FFF )
 constant iButtons      0x6000 
@@ -128,14 +128,24 @@ variable cursorT 0  ( index into VGA text memory )
 : x1+ cursorX 1+! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
 : cursorT1+ cursorT 1+! cursorT @ vgaTextSize u>= if 0 cursorT ! then ;
 
+: led ( n -- : display a number on the LED 8 display )
+	dup 12 rshift o8SegLED_0 !
+	dup  8 rshift o8SegLED_1 !
+	dup  4 rshift o8SegLED_2 !
+	              o8SegLED_3 ! ;
+
 : uart-write ( char -- bool : write out a character ) 
 	begin iUartAckWrite @ 0 = until oUartWrite ! 1 oUartStbWrite ! iUartAckWrite @ ; 
 
 : key?
 	iUartStbDout @ ;
 
+variable uart-read-count 0
+
 : uart-read  ( -- char : blocks until character read in )
-	begin key? 0 = until iUartRead  @ 1 oUartAckDout  ! ;
+	begin key? 0= until iUartRead  @ 1 oUartAckDout ! 
+	uart-read-count 1+!
+	uart-read-count @ led ;
 
 : key ( -- char : read in a key, echoing to output )
 	uart-read dup uart-write drop ;
@@ -146,12 +156,6 @@ variable cursorT 0  ( index into VGA text memory )
 : emit
 	uart-write drop ;
 
-
-: led ( n -- : display a number on the LED 8 display )
-	dup 12 rshift o8SegLED_0 !
-	dup  8 rshift o8SegLED_1 !
-	dup  4 rshift o8SegLED_2 !
-	              o8SegLED_3 ! ;
 
 constant bootstart 1024
 constant programsz 5120 ( bootstart + 4096 )
@@ -172,7 +176,9 @@ variable readin    0
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
-	0xFEDC led ;
+	0xCAFE led ;
+	\ 0x00FF oIrcMask !
+	\ 1   seti ;
 
 ( The start up code begins here, on initialization the assembler
 jumps to a special symbol "start". )
@@ -194,7 +200,7 @@ nextChar:
 
 	x1+
 	cursorT1+
-	cursorT @ led
+	\ cursorT @ led
 
 	cursorX @ cursorY @ 8 lshift or oVgaCursor !
 

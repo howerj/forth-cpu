@@ -5,7 +5,7 @@
 --| allow for more ALU instructions.
 --|
 --| @author         Richard James Howe.
---| @copyright      Copyright 2013 Richard James Howe.
+--| @copyright      Copyright 2017 Richard James Howe.
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
@@ -14,6 +14,8 @@
 --|  CPU (such as interrupts and ALU operations) could be made to be optional
 --|  * Assertions should be added to the core and check they work as intended
 --|  * Turn this into a literate file, describing the CPU
+--|  * Address should be character aligned, not cell aligned
+--|  * Add carry flag to addition
 --|
 -------------------------------------------------------------------------------
 
@@ -34,7 +36,7 @@ entity h2 is
 		rst:      in  std_logic;
 
 		-- IO interface
-		stop: in  std_logic;
+		stop:     in  std_logic;
 		io_wr:    out std_logic;
 		io_re:    out std_logic; -- hardware reads can have side effects
 		io_din:   in  std_logic_vector(15 downto 0);
@@ -115,6 +117,8 @@ architecture rtl of h2 is
 	signal dstkW: std_logic := '0';
 	signal rstkW: std_logic := '0';
 	signal rstkD: std_logic_vector(15 downto 0) := (others => '0');
+
+	-- Stop signal
 begin
 	assert(stack_size > 4)   report "stack size too small: " & integer'image(stack_size);
 	assert(stack_size < 128) report "stack size too large: " & integer'image(stack_size);
@@ -316,7 +320,6 @@ begin
 			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + unsigned(rd));
 		else
 			if is_instr_0branch = '1' then
-				-- @todo add in assertion here
 				vstkp_n <= std_logic_vector(unsigned(vstkp_c) - 1);
 			end if;
 

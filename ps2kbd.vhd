@@ -41,6 +41,10 @@ architecture rtl of ps2kbd is
 
 	signal sync_ffs: std_logic_vector(1 downto 0);        -- synchronizer flip-flops for PS/2 signals
 	signal ps2_clk_int: std_logic;                        -- debounced clock signal from PS/2 keyboard
+
+	attribute buffer_type: string;
+	attribute buffer_type of ps2_clk_int: signal is "BUFG";
+
 	signal ps2_data_int: std_logic;                       -- debounced data signal from PS/2 keyboard
 	signal ps2_word: std_logic_vector(10 downto 0);       -- stores the ps2 data word
 	signal parity_error: std_logic;                       -- validate parity, start, and stop bits

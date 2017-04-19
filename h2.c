@@ -837,6 +837,8 @@ typedef struct {
 	uint16_t timer_control;
 	uint16_t timer;
 
+	uint16_t irc_mask;
+
 	bool uart_stb_write;
 	bool uart_ack_read;
 	uint8_t led0;
@@ -899,7 +901,8 @@ typedef enum {
 	o8SegLED_0    = 0x600b,
 	o8SegLED_1    = 0x600c,
 	o8SegLED_2    = 0x600d,
-	o8SegLED_3    = 0x600e
+	o8SegLED_3    = 0x600e,
+	oIrcMask      = 0x600f,
 } h2_output_addr_t;
 
 static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
@@ -948,7 +951,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	case o8SegLED_1: soc->led1  = value; break;
 	case o8SegLED_2: soc->led2  = value; break;
 	case o8SegLED_3: soc->led3  = value; break;
-		break;
+	case oIrcMask:   soc->irc_mask = value; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 	}
@@ -1621,23 +1624,23 @@ again:
 
 
 #define XMACRO_PARSE\
-	X(SYM_PROGRAM,     "program")\
-	X(SYM_STATEMENTS,  "statements")\
-	X(SYM_LABEL,       "label")\
-	X(SYM_BRANCH,      "branch")\
-	X(SYM_0BRANCH,     "0branch")\
-	X(SYM_CALL,        "call")\
-	X(SYM_CONSTANT,    "constant")\
-	X(SYM_VARIABLE,    "variable")\
-	X(SYM_LITERAL,     "literal")\
-	X(SYM_INSTRUCTION, "instruction")\
-	X(SYM_BEGIN_UNTIL, "begin...until")\
-	X(SYM_BEGIN_AGAIN, "begin...again")\
-	X(SYM_IF1,         "if1")\
-	X(SYM_DEFINITION,  "definition")\
-	X(SYM_CHAR,        "char")\
-	X(SYM_ISR,         "isr")\
-	X(SYM_CALL_DEFINITION, "call definition")
+	X(SYM_PROGRAM,          "program")\
+	X(SYM_STATEMENTS,       "statements")\
+	X(SYM_LABEL,            "label")\
+	X(SYM_BRANCH,           "branch")\
+	X(SYM_0BRANCH,          "0branch")\
+	X(SYM_CALL,             "call")\
+	X(SYM_CONSTANT,         "constant")\
+	X(SYM_VARIABLE,         "variable")\
+	X(SYM_LITERAL,          "literal")\
+	X(SYM_INSTRUCTION,      "instruction")\
+	X(SYM_BEGIN_UNTIL,      "begin...until")\
+	X(SYM_BEGIN_AGAIN,      "begin...again")\
+	X(SYM_IF1,              "if1")\
+	X(SYM_DEFINITION,       "definition")\
+	X(SYM_CHAR,             "char")\
+	X(SYM_ISR,              "isr")\
+	X(SYM_CALL_DEFINITION,  "call-definition")
 
 typedef enum {
 #define X(ENUM, NAME) ENUM,
@@ -1914,7 +1917,7 @@ again:
 	} else if(accept(l, LEX_ISR)) {
 		r->o[i++] = isr(l);
 		goto again;
-	} else if(accept_range(l, LEX_DUP, LEX_T_N1)) {
+	} else if(accept_range(l, LEX_DUP, LEX_TE0)) {
 		r->o[i++] = defined_by_token(l, SYM_INSTRUCTION);
 		goto again;
 	}
@@ -2038,7 +2041,7 @@ static void generate_literal(h2_t *h, uint16_t number)
 
 static uint16_t lexer_to_alu_op(token_e t)
 {
-	assert(t >= LEX_DUP && t <= LEX_T_N1);
+	assert(t >= LEX_DUP && t <= LEX_TE0);
 	switch(t) {
 	case LEX_DUP:    return CODE_DUP;
 	case LEX_OVER:   return CODE_OVER;
