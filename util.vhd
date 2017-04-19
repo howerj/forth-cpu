@@ -10,7 +10,8 @@
 --| @email          howe.r.j.89@gmail.com
 --|
 --| @todo Make these components type generic if possible
---| @todo Add mux, demux (X To N, IN/OUT), debouncer, and other generic 
+--| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
+--| vice versa) and other generic 
 --| functions and components
 --| @todo A test bench for the functions should be created.
 -------------------------------------------------------------------------------
@@ -67,11 +68,38 @@ package util is
 	component edge is
 	port(
 		clk:    in  std_logic;
+		rst:    in  std_logic;
 		sin:    in  std_logic;
        		output: out std_logic);
 	end component;
 
 	component edge_tb is
+		generic(clock_frequency: positive);
+		port(
+			clk:  in std_logic;
+			rst:  in std_logic;
+			stop: in std_logic);
+	end component;
+
+	-- @note half_adder test bench is folded in to full_adder_tb
+	component half_adder is
+		port(
+			a:     in  std_logic;
+			b:     in  std_logic;
+			sum:   out std_logic;
+			carry: out std_logic);
+	end component;
+
+	component full_adder is
+		port(
+			x:     in    std_logic;
+			y:     in    std_logic;
+			z:     in    std_logic;
+			sum:   out   std_logic;
+			carry: out   std_logic);
+	end component;
+
+	component full_adder_tb is
 		generic(clock_frequency: positive);
 		port(
 			clk:  in std_logic;
@@ -387,28 +415,33 @@ end;
 
 ------------------------- Edge Detector ---------------------------------------------
 
--- @brief rising edge detector
-library ieee,work,std;
+library ieee;
 use ieee.std_logic_1164.all;
 
 entity edge is
-	port(
-		clk:    in  std_logic;
-		sin:    in  std_logic;
-       		output: out std_logic);
+port (
+	clk:    in  std_logic;
+	rst:    in  std_logic;
+	sin:    in  std_logic;
+	output: out std_logic);
 end;
 
 architecture rtl of edge is
-	signal d: std_logic := '0';
+	signal sin0: std_logic := '0';
+	signal sin1: std_logic := '0';
 begin
-	process(clk)
+	rising_edge_detector: process(clk,rst)
 	begin
-		if rising_edge(clk) then
-			d <= sin;
+		if rst ='1' then
+			sin0 <= '0';
+			sin1 <= '0';
+		elsif rising_edge(clk) then
+			sin0 <= sin;
+			sin1 <= sin0;
 		end if;
 	end process;
-	output <= (not d) and sin;
-end;
+	output <= not sin1 and sin0;
+end rtl;
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -428,16 +461,19 @@ architecture behav of edge_tb is
 	signal output: std_logic := 'X';
 begin
 	uut: entity work.edge
-	port map(clk => clk, sin => sin, output => output);
+	port map(clk => clk, rst => rst, sin => sin, output => output);
 
 	stimulus_process: process
 	begin
-		wait for 1 us;
+		wait for clock_period * 5;
 		assert output = '0';
 		wait for clock_period;
 		sin <= '1';
-		wait for clock_period;
+		wait for clock_period * 0.5;
 		assert output = '1';
+		wait for clock_period * 1.5;
+		sin <= '0';
+		assert output = '0';
 		wait for clock_period;
 		assert output = '0';
 		wait;
@@ -445,3 +481,99 @@ begin
 end architecture;
 
 ------------------------- Edge Detector ---------------------------------------------
+
+------------------------- Half Adder ------------------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity half_adder is
+	port(
+		a:     in  std_logic;
+		b:     in  std_logic;
+		sum:   out std_logic;
+		carry: out std_logic);
+end entity;
+
+architecture rtl of half_adder is
+begin
+	sum   <= a xor b;
+	carry <= a and b;
+end architecture;
+
+------------------------- Half Adder ------------------------------------------------
+
+------------------------- Full Adder ------------------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity full_adder is
+	port(
+		x:     in    std_logic;
+		y:     in    std_logic;
+		z:     in    std_logic;
+		sum:   out   std_logic;
+		carry: out   std_logic);
+end entity;
+
+architecture rtl of full_adder is
+	signal carry1, carry2, sum1: std_logic;
+begin
+	ha1: entity work.half_adder port map(a => x,    b => y, sum => sum1, carry => carry1);
+	ha2: entity work.half_adder port map(a => sum1, b => z, sum => sum,  carry => carry2);
+	carry <= carry1 or carry2;
+end architecture; 
+
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity full_adder_tb is
+	generic(clock_frequency: positive);
+	port(
+		clk:  in std_logic;
+		rst:  in std_logic;
+		stop: in std_logic);
+end entity;
+
+architecture behav of full_adder_tb is
+	constant clock_period: time := 1000 ms / clock_frequency;
+	signal x, y, z:    std_logic := '0';
+	signal sum, carry: std_logic := '0';
+
+	type stimulus_data   is array (7 downto 0) of std_logic_vector(2 downto 0);
+	type stimulus_result is array (7 downto 0) of std_logic_vector(0 to     1);
+
+	constant data: stimulus_data := (
+		0 => "000", 1 => "001",
+		2 => "010", 3 => "011",
+		4 => "100", 5 => "101",
+		6 => "110", 7 => "111");
+
+	constant result: stimulus_result := (
+		0 => "00",  1 => "10",
+		2 => "10",  3 => "01",
+		4 => "10",  5 => "01",
+		6 => "01",  7 => "11");
+begin
+	uut: entity work.full_adder port map(x => x, y => y, z => z, sum => sum, carry => carry);
+
+	stimulus_process: process
+	begin
+		wait for clock_period;
+		for i in data'range loop
+			x <= data(i)(0);
+			y <= data(i)(1);
+			z <= data(i)(2);
+			wait for clock_period;
+			assert sum = result(i)(0) and carry = result(i)(1)
+				report 
+					"For: "       & std_logic'image(x) & std_logic'image(y) & std_logic'image(z) &
+					" Got: "      & std_logic'image(sum)          & std_logic'image(carry) & 
+					" Expected: " & std_logic'image(result(i)(0)) & std_logic'image(result(i)(1));
+			wait for clock_period;
+		end loop;
+		wait;
+	end process;
+end architecture;
+
+------------------------- Full Adder ------------------------------------------------

@@ -514,6 +514,7 @@ begin
 	ps2_edge_new_character_0: entity work.edge
 	port map(
 		clk    => clk,
+		rst    => rst,
 		sin    => kbd_new,
 		output => kbd_new_edge);
 
