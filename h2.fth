@@ -115,14 +115,19 @@ variable cursorT 0  ( index into VGA text memory )
 : u> swap u< ;
 : u>= u< invert ;
 : <> = invert ;
-\ : 0<> 0= invert ;
+: 0<> 0= invert ;
+: 0>  0 > ;
+: 0<  0 > ;
 : 2dup over over ;
 : 2drop drop drop ;
+: tuck swap over ;
 : negate invert 1+ ;
 : - negate + ;
-: tuck swap over ;
 : +! tuck @ + swap ! ;
 : 1+! 1 swap +! ;
+: ?dup dup if dup then ;
+
+
 \ @todo AT-XY
 : y1+ cursorY 1+! cursorY @ vgaY u>= if 0 cursorY ! then ;
 : x1+ cursorX 1+! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
@@ -135,7 +140,9 @@ variable cursorT 0  ( index into VGA text memory )
 	              o8SegLED_3 ! ;
 
 : uart-write ( char -- bool : write out a character ) 
-	begin iUartAckWrite @ 0 = until oUartWrite ! 1 oUartStbWrite ! iUartAckWrite @ ; 
+	\ begin iUartAckWrite @ 0 = until oUartWrite ! 1 oUartStbWrite ! iUartAckWrite @ ; 
+	oUartWrite ! 1 oUartStbWrite ! iUartAckWrite @ ; 
+
 
 : key?
 	iUartStbDout @ ;
@@ -143,7 +150,7 @@ variable cursorT 0  ( index into VGA text memory )
 variable uart-read-count 0
 
 : uart-read  ( -- char : blocks until character read in )
-	begin key? 0= until iUartRead  @ 1 oUartAckDout ! 
+	begin key? 0= until iUartRead  @ 
 	uart-read-count 1+!
 	uart-read-count @ led ;
 

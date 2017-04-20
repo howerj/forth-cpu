@@ -75,6 +75,8 @@ int main(int argc, char **argv)
 			fprintf(stderr, "write error:%s\n", strerror(errno));
 			return -1;
 		}
+		tcflush(fd,TCIOFLUSH);
+		usleep(100);
 		errno = 0;
 		r = read(fd, &c2, 1);
 		if (r == 0) {

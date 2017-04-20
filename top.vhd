@@ -264,7 +264,7 @@ begin
 		sw_d, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
 		uart_din_c, ack_din_c,
 		uart_dout_c,
-		uart_dout, stb_dout, ack_din,
+		uart_dout, ack_din,
 		stb_dout, stb_dout_c, vga_dout,
 		kbd_char, kbd_new_c, kbd_char_c,
 		kbd_new_edge,
@@ -410,14 +410,11 @@ begin
 
 			when "00011" => -- UART get input.
 				io_din <= X"00" & uart_dout_c;
-				-- if stb_dout = '0' then
-					uart_dout_n <= (others => '0');
-				-- end if;
-
+				uart_dout_n <= (others => '0');
 			when "00100" => -- UART acknowledged input.
 				io_din <= (0 => ack_din_c, others => '0');
 				ack_din_n <= '0';
-			when "00101" => -- UART strobe output (write output).
+			when "00101" => -- UART strobe output 
 				io_din <= (0 => stb_dout_c, others => '0');
 				stb_dout_n <= '0';
 

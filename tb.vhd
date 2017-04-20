@@ -27,7 +27,7 @@ architecture testing of tb is
 	constant clock_frequency:      positive := 100_000_000;
 	constant number_of_interrupts: positive := 8;
 	constant uart_baud_rate:       positive := 115200;
-	constant number_of_iterations: positive := 50000;
+	constant number_of_iterations: positive := 100000;
 	constant report_number:        positive := 256;
 
 	constant clk_period: time   :=  1000 ms / clock_frequency;
