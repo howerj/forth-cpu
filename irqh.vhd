@@ -19,6 +19,7 @@ use ieee.math_real.all; -- only needed for calculations relating to generics
 use work.util.reg;
 use work.util.n_bits;
 use work.util.select_bit;
+use work.util.priority;
 
 entity irqh is
 	generic(number_of_interrupts:   positive := 8;
@@ -60,26 +61,7 @@ begin
 	process(irc_n, irq_n, mask_n)
 		variable addr_n: std_logic_vector(addr'range) := (others => '0');
 	begin
-		-- Simple priority encoding, last interrupt signal that is active in the
-		-- loop is the address to jump to on an interrupt.
-		addr_n := (others => '0');
-
-		if lowest_interrupt_first then
-			LSB: for i in number_of_interrupts downto 1
-			loop
-				if irc_n(i - 1) = '1' then
-					addr_n := std_logic_vector(to_unsigned(i - 1, addr'length));
-				end if;
-			end loop;
-		else
-			MSB: for i in 1 to number_of_interrupts 
-			loop
-				if irc_n(i - 1) = '1' then
-					addr_n := std_logic_vector(to_unsigned(i - 1, addr'length));
-				end if;
-			end loop;
-		end if;
-
+		addr_n := std_logic_vector(to_unsigned(priority(irc_n, not lowest_interrupt_first), addr_n'length));
 		addr <= addr_n;
 		if select_bit(mask_n, addr_n) = '1' then
 			irq <= irq_n;

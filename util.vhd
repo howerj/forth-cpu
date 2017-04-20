@@ -1,19 +1,23 @@
 -------------------------------------------------------------------------------
 --| @file util.vhd
---| @brief          A collection of utilities and simple components,
---|                 generic, reusable components are listed here, they
---|                 should also be entirely self contained and ready
---|                 to use by themselves.
+--| @brief A collection of utilities and simple components. The components
+--| should be synthesizable, and the functions can be used within synthesizable
+--| components.
 --| @author         Richard James Howe
 --| @copyright      Copyright 2017 Richard James Howe
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
---| @todo Make these components type generic if possible
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
---| vice versa) and other generic 
---| functions and components
---| @todo A test bench for the functions should be created.
+--| vice versa), pulse generator, small RAM model, LIFO, FILO, population count
+--| priority encoder, types, and other generic functions and components.
+--| @todo Consolidate all test benches into one util test bench
+--| @note If this file grows large enough it could be span off in to its
+--| own library - released under the MIT license. The components should be
+--| as generic as possible, and how they are implemented could be selected
+--| with generics (eg. Combinatorial or sequential), as well as their
+--| parameters such as input and output length.
+--| 
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -107,15 +111,28 @@ package util is
 			stop: in std_logic);
 	end component;
 
+	component function_tb is
+		generic(clock_frequency: positive);
+		port(
+			clk:  in std_logic;
+			rst:  in std_logic;
+			stop: in std_logic);
+	end component;
+
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
 	function n_bits(x: natural) return natural;
 	function n_bits(x: std_logic_vector) return natural;
 	function reverse (a: in std_logic_vector) return std_logic_vector;
-	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector;
 	function invert(slv:std_logic_vector) return std_logic_vector;
 	function parity(slv:std_logic_vector; even: boolean) return std_logic;
 	function select_bit(indexed, selector: std_logic_vector) return std_logic;
+	function priority(order: std_logic_vector; high: boolean) return natural;
+	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector;
+	function mux(a: std_logic; b: std_logic; sel: std_logic) return std_logic;
+	function mux(a, b : std_logic_vector) return std_logic;
+	function decode(encoded : std_logic_vector) return std_logic_vector;
+
 end;
 
 package body util is
@@ -141,7 +158,6 @@ package body util is
 		return n;
 	end function;
 
-
 	function n_bits(x: std_logic_vector) return natural is
 	begin
 		return n_bits(x'high);
@@ -158,13 +174,6 @@ package body util is
 		return result;
 	end; 
 
-	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector is
-		variable m: std_logic_vector(a'range);
-	begin
-		if sel = '0' then m := a; else m := b; end if;
-		return m;
-	end; 
-
 	function invert(slv: std_logic_vector) return std_logic_vector is 
 		variable z: std_logic_vector(slv'range);
 	begin
@@ -173,7 +182,6 @@ package body util is
 		end loop;
 		return z;
 	end;
-
 
 	function parity(slv: std_logic_vector; even: boolean) return std_logic is
 		variable z: std_logic := '0';
@@ -190,7 +198,7 @@ package body util is
 	function select_bit(indexed, selector: std_logic_vector) return std_logic is
 		variable z: std_logic := 'X';
 	begin
-		assert n_bits(indexed) = (selector'high + 1);
+		assert n_bits(indexed) = selector'high + 1 severity failure;
 		for i in indexed'range loop
 			if i = to_integer(unsigned(selector)) then
 				z := indexed(i);
@@ -198,7 +206,117 @@ package body util is
 		end loop;
 		return z;
 	end;
+
+	function priority(order: std_logic_vector; high: boolean) return natural is
+		variable p: natural := 0;
+	begin 
+		if not high then
+			for i in order'high + 1 downto 1 loop
+				if order(i-1) = '1' then
+					p := i - 1;
+				end if;
+			end loop;
+		else
+			for i in 1 to order'high + 1 loop
+				if order(i-1) = '1' then
+					p := i - 1;
+				end if;
+			end loop;
+		end if;
+		return p;
+	end;
+
+	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector is
+		variable m: std_logic_vector(a'range) := (others => 'X');
+	begin
+		if sel = '0' then m := a; else m := b; end if;
+		return m;
+	end; 
+
+	function mux(a: std_logic; b: std_logic; sel: std_logic) return std_logic is
+		variable m: std_logic := 'X';
+	begin
+		if sel = '0' then m := a; else m := b; end if;
+		return m;
+	end;
+
+	function mux(a, b : std_logic_vector) return std_logic is
+		variable r: std_logic_vector(b'length - 1 downto 0) := (others => 'X'); 
+		variable i: integer;
+	begin
+		r := b;
+		i := to_integer(unsigned(a));
+		return r(i);
+	end;
+
+	function decode(encoded : std_logic_vector) return std_logic_vector is
+		variable r: std_logic_vector((2 ** encoded'length) - 1 downto 0) := (others => '0');
+		variable i: natural;
+	begin
+		i    := to_integer(unsigned(encoded));
+		r(i) := '1';
+		return r;
+	end;
+
 end;
+
+------------------------- Function Test Bench ---------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+use work.util.all;
+
+entity function_tb is
+	generic(clock_frequency: positive);
+	port(
+		clk:  in std_logic;
+		rst:  in std_logic;
+		stop: in std_logic);
+end entity;
+
+architecture behav of function_tb is
+	constant clock_period: time := 1000 ms / clock_frequency;
+begin
+
+	stimulus_process: process
+	begin
+		assert max(5, 4) = 5 severity failure;
+		assert work.util.min(5, 4) = 4 severity failure;
+		assert n_bits(1) = 1 severity failure;
+		assert n_bits(2) = 1 severity failure;
+		assert n_bits(7) = 3 severity failure;
+		assert n_bits(8) = 3 severity failure;
+		assert n_bits(9) = 4 severity failure;
+		assert reverse("1") = "1" severity failure;
+		assert reverse("0") = "0" severity failure;
+		assert reverse("10") = "01" severity failure;
+		assert reverse("11") = "11" severity failure;
+		assert reverse("0101") = "1010" severity failure;
+		assert invert("1") = "0" severity failure;
+		assert invert("0") = "1" severity failure;
+		assert invert("0101") = "1010" severity failure;
+		assert select_bit("01000","01") = '1' severity failure;
+		assert parity("0", true) = '0' severity failure;
+		assert parity("1", true) = '1' severity failure;
+		assert parity("11", true) = '0' severity failure;
+		assert parity("1010001", true) = '1' severity failure;
+		assert parity("0", false) = '1' severity failure;
+		assert parity("1", false) = '0' severity failure;
+		assert parity("11", false) = '1' severity failure;
+		assert parity("1010001", false) = '0' severity failure;
+		assert priority("01001", false) = 1 severity failure;
+		assert mux("1010", "0101", '0') = "1010" severity failure;
+		assert mux("1010", "0101", '1') = "0101" severity failure;
+		assert decode("00") = "0001" severity failure;
+		assert decode("01") = "0010" severity failure;
+		assert decode("10") = "0100" severity failure;
+		assert decode("11") = "1000" severity failure;
+		-- n_bits(x: std_logic_vector) return natural;
+		-- mux(a, b : std_logic_vector) return std_logic;
+		wait;
+	end process;
+end architecture;
+
+------------------------- Function Test Bench ---------------------------------------
 
 ------------------------- Generic Register of std_logic_vector ----------------------
 
@@ -215,7 +333,7 @@ entity reg is
 		we:  in  std_logic;
 		di:  in  std_logic_vector(N-1 downto 0);
 		do:  out std_logic_vector(N-1 downto 0));
-end reg;
+end entity;
 
 architecture rtl of reg is
 	signal r_c, r_n : std_logic_vector(N-1 downto 0) := (others => '0');
@@ -258,7 +376,7 @@ entity shift_register is
 		we:  in  std_logic;
 		di:  in  std_logic;
 		do:  out std_logic);
-end shift_register;
+end entity;
 
 architecture rtl of shift_register is
 	signal r_c, r_n : std_logic_vector(N-1 downto 0) := (others => '0');
@@ -293,7 +411,7 @@ entity shift_register_tb is
 		clk:  in std_logic;
 		rst:  in std_logic;
 		stop: in std_logic);
-end shift_register_tb;
+end entity;
 
 architecture behav of shift_register_tb is
 	constant N: positive := 8;
@@ -398,14 +516,15 @@ architecture behav of timer_us_tb is
 	signal co: std_logic := 'X';
 begin
 	uut: entity work.timer_us
-	generic map(clock_frequency => clock_frequency, timer_period_us => 1) port map(clk => clk, rst => rst, co => co);
+		generic map(clock_frequency => clock_frequency, timer_period_us => 1) 
+		port map(clk => clk, rst => rst, co => co);
 
 	stimulus_process: process
 	begin
 		wait for 1 us;
-		assert co = '0';
+		assert co = '0' severity failure;
 		wait for clock_period;
-		assert co = '1';
+		assert co = '1' severity failure;
 		wait;
 	end process;
 
@@ -414,7 +533,7 @@ end;
 ------------------------- Microsecond Timer -----------------------------------------
 
 ------------------------- Edge Detector ---------------------------------------------
-
+--| @todo have generic to decide whether it is on the rising or falling edge
 library ieee;
 use ieee.std_logic_1164.all;
 
@@ -466,16 +585,16 @@ begin
 	stimulus_process: process
 	begin
 		wait for clock_period * 5;
-		assert output = '0';
+		assert output = '0' severity failure;
 		wait for clock_period;
 		sin <= '1';
 		wait for clock_period * 0.5;
-		assert output = '1';
+		assert output = '1' severity failure;
 		wait for clock_period * 1.5;
 		sin <= '0';
-		assert output = '0';
+		assert output = '0' severity failure;
 		wait for clock_period;
-		assert output = '0';
+		assert output = '0' severity failure;
 		wait;
 	end process;
 end architecture;
@@ -569,7 +688,8 @@ begin
 				report 
 					"For: "       & std_logic'image(x) & std_logic'image(y) & std_logic'image(z) &
 					" Got: "      & std_logic'image(sum)          & std_logic'image(carry) & 
-					" Expected: " & std_logic'image(result(i)(0)) & std_logic'image(result(i)(1));
+					" Expected: " & std_logic'image(result(i)(0)) & std_logic'image(result(i)(1))
+				severity failure;
 			wait for clock_period;
 		end loop;
 		wait;

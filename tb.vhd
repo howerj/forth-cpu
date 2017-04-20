@@ -18,6 +18,7 @@ use std.textio.all;
 use work.util.shift_register_tb;
 use work.util.timer_us_tb;
 use work.util.full_adder_tb;
+use work.util.function_tb;
 
 entity tb is
 end tb;
@@ -26,7 +27,7 @@ architecture testing of tb is
 	constant clock_frequency:      positive := 100_000_000;
 	constant number_of_interrupts: positive := 8;
 	constant uart_baud_rate:       positive := 115200;
-	constant number_of_iterations: positive := 30000;
+	constant number_of_iterations: positive := 50000;
 	constant report_number:        positive := 256;
 
 	constant clk_period: time   :=  1000 ms / clock_frequency;
@@ -117,6 +118,7 @@ begin
 	uut_timer_us: entity work.timer_us_tb       generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
 	uut_edge:     entity work.edge_tb           generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
 	uut_full_add: entity work.full_adder_tb     generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag);
+	uut_function: entity work.function_tb       generic map(clock_frequency => clock_frequency) port map(clk => clk, rst => rst, stop => wait_flag); 
 
 	-- @note a more advanced test bench would send out a string and expect
 	-- the same one back using a loopback circuit. For the moment this

@@ -23,6 +23,10 @@
 --| @note Somewhere along the chain from the computer, to the Nexys3 board,
 --| to the UART module, and finally to the H2 core, bytes are being lost in
 --| transmission to from the computer. 
+--|
+--|  START 0 1 2 3 4 5 6 7 STOP
+--| ----\_/-|-|-|-|-|-|-|-|-|-------
+--|
 --------------------------------------------------------------------------------
 
 library ieee;

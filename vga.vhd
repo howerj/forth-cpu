@@ -114,20 +114,20 @@ begin
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
+
 -- flip-flips for sync of R, G y B signal, initialized with '0'
 	process (rst, clk25MHz)
 	begin
 	if rst = '1' then
-	  R <= '0';
-	  G <= '0';
-	  B <= '0';
+		R <= '0';
+		G <= '0';
+		B <= '0';
 	elsif rising_edge(clk25MHz) then
-	  R <= R_int;
-	  G <= G_int;
-	  B <= B_int;
+		R <= R_int;
+		G <= G_int;
+		B <= B_int;
 	end if;
 	end process;
-
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -145,30 +145,29 @@ begin
 	ctl_b     <= octl(0);
 
 	-- counters, hctr, vctr, srcx, srcy, chrx, chry
-	-- TODO: OPTIMIZE THIS
-	counters : block
-	signal hctr_ce : std_logic;
-	signal hctr_rs : std_logic;
-	signal vctr_ce : std_logic;
-	signal vctr_rs : std_logic;
+	counters: block
+	signal hctr_ce: std_logic;
+	signal hctr_rs: std_logic;
+	signal vctr_ce: std_logic;
+	signal vctr_rs: std_logic;
 
-	signal chrx_ce : std_logic;
-	signal chrx_rs : std_logic;
-	signal chry_ce : std_logic;
-	signal chry_rs : std_logic;
-	signal scrx_ce : std_logic;
-	signal scrx_rs : std_logic;
-	signal scry_ce : std_logic;
-	signal scry_rs : std_logic;
+	signal chrx_ce: std_logic;
+	signal chrx_rs: std_logic;
+	signal chry_ce: std_logic;
+	signal chry_rs: std_logic;
+	signal scrx_ce: std_logic;
+	signal scrx_rs: std_logic;
+	signal scry_ce: std_logic;
+	signal scry_rs: std_logic;
 
-	signal hctr_639 : std_logic;
-	signal vctr_479 : std_logic;
-	signal chrx_007 : std_logic;
-	signal chry_011 : std_logic;
+	signal hctr_639: std_logic;
+	signal vctr_479: std_logic;
+	signal chrx_007: std_logic;
+	signal chry_011: std_logic;
 
 	-- RAM read, ROM read
-	signal ram_tmp : integer range 3200 downto 0;  --12 bits
-	signal rom_tmp : integer range 3070 downto 0;
+	signal ram_tmp: integer range 3200 downto 0;  --12 bits
+	signal rom_tmp: integer range 3071 downto 0;
 
 	begin
 	
@@ -202,11 +201,10 @@ begin
 
 	ram_tmp <=  to_integer(to_unsigned(scry,12) sll 4) +
 			to_integer(to_unsigned(scry,12) sll 6) +
-	        	scrx;
+		 	scrx;
 
 	text_a <= std_logic_vector(to_unsigned(ram_tmp, 12));
 
-	-- @bug causes bounds error if simulation is run for too long
 	rom_tmp <= to_integer(unsigned(text_d)) * 12 + chry;
 
 	FONT_A <= std_logic_vector(TO_UNSIGNED(rom_tmp, 12));
@@ -216,9 +214,9 @@ begin
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
-	U_LOSR : entity work.losr generic map (N => 8)
+	U_LOSR: entity work.losr generic map (N => 8)
 	port map (rst, clk25MHz, losr_ld, losr_ce, losr_do, FONT_D);
-	
+
 	losr_ce <= blank;
 	losr_ld <= '1' when (chrx = 7) else '0';
 
@@ -226,7 +224,7 @@ begin
 	R_int <= (ctl_r and y) and blank;
 	G_int <= (ctl_g and y) and blank;
 	B_int <= (ctl_b and y) and blank;
-	
+
 	hsync <= hsync_int and vga_en;
 	vsync <= vsync_int and vga_en;
 	
