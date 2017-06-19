@@ -9,7 +9,7 @@
 --| @email          howe.r.j.89@gmail.com
 --|
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
---| vice versa), pulse generator, small RAM model, LIFO, FILO, population count
+--| vice versa), pulse generator, small RAM model, LIFO, population count
 --| priority encoder, types, and other generic functions and components.
 --| @todo Consolidate all test benches into one util test bench
 --| @note If this file grows large enough it could be span off in to its
@@ -24,6 +24,11 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 package util is
+	
+	type std_component is record 
+		clk: std_logic;
+		rst: std_logic;
+	end record;
 
 	component reg
 	generic(N: positive);
@@ -46,7 +51,7 @@ package util is
 	end component;
 
 	component shift_register_tb
-	generic(clock_frequency: positive; N: positive);
+	generic(clock_frequency: positive);
 	port(
 		clk:  in std_logic;
 		rst:  in std_logic;
@@ -112,6 +117,28 @@ package util is
 	end component;
 
 	component function_tb is
+		generic(clock_frequency: positive);
+		port(
+			clk:  in std_logic;
+			rst:  in std_logic;
+			stop: in std_logic);
+	end component;
+
+	component fifo is
+		generic (data_width: positive := 8;
+			fifo_depth: positive  := 16);
+		port (
+			clk:   in  std_logic;
+			rst:   in  std_logic;
+			din:   in  std_logic_vector(data_width - 1 downto 0);
+			we:    in  std_logic;
+			re:    in  std_logic;
+			do:    out std_logic_vector(data_width - 1 downto 0);
+			full:  out std_logic;
+			empty: out std_logic);
+	end component;
+
+	component fifo_tb is
 		generic(clock_frequency: positive);
 		port(
 			clk:  in std_logic;
@@ -551,7 +578,7 @@ architecture rtl of edge is
 begin
 	rising_edge_detector: process(clk,rst)
 	begin
-		if rst ='1' then
+		if rst = '1' then
 			sin0 <= '0';
 			sin1 <= '0';
 		elsif rising_edge(clk) then
@@ -655,7 +682,7 @@ entity full_adder_tb is
 end entity;
 
 architecture behav of full_adder_tb is
-	constant clock_period: time := 1000 ms / clock_frequency;
+	constant clock_period: time  := 1000 ms / clock_frequency;
 	signal x, y, z:    std_logic := '0';
 	signal sum, carry: std_logic := '0';
 
@@ -697,3 +724,189 @@ begin
 end architecture;
 
 ------------------------- Full Adder ------------------------------------------------
+
+------------------------- FIFO ------------------------------------------------------
+
+-- Originally from http://www.deathbylogic.com/2013/07/vhdl-standard-fifo/
+-- @copyright Public Domain
+-- @todo Add more comments about the FIFOs origin, add assertions test
+-- synthesis, and turn into FIFO with asynchronous reset.
+--
+-- The code can be used freely and appears to be public domain, comment
+-- from author is: "You can use any code posted here freely, there is no copyright."
+-- @note The FIFO has been modified from the original to bring it in line with
+-- this projects coding standards.
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity fifo is
+	generic(
+		data_width: positive := 8;
+		fifo_depth: positive := 16);
+	port( 
+		clk:   in  std_logic;
+		rst:   in  std_logic;
+		we:    in  std_logic;
+		din:   in  std_logic_vector (data_width - 1 downto 0);
+		re:    in  std_logic;
+		do:    out std_logic_vector (data_width - 1 downto 0);
+		empty: out std_logic;
+		full:  out std_logic);
+end fifo;
+
+architecture behavioral of fifo is
+begin
+
+	-- memory pointer process
+	fifo_proc: process (clk)
+		type fifo_memory is array (0 to fifo_depth - 1) of std_logic_vector (data_width - 1 downto 0);
+		variable memory: fifo_memory;
+		
+		variable head: natural range 0 to fifo_depth - 1;
+		variable tail: natural range 0 to fifo_depth - 1;
+		
+		variable looped: boolean;
+	begin
+		if rising_edge(clk) then
+			if rst = '1' then
+				head := 0;
+				tail := 0;
+				
+				looped := false;
+				
+				full  <= '0';
+				empty <= '1';
+				do    <= (others => '0');
+			else
+				if re = '1' then
+					if looped = true or head /= tail then
+						-- update data output
+						do <= memory(tail);
+						
+						-- update tail pointer as needed
+						if (tail = fifo_depth - 1) then
+							tail   := 0;
+							looped := false;
+						else
+							tail := tail + 1;
+						end if;
+					end if;
+				end if;
+				
+				if we = '1' then
+					if looped = false or head /= tail then
+						-- write data to memory
+						memory(head) := din;
+						
+						-- increment head pointer as needed
+						if (head = fifo_depth - 1) then
+							head := 0;
+							
+							looped := true;
+						else
+							head := head + 1;
+						end if;
+					end if;
+				end if;
+				
+				-- update empty and full flags
+				if head = tail then
+					if looped then
+						full  <= '1';
+					else
+						empty <= '1';
+					end if;
+				else
+					empty	<= '0';
+					full	<= '0';
+				end if;
+			end if;
+		end if;
+	end process;
+end architecture;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity fifo_tb is
+	generic(
+		clock_frequency: positive);
+	port(
+		clk:  in std_logic;
+		rst:  in std_logic;
+		stop: in std_logic);
+end entity;
+
+architecture behavior of fifo_tb is 
+	constant clock_period: time  := 1000 ms / clock_frequency;
+	constant data_width: positive := 8;
+	constant fifo_depth: positive := 16;
+
+	--inputs
+	signal din: std_logic_vector(data_width - 1 downto 0) := (others => '0');
+	signal re: std_logic := '0';
+	signal we: std_logic := '0';
+	
+	--outputs
+	signal do: std_logic_vector(data_width - 1 downto 0);
+	signal empty: std_logic;
+	signal full: std_logic;
+	
+begin
+
+	uut: entity work.fifo
+		generic map(data_width => data_width, fifo_depth => fifo_depth)
+		port map (
+			clk   => clk,
+			rst   => rst,
+			din   => din,
+			we    => we,
+			re    => re,
+			do    => do,
+			full  => full,
+			empty => empty);
+	
+	write_process: process
+		variable counter: unsigned (data_width - 1 downto 0) := (others => '0');
+	begin		
+		wait for clock_period * 20;
+
+		for i in 1 to 32 loop
+			counter := counter + 1;
+			din <= std_logic_vector(counter);
+			wait for clock_period * 1;
+			we <= '1';
+			wait for clock_period * 1;
+			we <= '0';
+		end loop;
+		
+		wait for clock_period * 20;
+		
+		for i in 1 to 32 loop
+			counter := counter + 1;
+			din <= std_logic_vector(counter);
+			wait for clock_period * 1;
+			we <= '1';
+			wait for clock_period * 1;
+			we <= '0';
+		end loop;
+		
+		wait;
+	end process;
+	
+	read_process: process
+	begin
+		wait for clock_period * 60;
+		re <= '1';
+		wait for clock_period * 60;
+		re <= '0';
+		wait for clock_period * 256 * 2;
+		re <= '1';
+		wait;
+	end process;
+end architecture;
+
+------------------------- FIFO ------------------------------------------------------

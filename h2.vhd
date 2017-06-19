@@ -15,6 +15,7 @@
 --|  * Assertions should be added to the core and check they work as intended
 --|  * Turn this into a literate file, describing the CPU
 --|  * Address should be character aligned, not cell aligned
+--|  * This file should use records for input and output
 --|  * Add carry flag to addition
 --|
 -------------------------------------------------------------------------------
@@ -55,8 +56,7 @@ entity h2 is
 		dre:      out std_logic; -- data read enable
 		din:      in  std_logic_vector(15 downto 0);
 		dout:     out std_logic_vector(15 downto 0);
-		daddr:    out std_logic_vector(12 downto 0)
-	);
+		daddr:    out std_logic_vector(12 downto 0));
 end;
 
 architecture rtl of h2 is
