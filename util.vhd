@@ -730,7 +730,7 @@ end architecture;
 -- Originally from http://www.deathbylogic.com/2013/07/vhdl-standard-fifo/
 -- @copyright Public Domain
 -- @todo Add more comments about the FIFOs origin, add assertions test
--- synthesis, and turn into FIFO with asynchronous reset.
+-- synthesis.
 --
 -- The code can be used freely and appears to be public domain, comment
 -- from author is: "You can use any code posted here freely, there is no copyright."
@@ -769,59 +769,57 @@ begin
 		
 		variable looped: boolean;
 	begin
-		if rising_edge(clk) then
-			if rst = '1' then
-				head := 0;
-				tail := 0;
-				
-				looped := false;
-				
-				full  <= '0';
-				empty <= '1';
-				do    <= (others => '0');
-			else
-				if re = '1' then
-					if looped = true or head /= tail then
-						-- update data output
-						do <= memory(tail);
-						
-						-- update tail pointer as needed
-						if (tail = fifo_depth - 1) then
-							tail   := 0;
-							looped := false;
-						else
-							tail := tail + 1;
-						end if;
-					end if;
-				end if;
-				
-				if we = '1' then
-					if looped = false or head /= tail then
-						-- write data to memory
-						memory(head) := din;
-						
-						-- increment head pointer as needed
-						if (head = fifo_depth - 1) then
-							head := 0;
-							
-							looped := true;
-						else
-							head := head + 1;
-						end if;
-					end if;
-				end if;
-				
-				-- update empty and full flags
-				if head = tail then
-					if looped then
-						full  <= '1';
+		if rst = '1' then
+			head := 0;
+			tail := 0;
+			
+			looped := false;
+			
+			full  <= '0';
+			empty <= '1';
+			do    <= (others => '0');
+		elsif rising_edge(clk) then
+			if re = '1' then
+				if looped = true or head /= tail then
+					-- update data output
+					do <= memory(tail);
+					
+					-- update tail pointer as needed
+					if (tail = fifo_depth - 1) then
+						tail   := 0;
+						looped := false;
 					else
-						empty <= '1';
+						tail := tail + 1;
 					end if;
-				else
-					empty	<= '0';
-					full	<= '0';
 				end if;
+			end if;
+			
+			if we = '1' then
+				if looped = false or head /= tail then
+					-- write data to memory
+					memory(head) := din;
+					
+					-- increment head pointer as needed
+					if (head = fifo_depth - 1) then
+						head := 0;
+						
+						looped := true;
+					else
+						head := head + 1;
+					end if;
+				end if;
+			end if;
+			
+			-- update empty and full flags
+			if head = tail then
+				if looped then
+					full  <= '1';
+				else
+					empty <= '1';
+				end if;
+			else
+				empty	<= '0';
+				full	<= '0';
 			end if;
 		end if;
 	end process;

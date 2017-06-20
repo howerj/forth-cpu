@@ -19,6 +19,9 @@ use work.util.shift_register_tb;
 use work.util.timer_us_tb;
 use work.util.full_adder_tb;
 use work.util.function_tb;
+use work.util.fifo_tb;
+use work.cpu_pkg.all;
+use work.vga_pkg.all;
 
 entity tb is
 end tb;
@@ -32,16 +35,8 @@ architecture testing of tb is
 
 	constant clk_period: time   :=  1000 ms / clock_frequency;
 
-	signal  wait_flag:   std_logic :=  '0';
-	signal  debug_irq:   std_logic :=  '0';
-	signal  debug_irc:   std_logic_vector(3 downto 0) := (others => '0');
-	signal  debug_pc:    std_logic_vector(12 downto 0);
-	signal  debug_insn:  std_logic_vector(15 downto 0);
-	signal  debug_dwe:   std_logic := '0';
-	signal  debug_dre:   std_logic := '0';
-	signal  debug_din:   std_logic_vector(15 downto 0);
-	signal  debug_dout:  std_logic_vector(15 downto 0);
-	signal  debug_daddr: std_logic_vector(12 downto 0);
+	signal  wait_flag: std_logic :=  '0';
+	signal  debug:     cpu_debug_interface;
 
 	signal  clk:   std_logic := '0';
 	signal  rst:   std_logic := '0';
@@ -64,11 +59,7 @@ architecture testing of tb is
 	signal  tx:    std_logic := '0';
 
 	-- VGA
-	signal  red:   std_logic_vector(2 downto 0) := (others => '0');
-	signal  green: std_logic_vector(2 downto 0) := (others => '0');
-	signal  blue:  std_logic_vector(1 downto 0) := (others => '0');
-	signal  hsync: std_logic := '0';
-	signal  vsync: std_logic := '0';
+	signal  o_vga: vga_physical_interface;
 
 	-- HID
 	signal  ps2_keyboard_data: std_logic := '0';
@@ -83,15 +74,7 @@ begin
 		number_of_interrupts => number_of_interrupts,
 		uart_baud_rate       => uart_baud_rate)
 	port map(
-		debug_irq   => debug_irq,
-		debug_irc   => debug_irc,
-		debug_pc    => debug_pc,
-		debug_insn  => debug_insn,
-		debug_dwe   => debug_dwe,
-		debug_dre   => debug_dre,
-		debug_din   => debug_din,
-		debug_dout  => debug_dout,
-		debug_daddr => debug_daddr,
+		debug       => debug,
 		clk         => clk,
 		-- reset    => rst,
 		btnu        => btnu,
@@ -105,11 +88,7 @@ begin
 		ld          => ld,
 		rx          => rx,
 		tx          => tx,
-		red         => red,
-		green       => green,
-		blue        => blue,
-		hsync       => hsync,
-		vsync       => vsync,
+		o_vga       => o_vga,
 
 		ps2_keyboard_data => ps2_keyboard_data,
 		ps2_keyboard_clk  => ps2_keyboard_clk);
@@ -150,14 +129,14 @@ begin
 		end stringify;
 
 		-- @todo write numbers out as hexadecimal
-		function reportln(pc, insn, daddr, dout: std_logic_vector; cycles: integer) return line is
+		function reportln(debug: cpu_debug_interface; cycles: integer) return line is
 			variable l: line;
 		begin
 			write(l, integer'image(cycles) & ": ");
-			write(l, "pc("    & stringify(pc)    & ") ");
-			write(l, "insn("  & stringify(insn)  & ") ");
-			write(l, "daddr(" & stringify(daddr) & ") ");
-			write(l, "dout("  & stringify(dout)  & ") ");
+			write(l, "pc("    & stringify(debug.pc)    & ") ");
+			write(l, "insn("  & stringify(debug.insn)  & ") ");
+			write(l, "daddr(" & stringify(debug.daddr) & ") ");
+			write(l, "dout("  & stringify(debug.dout)  & ") ");
 			return l;
 		end reportln;
 	begin
@@ -166,7 +145,7 @@ begin
 		rst  <= '0';
 		for i in 0 to number_of_iterations loop
 			if count < report_number then
-				w := reportln(debug_pc, debug_insn, debug_daddr, debug_dout, count);
+				w := reportln(debug, count);
 				writeline(OUTPUT, w);
 				count := count + 1;
 			elsif count < report_number + 1 then
@@ -176,8 +155,8 @@ begin
 			wait for clk_period * 1;
 		end loop;
 
-		assert hsync = '1' report "HSYNC not active - H2 failed to initialize VGA module";
-		assert vsync = '1' report "VSYNC not active - H2 failed to initialize VGA module";
+		assert o_vga.hsync = '1' report "HSYNC not active - H2 failed to initialize VGA module";
+		assert o_vga.vsync = '1' report "VSYNC not active - H2 failed to initialize VGA module";
 
 		wait_flag   <=  '1';
 		wait;

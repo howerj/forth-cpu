@@ -8,6 +8,7 @@
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
+--| @todo Turn this into a package
 --------------------------------------------------------------------------------
 
 --| This module implements a 8 segment display driver, with 4 displays in total:

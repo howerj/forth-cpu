@@ -14,6 +14,8 @@
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.cpu_pkg.all;
+use work.vga_pkg.all;
 
 entity top is
 	generic(
@@ -23,17 +25,7 @@ entity top is
 	port
 	(
 -- synthesis translate_off
-		-- These signals are only used for the test bench
-		debug_irq:    in  std_logic;
-		debug_irc:    in  std_logic_vector(3 downto 0);
-
-		debug_pc:     out std_logic_vector(12 downto 0);
-		debug_insn:   out std_logic_vector(15 downto 0);
-		debug_dwe:    out std_logic := '0';
-		debug_dre:    out std_logic := '0';
-		debug_din:    out std_logic_vector(15 downto 0);
-		debug_dout:   out std_logic_vector(15 downto 0);
-		debug_daddr:  out std_logic_vector(12 downto 0);
+		debug:     out cpu_debug_interface;
 -- synthesis translate_on
 
 		clk:      in  std_logic                    := 'X';  -- clock
@@ -50,15 +42,14 @@ entity top is
 		ka:       out std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 7 segment display
 
 		ld:       out std_logic_vector(7 downto 0) := (others => '0'); -- leds
+
 		-- UART
 		rx:       in  std_logic                    := 'X';  -- uart rx
 		tx:       out std_logic                    := '0';  -- uart tx
+
 		-- VGA
-		red:      out std_logic_vector(2 downto 0) := (others => '0');
-		green:    out std_logic_vector(2 downto 0) := (others => '0');
-		blue:     out std_logic_vector(1 downto 0) := (others => '0');
-		hsync:    out std_logic                    := '0';
-		vsync:    out std_logic                    := '0';
+		o_vga:    out vga_physical_interface;
+
 		-- PWM from timer
 		gpt0_q:   out std_logic                    := '0';
 		gpt0_nq:  out std_logic                    := '0';
@@ -73,7 +64,7 @@ architecture behav of top is
 	-- Signals
 	signal rst: std_logic := '0';
 	-- CPU H2 IO interface signals.
-	signal cpu_wait:     std_logic := '0';
+	signal cpu_wait: std_logic := '0';
 	signal io_wr:    std_logic := '0';
 	signal io_re:    std_logic := '0';
 	signal io_din:   std_logic_vector(15 downto 0):= (others => '0');
@@ -82,7 +73,7 @@ architecture behav of top is
 
 	-- CPU H2 Interrupts
 	signal cpu_irq:         std_logic := '0';
-	signal cpu_irc:         std_logic_vector(number_of_interrupts - 1 downto 0):= (others => '0');
+	signal cpu_irc:         std_logic_vector(number_of_interrupts - 1 downto 0) := (others => '0');
 	signal cpu_irc_mask:    std_logic_vector(number_of_interrupts - 1 downto 0) := (others => '1');
 	signal cpu_irc_mask_we: std_logic := '0';
 
@@ -99,19 +90,15 @@ architecture behav of top is
 	signal ld_c,ld_n: std_logic_vector(7 downto 0):=  (others => '0');
 
 	---- VGA
-	signal crx_we: std_logic :=  '0';
-	signal cry_we: std_logic :=  '0';
-	signal ctl_we: std_logic :=  '0';
+	signal vga_control:    vga_control_registers_interface    := vga_control_registers_initialize;
+	signal vga_control_we: vga_control_registers_we_interface := vga_control_registers_we_initialize;
 
-	signal crx: std_logic_vector(6 downto 0):=  (others => '0');
-	signal cry: std_logic_vector(5 downto 0):=  (others => '0');
-	signal ctl: std_logic_vector(7 downto 0):=  (others => '0');
-	signal vga_we_ram: std_logic :=  '0';
-	signal vga_a_we:   std_logic :=  '0';
-	signal vga_d_we:   std_logic :=  '0';
-	signal vga_addr:   std_logic_vector(12 downto 0):= (others => '0');
-	signal vga_dout:   std_logic_vector(15 downto 0) := (others => '0');
-	signal vga_din:    std_logic_vector(15 downto 0) := (others => '0');
+	signal vga_we_ram:  std_logic :=  '0';
+	signal vga_addr_we: std_logic :=  '0';
+	signal vga_din_we:  std_logic :=  '0';
+	signal vga_addr:    std_logic_vector(12 downto 0) := (others => '0');
+	signal vga_dout:    std_logic_vector(15 downto 0) := (others => '0');
+	signal vga_din:     std_logic_vector(15 downto 0) := (others => '0');
 
 	---- UART
 	-- @todo move this into the UART module
@@ -193,13 +180,7 @@ begin
 	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 -- synthesis translate_off
-	debug_pc    => debug_pc,
-	debug_insn  => debug_insn,
-	debug_dwe   => debug_dwe,
-	debug_dre   => debug_dre,
-	debug_din   => debug_din,
-	debug_dout  => debug_dout,
-	debug_daddr => debug_daddr,
+	debug => debug,
 -- synthesis translate_on
 
 	clk => clk,
@@ -289,18 +270,14 @@ begin
 
 		ld_n <= ld_c;
 
-		crx_we <= '0';
-		cry_we <= '0';
-		ctl_we <= '0';
-		crx <= (others => '0');
-		cry <= (others => '0');
-		ctl <= (others => '0');
+		vga_control_we <= vga_control_registers_we_initialize;
+		vga_control    <= vga_control_registers_initialize;
 
-		vga_we_ram <= '0';
-		vga_a_we   <= '0';
-		vga_d_we   <= '0';
-		vga_din    <= (others => '0');
-		vga_addr   <= (others => '0');
+		vga_we_ram  <= '0';
+		vga_addr_we <= '0';
+		vga_din_we  <= '0';
+		vga_din     <= (others => '0');
+		vga_addr    <= (others => '0');
 
 		timer_control_we <= '0';
 		timer_control_i <= (others => '0');
@@ -351,19 +328,19 @@ begin
 				ld_n <= io_dout(7 downto 0);
 
 			when "00010" => -- VGA, cursor registers.
-				crx_we <= '1';
-				cry_we <= '1';
-				crx <= io_dout(6 downto 0);
-				cry <= io_dout(13 downto 8);
+				vga_control_we.crx <= '1';
+				vga_control_we.cry <= '1';
+				vga_control.crx    <= io_dout(6 downto 0);
+				vga_control.cry    <= io_dout(13 downto 8);
 			when "00011" => -- VGA, control register.
-				ctl_we <= '1';
-				ctl <= io_dout(7 downto 0);
+				vga_control_we.ctl <= '1';
+				vga_control.ctl    <= io_dout(7 downto 0);
 			when "00100" => -- VGA update address register.
-				vga_a_we <= '1';
-				vga_addr <= io_dout(12 downto 0);
+				vga_addr_we <= '1';
+				vga_addr    <= io_dout(12 downto 0);
 			when "00101" => -- VGA, update register.
-				vga_d_we <= '1';
-				vga_din <= io_dout(15 downto 0);
+				vga_din_we <= '1';
+				vga_din    <= io_dout(15 downto 0);
 			when "00110" => -- VGA write RAM write
 				vga_we_ram <= io_dout(0);
 
@@ -435,11 +412,11 @@ begin
 	--| UART registers present in this module
 	uart_deglitch_0: process (clk)
 	begin
-	if rising_edge(clk) then
-		rx_sync <= rx;
-		rx_uart <= rx_sync;
-		tx      <= tx_uart;
-	end if;
+		if rising_edge(clk) then
+			rx_sync <= rx;
+			rx_uart <= rx_sync;
+			tx      <= tx_uart;
+		end if;
 	end process;
 
 	uart_0: entity work.uart
@@ -477,30 +454,22 @@ begin
 	--- VGA -----------------------------------------------------------
 	vga_0: entity work.vga_top
 	port map(
-		clk => clk,
-		clk25MHz => clk25MHz,
-		rst => rst,
+		clk        => clk,
+		clk25MHz   => clk25MHz,
+		rst        => rst,
 
-		crx_we => crx_we,
-		cry_we => cry_we,
-		ctl_we => ctl_we,
+		i_vga_control    => vga_control,
+		i_vga_control_we => vga_control_we,
 
-		crx_oreg => crx,
-		cry_oreg => cry,
-		ctl_oreg => ctl,
+		vga_we_ram  => vga_we_ram,
+		vga_addr_we => vga_addr_we,
+		vga_din_we  => vga_din_we,
+		vga_dout    => vga_dout,
+		vga_din     => vga_din,
+		vga_addr    => vga_addr,
 
-		vga_we_ram => vga_we_ram,
-		vga_a_we => vga_a_we,
-		vga_d_we => vga_d_we,
-		vga_dout => vga_dout,
-		vga_din => vga_din,
-		vga_addr => vga_addr,
+		o_vga      => o_vga);
 
-		red => red,
-		green => green,
-		blue => blue,
-		hsync => hsync,
-		vsync => vsync);
 	--- VGA -----------------------------------------------------------
 
 	--- PS/2 ----------------------------------------------------------

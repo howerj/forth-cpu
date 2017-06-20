@@ -10,33 +10,57 @@
 
 library ieee,work;
 use ieee.std_logic_1164.all;
+
+package cpu_pkg is
+	type cpu_debug_interface is record
+		pc:        std_logic_vector(12 downto 0);
+		insn:      std_logic_vector(15 downto 0);
+		dwe:       std_logic;
+		dre:       std_logic;
+		din:       std_logic_vector(15 downto 0);
+		dout:      std_logic_vector(15 downto 0);
+		daddr:     std_logic_vector(12 downto 0);
+	end record;
+
+-- 	constant number_of_interrupts: positive := 8;
+-- 
+-- 	type cpu_interrupt_interface is record
+-- 		irq:         std_logic;
+-- 		irc:         std_logic_vector(number_of_interrupts - 1 downto 0);
+-- 		irc_mask:    std_logic_vector(number_of_interrupts - 1 downto 0);
+-- 		irc_mask_we: std_logic;
+-- 	end record;
+
+end package;
+
+
+----- CPU ----------------------------------------------------------------------
+
+library ieee,work;
+use ieee.std_logic_1164.all;
 use work.util.n_bits;
+use work.cpu_pkg.all;
 
 entity cpu is
 	generic(number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
-		debug_pc:        out std_logic_vector(12 downto 0);
-		debug_insn:      out std_logic_vector(15 downto 0);
-		debug_dwe:       out std_logic := '0';
-		debug_dre:       out std_logic := '0';
-		debug_din:       out std_logic_vector(15 downto 0);
-		debug_dout:      out std_logic_vector(15 downto 0);
-		debug_daddr:     out std_logic_vector(12 downto 0);
+		debug:           out cpu_debug_interface;
 		-- synthesis translate_on
 
 		clk:             in   std_logic;
 		rst:             in   std_logic;
 
-		-- CPU External interface, I/O
 		stop:            in   std_logic; -- Halts the CPU
+
 		io_wr:           out  std_logic; -- I/O Write enable
 		io_re:           out  std_logic; -- hardware *READS* can have side effects
 		io_din:          in   std_logic_vector(15 downto 0);
 		io_dout:         out  std_logic_vector(15 downto 0):= (others => 'X');
 		io_daddr:        out  std_logic_vector(15 downto 0):= (others => 'X');
+
 		-- Interrupts
-		cpu_irq:         in   std_logic;
+		cpu_irq:         in std_logic;
 		cpu_irc:         in std_logic_vector(number_of_interrupts - 1 downto 0);
 		cpu_irc_mask:    in std_logic_vector(number_of_interrupts - 1 downto 0);
 		cpu_irc_mask_we: in std_logic);
@@ -61,13 +85,13 @@ architecture structural of cpu is
 	signal h2_irq_addr:  std_logic_vector(interrupt_address_length - 1 downto 0) := (others=>'0');
 begin
 	-- synthesis translate_off
-	debug_pc    <= pc;
-	debug_insn  <= insn;
-	debug_dwe   <= dwe;
-	debug_dre   <= dre;
-	debug_din   <= din;
-	debug_dout  <= dout;
-	debug_daddr <= daddr;
+	debug.pc    <= pc;
+	debug.insn  <= insn;
+	debug.dwe   <= dwe;
+	debug.dre   <= dre;
+	debug.din   <= din;
+	debug.dout  <= dout;
+	debug.daddr <= daddr;
 	-- synthesis translate_on
 
 	irqh_0: entity work.irqh
@@ -112,7 +136,7 @@ begin
 		dout      =>  dout,
 		daddr     =>  daddr);
 		
-	mem_h2_0: entity work.memory
+	mem_h2_0: entity work.dual_port_block_ram
 	generic map(
 		addr_length   => addr_length,
 		data_length   => data_length,

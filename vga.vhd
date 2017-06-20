@@ -1,5 +1,254 @@
 -------------------------------------------------------------------------------
---| @file vga.vhd
+-- @file vga_top.vhd
+-- @brief VGA top level
+--
+-- @author     Richard James Howe.
+-- @copyright  Copyright 2013 Richard James Howe.
+-- @license    LGPL version 3
+-- @email      howe.r.j.89@gmail.com
+-------------------------------------------------------------------------------
+
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+package vga_pkg is
+	type vga_physical_interface is record
+		red:   std_logic_vector(2 downto 0);
+		green: std_logic_vector(2 downto 0);
+		blue:  std_logic_vector(1 downto 0);
+		hsync: std_logic;
+		vsync: std_logic;
+	end record;
+
+	type vga_control_registers_we_interface is record
+		crx: std_logic; -- Write enable for cursor X position register 
+		ctl: std_logic; -- Write enable for cursor Y position register 
+		cry: std_logic; -- Write enable for VGA control register
+	end record;
+
+	type vga_control_registers_interface is record
+		crx:    std_logic_vector(6 downto 0); -- Cursor position X
+		cry:    std_logic_vector(5 downto 0); -- Cursor position Y
+		ctl:    std_logic_vector(7 downto 0); -- Control register
+	end record;
+
+-- 	type vga_ram_registers is record
+-- 		din:     std_logic_vector(15 downto 0);
+-- 		addr:    std_logic_vector(12 downto 0);
+-- 	end record;
+-- 
+-- 	type vga_ram_interface is record
+-- 		ram_we:  std_logic; -- Write enable RAM
+-- 		addr_we: std_logic; -- Write enable address
+-- 		din_we:  std_logic; -- Write enable data
+-- 		reg:     vga_ram_registers;
+-- 	end record;
+ 
+	constant vga_control_registers_initialize: vga_control_registers_interface := (
+			cry => (others => '0'), 
+			crx => (others => '0'), 
+			ctl => (others => '0'));
+
+	constant vga_control_registers_we_initialize: vga_control_registers_we_interface := ( 
+			cry => '0',
+			crx => '0',
+			ctl => '0');
+
+	component vga_core is
+	port (
+		rst:      in  std_logic;
+		clk25MHz: in  std_logic;
+		text_a:   out std_logic_vector(11 downto 0); -- text buffer
+		text_d:   in  std_logic_vector(7 downto 0);
+		font_a:   out std_logic_vector(11 downto 0); -- font buffer
+		font_d:   in  std_logic_vector(7 downto 0);
+		 --
+		ocrx:     in  std_logic_vector(6 downto 0); 
+		ocry:     in  std_logic_vector(5 downto 0);
+		octl:     in  std_logic_vector(6 downto 0);
+		--
+		R:        out std_logic;
+		G:        out std_logic;
+		B:        out std_logic;
+		hsync:    out std_logic;
+		vsync:    out std_logic);
+	end component;
+
+end package;
+
+-------------------------------------------------------------------------------
+
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.vga_pkg.all;
+
+entity vga_top is
+	port(
+	clk:         in  std_logic;
+	clk25MHz:    in  std_logic;
+	rst:         in  std_logic;
+
+	-- VGA Text buffer interface
+	vga_we_ram:  in  std_logic; -- Write enable RAM
+	vga_addr_we: in  std_logic; -- Write enable address
+	vga_din_we:  in  std_logic; -- Write enable data
+	vga_din:     in  std_logic_vector(15 downto 0);
+	vga_addr:    in  std_logic_vector(12 downto 0);
+	vga_dout:    out std_logic_vector(15 downto 0):= (others => '0');
+
+	-- VGA control registers
+	i_vga_control_we: in vga_control_registers_we_interface;
+	i_vga_control:    in vga_control_registers_interface;
+
+	o_vga:    out vga_physical_interface);
+end;
+
+architecture behav of vga_top is
+
+	-- Setup for text buffer memory
+	constant text_addr_length: positive := 13;
+	constant text_data_length: positive := 16;
+	constant text_file_name:   string   := "text.bin";
+	constant text_file_type:   string   := "bin";
+
+	-- Setup for font buffer memory
+	constant font_addr_length: positive := 12;
+	constant font_data_length: positive := 8;
+	constant font_file_name:   string   := "font.bin";
+	constant font_file_type:   string   := "bin";
+
+	-- Internal signals for mapping output <--> VGA module
+	signal  R_internal:      std_logic := '0';
+	signal  G_internal:      std_logic := '0';
+	signal  B_internal:      std_logic := '0';
+
+	-- Text RAM signals, RAM <--> VGA module
+	signal  text_dout:       std_logic_vector(15 downto 0) := (others => '0');
+	signal  text_din:        std_logic_vector(15 downto 0) := (others => '0');
+	signal  text_addr:       std_logic_vector(11 downto 0) := (others => '0');
+	signal  text_addr_full:  std_logic_vector(12 downto 0) := (others => '0');
+
+	-- Font ROM signals, ROM<-->VGA module
+	signal  font_addr:       std_logic_vector(11 downto 0) := (others => '0');
+	signal  font_dout:       std_logic_vector( 7 downto 0) := (others => '0');
+
+	signal  control_c, control_n: vga_control_registers_interface := vga_control_registers_initialize;
+
+	-- Internal registers for buffering write operation to RAM memory
+	signal  din_c,  din_n:   std_logic_vector(15 downto 0) := (others => '0');
+	signal  addr_c, addr_n:  std_logic_vector(12 downto 0) := (others => '0');
+begin
+	-- Output assignments, syncs elsewhere
+	o_vga.red   <=  (others => R_internal);
+	o_vga.green <=  (others => G_internal);
+	o_vga.blue  <=  (others => B_internal);
+
+	-- Internal control registers
+	-- Next state on clk edge rising
+	vga_ns: process(clk, rst)
+	begin
+		if rst = '1' then
+			control_c   <= vga_control_registers_initialize;
+			din_c       <= (others => '0');
+			addr_c      <= (others => '0');
+		elsif rising_edge(clk) then
+			control_c   <= control_n;
+			din_c       <= din_n;
+			addr_c      <= addr_n;
+		end if;
+	end process;
+
+	-- Internal control register
+	-- We write into the registers here.
+	vga_creg_we: process(
+		control_c,
+		i_vga_control,
+		i_vga_control_we,
+
+		din_c, addr_c,
+		vga_addr_we, vga_din,
+		vga_din_we, vga_addr)
+	begin
+		control_n <= control_c;
+
+		din_n  <= din_c;
+		addr_n <= addr_c;
+		
+		if i_vga_control_we.crx = '1' then control_n.crx <= i_vga_control.crx; end if;
+		if i_vga_control_we.cry = '1' then control_n.cry <= i_vga_control.cry; end if;
+		if i_vga_control_we.ctl = '1' then control_n.ctl <= i_vga_control.ctl; end if;
+		if vga_din_we = '1'           then din_n         <= vga_din;           end if;
+		if vga_addr_we = '1'          then addr_n        <= vga_addr;          end if;
+
+	end process;
+
+	-- The actual VGA module
+	u_vga : work.vga_pkg.vga_core port map (
+		rst       => rst,
+		clk25MHz  => clk25MHz,
+
+		text_a    => text_addr,
+		text_d    => text_dout(7 downto 0),
+
+		font_a    => font_addr,
+		font_d    => font_dout,
+
+		ocrx      => control_c.crx,
+		ocry      => control_c.cry,
+		octl      => control_c.ctl(6 downto 0),
+
+		R         => R_internal,
+		G         => G_internal,
+		B         => B_internal,
+		hsync     => o_vga.hsync,
+		vsync     => o_vga.vsync);
+
+	text_addr_full <= control_c.ctl(7) & text_addr;
+
+	--| @brief This RAM module holds the text we want to display on to the
+	--| monitor. The text buffer holds at least 80*40 characters.
+	u_text: entity work.dual_port_block_ram
+	generic map(
+	    addr_length   => text_addr_length,
+	    data_length   => text_data_length,
+	    file_name     => text_file_name,
+	    file_type     => text_file_type)
+	port map (
+		a_clk  => clk,
+		-- External interface
+		a_dwe  => vga_we_ram,
+		a_dre  => '1',
+		a_addr => addr_c,
+		a_din  => din_c,
+		a_dout => vga_dout,
+		-- Internal interface
+		b_clk  => clk25MHz,
+		b_dwe  => '0',
+		b_dre  => '1',
+		b_addr => text_addr_full,
+		b_din  => (others => '0'),
+		b_dout => text_dout);
+
+	--| VGA Font memory
+	u_font: entity work.single_port_block_ram
+	generic map(
+		addr_length   => font_addr_length,
+		data_length   => font_data_length,
+		file_name     => font_file_name,
+		file_type     => font_file_type)
+	port map (
+		clk  => clk25MHz,
+		dwe  => '0',
+		dre  => '1',
+		addr => font_addr,
+		din  => (others => '0'),
+		dout => font_dout);
+	
+end architecture;
+
+-------------------------------------------------------------------------------
 --| @brief Monochrome Text Mode Video Controller VHDL Macro.
 --| @author         Javier Valcarce García
 --| @copyright      Copyright 2007 Javier Valcarce García
@@ -17,14 +266,14 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity vga is
+entity vga_core is
 	port (
 		rst:      in  std_logic;
 		clk25MHz: in  std_logic;
-		TEXT_A:   out std_logic_vector(11 downto 0); -- text buffer
-		TEXT_D:   in  std_logic_vector(7 downto 0);
-		FONT_A:   out std_logic_vector(11 downto 0); -- font buffer
-		FONT_D:   in  std_logic_vector(7 downto 0);
+		text_a:   out std_logic_vector(11 downto 0); -- text buffer
+		text_d:   in  std_logic_vector(7 downto 0);
+		font_a:   out std_logic_vector(11 downto 0); -- font buffer
+		font_d:   in  std_logic_vector(7 downto 0);
 		 --
 		ocrx:     in  std_logic_vector(6 downto 0); 
 		ocry:     in  std_logic_vector(5 downto 0);
@@ -35,9 +284,9 @@ entity vga is
 		B:        out std_logic;
 		hsync:    out std_logic;
 		vsync:    out std_logic);
-end vga;
+end entity;
 
-architecture rtl of vga is
+architecture rtl of vga_core is
 
 	signal R_int:     std_logic := '0';
 	signal G_int:     std_logic := '0';
@@ -72,8 +321,6 @@ architecture rtl of vga is
 
 begin
 
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
 -- hsync generator, initialized with '1'
 	process (rst, clk25MHz)
 	begin
@@ -89,8 +336,6 @@ begin
 	end process;
 
 
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
 -- vsync generator, initialized with '1'
 	process (rst, clk25MHz)
 	begin
@@ -105,15 +350,10 @@ begin
 		end if;
 	end process;
 
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
 -- Blank signal, 0 = no draw, 1 = visible/draw zone
 
 -- Proboscide99 31/08/08
 	blank <= '0' when (hctr < 8) or (hctr > 647) or (vctr > 479) else '1';
-
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
 
 -- flip-flips for sync of R, G y B signal, initialized with '0'
 	process (rst, clk25MHz)
@@ -129,10 +369,6 @@ begin
 	end if;
 	end process;
 
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
 	-- Control register. Individual control signal
 
 	-- @note This has been reorganized from the original
@@ -207,14 +443,11 @@ begin
 
 	rom_tmp <= to_integer(unsigned(text_d)) * 12 + chry;
 
-	FONT_A <= std_logic_vector(TO_UNSIGNED(rom_tmp, 12));
+	font_a <= std_logic_vector(to_unsigned(rom_tmp, 12));
 
 	end block;
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
 
-	U_LOSR: entity work.losr generic map (N => 8)
+	u_losr: entity work.losr generic map (N => 8)
 	port map (rst, clk25MHz, losr_ld, losr_ce, losr_do, FONT_D);
 
 	losr_ce <= blank;
@@ -228,10 +461,6 @@ begin
 	hsync <= hsync_int and vga_en;
 	vsync <= vsync_int and vga_en;
 	
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
-
 	-- Hardware Cursor
 	hw_cursor : block
 	signal small   : std_logic;
@@ -250,8 +479,8 @@ begin
 	counter <= counter + 1 when rising_edge(clk25MHz);
 	slowclk <= counter(22); --2.98Hz
 
-	crx <= TO_INTEGER(unsigned(ocrx(6 downto 0)));
-	cry <= TO_INTEGER(unsigned(ocry(5 downto 0)));
+	crx <= to_integer(unsigned(ocrx(6 downto 0)));
+	cry <= to_integer(unsigned(ocry(5 downto 0)));
 
 	--
 	curpos <= '1' when (scry = cry) and (scrx = crx) else '0';
