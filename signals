@@ -12,13 +12,13 @@ set nfacs [ gtkwave::getNumFacs ]
 set names [list]
 lappend names "top.tb.clk"
 lappend names "top.tb.rst"
-lappend names "top.tb.debug_pc"
-lappend names "top.tb.debug_insn"
-lappend names "top.tb.debug_daddr"
-lappend names "top.tb.debug_dout"
-lappend names "top.tb.debug_din"
-lappend names "top.tb.hsync"
-lappend names "top.tb.vsync"
+lappend names "top.tb.debug.pc"
+lappend names "top.tb.debug.insn"
+lappend names "top.tb.debug.daddr"
+lappend names "top.tb.debug.dout"
+lappend names "top.tb.debug.din"
+lappend names "top.tb.o_vga.hsync"
+lappend names "top.tb.o_vga.vsync"
 
 set num_added [ gtkwave::addSignalsFromList $names ]
 puts "num signals added: $num_added"
