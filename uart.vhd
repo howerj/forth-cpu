@@ -168,7 +168,6 @@ begin
 
 	tx_fifo_empty <= tx_fifo_empty_internal;
 
-
 	process(clk) 
 	begin
 		if rising_edge(clk) then

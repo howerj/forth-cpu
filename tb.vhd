@@ -16,6 +16,7 @@
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 use std.textio.all;
 use work.util.shift_register_tb;
 use work.util.timer_us_tb;
@@ -41,8 +42,10 @@ architecture testing of tb is
 	signal wait_flag: std_logic :=  '0';
 	signal debug:     cpu_debug_interface;
 
-	signal clk:   std_logic := '0';
-	signal rst:   std_logic := '0';
+	signal clk:          std_logic := '0';
+	signal jitter_clk:   std_logic := '0';
+	signal jitter_delay: time := 0 ns;
+	signal rst:          std_logic := '0';
 
 --  signal  cpu_wait: std_logic := '0'; -- CPU wait flag
 
@@ -80,6 +83,7 @@ architecture testing of tb is
 	signal uart_fifo_rx_fifo_not_empty:   std_logic := '0';
 begin
 ---- Units under test ----------------------------------------------------------
+
 
 	uut: entity work.top
 	generic map(
@@ -141,8 +145,13 @@ begin
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
+		variable seed1, seed2 : positive;
+		variable r : real;
 	begin
 		while wait_flag = '0' loop
+			uniform(seed1, seed2, r);
+			jitter_delay <= r * 1 ns;
+
 			clk <= '1';
 			wait for clk_period / 2;
 			clk <= '0';
@@ -150,6 +159,8 @@ begin
 		end loop;
 		wait;
 	end process;
+
+	jitter_clk <= transport clk after jitter_delay;
 
 	-- I/O settings go here.
 	stimulus_process: process
