@@ -7,7 +7,9 @@
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
---| @todo Optionally read expected inputs and commands from a file.
+--| @todo Optionally read expected inputs and commands from a file, which
+--| should include options for: Clock jitter, list of signals to log, number
+--| of iterations to run for and number of iterations to log.
 --|
 -------------------------------------------------------------------------------
 
@@ -30,7 +32,7 @@ architecture testing of tb is
 	constant clock_frequency:      positive := 100_000_000;
 	constant number_of_interrupts: positive := 8;
 	constant uart_baud_rate:       positive := 115200;
-	constant number_of_iterations: positive := 100000;
+	constant number_of_iterations: positive := 1000;
 	constant report_number:        positive := 256;
 
 	constant clk_period: time   :=  1000 ms / clock_frequency;

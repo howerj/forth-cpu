@@ -184,20 +184,20 @@ begin
 	-- generate an oversampled tick (baud * 16)
 	oversample_clk_divider: process (clk)
 	begin
-			if rising_edge (clk) then
-		if rst = '1' then
-				oversample_baud_counter		 <= 0;
-				oversample_baud_tick				<= '0';
-		else
+		if rising_edge (clk) then
+			if rst = '1' then
+				oversample_baud_counter <= 0;
+				oversample_baud_tick    <= '0';
+			else
 				if oversample_baud_counter = c_rx_divider_val then
-			oversample_baud_counter <= 0;
-			oversample_baud_tick		<= '1';
+				oversample_baud_counter <= 0;
+				oversample_baud_tick    <= '1';
 				else
-			oversample_baud_counter <= oversample_baud_counter + 1;
-			oversample_baud_tick		<= '0';
+				oversample_baud_counter <= oversample_baud_counter + 1;
+				oversample_baud_tick    <= '0';
 				end if;
-		end if;
 			end if;
+		end if;
 	end process;
 
 	-- synchronise rxd to the oversampled baud

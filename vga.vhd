@@ -1,13 +1,15 @@
 -------------------------------------------------------------------------------
--- @file vga_top.vhd
--- @brief VGA top level
---
--- @author     Richard James Howe.
--- @copyright  Copyright 2013 Richard James Howe.
--- @license    LGPL version 3
--- @email      howe.r.j.89@gmail.com
+--| @file vga.vhd
+--| @brief VGA top level
+--| @brief      Monochrome Text Mode Video Controller VHDL Macro.
+--| @author     Javier Valcarce García
+--| @copyright  Copyright 2007 Javier Valcarce García
+--| @license    LGPL version 3
+--| @email      javier.valcarce@gmail.com
+--| @note       (Modifications and repackaging by Richard James Howe)
 -------------------------------------------------------------------------------
 
+----- VGA Package -------------------------------------------------------------
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -55,6 +57,28 @@ package vga_pkg is
 			crx => '0',
 			ctl => '0');
 
+
+	component vga_top is
+	port(
+		clk:         in  std_logic;
+		clk25MHz:    in  std_logic;
+		rst:         in  std_logic;
+
+		-- VGA Text buffer interface
+		vga_we_ram:  in  std_logic; -- Write enable RAM
+		vga_addr_we: in  std_logic; -- Write enable address
+		vga_din_we:  in  std_logic; -- Write enable data
+		vga_din:     in  std_logic_vector(15 downto 0);
+		vga_addr:    in  std_logic_vector(12 downto 0);
+		vga_dout:    out std_logic_vector(15 downto 0):= (others => '0');
+
+		-- VGA control registers
+		i_vga_control_we: in vga_control_registers_we_interface;
+		i_vga_control:    in vga_control_registers_interface;
+
+		o_vga:    out vga_physical_interface);
+	end component;
+
 	component vga_core is
 	port (
 		rst:      in  std_logic;
@@ -77,8 +101,9 @@ package vga_pkg is
 
 end package;
 
--------------------------------------------------------------------------------
+----- VGA Package -------------------------------------------------------------
 
+----- VGA Top Level Component -------------------------------------------------
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -86,23 +111,23 @@ use work.vga_pkg.all;
 
 entity vga_top is
 	port(
-	clk:         in  std_logic;
-	clk25MHz:    in  std_logic;
-	rst:         in  std_logic;
+		clk:              in  std_logic;
+		clk25MHz:         in  std_logic;
+		rst:              in  std_logic;
 
-	-- VGA Text buffer interface
-	vga_we_ram:  in  std_logic; -- Write enable RAM
-	vga_addr_we: in  std_logic; -- Write enable address
-	vga_din_we:  in  std_logic; -- Write enable data
-	vga_din:     in  std_logic_vector(15 downto 0);
-	vga_addr:    in  std_logic_vector(12 downto 0);
-	vga_dout:    out std_logic_vector(15 downto 0):= (others => '0');
+		-- VGA Text buffer interface
+		vga_we_ram:       in  std_logic; -- Write enable RAM
+		vga_addr_we:      in  std_logic; -- Write enable address
+		vga_din_we:       in  std_logic; -- Write enable data
+		vga_din:          in  std_logic_vector(15 downto 0);
+		vga_addr:         in  std_logic_vector(12 downto 0);
+		vga_dout:         out std_logic_vector(15 downto 0) := (others => '0');
 
-	-- VGA control registers
-	i_vga_control_we: in vga_control_registers_we_interface;
-	i_vga_control:    in vga_control_registers_interface;
+		-- VGA control registers
+		i_vga_control_we: in vga_control_registers_we_interface;
+		i_vga_control:    in vga_control_registers_interface;
 
-	o_vga:    out vga_physical_interface);
+		o_vga:            out vga_physical_interface);
 end;
 
 architecture behav of vga_top is
@@ -248,20 +273,10 @@ begin
 	
 end architecture;
 
--------------------------------------------------------------------------------
---| @brief Monochrome Text Mode Video Controller VHDL Macro.
---| @author         Javier Valcarce García
---| @copyright      Copyright 2007 Javier Valcarce García
---| @license        LGPL version 3
---| @email          javier.valcarce@gmail.com
---| 
---| @note Only minor changes from the original have been made, mostly
---| relating to formatting.
---|
---| This core originated from:
---| https://opencores.org/project,interface_vga80x40
---| https://www.javiervalcarce.eu/html/index.html
--------------------------------------------------------------------------------
+----- VGA Top Level Component -------------------------------------------------
+
+----- VGA Core ----------------------------------------------------------------
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -321,7 +336,7 @@ architecture rtl of vga_core is
 
 begin
 
--- hsync generator, initialized with '1'
+	-- hsync generator, initialized with '1'
 	process (rst, clk25MHz)
 	begin
 		if rst = '1' then
@@ -336,7 +351,7 @@ begin
 	end process;
 
 
--- vsync generator, initialized with '1'
+	-- vsync generator, initialized with '1'
 	process (rst, clk25MHz)
 	begin
 		if rst = '1' then
@@ -350,23 +365,23 @@ begin
 		end if;
 	end process;
 
--- Blank signal, 0 = no draw, 1 = visible/draw zone
+	-- Blank signal, 0 = no draw, 1 = visible/draw zone
 
--- Proboscide99 31/08/08
+	-- Proboscide99 31/08/08
 	blank <= '0' when (hctr < 8) or (hctr > 647) or (vctr > 479) else '1';
 
--- flip-flips for sync of R, G y B signal, initialized with '0'
+	-- flip-flips for sync of R, G y B signal, initialized with '0'
 	process (rst, clk25MHz)
 	begin
-	if rst = '1' then
-		R <= '0';
-		G <= '0';
-		B <= '0';
-	elsif rising_edge(clk25MHz) then
-		R <= R_int;
-		G <= G_int;
-		B <= B_int;
-	end if;
+		if rst = '1' then
+			R <= '0';
+			G <= '0';
+			B <= '0';
+		elsif rising_edge(clk25MHz) then
+			R <= R_int;
+			G <= G_int;
+			B <= B_int;
+		end if;
 	end process;
 
 	-- Control register. Individual control signal
@@ -382,68 +397,69 @@ begin
 
 	-- counters, hctr, vctr, srcx, srcy, chrx, chry
 	counters: block
-	signal hctr_ce: std_logic;
-	signal hctr_rs: std_logic;
-	signal vctr_ce: std_logic;
-	signal vctr_rs: std_logic;
 
-	signal chrx_ce: std_logic;
-	signal chrx_rs: std_logic;
-	signal chry_ce: std_logic;
-	signal chry_rs: std_logic;
-	signal scrx_ce: std_logic;
-	signal scrx_rs: std_logic;
-	signal scry_ce: std_logic;
-	signal scry_rs: std_logic;
+		signal hctr_ce: std_logic;
+		signal hctr_rs: std_logic;
+		signal vctr_ce: std_logic;
+		signal vctr_rs: std_logic;
 
-	signal hctr_639: std_logic;
-	signal vctr_479: std_logic;
-	signal chrx_007: std_logic;
-	signal chry_011: std_logic;
+		signal chrx_ce: std_logic;
+		signal chrx_rs: std_logic;
+		signal chry_ce: std_logic;
+		signal chry_rs: std_logic;
+		signal scrx_ce: std_logic;
+		signal scrx_rs: std_logic;
+		signal scry_ce: std_logic;
+		signal scry_rs: std_logic;
 
-	-- RAM read, ROM read
-	signal ram_tmp: integer range 3200 downto 0;  --12 bits
-	signal rom_tmp: integer range 3071 downto 0;
+		signal hctr_639: std_logic;
+		signal vctr_479: std_logic;
+		signal chrx_007: std_logic;
+		signal chry_011: std_logic;
+
+		-- RAM read, ROM read
+		signal ram_tmp: integer range 3200 downto 0;  --12 bits
+		signal rom_tmp: integer range 3071 downto 0;
 
 	begin
 	
-	U_HCTR: entity work.ctrm generic map (M => 794) port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
-	U_VCTR: entity work.ctrm generic map (M => 525) port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
+		u_hctr: entity work.ctrm generic map (M => 794) port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
+		u_vctr: entity work.ctrm generic map (M => 525) port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
 
-	hctr_ce <= '1';
-	hctr_rs <= '1' when hctr = 793 else '0';
-	vctr_ce <= '1' when hctr = 663 else '0';
-	vctr_rs <= '1' when vctr = 524 else '0';
+		hctr_ce <= '1';
+		hctr_rs <= '1' when hctr = 793 else '0';
+		vctr_ce <= '1' when hctr = 663 else '0';
+		vctr_rs <= '1' when vctr = 524 else '0';
 
-	U_CHRX: entity work.ctrm generic map (M => 8)  port map (rst, clk25MHz, chrx_ce, chrx_rs, chrx);
-	U_CHRY: entity work.ctrm generic map (M => 12) port map (rst, clk25MHz, chry_ce, chry_rs, chry);
-	U_SCRX: entity work.ctrm generic map (M => 80) port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx);
-	U_SCRY: entity work.ctrm generic map (M => 40) port map (rst, clk25MHz, scry_ce, scry_rs, scry);
+		u_chrx: entity work.ctrm generic map (M => 8)  port map (rst, clk25MHz, chrx_ce, chrx_rs, chrx);
+		u_chry: entity work.ctrm generic map (M => 12) port map (rst, clk25MHz, chry_ce, chry_rs, chry);
+		u_scrx: entity work.ctrm generic map (M => 80) port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx);
+		u_scry: entity work.ctrm generic map (M => 40) port map (rst, clk25MHz, scry_ce, scry_rs, scry);
 
-	hctr_639 <= '1' when hctr = 639 else '0';
-	vctr_479 <= '1' when vctr = 479 else '0';
-	chrx_007 <= '1' when chrx = 7 else '0';
-	chry_011 <= '1' when chry = 11 else '0';
+		hctr_639 <= '1' when hctr = 639 else '0';
+		vctr_479 <= '1' when vctr = 479 else '0';
+		chrx_007 <= '1' when chrx = 7 else '0';
+		chry_011 <= '1' when chry = 11 else '0';
 
-	chrx_rs <= chrx_007 or hctr_639;
-	chry_rs <= chry_011 or vctr_479;
-	scrx_rs <= hctr_639;
-	scry_rs <= vctr_479;
+		chrx_rs <= chrx_007 or hctr_639;
+		chry_rs <= chry_011 or vctr_479;
+		scrx_rs <= hctr_639;
+		scry_rs <= vctr_479;
 
-	chrx_ce <= '1' and blank;
-	scrx_ce <= chrx_007;
-	chry_ce <= hctr_639 and blank;
-	scry_ce <= chry_011 and hctr_639;
+		chrx_ce <= '1' and blank;
+		scrx_ce <= chrx_007;
+		chry_ce <= hctr_639 and blank;
+		scry_ce <= chry_011 and hctr_639;
 
-	ram_tmp <=  to_integer(to_unsigned(scry,12) sll 4) +
-			to_integer(to_unsigned(scry,12) sll 6) +
-		 	scrx;
+		ram_tmp <=  to_integer(to_unsigned(scry,12) sll 4) +
+				to_integer(to_unsigned(scry,12) sll 6) +
+				scrx;
 
-	text_a <= std_logic_vector(to_unsigned(ram_tmp, 12));
+		text_a <= std_logic_vector(to_unsigned(ram_tmp, 12));
 
-	rom_tmp <= to_integer(unsigned(text_d)) * 12 + chry;
+		rom_tmp <= to_integer(unsigned(text_d)) * 12 + chry;
 
-	font_a <= std_logic_vector(to_unsigned(rom_tmp, 12));
+		font_a <= std_logic_vector(to_unsigned(rom_tmp, 12));
 
 	end block;
 
@@ -462,33 +478,34 @@ begin
 	vsync <= vsync_int and vga_en;
 	
 	-- Hardware Cursor
-	hw_cursor : block
-	signal small   : std_logic;
-	signal curen2  : std_logic;
-	signal slowclk : std_logic;
-	signal curpos  : std_logic;
-	signal yint    : std_logic;
-	signal crx_tmp : integer range 79 downto 0;
-	signal cry_tmp : integer range 39 downto 0;
-	signal crx     : integer range 79 downto 0;
-	signal cry     : integer range 39 downto 0;
-	signal counter : unsigned(22 downto 0);
+	hw_cursor: block
+		signal small:   std_logic;
+		signal curen2:  std_logic;
+		signal slowclk: std_logic;
+		signal curpos:  std_logic;
+		signal yint:    std_logic;
+		signal crx_tmp: integer range 79 downto 0;
+		signal cry_tmp: integer range 39 downto 0;
+		signal crx:     integer range 79 downto 0;
+		signal cry:     integer range 39 downto 0;
+		signal counter: unsigned(22 downto 0);
 	begin
 
-	-- slowclk for blink hardware cursor
-	counter <= counter + 1 when rising_edge(clk25MHz);
-	slowclk <= counter(22); --2.98Hz
+		-- slowclk for blink hardware cursor
+		counter <= counter + 1 when rising_edge(clk25MHz);
+		slowclk <= counter(22); --2.98Hz
 
-	crx <= to_integer(unsigned(ocrx(6 downto 0)));
-	cry <= to_integer(unsigned(ocry(5 downto 0)));
+		crx <= to_integer(unsigned(ocrx(6 downto 0)));
+		cry <= to_integer(unsigned(ocry(5 downto 0)));
 
-	--
-	curpos <= '1' when (scry = cry) and (scrx = crx) else '0';
-	small  <= '1' when (chry > 8)                    else '0';
-	curen2 <= (slowclk or (not cur_blink)) and cur_en;
-	yint   <= '1' when cur_mode = '0'                else small;
-	y      <= (yint and curpos and curen2) xor losr_do;
-	
+		--
+		curpos <= '1' when (scry = cry) and (scrx = crx) else '0';
+		small  <= '1' when (chry > 8)                    else '0';
+		curen2 <= (slowclk or (not cur_blink)) and cur_en;
+		yint   <= '1' when cur_mode = '0'                else small;
+		y      <= (yint and curpos and curen2) xor losr_do;
+		
 	end block;
 	
 end;
+----- VGA Core ----------------------------------------------------------------

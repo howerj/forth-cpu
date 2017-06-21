@@ -124,10 +124,9 @@ architecture rtl of h2 is
 	signal rstk_we:   std_logic := '0';
 	signal rstk_data: std_logic_vector(15 downto 0) := (others => '0');
 
-	-- Stop signal
 begin
-	assert(stack_size > 4)   report "stack size too small: " & integer'image(stack_size);
-	assert(stack_size < 128) report "stack size too large: " & integer'image(stack_size);
+	assert(stack_size > 4)   report "stack size too small: " & integer'image(stack_size) severity failure;
+	assert(stack_size < 128) report "stack size too large: " & integer'image(stack_size) severity failure;
 
 	is_instr.alu     <=  '1' when insn(15 downto 13) = "011" else '0';
 	is_instr.lit     <=  '1' when insn(15) = '1' else '0';
@@ -296,13 +295,13 @@ begin
 			assert to_integer(unsigned(rstkp_c)) + 1 < stack_size;
 
 			-- Interrupts are similar to a call
-			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + 1);
+			rstkp_n   <= std_logic_vector(unsigned(rstkp_c) + 1);
 			rstk_we   <= '1';
 			rstk_data <= "000" & pc_c; -- return to current instruction
 		elsif is_instr.lit = '1' then
 			assert to_integer(unsigned(vstkp_c)) + 1 < stack_size;
 
-			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + 1);
+			vstkp_n   <= std_logic_vector(unsigned(vstkp_c) + 1);
 			rstk_we   <= '0';
 			rstk_data <= "000" & pc_plus_one;
 		elsif is_instr.alu = '1' then
@@ -311,9 +310,9 @@ begin
 			assert                        ((to_integer(unsigned(vstkp_c)) + to_integer(signed(dd))) < stack_size);
 
 			rstk_we   <= insn(6);
-			rstk_data   <= tos_c;
-			vstkp_n <= std_logic_vector(unsigned(vstkp_c) + unsigned(dd));
-			rstkp_n <= std_logic_vector(unsigned(rstkp_c) + unsigned(rd));
+			rstk_data <= tos_c;
+			vstkp_n   <= std_logic_vector(unsigned(vstkp_c) + unsigned(dd));
+			rstkp_n   <= std_logic_vector(unsigned(rstkp_c) + unsigned(rd));
 		else
 			if is_instr.branch0 = '1' then
 				vstkp_n <= std_logic_vector(unsigned(vstkp_c) - 1);
@@ -330,7 +329,7 @@ begin
 		end if;
 	end process;
 
-	pcUpdate: process(
+	pc_update: process(
 		pc_c,insn,rtos_c,pc_plus_one,
 		is_instr,
 		is_interrupt,irq_c,irq_addr_c,irq_addr,irq,

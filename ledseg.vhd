@@ -10,6 +10,14 @@
 --|
 --| @todo Turn this into a package
 --------------------------------------------------------------------------------
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+package led_8_segment_pkg is
+
+end package;
+
 
 --| This module implements a 8 segment display driver, with 4 displays in total:
 --|
