@@ -9,7 +9,8 @@
 --|
 --| @todo Optionally read expected inputs and commands from a file, which
 --| should include options for: Clock jitter, list of signals to log, number
---| of iterations to run for and number of iterations to log.
+--| of iterations to run for and number of iterations to log, amount of jitter,
+--| baud rate and clock frequency.
 --|
 -------------------------------------------------------------------------------
 
@@ -34,7 +35,7 @@ architecture testing of tb is
 	constant clock_frequency:      positive := 100_000_000;
 	constant number_of_interrupts: positive := 8;
 	constant uart_baud_rate:       positive := 115200;
-	constant number_of_iterations: positive := 200000;
+	constant number_of_iterations: positive := 10000;
 	constant report_number:        positive := 256;
 
 	constant clk_period: time   :=  1000 ms / clock_frequency;
@@ -71,6 +72,7 @@ architecture testing of tb is
 	signal ps2_keyboard_data: std_logic := '0';
 	signal ps2_keyboard_clk:  std_logic := '0';
 
+	-- UART FIFO
 	signal uart_fifo_rx_data:         std_logic_vector(7 downto 0) := (others => '0');
 	signal uart_fifo_rx_fifo_empty:   std_logic := '0';
 	signal uart_fifo_rx_fifo_full:    std_logic := '0';
@@ -79,8 +81,10 @@ architecture testing of tb is
 	signal uart_fifo_tx_fifo_empty:   std_logic := '0';
 	signal uart_fifo_tx_data_we:      std_logic := '0';
 	signal uart_fifo_tx:              std_logic := '0';
-
 	signal uart_fifo_rx_fifo_not_empty:   std_logic := '0';
+
+	-- Wave form generator
+	signal gen_dout:     std_logic_vector(15 downto 0) := (others => '0');
 begin
 ---- Units under test ----------------------------------------------------------
 
@@ -93,7 +97,7 @@ begin
 	port map(
 		debug       => debug,
 		clk         => clk,
-		-- reset    => rst,
+		-- rst      => rst,
 		btnu        => btnu,
 		btnd        => btnd,
 		btnc        => btnc,
@@ -120,8 +124,32 @@ begin
 	-- @note a more advanced test bench would send out a string and expect
 	-- the same one back using a loopback circuit. For the moment this
 	-- is just used for testing the SoC.
-	uut_uart: work.uart_pkg.uart_core generic map(baud_rate => uart_baud_rate, clock_frequency => clock_frequency) 
-	port map(clk => clk, rst => rst, data_stream_in => x"AA", data_stream_in_stb => '1', tx => rx, rx => tx, data_stream_out_ack => '0');
+	uut_uart: work.uart_pkg.uart_core 
+		generic map(
+			baud_rate            =>  uart_baud_rate,
+			clock_frequency      =>  clock_frequency)
+		port map(
+			clk                  =>  clk,
+			rst                  =>  rst,
+			data_stream_in       =>  x"AA",
+			data_stream_in_stb   =>  '1',
+			tx                   =>  rx,
+			rx                   =>  tx,
+			data_stream_out_ack  =>  '0');
+
+	-- Example usage of wave form generator
+	uut_gen: entity work.gen 
+		generic map(
+			addr_length  =>  13,
+			data_length  =>  16,
+			file_name    =>  "text.bin",
+			file_type    =>  "bin")
+		port map(
+			clk          =>  clk,
+			rst          =>  rst,
+			ce           =>  '1',
+			cr           =>  '0',
+			dout         =>  gen_dout);
 
 
 	uart_fifo_rx_fifo_not_empty <= not uart_fifo_rx_fifo_empty;
@@ -172,15 +200,27 @@ begin
 			return integer'image(to_integer(unsigned(slv)));
 		end stringify;
 
+		procedure element(l: inout line; we: boolean; name: string; slv: std_logic_vector) is
+		begin
+			if we then
+				write(l, name & "(" & stringify(slv) & ") ");
+			end if;
+		end procedure;
+
+		procedure element(l: inout line; name: string; slv: std_logic_vector) is
+		begin
+			element(l, true, name, slv);
+		end procedure;
+
 		-- @todo write numbers out as hexadecimal
 		function reportln(debug: cpu_debug_interface; cycles: integer) return line is
 			variable l: line;
 		begin
 			write(l, integer'image(cycles) & ": ");
-			write(l, "pc("    & stringify(debug.pc)    & ") ");
-			write(l, "insn("  & stringify(debug.insn)  & ") ");
-			write(l, "daddr(" & stringify(debug.daddr) & ") ");
-			write(l, "dout("  & stringify(debug.dout)  & ") ");
+			element(l, "pc",    debug.pc);  
+			element(l, "insn",  debug.insn);  
+			element(l, "daddr", debug.daddr);
+			element(l, "dout",  debug.dout);
 			return l;
 		end reportln;
 	begin

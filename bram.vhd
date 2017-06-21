@@ -18,7 +18,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-package bram is
+package bram_pkg is
 
 	component dual_port_block_ram is
 	generic(addr_length: positive  := 12;
@@ -60,7 +60,7 @@ package bram is
 
 end package;
 
-package body bram is
+package body bram_pkg is
 
 	function hex_char_to_std_logic_vector(hc: character) return std_logic_vector is
 		variable slv: std_logic_vector(3 downto 0);
@@ -103,7 +103,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use std.textio.all;
-use work.bram.all;
+use work.bram_pkg.all;
 
 entity dual_port_block_ram is
 
@@ -222,7 +222,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use std.textio.all;
-use work.bram.all;
+use work.bram_pkg.all;
 
 entity single_port_block_ram is
 

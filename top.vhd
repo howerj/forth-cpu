@@ -27,7 +27,7 @@ entity top is
 	port
 	(
 -- synthesis translate_off
-		debug:     out cpu_debug_interface;
+		debug:    out cpu_debug_interface;
 -- synthesis translate_on
 
 		clk:      in  std_logic                    := 'X';  -- clock
