@@ -17,6 +17,7 @@ use ieee.numeric_std.all;
 use work.cpu_pkg.all;
 use work.vga_pkg.all;
 use work.kbd_pkg.ps2_kbd_top;
+use work.uart_pkg.uart_core;
 
 entity top is
 	generic(
@@ -420,7 +421,7 @@ begin
 		end if;
 	end process;
 
-	uart_0: entity work.uart
+	uart_0: work.uart_pkg.uart_core
 	generic map(
 		baud_rate           => uart_baud_rate,
 		clock_frequency     => clock_frequency)

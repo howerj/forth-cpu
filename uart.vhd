@@ -29,12 +29,162 @@
 --| ----\_/-|-|-|-|-|-|-|-|-|-------
 --|
 --------------------------------------------------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+
+package uart_pkg is
+
+	component uart_top is
+	generic (baud_rate: positive; clock_frequency: positive);
+	port (  
+		clk:                 in      std_logic;
+		rst:                 in      std_logic;
+
+		rx_data:             out     std_logic_vector(7 downto 0);
+		rx_fifo_empty:       out     std_logic;
+		rx_fifo_full:        out     std_logic;
+		rx_re:               in      std_logic;
+
+		tx_data:             in      std_logic_vector(7 downto 0);
+		tx_fifo_full:        out     std_logic;
+		tx_fifo_empty:       out     std_logic;
+		tx_we:               in      std_logic;
+
+		tx:                  out     std_logic;
+		rx:                  in      std_logic);
+
+	end component;
+
+	component uart_core is
+		generic (baud_rate: positive; clock_frequency: positive);
+		port (  
+			clk:                 in      std_logic;
+			rst:                 in      std_logic;
+			data_stream_in:      in      std_logic_vector(7 downto 0);
+			data_stream_in_stb:  in      std_logic;
+			data_stream_in_ack:  out     std_logic := '0';
+
+			data_stream_out:     out     std_logic_vector(7 downto 0);
+			data_stream_out_stb: out     std_logic;
+			data_stream_out_ack: in      std_logic;
+			tx:                  out     std_logic;
+			rx:                  in      std_logic);
+	end component;
+
+end package;
+
+--------------------------------------------------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.fifo;
+use work.uart_pkg.uart_core;
+
+entity uart_top is
+	generic (baud_rate: positive; clock_frequency: positive);
+	port (  
+		clk:                 in      std_logic;
+		rst:                 in      std_logic;
+
+		rx_data:             out     std_logic_vector(7 downto 0);
+		rx_fifo_empty:       out     std_logic;
+		rx_fifo_full:        out     std_logic;
+		rx_re:               in      std_logic;
+
+		tx_data:             in      std_logic_vector(7 downto 0);
+		tx_fifo_full:        out     std_logic;
+		tx_fifo_empty:       out     std_logic;
+		tx_we:               in      std_logic;
+
+		tx:                  out     std_logic;
+		rx:                  in      std_logic);
+end entity;
+
+architecture behav of uart_top is
+	signal rx_sync, rx_uart, tx_uart: std_logic := '0';
+
+	signal data_stream_in:      std_logic_vector(7 downto 0) := (others => '0');
+	signal data_stream_in_stb:  std_logic := '0';
+	signal data_stream_in_ack:  std_logic := '0';
+	signal data_stream_out:     std_logic_vector(7 downto 0) := (others => '0');
+	signal data_stream_out_stb: std_logic := '0';
+	signal data_stream_out_ack: std_logic := '0';
+
+begin
+	uart_deglitch: process (clk)
+	begin
+		if rising_edge(clk) then
+			rx_sync <= rx;
+			rx_uart <= rx_sync;
+			tx      <= tx_uart;
+		end if;
+	end process;
+
+-- 	tx_fifo: work.util.fifo 
+-- 		generic map (
+-- 			data_width => 8, 
+-- 			fifo_depth => 8)
+-- 		port map(
+-- 			clk   => clk, 
+-- 			rst   => rst, 
+-- 			din   => data_stream_out, 
+-- 			we    => data_stream_out_stb, 
+-- 			re    => rx_re, 
+-- 			do    => rx_data, 
+-- 			full  => rx_fifo_full, 
+-- 			empty => rx_fifo_empty);
+ 
+
+
+	rx_fifo: work.util.fifo 
+		generic map (
+			data_width => 8, 
+			fifo_depth => 8)
+		port map(
+			clk   => clk, 
+			rst   => rst, 
+			din   => data_stream_out, 
+			we    => data_stream_out_stb, 
+			re    => rx_re, 
+			do    => rx_data, 
+			full  => rx_fifo_full, 
+			empty => rx_fifo_empty);
+
+	process(clk) 
+	begin
+		if rising_edge(clk) then
+			data_stream_in_ack <= '0';
+			if data_stream_out_stb = '1' then
+				data_stream_in_ack <= '1';
+			end if;
+		end if;
+	end process;
+
+	uart: work.uart_pkg.uart_core
+		generic map(
+			baud_rate => baud_rate,
+			clock_frequency => clock_frequency)
+		port map(
+			clk                 => clk,
+			rst                 => rst,
+			data_stream_in      => data_stream_in,
+			data_stream_in_stb  => data_stream_in_stb,
+			data_stream_in_ack  => data_stream_in_ack,
+			data_stream_out     => data_stream_out,
+			data_stream_out_stb => data_stream_out_stb,
+			data_stream_out_ack => data_stream_out_ack,
+			rx                  => rx_uart,
+			tx                  => tx_uart);
+
+
+end;
+--------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity uart is
+entity uart_core is
 	generic (baud_rate: positive; clock_frequency: positive);
 	port (  
 	        clk:                 in      std_logic;
@@ -47,9 +197,9 @@ entity uart is
 	        data_stream_out_ack: in      std_logic;
 	        tx:                  out     std_logic;
 	        rx:                  in      std_logic);
-end uart;
+end entity;
 
-architecture behav of uart is
+architecture behav of uart_core is
 	
 	constant uart_tx_count_max: positive := 7;
 	constant uart_rx_count_max: positive := 7;
@@ -294,3 +444,4 @@ begin
 		end if;
 	end process;
 end;
+

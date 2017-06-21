@@ -24,6 +24,7 @@ use work.util.function_tb;
 use work.util.fifo_tb;
 use work.cpu_pkg.all;
 use work.vga_pkg.all;
+use work.uart_pkg.uart_core;
 
 entity tb is
 end tb;
@@ -32,40 +33,50 @@ architecture testing of tb is
 	constant clock_frequency:      positive := 100_000_000;
 	constant number_of_interrupts: positive := 8;
 	constant uart_baud_rate:       positive := 115200;
-	constant number_of_iterations: positive := 1000;
+	constant number_of_iterations: positive := 100000;
 	constant report_number:        positive := 256;
 
 	constant clk_period: time   :=  1000 ms / clock_frequency;
 
-	signal  wait_flag: std_logic :=  '0';
-	signal  debug:     cpu_debug_interface;
+	signal wait_flag: std_logic :=  '0';
+	signal debug:     cpu_debug_interface;
 
-	signal  clk:   std_logic := '0';
-	signal  rst:   std_logic := '0';
+	signal clk:   std_logic := '0';
+	signal rst:   std_logic := '0';
 
 --  signal  cpu_wait: std_logic := '0'; -- CPU wait flag
 
 	-- Basic I/O
-	signal  btnu:  std_logic := '0';  -- button up
-	signal  btnd:  std_logic := '0';  -- button down
-	signal  btnc:  std_logic := '0';  -- button centre
-	signal  btnl:  std_logic := '0';  -- button left
-	signal  btnr:  std_logic := '0';  -- button right
-	signal  sw:    std_logic_vector(7 downto 0) := (others => '0'); -- switches
-	signal  an:    std_logic_vector(3 downto 0) := (others => '0'); -- anodes   8 segment display
-	signal  ka:    std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 8 segment display
-	signal  ld:    std_logic_vector(7 downto 0) := (others => '0'); -- leds
+	signal btnu:  std_logic := '0';  -- button up
+	signal btnd:  std_logic := '0';  -- button down
+	signal btnc:  std_logic := '0';  -- button centre
+	signal btnl:  std_logic := '0';  -- button left
+	signal btnr:  std_logic := '0';  -- button right
+	signal sw:    std_logic_vector(7 downto 0) := (others => '0'); -- switches
+	signal an:    std_logic_vector(3 downto 0) := (others => '0'); -- anodes   8 segment display
+	signal ka:    std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 8 segment display
+	signal ld:    std_logic_vector(7 downto 0) := (others => '0'); -- leds
 
 	-- UART
-	signal  rx:    std_logic := '0'; 
-	signal  tx:    std_logic := '0';
+	signal rx:    std_logic := '0'; 
+	signal tx:    std_logic := '0';
 
 	-- VGA
-	signal  o_vga: vga_physical_interface;
+	signal o_vga: vga_physical_interface;
 
 	-- HID
-	signal  ps2_keyboard_data: std_logic := '0';
-	signal  ps2_keyboard_clk:  std_logic := '0';
+	signal ps2_keyboard_data: std_logic := '0';
+	signal ps2_keyboard_clk:  std_logic := '0';
+
+	signal uart_fifo_rx_data:         std_logic_vector(7 downto 0);
+	signal uart_fifo_rx_fifo_empty:   std_logic;
+	signal uart_fifo_rx_fifo_full:    std_logic;
+	signal uart_fifo_rx_re:           std_logic;
+	signal uart_fifo_tx_data:         std_logic_vector(7 downto 0);
+	signal uart_fifo_tx_fifo_full:    std_logic;
+	signal uart_fifo_tx_fifo_empty:   std_logic;
+	signal uart_fifo_tx_we:           std_logic;
+	signal uart_fifo_tx:              std_logic;
 
 begin
 ---- Units under test ----------------------------------------------------------
@@ -105,8 +116,26 @@ begin
 	-- @note a more advanced test bench would send out a string and expect
 	-- the same one back using a loopback circuit. For the moment this
 	-- is just used for testing the SoC.
-	uut_uart: entity work.uart generic map(baud_rate => uart_baud_rate, clock_frequency => clock_frequency) 
+	uut_uart: work.uart_pkg.uart_core generic map(baud_rate => uart_baud_rate, clock_frequency => clock_frequency) 
 	port map(clk => clk, rst => rst, data_stream_in => x"AA", data_stream_in_stb => '1', tx => rx, rx => tx, data_stream_out_ack => '0');
+
+	uut_uart_fifo: work.uart_pkg.uart_top
+	generic map(
+		baud_rate => uart_baud_rate, 
+		clock_frequency => clock_frequency) 
+	port map(
+		clk            =>  clk,
+		rst            =>  rst,
+		rx_data        =>  uart_fifo_rx_data,
+		rx_fifo_empty  =>  uart_fifo_rx_fifo_empty,
+		rx_fifo_full   =>  uart_fifo_rx_fifo_full,
+		rx_re          =>  uart_fifo_rx_re,
+		tx_data        =>  uart_fifo_tx_data,
+		tx_fifo_full   =>  uart_fifo_tx_fifo_full,
+		tx_fifo_empty  =>  uart_fifo_tx_fifo_empty,
+		tx_we          =>  uart_fifo_tx_we,
+		tx             =>  uart_fifo_tx,
+		rx             =>  tx);
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
