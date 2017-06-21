@@ -19,14 +19,11 @@ SOURCES = \
 	bram.vhd \
 	uart.vhd \
 	debounce.vhd \
-	ps2kbd.vhd \
-	ps2top.vhd \
+	kbd.vhd \
 	vga.vhd \
 	irqh.vhd \
 	h2.vhd \
 	cpu.vhd \
-	ctrm.vhd \
-	losr.vhd \
 	ledseg.vhd 
 
 OBJECTS = ${SOURCES:.vhd=.o}
@@ -79,11 +76,10 @@ run: h2 h2.fth
 
 irqh.o: util.o
 ledseg.o: util.o
-vga.o: bram.o losr.o ctrm.o vga.vhd text.bin font.bin
-ps2kbd.o: ps2kbd.vhd debounce.o
-ps2top.o: ps2top.vhd ps2kbd.o debounce.o
+vga.o: bram.o vga.vhd text.bin font.bin
+kbd.o: kbd.vhd debounce.o
 cpu.o: util.o h2.o irqh.o bram.o cpu.vhd h2.hex
-top.o: util.o timer.o cpu.o uart.o vga.o ps2top.o ledseg.o top.vhd 
+top.o: util.o timer.o cpu.o uart.o vga.o kbd.o ledseg.o top.vhd 
 tb.o: top.o tb.vhd
 
 tb: ${OBJECTS} tb.o
@@ -215,6 +211,6 @@ clean:
 	      top.unroutes top.xpi top_par.xrpt top.twx top.nlf design.bit top_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf h2
+	@rm -vrf h2 hack
 	@rm -vf usage_statistics_webtalk.html
 	@rm -vf mem_h2.binary mem_h2.hexadecimal

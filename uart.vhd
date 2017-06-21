@@ -108,13 +108,12 @@ begin
 	-- rate dictated by the baud_rate. for example, if 115200 baud is selected
 	-- (115200 baud = 115200 bps - 115.2kbps) a tick must be generated once
 	-- every 1/115200
-	tx_clk_divider: process (clk)
+	tx_clk_divider: process (clk, rst)
 	begin
-		if rising_edge (clk) then
-			if rst = '1' then
-					baud_counter <= 0;
-					baud_tick    <= '0';
-			else
+		if rst = '1' then
+			baud_counter <= 0;
+			baud_tick    <= '0';
+		elsif rising_edge (clk) then
 				if baud_counter = c_tx_divider_val then
 					baud_counter <= 0;
 					baud_tick    <= '1';
@@ -122,126 +121,117 @@ begin
 					baud_counter <= baud_counter + 1;
 					baud_tick    <= '0';
 				end if;
-			end if;
 		end if;
 	end process;
 
 	-- get data from data_stream_in and send it one bit at a time
 	-- upon each baud tick. lsb first.
 	-- wait 1 tick, send start bit (0), send data 0-7, send stop bit (1)
-	uart_send_data:	process(clk)
+	uart_send_data:	process(clk, rst)
 	begin
-		if rising_edge(clk) then
-			if rst = '1' then
-				uart_tx_data        <= '1';
-				uart_tx_data_block  <= (others => '0');
-				uart_tx_count       <= 0;
-				uart_tx_state       <= idle;
-				uart_rx_data_in_ack <= '0';
-			else
-				uart_rx_data_in_ack <= '0';
-				case uart_tx_state is
-				when idle =>
-					if data_stream_in_stb = '1' then
-						uart_tx_data_block  <= data_stream_in;
-						uart_rx_data_in_ack <= '1';
-						uart_tx_state       <= wait_for_tick;
-					end if;
-				when wait_for_tick =>
-					if baud_tick = '1' then
-						uart_tx_state	 <= send_start_bit;
-					end if;
-				when send_start_bit =>
-					if baud_tick = '1' then
-						uart_tx_data  <= '0';
-						uart_tx_state <= transmit_data;
+		if rst = '1' then 
+			uart_tx_data        <= '1';
+			uart_tx_data_block  <= (others => '0');
+			uart_tx_count       <= 0;
+			uart_tx_state       <= idle;
+			uart_rx_data_in_ack <= '0';
+		elsif rising_edge(clk) then
+			uart_rx_data_in_ack <= '0';
+			case uart_tx_state is
+			when idle =>
+				if data_stream_in_stb = '1' then
+					uart_tx_data_block  <= data_stream_in;
+					uart_rx_data_in_ack <= '1';
+					uart_tx_state       <= wait_for_tick;
+				end if;
+			when wait_for_tick =>
+				if baud_tick = '1' then
+					uart_tx_state	 <= send_start_bit;
+				end if;
+			when send_start_bit =>
+				if baud_tick = '1' then
+					uart_tx_data  <= '0';
+					uart_tx_state <= transmit_data;
+					uart_tx_count <= 0;
+				end if;
+			when transmit_data =>
+				if baud_tick = '1' then
+					if uart_tx_count < uart_tx_count_max then
+						uart_tx_data  <= uart_tx_data_block(uart_tx_count);
+						uart_tx_count <= uart_tx_count + 1;
+					else
+						uart_tx_data  <= uart_tx_data_block(7);
 						uart_tx_count <= 0;
+						uart_tx_state <= send_stop_bit;
 					end if;
-				when transmit_data =>
-					if baud_tick = '1' then
-						if uart_tx_count < uart_tx_count_max then
-							uart_tx_data  <= uart_tx_data_block(uart_tx_count);
-							uart_tx_count <= uart_tx_count + 1;
-						else
-							uart_tx_data  <= uart_tx_data_block(7);
-							uart_tx_count <= 0;
-							uart_tx_state <= send_stop_bit;
-						end if;
-					end if;
-				when send_stop_bit =>
-					if baud_tick = '1' then
-						uart_tx_data <= '1';
-						uart_tx_state <= idle;
-					end if;
-				when others =>
+				end if;
+			when send_stop_bit =>
+				if baud_tick = '1' then
 					uart_tx_data <= '1';
 					uart_tx_state <= idle;
-				end case;
-			end if;
+				end if;
+			when others =>
+				uart_tx_data <= '1';
+				uart_tx_state <= idle;
+			end case;
 		end if;
 	end process;
 
 	-- generate an oversampled tick (baud * 16)
-	oversample_clk_divider: process (clk)
+	oversample_clk_divider: process (clk, rst)
 	begin
-		if rising_edge (clk) then
-			if rst = '1' then
-				oversample_baud_counter <= 0;
-				oversample_baud_tick    <= '0';
-			else
-				if oversample_baud_counter = c_rx_divider_val then
+		if rst = '1' then
+			oversample_baud_counter <= 0;
+			oversample_baud_tick    <= '0';
+		elsif rising_edge (clk) then
+			if oversample_baud_counter = c_rx_divider_val then
 				oversample_baud_counter <= 0;
 				oversample_baud_tick    <= '1';
-				else
+			else
 				oversample_baud_counter <= oversample_baud_counter + 1;
 				oversample_baud_tick    <= '0';
-				end if;
 			end if;
 		end if;
 	end process;
 
 	-- synchronise rxd to the oversampled baud
-	rxd_synchronise: process(clk)
+	rxd_synchronise: process(clk, rst)
 	begin
-		if rising_edge(clk) then
-			if rst = '1' then
-				uart_rx_data_vec <= (others => '1');
-			else
-				if oversample_baud_tick = '1' then
-					uart_rx_data_vec(0) <= rx;
-					uart_rx_data_vec(1) <= uart_rx_data_vec(0);
-				end if;
+		if rst = '1' then
+			uart_rx_data_vec <= (others => '0');
+		elsif rising_edge(clk) then
+			if oversample_baud_tick = '1' then
+				uart_rx_data_vec(0) <= rx;
+				uart_rx_data_vec(1) <= uart_rx_data_vec(0);
 			end if;
 		end if;
 	end process;
 
 	-- filter rxd with a 2 bit counter.
-	rxd_filter: process(clk)
+	rxd_filter: process(clk, rst)
 	begin
-		if rising_edge(clk) then
-			if rst = '1' then
-				uart_rx_filter <= (others => '1');
-				uart_rx_bit <= '1';
-			else
-				if oversample_baud_tick = '1' then
-					-- filter rxd.
-					if uart_rx_data_vec(1) = '1' and uart_rx_filter < 3 then
-						uart_rx_filter <= uart_rx_filter + 1;
-					elsif uart_rx_data_vec(1) = '0' and uart_rx_filter > 0 then
-						uart_rx_filter <= uart_rx_filter - 1;
-					end if;
-					-- set the rx bit.
-					if uart_rx_filter = 3 then
-						uart_rx_bit <= '1';
-					elsif uart_rx_filter = 0 then
-						uart_rx_bit <= '0';
-					end if;
+		if rst = '1' then
+			uart_rx_filter <= (others => '1');
+			uart_rx_bit <= '1';
+		elsif rising_edge(clk) then
+			if oversample_baud_tick = '1' then
+				-- filter rxd.
+				if uart_rx_data_vec(1) = '1' and uart_rx_filter < 3 then
+					uart_rx_filter <= uart_rx_filter + 1;
+				elsif uart_rx_data_vec(1) = '0' and uart_rx_filter > 0 then
+					uart_rx_filter <= uart_rx_filter - 1;
+				end if;
+				-- set the rx bit.
+				if uart_rx_filter = 3 then
+					uart_rx_bit <= '1';
+				elsif uart_rx_filter = 0 then
+					uart_rx_bit <= '0';
 				end if;
 			end if;
 		end if;
 	end process;
 
-	rx_bit_spacing: process (clk)
+	rx_bit_spacing: process (clk, rst)
 	begin
 		if rising_edge(clk) then
 			uart_rx_bit_tick <= '0';
@@ -259,50 +249,48 @@ begin
 		end if;
 	end process;
 
-	uart_receive_data : process(clk)
+	uart_receive_data: process(clk, rst)
 	begin
-		if rising_edge(clk) then
-			if rst = '1' then
-				uart_rx_state        <= rx_get_start_bit;
-				uart_rx_data_block   <= (others => '0');
-				uart_rx_count        <= 0;
-				uart_rx_data_out_stb <= '0';
-			else
-				case uart_rx_state is
-				when rx_get_start_bit =>
-					if oversample_baud_tick = '1' and uart_rx_bit = '0' then
-						uart_rx_state <= rx_get_data;
-					end if;
-				when rx_get_data =>
-					if uart_rx_bit_tick = '1' then
-						if uart_rx_count < uart_rx_count_max then
-							uart_rx_data_block(uart_rx_count) <= uart_rx_bit;
-							uart_rx_count <= uart_rx_count + 1;
-						else
-							uart_rx_data_block(7) <= uart_rx_bit;
-							uart_rx_count <= 0;
-							uart_rx_state <= rx_get_stop_bit;
-						end if;
-					end if;
-				when rx_get_stop_bit =>
-					if uart_rx_bit_tick = '1' then
-						if uart_rx_bit = '1' then
-							uart_rx_state        <= rx_send_block;
-							uart_rx_data_out_stb <= '1';
-						end if;
-					end if;
-				when rx_send_block =>
-					if data_stream_out_ack = '1' then
-						uart_rx_data_out_stb <= '0';
-						uart_rx_data_block   <= (others => '0');
-						uart_rx_state        <= rx_get_start_bit;
+		if rst = '1' then
+			uart_rx_state        <= rx_get_start_bit;
+			uart_rx_data_block   <= (others => '0');
+			uart_rx_count        <= 0;
+			uart_rx_data_out_stb <= '0';
+		elsif rising_edge(clk) then
+			case uart_rx_state is
+			when rx_get_start_bit =>
+				if oversample_baud_tick = '1' and uart_rx_bit = '0' then
+					uart_rx_state <= rx_get_data;
+				end if;
+			when rx_get_data =>
+				if uart_rx_bit_tick = '1' then
+					if uart_rx_count < uart_rx_count_max then
+						uart_rx_data_block(uart_rx_count) <= uart_rx_bit;
+						uart_rx_count <= uart_rx_count + 1;
 					else
-						uart_rx_data_out_stb  <= '1';
+						uart_rx_data_block(7) <= uart_rx_bit;
+						uart_rx_count <= 0;
+						uart_rx_state <= rx_get_stop_bit;
 					end if;
-				when others =>
-					uart_rx_state <= rx_get_start_bit;
-				end case;
-			end if;
+				end if;
+			when rx_get_stop_bit =>
+				if uart_rx_bit_tick = '1' then
+					if uart_rx_bit = '1' then
+						uart_rx_state        <= rx_send_block;
+						uart_rx_data_out_stb <= '1';
+					end if;
+				end if;
+			when rx_send_block =>
+				if data_stream_out_ack = '1' then
+					uart_rx_data_out_stb <= '0';
+					uart_rx_data_block   <= (others => '0');
+					uart_rx_state        <= rx_get_start_bit;
+				else
+					uart_rx_data_out_stb  <= '1';
+				end if;
+			when others =>
+				uart_rx_state <= rx_get_start_bit;
+			end case;
 		end if;
 	end process;
 end;

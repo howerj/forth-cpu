@@ -1,7 +1,6 @@
 -------------------------------------------------------------------------------
 --| @file vga.vhd
---| @brief VGA top level
---| @brief      Monochrome Text Mode Video Controller VHDL Macro.
+--| @brief      Monochrome Text Mode Video Controller VHDL Module
 --| @author     Javier Valcarce Garc�a
 --| @copyright  Copyright 2007 Javier Valcarce Garc�a
 --| @license    LGPL version 3
@@ -97,6 +96,29 @@ package vga_pkg is
 		B:        out std_logic;
 		hsync:    out std_logic;
 		vsync:    out std_logic);
+	end component;
+
+	component losr is
+	generic (N : integer := 4);
+	port
+	(
+		rst:  in  std_logic;
+		clk:  in  std_logic;
+		load: in  std_logic;
+		ce:   in  std_logic;
+		do:   out std_logic := '0';
+		di:   in  std_logic_vector(N - 1 downto 0));
+	end component;
+
+	component ctrm is
+		generic (M : integer := 8);
+		port (
+			rst: in  std_logic; -- asynchronous rst
+			clk: in  std_logic;
+			ce:  in  std_logic; -- enable counting
+			rs:  in  std_logic; -- synchronous rst
+			do:  out integer range (M-1) downto 0 := 0
+		);
 	end component;
 
 end package;
@@ -280,6 +302,9 @@ end architecture;
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.vga_pkg.ctrm;
+use work.vga_pkg.losr;
+
 
 entity vga_core is
 	port (
@@ -423,18 +448,18 @@ begin
 
 	begin
 	
-		u_hctr: entity work.ctrm generic map (M => 794) port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
-		u_vctr: entity work.ctrm generic map (M => 525) port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
+		u_hctr: work.vga_pkg.ctrm generic map (M => 794) port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
+		u_vctr: work.vga_pkg.ctrm generic map (M => 525) port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
 
 		hctr_ce <= '1';
 		hctr_rs <= '1' when hctr = 793 else '0';
 		vctr_ce <= '1' when hctr = 663 else '0';
 		vctr_rs <= '1' when vctr = 524 else '0';
 
-		u_chrx: entity work.ctrm generic map (M => 8)  port map (rst, clk25MHz, chrx_ce, chrx_rs, chrx);
-		u_chry: entity work.ctrm generic map (M => 12) port map (rst, clk25MHz, chry_ce, chry_rs, chry);
-		u_scrx: entity work.ctrm generic map (M => 80) port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx);
-		u_scry: entity work.ctrm generic map (M => 40) port map (rst, clk25MHz, scry_ce, scry_rs, scry);
+		u_chrx: work.vga_pkg.ctrm generic map (M => 8)  port map (rst, clk25MHz, chrx_ce, chrx_rs, chrx);
+		u_chry: work.vga_pkg.ctrm generic map (M => 12) port map (rst, clk25MHz, chry_ce, chry_rs, chry);
+		u_scrx: work.vga_pkg.ctrm generic map (M => 80) port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx);
+		u_scry: work.vga_pkg.ctrm generic map (M => 40) port map (rst, clk25MHz, scry_ce, scry_rs, scry);
 
 		hctr_639 <= '1' when hctr = 639 else '0';
 		vctr_479 <= '1' when vctr = 479 else '0';
@@ -463,7 +488,7 @@ begin
 
 	end block;
 
-	u_losr: entity work.losr generic map (N => 8)
+	u_losr: work.vga_pkg.losr generic map (N => 8)
 	port map (rst, clk25MHz, losr_ld, losr_ce, losr_do, FONT_D);
 
 	losr_ce <= blank;
@@ -509,3 +534,92 @@ begin
 	
 end;
 ----- VGA Core ----------------------------------------------------------------
+-------------------------------------------------------------------------------
+--| @file ctrm.vhd
+--| @brief Counter, asynchronous *and* synchronous reset, up only.
+--|        (ctrm.vhd, original filename)
+--| @author         Javier Valcarce García
+--| @copyright      Copyright 2007 Javier Valcarce García
+--| @license        LGPL version 3
+--| @email          javier.valcarce@gmail.com
+-------------------------------------------------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity ctrm is
+	generic (M : integer := 8);
+	port (
+		rst: in  std_logic; -- asynchronous rst
+		clk: in  std_logic;
+		ce:  in  std_logic; -- enable counting
+		rs:  in  std_logic; -- synchronous rst
+		do:  out integer range (M-1) downto 0 := 0
+	);
+end ctrm;
+
+architecture rtl of ctrm is
+	signal c : integer range (M-1) downto 0:= 0;
+begin
+	do <= c;
+	process(rst, clk)
+	begin
+		if rst = '1' then
+			c <= 0;
+		elsif rising_edge(clk) then
+			if ce = '1' then
+				if rs = '1' then
+					c <= 0;
+				else
+					c <= c + 1;
+				end if;
+			end if;
+		end if;
+	end process;
+end;
+
+-------------------------------------------------------------------------------
+--| @file util.vhd
+--| @brief Shift register N-bit, asynchronous reset, synchronous load,
+--|        and enable
+--| @author         Javier Valcarce García
+--| @copyright      Copyright 2007 Javier Valcarce García
+--| @license        LGPL version 3
+--| @email          javier.valcarce@gmail.com
+-------------------------------------------------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity losr is
+	generic (N : integer := 4);
+	port
+	(
+		rst:  in  std_logic;
+		clk:  in  std_logic;
+		load: in  std_logic;
+		ce:   in  std_logic;
+		do:   out std_logic := '0';
+		di:   in  std_logic_vector(N - 1 downto 0));
+end losr;
+
+architecture rtl of losr is
+begin
+
+	process(rst, clk)
+		variable data : std_logic_vector(N - 1 downto 0) := (others => '0');
+	begin
+		if rst = '1' then
+			data := (others => '0');
+		elsif rising_edge(clk) then
+			if load = '1' then
+				data := di;
+			elsif ce = '1' then
+				data := data(N-2 downto 0) & "0";
+			end if;
+		end if;
+
+		do <= data(N-1);
+	end process;
+end;
+

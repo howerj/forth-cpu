@@ -16,6 +16,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.cpu_pkg.all;
 use work.vga_pkg.all;
+use work.kbd_pkg.ps2_kbd_top;
 
 entity top is
 	generic(
@@ -483,7 +484,7 @@ begin
 		sin    => kbd_new,
 		output => kbd_new_edge);
 
-	ps2_0: entity work.ps2top
+	ps2_0: work.kbd_pkg.ps2_kbd_top
 	generic map(
 		clock_frequency => clock_frequency,
 		ps2_debounce_counter_size => 8)

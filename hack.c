@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 		}
 
 		if (c1 != c2)
-			fprintf(stderr, "error: transmitted '%d' got back '%d'", c1, c2);
+			fprintf(stderr, "error: transmitted '%d' got back '%d'\n", c1, c2);
 
 		write(2, &c1, 1);
 	}
