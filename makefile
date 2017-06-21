@@ -79,6 +79,7 @@ ledseg.o: util.o
 vga.o: bram.o vga.vhd text.bin font.bin
 kbd.o: kbd.vhd debounce.o
 cpu.o: util.o h2.o irqh.o bram.o cpu.vhd h2.hex
+uart.o: util.o uart.vhd
 top.o: util.o timer.o cpu.o uart.o vga.o kbd.o ledseg.o top.vhd 
 tb.o: top.o tb.vhd
 

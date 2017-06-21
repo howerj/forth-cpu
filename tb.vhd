@@ -33,7 +33,7 @@ architecture testing of tb is
 	constant clock_frequency:      positive := 100_000_000;
 	constant number_of_interrupts: positive := 8;
 	constant uart_baud_rate:       positive := 115200;
-	constant number_of_iterations: positive := 100000;
+	constant number_of_iterations: positive := 200000;
 	constant report_number:        positive := 256;
 
 	constant clk_period: time   :=  1000 ms / clock_frequency;
@@ -68,16 +68,16 @@ architecture testing of tb is
 	signal ps2_keyboard_data: std_logic := '0';
 	signal ps2_keyboard_clk:  std_logic := '0';
 
-	signal uart_fifo_rx_data:         std_logic_vector(7 downto 0);
-	signal uart_fifo_rx_fifo_empty:   std_logic;
-	signal uart_fifo_rx_fifo_full:    std_logic;
-	signal uart_fifo_rx_re:           std_logic;
-	signal uart_fifo_tx_data:         std_logic_vector(7 downto 0);
-	signal uart_fifo_tx_fifo_full:    std_logic;
-	signal uart_fifo_tx_fifo_empty:   std_logic;
-	signal uart_fifo_tx_we:           std_logic;
-	signal uart_fifo_tx:              std_logic;
+	signal uart_fifo_rx_data:         std_logic_vector(7 downto 0) := (others => '0');
+	signal uart_fifo_rx_fifo_empty:   std_logic := '0';
+	signal uart_fifo_rx_fifo_full:    std_logic := '0';
+	signal uart_fifo_rx_data_re:      std_logic := '0';
+	signal uart_fifo_tx_fifo_full:    std_logic := '0';
+	signal uart_fifo_tx_fifo_empty:   std_logic := '0';
+	signal uart_fifo_tx_data_we:      std_logic := '0';
+	signal uart_fifo_tx:              std_logic := '0';
 
+	signal uart_fifo_rx_fifo_not_empty:   std_logic := '0';
 begin
 ---- Units under test ----------------------------------------------------------
 
@@ -119,6 +119,8 @@ begin
 	uut_uart: work.uart_pkg.uart_core generic map(baud_rate => uart_baud_rate, clock_frequency => clock_frequency) 
 	port map(clk => clk, rst => rst, data_stream_in => x"AA", data_stream_in_stb => '1', tx => rx, rx => tx, data_stream_out_ack => '0');
 
+
+	uart_fifo_rx_fifo_not_empty <= not uart_fifo_rx_fifo_empty;
 	uut_uart_fifo: work.uart_pkg.uart_top
 	generic map(
 		baud_rate => uart_baud_rate, 
@@ -129,11 +131,11 @@ begin
 		rx_data        =>  uart_fifo_rx_data,
 		rx_fifo_empty  =>  uart_fifo_rx_fifo_empty,
 		rx_fifo_full   =>  uart_fifo_rx_fifo_full,
-		rx_re          =>  uart_fifo_rx_re,
-		tx_data        =>  uart_fifo_tx_data,
+		rx_data_re     =>  uart_fifo_rx_fifo_not_empty,
+		tx_data        =>  uart_fifo_rx_data,
 		tx_fifo_full   =>  uart_fifo_tx_fifo_full,
 		tx_fifo_empty  =>  uart_fifo_tx_fifo_empty,
-		tx_we          =>  uart_fifo_tx_we,
+		tx_data_we     =>  uart_fifo_rx_fifo_not_empty,
 		tx             =>  uart_fifo_tx,
 		rx             =>  tx);
 

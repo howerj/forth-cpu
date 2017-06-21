@@ -134,8 +134,8 @@ package util is
 			we:    in  std_logic;
 			re:    in  std_logic;
 			do:    out std_logic_vector(data_width - 1 downto 0);
-			full:  out std_logic;
-			empty: out std_logic);
+			full:  out std_logic := '0';
+			empty: out std_logic := '1');
 	end component;
 
 	component fifo_tb is
@@ -752,8 +752,8 @@ entity fifo is
 		din:   in  std_logic_vector (data_width - 1 downto 0);
 		re:    in  std_logic;
 		do:    out std_logic_vector (data_width - 1 downto 0);
-		empty: out std_logic;
-		full:  out std_logic);
+		empty: out std_logic := '1';
+		full:  out std_logic := '0');
 end fifo;
 
 architecture behavioral of fifo is
@@ -849,9 +849,9 @@ architecture behavior of fifo_tb is
 	signal we: std_logic := '0';
 	
 	--outputs
-	signal do: std_logic_vector(data_width - 1 downto 0);
-	signal empty: std_logic;
-	signal full: std_logic;
+	signal do: std_logic_vector(data_width - 1 downto 0) := (others => '0');
+	signal empty: std_logic := '0';
+	signal full: std_logic  := '0';
 	
 begin
 

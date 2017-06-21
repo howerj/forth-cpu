@@ -43,12 +43,12 @@ package uart_pkg is
 		rx_data:             out     std_logic_vector(7 downto 0);
 		rx_fifo_empty:       out     std_logic;
 		rx_fifo_full:        out     std_logic;
-		rx_re:               in      std_logic;
+		rx_data_re:          in      std_logic;
 
 		tx_data:             in      std_logic_vector(7 downto 0);
 		tx_fifo_full:        out     std_logic;
 		tx_fifo_empty:       out     std_logic;
-		tx_we:               in      std_logic;
+		tx_data_we:          in      std_logic;
 
 		tx:                  out     std_logic;
 		rx:                  in      std_logic);
@@ -89,12 +89,12 @@ entity uart_top is
 		rx_data:             out     std_logic_vector(7 downto 0);
 		rx_fifo_empty:       out     std_logic;
 		rx_fifo_full:        out     std_logic;
-		rx_re:               in      std_logic;
+		rx_data_re:          in      std_logic;
 
 		tx_data:             in      std_logic_vector(7 downto 0);
 		tx_fifo_full:        out     std_logic;
 		tx_fifo_empty:       out     std_logic;
-		tx_we:               in      std_logic;
+		tx_data_we:          in      std_logic;
 
 		tx:                  out     std_logic;
 		rx:                  in      std_logic);
@@ -110,6 +110,8 @@ architecture behav of uart_top is
 	signal data_stream_out_stb: std_logic := '0';
 	signal data_stream_out_ack: std_logic := '0';
 
+	signal tx_fifo_re:             std_logic := '0';
+	signal tx_fifo_empty_internal: std_logic := '1';
 begin
 	uart_deglitch: process (clk)
 	begin
@@ -129,7 +131,7 @@ begin
 -- 			rst   => rst, 
 -- 			din   => data_stream_out, 
 -- 			we    => data_stream_out_stb, 
--- 			re    => rx_re, 
+-- 			re    => rx_data_re, 
 -- 			do    => rx_data, 
 -- 			full  => rx_fifo_full, 
 -- 			empty => rx_fifo_empty);
@@ -145,17 +147,42 @@ begin
 			rst   => rst, 
 			din   => data_stream_out, 
 			we    => data_stream_out_stb, 
-			re    => rx_re, 
+			re    => rx_data_re, 
 			do    => rx_data, 
 			full  => rx_fifo_full, 
 			empty => rx_fifo_empty);
 
+	tx_fifo: work.util.fifo 
+		generic map (
+			data_width => 8, 
+			fifo_depth => 8)
+		port map(
+			clk   => clk, 
+			rst   => rst, 
+			din   => tx_data,
+			we    => tx_data_we, 
+			re    => tx_fifo_re,
+			do    => data_stream_in,
+			full  => tx_fifo_full,
+			empty => tx_fifo_empty_internal);
+
+	tx_fifo_empty <= tx_fifo_empty_internal;
+
+
 	process(clk) 
 	begin
 		if rising_edge(clk) then
-			data_stream_in_ack <= '0';
+			data_stream_out_ack <= '0';
+			data_stream_in_stb  <= '0';
+			tx_fifo_re          <= '0';
+
 			if data_stream_out_stb = '1' then
-				data_stream_in_ack <= '1';
+				data_stream_out_ack <= '1';
+			end if;
+
+			if tx_fifo_empty_internal = '0' then
+				data_stream_in_stb <= '1';
+				tx_fifo_re         <= '1';
 			end if;
 		end if;
 	end process;
