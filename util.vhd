@@ -2,7 +2,7 @@
 --| @file util.vhd
 --| @brief A collection of utilities and simple components. The components
 --| should be synthesizable, and the functions can be used within synthesizable
---| components.
+--| components, unless marked with a "_tb" suffix.
 --| @author         Richard James Howe
 --| @copyright      Copyright 2017 Richard James Howe
 --| @license        MIT
@@ -11,24 +11,14 @@
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
 --| vice versa), pulse generator, small RAM model, LIFO, population count
 --| priority encoder, types, and other generic functions and components.
---| @todo Consolidate all test benches into one util test bench
---| @note If this file grows large enough it could be span off in to its
---| own library - released under the MIT license. The components should be
---| as generic as possible, and how they are implemented could be selected
---| with generics (eg. Combinatorial or sequential), as well as their
---| parameters such as input and output length.
---| 
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use std.textio.all;
 
 package util is
 	
-	type std_component is record 
-		clk: std_logic;
-		rst: std_logic;
-	end record;
 
 	component reg
 	generic(N: positive);
@@ -158,7 +148,21 @@ package util is
 	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector;
 	function mux(a: std_logic; b: std_logic; sel: std_logic) return std_logic;
 	function mux(a, b : std_logic_vector) return std_logic;
-	function decode(encoded : std_logic_vector) return std_logic_vector;
+	function decode(encoded: std_logic_vector) return std_logic_vector;
+
+	--- Not synthesizable ---
+
+	subtype configuration_name is string(1 to 8);
+
+	type configuration_item is record 
+		name:  configuration_name;
+		value: integer;
+	end record;
+
+	type configuration_items is array(integer range <>) of configuration_item;
+
+	procedure read_configuration_tb(file_name: string; ci: inout configuration_items);
+	procedure write_configuration_tb(file_name: string; ci: configuration_items);
 
 end;
 
@@ -284,6 +288,50 @@ package body util is
 		r(i) := '1';
 		return r;
 	end;
+
+
+	--- Not synthesizable ---
+
+	-- @bug This read function is very crude at the moment, it expects
+	-- configuration items in order nor does it check for end of file conditions.
+	--
+	-- VHDL provides quite a limited set of options for dealing with
+	-- operations that are not synthesizeable but would be useful for
+	-- in test benches. This method provides a crude way of reading
+	-- in configurable options. It has a very strict format.
+	--
+	procedure read_configuration_tb(file_name: string; ci: inout configuration_items) is
+		file     in_file: text is in file_name;
+		variable in_line: line;
+		variable d:       integer;
+		variable s:       configuration_name;
+	begin
+		for i in ci'range loop
+			readline(in_file, in_line);
+			read(in_line, s);
+			assert s = ci(i).name 
+				report "Configuration Expected: " & ci(i).name & " Got:" & s 
+				severity failure;
+			readline(in_file, in_line);
+			read(in_line, d);
+
+			ci(i).value := d;
+
+			report "Config Item: '" & ci(i).name & "' = " & integer'image(ci(i).value);
+		end loop;
+	end procedure;
+
+	procedure write_configuration_tb(file_name: string; ci: configuration_items) is
+		file     out_file: text is out file_name;
+		variable out_line: line;
+	begin 
+		for i in ci'range loop
+			write(out_line, ci(i).name);
+			writeline(out_file, out_line);
+			write(out_line, ci(i).value);
+			writeline(out_file, out_line);
+		end loop;
+	end procedure;
 
 end;
 

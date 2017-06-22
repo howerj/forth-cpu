@@ -3,14 +3,15 @@
 --| @brief Main test bench.
 --|
 --| @author         Richard James Howe.
---| @copyright      Copyright 2013 Richard James Howe.
+--| @copyright      Copyright 2013,2017 Richard James Howe.
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
---| @todo Optionally read expected inputs and commands from a file, which
---| should include options for: Clock jitter, list of signals to log, number
---| of iterations to run for and number of iterations to log, amount of jitter,
---| baud rate and clock frequency.
+--| This test bench does quite a lot. It is not like normal VHDL test benches
+--| in the fact that it uses configurable variables that it read in from a
+--| file, which it does in an awkward but usable fashion.
+--|
+--| It also tests multiple modules.
 --|
 -------------------------------------------------------------------------------
 
@@ -19,11 +20,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
 use std.textio.all;
-use work.util.shift_register_tb;
-use work.util.timer_us_tb;
-use work.util.full_adder_tb;
-use work.util.function_tb;
-use work.util.fifo_tb;
+use work.util.all;
 use work.cpu_pkg.all;
 use work.vga_pkg.all;
 use work.uart_pkg.uart_core;
@@ -32,11 +29,29 @@ entity tb is
 end tb;
 
 architecture testing of tb is
-	constant clock_frequency:      positive := 100_000_000;
-	constant number_of_interrupts: positive := 8;
-	constant uart_baud_rate:       positive := 115200;
-	constant number_of_iterations: positive := 10000;
-	constant report_number:        positive := 256;
+	constant clock_frequency:         positive := 100_000_000;
+	constant number_of_interrupts:    positive := 8;
+	constant uart_baud_rate:          positive := 115200;
+	constant configuration_file_name: string   := "tb.cfg";
+
+	-- Test bench configurable options --
+
+	type configurable_items is record
+		number_of_iterations: positive;
+		report_number:        positive;
+	end record;
+
+	function set_configuration_items(ci: configuration_items) return configurable_items is
+		variable r: configurable_items;
+	begin
+		r.number_of_iterations := ci(0).value;
+		r.report_number        := ci(1).value;
+		return r;
+	end function;
+
+	constant configuration_default: configuration_items(0 to 1) := (
+		(name => "Cycles  ", value => 1000),
+		(name => "LogFor  ", value => 256));
 
 	constant clk_period: time   :=  1000 ms / clock_frequency;
 
@@ -85,6 +100,7 @@ architecture testing of tb is
 
 	-- Wave form generator
 	signal gen_dout:     std_logic_vector(15 downto 0) := (others => '0');
+
 begin
 ---- Units under test ----------------------------------------------------------
 
@@ -223,16 +239,25 @@ begin
 			element(l, "dout",  debug.dout);
 			return l;
 		end reportln;
+
+		variable configuration_values: configuration_items(configuration_default'range) := configuration_default;
+		variable cfg: configurable_items := set_configuration_items(configuration_default);
 	begin
+		-- write_configuration_tb(configuration_file_name, configuration_default);
+		read_configuration_tb(configuration_file_name, configuration_values);
+		cfg := set_configuration_items(configuration_values);
+
+		report "Iterations: " & integer'image(cfg.number_of_iterations);
+
 		rst  <= '1';
 		wait for clk_period * 2;
 		rst  <= '0';
-		for i in 0 to number_of_iterations loop
-			if count < report_number then
+		for i in 0 to cfg.number_of_iterations loop
+			if count < cfg.report_number then
 				w := reportln(debug, count);
 				writeline(OUTPUT, w);
 				count := count + 1;
-			elsif count < report_number + 1 then
+			elsif count < cfg.report_number + 1 then
 				report "Simulation continuing: Reporting turned off";
 				count := count + 1;
 			end if;
