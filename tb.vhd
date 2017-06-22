@@ -33,11 +33,13 @@ architecture testing of tb is
 	constant number_of_interrupts:    positive := 8;
 	constant uart_baud_rate:          positive := 115200;
 	constant configuration_file_name: string   := "tb.cfg";
+	constant clk_period:              time     :=  1000 ms / clock_frequency;
 
 	-- Test bench configurable options --
 
 	type configurable_items is record
 		number_of_iterations: positive;
+		verbose:              boolean;
 		report_number:        positive;
 	end record;
 
@@ -45,15 +47,17 @@ architecture testing of tb is
 		variable r: configurable_items;
 	begin
 		r.number_of_iterations := ci(0).value;
-		r.report_number        := ci(1).value;
+		r.verbose              := ci(1).value > 0;
+		r.report_number        := ci(2).value;
 		return r;
 	end function;
 
-	constant configuration_default: configuration_items(0 to 1) := (
+	constant configuration_default: configuration_items(0 to 2) := (
 		(name => "Cycles  ", value => 1000),
+		(name => "Verbose ", value => 1),
 		(name => "LogFor  ", value => 256));
 
-	constant clk_period: time   :=  1000 ms / clock_frequency;
+	-- Test bench configurable options --
 
 	signal wait_flag: std_logic :=  '0';
 	signal debug:     cpu_debug_interface;
@@ -63,7 +67,7 @@ architecture testing of tb is
 	signal jitter_delay: time := 0 ns;
 	signal rst:          std_logic := '0';
 
---  signal  cpu_wait: std_logic := '0'; -- CPU wait flag
+--	signal  cpu_wait: std_logic := '0'; -- CPU wait flag
 
 	-- Basic I/O
 	signal btnu:  std_logic := '0';  -- button up
@@ -238,7 +242,7 @@ begin
 			element(l, "daddr", debug.daddr);
 			element(l, "dout",  debug.dout);
 			return l;
-		end reportln;
+		end function;
 
 		variable configuration_values: configuration_items(configuration_default'range) := configuration_default;
 		variable cfg: configurable_items := set_configuration_items(configuration_default);
@@ -253,13 +257,15 @@ begin
 		wait for clk_period * 2;
 		rst  <= '0';
 		for i in 0 to cfg.number_of_iterations loop
-			if count < cfg.report_number then
-				w := reportln(debug, count);
-				writeline(OUTPUT, w);
-				count := count + 1;
-			elsif count < cfg.report_number + 1 then
-				report "Simulation continuing: Reporting turned off";
-				count := count + 1;
+			if cfg.verbose then
+				if count < cfg.report_number then
+					w := reportln(debug, count);
+					writeline(OUTPUT, w);
+					count := count + 1;
+				elsif count < cfg.report_number + 1 then
+					report "Simulation continuing: Reporting turned off";
+					count := count + 1;
+				end if;
 			end if;
 			wait for clk_period * 1;
 		end loop;

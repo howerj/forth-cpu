@@ -87,8 +87,8 @@ tb.o: top.o gen.o tb.vhd
 tb: ${OBJECTS} tb.o
 	ghdl -e tb
 
-%.ghw: %
-	ghdl -r $^ --wave=$^.ghw
+%.ghw: % %.cfg
+	ghdl -r $< --wave=$<.ghw
 
 simulation: tb.ghw h2
 

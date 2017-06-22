@@ -161,6 +161,7 @@ package util is
 
 	type configuration_items is array(integer range <>) of configuration_item;
 
+	function search_configuration_tb(find_me: configuration_name; ci: configuration_items) return integer;
 	procedure read_configuration_tb(file_name: string; ci: inout configuration_items);
 	procedure write_configuration_tb(file_name: string; ci: configuration_items);
 
@@ -292,32 +293,60 @@ package body util is
 
 	--- Not synthesizable ---
 
-	-- @bug This read function is very crude at the moment, it expects
-	-- configuration items in order nor does it check for end of file conditions.
-	--
+	-- Find a string in a configuration items array, or returns -1 on
+	-- failure to find the string.
+	function search_configuration_tb(find_me: configuration_name; ci: configuration_items) return integer is
+	begin
+		for i in ci'range loop
+			if ci(i).name = find_me then
+				return i;
+			end if;
+		end loop;
+		return -1;
+	end function;
+
+
 	-- VHDL provides quite a limited set of options for dealing with
 	-- operations that are not synthesizeable but would be useful for
 	-- in test benches. This method provides a crude way of reading
 	-- in configurable options. It has a very strict format.
+	--
+	-- The format is line oriented, it expects a string on a line
+	-- with a length equal to the "configuration_name" type, which
+	-- is a subtype of "string". It finds the corresponding record
+	-- in configuration_items if it exists. It then reads in an
+	-- integer from the next line and sets the record for it.
+	--
+	-- Any deviation from this format causes an error.
+	--
+	-- Comment lines and variable length strings would be nice, but
+	-- are too much of a hassle.
+	--
+	-- The configuration function only deal with part of the configuration
+	-- process, it does not deal with deserialization into structures
+	-- more useful to the user - like into individual signals.
 	--
 	procedure read_configuration_tb(file_name: string; ci: inout configuration_items) is
 		file     in_file: text is in file_name;
 		variable in_line: line;
 		variable d:       integer;
 		variable s:       configuration_name;
+		variable index:   integer;
 	begin
-		for i in ci'range loop
+		while not endfile(in_file) loop
+
 			readline(in_file, in_line);
 			read(in_line, s);
-			assert s = ci(i).name 
-				report "Configuration Expected: " & ci(i).name & " Got:" & s 
-				severity failure;
+			index := search_configuration_tb(s, ci);
+
+			assert index >= 0 report "Unknown configuration item: " & s severity failure;
+
 			readline(in_file, in_line);
 			read(in_line, d);
 
-			ci(i).value := d;
+			ci(index).value := d;
 
-			report "Config Item: '" & ci(i).name & "' = " & integer'image(ci(i).value);
+			report "Config Item: '" & ci(index).name & "' = " & integer'image(ci(index).value);
 		end loop;
 	end procedure;
 
