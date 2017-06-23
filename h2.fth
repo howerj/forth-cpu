@@ -141,15 +141,15 @@ variable cursorT 0  ( index into VGA text memory )
 	              o8SegLED_3 ! ;
 
 : uart-write ( char -- bool : write out a character ) 
-	0x2000 or oUart ! ; \ @todo Check that the write succeeded by looking at the TX FIFO
+	0x2000 or oUart ! 1 ; \ @todo Check that the write succeeded by looking at the TX FIFO
 
 : key?
-	iUart @ 0x0010 and 0= ;
+	iUart @ 0x0100 and ;
 
 variable uart-read-count 0
 
 : uart-read  ( -- char : blocks until character read in )
-	begin key? 0= until 0x0400 oUart ! iUartRead @ 0xff and
+	begin key? 0= until 0x0400 oUart ! iUart @ 0xff and
 	uart-read-count 1+!
 	uart-read-count @ led ;
 

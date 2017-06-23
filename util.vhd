@@ -924,13 +924,14 @@ begin
 			empty <= '1';
 			do    <= (others => '0');
 		elsif rising_edge(clk) then
+			do    <= (others => '0');
 			if re = '1' then
 				if looped = true or head /= tail then
 					-- update data output
 					do <= memory(tail);
 					
 					-- update tail pointer as needed
-					if (tail = fifo_depth - 1) then
+					if tail = fifo_depth - 1 then
 						tail   := 0;
 						looped := false;
 					else
@@ -945,7 +946,7 @@ begin
 					memory(head) := din;
 					
 					-- increment head pointer as needed
-					if (head = fifo_depth - 1) then
+					if head = fifo_depth - 1 then
 						head := 0;
 						
 						looped := true;

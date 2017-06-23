@@ -110,6 +110,7 @@ architecture behav of top is
 	signal rx_fifo_empty:  std_logic := '0';
 	signal rx_fifo_full:   std_logic := '0';
 	signal rx_data_re:     std_logic := '0';
+	signal rx_data_re_n:   std_logic := '0';
 
 	signal tx_data:        std_logic_vector(7 downto 0) := (others => '0');
 	signal tx_fifo_full:   std_logic := '0';
@@ -390,6 +391,16 @@ begin
 	end process;
 
 	--- UART ----------------------------------------------------------
+	uart_rx_data_reg_we_0: work.util.reg
+		generic map(
+			N => 1)
+		port map(
+			clk    => clk,
+			rst    => rst,
+			we     => '1',
+			di(0)  => rx_data_re,
+			do(0)  => rx_data_re_n);
+
 	uart_rx_data_reg_0: work.util.reg
 		generic map(
 			N => rx_data_n'high + 1)
@@ -410,7 +421,7 @@ begin
 			rx_data         =>  rx_data,
 			rx_fifo_empty   =>  rx_fifo_empty,
 			rx_fifo_full    =>  rx_fifo_full,
-			rx_data_re      =>  rx_data_re,
+			rx_data_re      =>  rx_data_re_n,
 			tx_data         =>  tx_data,
 			tx_fifo_full    =>  tx_fifo_full,
 			tx_fifo_empty   =>  tx_fifo_empty,
