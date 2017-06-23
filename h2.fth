@@ -21,7 +21,7 @@ TODO:
 ( Outputs: 0x6000 - 0x7FFF
 NB. 0x6000 itself is not used. )
 
-constant oNotUsed      0x6000  
+constant oUart         0x6000  
 constant oLeds         0x6001  
 constant oVgaCursor    0x6002  
 constant oVgaCtrl      0x6003  
@@ -48,6 +48,7 @@ constant iUartStbDout  0x6005
 constant iPs2New       0x6006 
 constant iPs2Char      0x6007 
 constant iTimerCtrl    0x6008
+constant iUart         0x6009
 
 ( Interrupt service Routine: Memory locations )
 ( @todo update interrupt list )
@@ -140,17 +141,15 @@ variable cursorT 0  ( index into VGA text memory )
 	              o8SegLED_3 ! ;
 
 : uart-write ( char -- bool : write out a character ) 
-	\ begin iUartAckWrite @ 0 = until oUartWrite ! 1 oUartStbWrite ! iUartAckWrite @ ; 
-	oUartWrite ! 1 oUartStbWrite ! iUartAckWrite @ ; 
-
+	0x2000 or oUart ! ; \ @todo Check that the write succeeded by looking at the TX FIFO
 
 : key?
-	iUartStbDout @ ;
+	iUart @ 0x0010 and 0= ;
 
 variable uart-read-count 0
 
 : uart-read  ( -- char : blocks until character read in )
-	begin key? 0= until iUartRead  @ 
+	begin key? 0= until 0x0400 oUart ! iUartRead @ 0xff and
 	uart-read-count 1+!
 	uart-read-count @ led ;
 

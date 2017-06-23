@@ -905,7 +905,7 @@ architecture behavioral of fifo is
 begin
 
 	-- memory pointer process
-	fifo_proc: process (clk)
+	fifo_proc: process (clk, rst)
 		type fifo_memory is array (0 to fifo_depth - 1) of std_logic_vector (data_width - 1 downto 0);
 		variable memory: fifo_memory;
 		

@@ -105,15 +105,17 @@ architecture behav of top is
 	signal vga_din:     std_logic_vector(15 downto 0) := (others => '0');
 
 	---- UART
-	-- @todo move this into the UART module / Replace with FIFO version
-	signal uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
-	signal ack_din_c, ack_din_n:     std_logic := '0';
-	signal uart_dout_c, uart_dout_n: std_logic_vector(7 downto 0) := (others => '0');
-	signal stb_dout_c, stb_dout_n:   std_logic := '0';
-	signal uart_din, uart_dout:      std_logic_vector(7 downto 0) := (others => '0');
-	signal stb_din, stb_dout:        std_logic := '0';
-	signal ack_din, ack_dout:        std_logic := '0';
-	signal tx_uart, rx_uart,rx_sync: std_logic := '0';
+	signal rx_data:        std_logic_vector(7 downto 0) := (others => '0');
+	signal rx_data_n:      std_logic_vector(7 downto 0) := (others => '0');
+	signal rx_fifo_empty:  std_logic := '0';
+	signal rx_fifo_full:   std_logic := '0';
+	signal rx_data_re:     std_logic := '0';
+
+	signal tx_data:        std_logic_vector(7 downto 0) := (others => '0');
+	signal tx_fifo_full:   std_logic := '0';
+	signal tx_fifo_empty:  std_logic := '0';
+	signal tx_data_we:     std_logic := '0';
+
 
 	---- Timer
 	signal timer_control_we: std_logic := '0';
@@ -166,8 +168,8 @@ begin
 	rst        <= btnu_d;
 	cpu_irc(0) <= btnl_d;
 	cpu_irc(1) <= timer_irq;
-	cpu_irc(2) <= ack_din;
-	cpu_irc(3) <= stb_dout;
+	cpu_irc(2) <= sw_d(2);
+	cpu_irc(3) <= sw_d(3);
 	cpu_irc(4) <= btnr_d;
 	cpu_irc(5) <= kbd_new;
 	cpu_irc(6) <= sw_d(0);
@@ -176,8 +178,8 @@ begin
 	cpu_wait   <= btnc_d;
 	cpu_irq    <= '1' when 
 			timer_irq = '1' or 
-			ack_din   = '1' or 
-			stb_dout  = '1' or 
+			sw_d(2)   = '1' or 
+			sw_d(3)   = '1' or 
 			btnl_d    = '1' or 
 			btnr_d    = '1' or
 			kbd_new   = '1' or
@@ -226,22 +228,12 @@ begin
 		if rst = '1' then
 			-- LEDs/Switches
 			ld_c        <=  (others => '0');
-			-- UART
-			uart_din_c  <=  (others => '0');
-			ack_din_c   <=  '0';
-			stb_dout_c  <=  '0';
-
 			-- PS/2
 			kbd_char_c <= (others => '0');
 			kbd_new_c  <= '0';
 		elsif rising_edge(clk) then
 			-- LEDs/Switches
 			ld_c        <=  ld_n;
-			-- UART
-			uart_din_c  <=  uart_din_n;
-			ack_din_c   <=  ack_din_n;
-			uart_dout_c <=  uart_dout_n;
-			stb_dout_c  <=  stb_dout_n;
 			-- PS/2
 			kbd_char_c  <= kbd_char_n;
 			kbd_new_c   <= kbd_new_n;
@@ -252,25 +244,29 @@ begin
 		io_wr, io_re, io_dout, io_daddr, 
 		ld_c,
 		sw_d, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
-		uart_din_c, ack_din_c,
-		uart_dout_c,
-		uart_dout, ack_din,
-		stb_dout, stb_dout_c, vga_dout,
 		kbd_char, kbd_new_c, kbd_char_c,
 		kbd_new_edge,
+
+		vga_dout,
+
+		rx_data_n,
+		rx_fifo_empty,
+		rx_fifo_full,
+
+		tx_fifo_full,
+		tx_fifo_empty,
 
 		timer_control_o)
 	begin
 		ld <= ld_c;
 
-		uart_din <= uart_din_c;
-		stb_din  <= '0';
-		ack_dout <= '0';
-		uart_din_n  <=  uart_din_c;
-
 		leds  <= (others => led_8_segment_display_default);
 
 		ld_n <= ld_c;
+
+		tx_data_we <= '0';
+		rx_data_re <= '0';
+		tx_data    <= (others => '0');
 
 		vga_control_we <= vga_control_registers_we_initialize;
 		vga_control    <= vga_control_registers_initialize;
@@ -295,21 +291,6 @@ begin
 			kbd_char_n <= kbd_char_c;
 		end if;
 
-		if ack_din = '1' then
-			ack_din_n <= '1';
-		else
-			ack_din_n <= ack_din_c;
-		end if;
-
-		if stb_dout = '1' then
-			stb_dout_n  <= '1';
-			uart_dout_n <= uart_dout;
-			ack_dout    <= '1';
-		else
-			uart_dout_n <=  uart_dout_c;
-			stb_dout_n  <= stb_dout_c;
-		end if;
-
 		io_din <= (others => '0');
 
 		-- @note it might speed things up to delay writes to registers
@@ -322,7 +303,11 @@ begin
 		if io_wr = '1' then
 			-- Write output.
 			case io_daddr(4 downto 0) is
-			when "00000" => -- Not used!
+			when "00000" => -- UART
+				tx_data_we <= io_dout(13);
+				rx_data_re <= io_dout(10);
+				tx_data    <= io_dout(7 downto 0);
+
 			when "00001" => -- LEDs, next to switches.
 				ld_n <= io_dout(7 downto 0);
 
@@ -343,12 +328,9 @@ begin
 			when "00110" => -- VGA write RAM write
 				vga_we_ram <= io_dout(0);
 
-			when "00111" => -- UART write output.
-				uart_din_n <= io_dout(7 downto 0);
-			when "01000" => -- UART strobe input.
-				stb_din <= io_dout(0);
-			when "01001" => -- UART acknowledge output.
-				ack_dout <= io_dout(0);
+			when "00111" => 
+			when "01000" => 
+			when "01001" =>
 
 			when "01010" => -- General purpose timer
 				timer_control_we <= '1';
@@ -384,15 +366,9 @@ begin
 			when "00010" => -- VGA, Read VGA text buffer.
 				io_din <= vga_dout;
 
-			when "00011" => -- UART get input.
-				io_din <= X"00" & uart_dout_c;
-				uart_dout_n <= (others => '0');
-			when "00100" => -- UART acknowledged input.
-				io_din <= (0 => ack_din_c, others => '0');
-				ack_din_n <= '0';
-			when "00101" => -- UART strobe output 
-				io_din <= (0 => stb_dout_c, others => '0');
-				stb_dout_n <= '0';
+			when "00011" => 
+			when "00100" => 
+			when "00101" => 
 
 			when "00110" =>  -- PS/2 Keyboard, Check for new char
 				io_din <= (0 => kbd_new_c, others => '0');
@@ -401,38 +377,46 @@ begin
 				-- kbd_new_n <= '0';
 			when "01000" => 
 				io_din <= timer_control_o;
+			when "01001" =>
+				io_din(7 downto 0) <= rx_data_n;
+				io_din(8)          <= rx_fifo_empty;
+				io_din(9)          <= rx_fifo_full;
+				io_din(11)         <= tx_fifo_empty;
+				io_din(12)         <= tx_fifo_full;
+
 			when others => io_din <= (others => '0');
 			end case;
 		end if;
 	end process;
 
 	--- UART ----------------------------------------------------------
-	--| @todo integrate this into the UART module along with the
-	--| UART registers present in this module
-	uart_deglitch_0: process (clk)
-	begin
-		if rising_edge(clk) then
-			rx_sync <= rx;
-			rx_uart <= rx_sync;
-			tx      <= tx_uart;
-		end if;
-	end process;
+	uart_rx_data_reg_0: work.util.reg
+		generic map(
+			N => rx_data_n'high + 1)
+		port map(
+			clk => clk,
+			rst => rst,
+			we  => rx_data_re,
+			di  => rx_data,
+			do  => rx_data_n);
 
-	uart_0: work.uart_pkg.uart_core
-	generic map(
-		baud_rate           => uart_baud_rate,
-		clock_frequency     => clock_frequency)
-	port map(
-		clk      => clk,
-		rst      => rst,
-		din      => uart_din,
-		din_stb  => stb_din,
-		din_ack  => ack_din,
-		dout     => uart_dout,
-		dout_stb => stb_dout,
-		dout_ack => ack_dout,
-		rx       => rx_uart,
-		tx       => tx_uart);
+	uart_0: work.uart_pkg.uart_top
+		generic map(
+			baud_rate       => uart_baud_rate,
+			clock_frequency => clock_frequency)
+		port map(
+			clk             =>  clk,
+			rst             =>  rst,
+			rx_data         =>  rx_data,
+			rx_fifo_empty   =>  rx_fifo_empty,
+			rx_fifo_full    =>  rx_fifo_full,
+			rx_data_re      =>  rx_data_re,
+			tx_data         =>  tx_data,
+			tx_fifo_full    =>  tx_fifo_full,
+			tx_fifo_empty   =>  tx_fifo_empty,
+			tx_data_we      =>  tx_data_we,
+			tx              =>  tx,
+			rx              =>  rx);
 	--- UART ----------------------------------------------------------
 
 	--- Timer ---------------------------------------------------------
@@ -530,4 +514,5 @@ begin
 
 -------------------------------------------------------------------------------
 end architecture;
+
 
