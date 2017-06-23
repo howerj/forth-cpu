@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
---| @file ledseg.vhd
+--| @file led.vhd
 --| @brief controls a number of led displays, 8 segment LEDs, there
 --| is no enable, just write 0 to the displays to turn them off.
 --|
@@ -8,13 +8,43 @@
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
---| @todo Turn this into a package
 --------------------------------------------------------------------------------
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-package led_8_segment_pkg is
+package led_pkg is
+	constant character_length: positive := 4;
+
+	subtype led_character is std_logic_vector(character_length - 1 downto 0);
+	subtype led_8_segment is std_logic_vector(7 downto 0);
+
+	type led_8_segment_display_interface is record
+		display: led_character;
+		we:      std_logic;
+	end record;
+
+	constant led_8_segment_display_default: led_8_segment_display_interface :=
+		(display => (others => '0'), we => '0');
+
+	type led_8_segment_displays_interface is array(integer range <>) of led_8_segment_display_interface;
+
+	component led_8_segment_display is
+		generic(
+			clock_frequency:        positive; 
+			use_bcd_not_hex:        boolean := true;
+			refresh_rate_us:        natural := 1500;
+			number_of_led_displays: positive := 4);
+		port(
+			clk:      in   std_logic;
+			rst:      in   std_logic;
+
+			leds:     in   led_8_segment_displays_interface;
+
+			-- Physical outputs
+			an:       out  std_logic_vector(3 downto 0);  -- anodes, controls on/off
+			ka:       out  std_logic_vector(7 downto 0)); -- cathodes, data on display
+	end component;
 
 end package;
 
@@ -39,42 +69,31 @@ use ieee.numeric_std.all;
 use work.util.reg;
 use work.util.timer_us;
 use work.util.invert;
+use work.led_pkg.all;
 
-entity ledseg is
-	generic(clock_frequency: positive; 
-		use_bcd_not_hex: boolean := true;
-		refresh_rate_us: natural := 1500);
+entity led_8_segment_display is
+	generic(
+		clock_frequency:        positive; 
+		use_bcd_not_hex:        boolean := true;
+		refresh_rate_us:        natural := 1500;
+		number_of_led_displays: positive := 4);
 	port(
 		clk:      in   std_logic;
 		rst:      in   std_logic;
 
-		led_0:    in   std_logic_vector(3 downto 0); 
-		led_1:    in   std_logic_vector(3 downto 0); 
-		led_2:    in   std_logic_vector(3 downto 0); 
-		led_3:    in   std_logic_vector(3 downto 0); 
-
-		led_0_we: in   std_logic;
-		led_1_we: in   std_logic;
-		led_2_we: in   std_logic;
-		led_3_we: in   std_logic;
+		leds:     in   led_8_segment_displays_interface;
 
 		-- Physical outputs
 		an:       out  std_logic_vector(3 downto 0);  -- anodes, controls on/off
 		ka:       out  std_logic_vector(7 downto 0)); -- cathodes, data on display
 end;
 
-architecture rtl of ledseg is
-	constant character_length: positive := 4;
-	subtype char is std_logic_vector(character_length - 1 downto 0);
-	subtype eseg is std_logic_vector(7 downto 0);
+architecture rtl of led_8_segment_display is
 
-	signal led_0_o: char := (others => '0');
-	signal led_1_o: char := (others => '0');
-	signal led_2_o: char := (others => '0');
-	signal led_3_o: char := (others => '0');
+	signal leds_o: led_8_segment_displays_interface(number_of_led_displays - 1 downto 0) := (others => led_8_segment_display_default);
 
 	signal do_shift:  std_logic := '0';
-	signal shift_reg: std_logic_vector(3 downto 0) := (0 => '1', others => '0');
+	signal shift_reg: std_logic_vector(number_of_led_displays - 1 downto 0) := (0 => '1', others => '0');
 
 	-- 8 Segment LED lookup table converts a BCD character into a value
 	-- that can be displayed on an 8 segment display. The layout of which
@@ -120,7 +139,7 @@ architecture rtl of ledseg is
 	-- The table is then inverted before it goes to the output.
 	--
 
-	function hex_to_8segment(a: char) return eseg is
+	function hex_to_8segment(a: led_character) return led_8_segment is
 		variable r: std_logic_vector(7 downto 0);
 	begin
 		case a is
@@ -145,7 +164,7 @@ architecture rtl of ledseg is
 		return r;
 	end function;
 
-	function bcd_to_8segment(a: char) return eseg is
+	function bcd_to_8segment(a: led_character) return led_8_segment is
 		variable r: std_logic_vector(7 downto 0);
 	begin
 		case a is
@@ -170,7 +189,7 @@ architecture rtl of ledseg is
 		return r;
 	end function;
 
-	function char_to_8segment(a: char) return eseg is
+	function char_to_8segment(a: led_character) return led_8_segment is
 	begin
 		if use_bcd_not_hex then
 			return invert(bcd_to_8segment(a));
@@ -181,39 +200,47 @@ architecture rtl of ledseg is
 begin
 	an <= invert(shift_reg);
 
-	led0: entity work.reg generic map(N => character_length) port map(clk => clk, rst => rst, we => led_0_we, di => led_0, do => led_0_o); 
-	led1: entity work.reg generic map(N => character_length) port map(clk => clk, rst => rst, we => led_1_we, di => led_1, do => led_1_o); 
-	led2: entity work.reg generic map(N => character_length) port map(clk => clk, rst => rst, we => led_2_we, di => led_2, do => led_2_o); 
-	led3: entity work.reg generic map(N => character_length) port map(clk => clk, rst => rst, we => led_3_we, di => led_3, do => led_3_o); 
+	led_gen: for i in leds'range generate
+		led_i: entity work.reg 
+			generic map(
+				N   => character_length)
+			port map(
+				clk => clk,
+				rst => rst,
+				we  => leds(i).we,
+				di  => leds(i).display,
+				do  => leds_o(i).display);
+	end generate;
 
 	timer: entity work.timer_us
-		generic map(clock_frequency => clock_frequency, timer_period_us => refresh_rate_us) 
-		port map(clk => clk, rst => rst, co => do_shift);
+		generic map(
+			clock_frequency => clock_frequency, 
+			timer_period_us => refresh_rate_us) 
+		port map(
+			clk             => clk, 
+			rst             => rst, 
+			co              => do_shift);
 
 	process(clk, do_shift, shift_reg)
 	begin
 		if rising_edge(clk) then
 			if do_shift = '1' then
-				shift_reg <= shift_reg(2 downto 0) & shift_reg(3);
+				shift_reg <= shift_reg(number_of_led_displays - 2 downto 0) & shift_reg(number_of_led_displays - 1);
 			end if;
 		else
 			shift_reg <= shift_reg;
 		end if;
 	end process;
 
-	process(led_0_o, led_1_o, led_2_o, led_3_o, shift_reg)
+	process(leds_o, shift_reg)
 	begin
 		ka <= (others => '0');
 
-		if '1' = shift_reg(0) then
-			ka <= char_to_8segment(led_0_o);
-		elsif '1' = shift_reg(1) then
-			ka <= char_to_8segment(led_1_o);
-		elsif '1' = shift_reg(2) then
-			ka <= char_to_8segment(led_2_o);
-		elsif '1' = shift_reg(3) then
-			ka <= char_to_8segment(led_3_o);
-		end if;
+		for i in leds_o'range loop
+			if '1' = shift_reg(i) then
+				ka <= char_to_8segment(leds_o(i).display);
+			end if;
+		end loop;
 	end process;
 end architecture;
 

@@ -15,14 +15,14 @@
 --| There have been many changes to the original code, consult the git logs
 --| for a full list of changes.
 --|
---| @note Changes made to range to stop Xilinx warnings and with formatting
---| @todo A better interface to the outside world should be created, instead
---| of using strobe/acknowledge the module should indicate whether a new
---| character is available (level high until acknowledged) and it should indicate
---| when a write can be done (level high when a write is in operation).
+--| @note Changes made to range to stop Xilinx warnings and with formatting,
+--| the UART has also been wrapped up in a package and top level component 
+--| (called "uart_top") to make the interface easier to use and less confusing.
+--| This has not be tested yet.
+--|
 --| @note Somewhere along the chain from the computer, to the Nexys3 board,
 --| to the UART module, and finally to the H2 core, bytes are being lost in
---| transmission to from the computer. This UART really should be buffered
+--| transmission from the computer. This UART really should be buffered
 --| as well.
 --|
 --|  START 0 1 2 3 4 5 6 7 STOP
@@ -35,7 +35,7 @@ use ieee.std_logic_1164.all;
 package uart_pkg is
 
 	component uart_top is
-	generic (baud_rate: positive; clock_frequency: positive);
+	generic (baud_rate: positive; clock_frequency: positive; fifo_depth: positive := 8);
 	port (  
 		clk:                 in      std_logic;
 		rst:                 in      std_logic;
@@ -58,22 +58,25 @@ package uart_pkg is
 	component uart_core is
 		generic (baud_rate: positive; clock_frequency: positive);
 		port (  
-			clk:                 in      std_logic;
-			rst:                 in      std_logic;
-			data_stream_in:      in      std_logic_vector(7 downto 0);
-			data_stream_in_stb:  in      std_logic;
-			data_stream_in_ack:  out     std_logic := '0';
+			clk:      in      std_logic;
+			rst:      in      std_logic;
+			din:      in      std_logic_vector(7 downto 0);
+			din_stb:  in      std_logic;
+			din_ack:  out     std_logic := '0';
 
-			data_stream_out:     out     std_logic_vector(7 downto 0);
-			data_stream_out_stb: out     std_logic;
-			data_stream_out_ack: in      std_logic;
-			tx:                  out     std_logic;
-			rx:                  in      std_logic);
+			dout:     out     std_logic_vector(7 downto 0);
+			dout_stb: out     std_logic;
+			dout_ack: in      std_logic;
+			tx:       out     std_logic;
+			rx:       in      std_logic);
 	end component;
 
 end package;
 
---------------------------------------------------------------------------------
+---- UART Package --------------------------------------------------------------
+
+---- UART Top ------------------------------------------------------------------
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -81,7 +84,7 @@ use work.util.fifo;
 use work.uart_pkg.uart_core;
 
 entity uart_top is
-	generic (baud_rate: positive; clock_frequency: positive);
+	generic (baud_rate: positive; clock_frequency: positive; fifo_depth: positive := 8);
 	port (  
 		clk:                 in      std_logic;
 		rst:                 in      std_logic;
@@ -103,12 +106,12 @@ end entity;
 architecture behav of uart_top is
 	signal rx_sync, rx_uart, tx_uart: std_logic := '0';
 
-	signal data_stream_in:      std_logic_vector(7 downto 0) := (others => '0');
-	signal data_stream_in_stb:  std_logic := '0';
-	signal data_stream_in_ack:  std_logic := '0';
-	signal data_stream_out:     std_logic_vector(7 downto 0) := (others => '0');
-	signal data_stream_out_stb: std_logic := '0';
-	signal data_stream_out_ack: std_logic := '0';
+	signal din:      std_logic_vector(7 downto 0) := (others => '0');
+	signal din_stb:  std_logic := '0';
+	signal din_ack:  std_logic := '0';
+	signal dout:     std_logic_vector(7 downto 0) := (others => '0');
+	signal dout_stb: std_logic := '0';
+	signal dout_ack: std_logic := '0';
 
 	signal tx_fifo_re:             std_logic := '0';
 	signal tx_fifo_empty_internal: std_logic := '1';
@@ -122,31 +125,33 @@ begin
 		end if;
 	end process;
 
--- 	tx_fifo: work.util.fifo 
--- 		generic map (
--- 			data_width => 8, 
--- 			fifo_depth => 8)
--- 		port map(
--- 			clk   => clk, 
--- 			rst   => rst, 
--- 			din   => data_stream_out, 
--- 			we    => data_stream_out_stb, 
--- 			re    => rx_data_re, 
--- 			do    => rx_data, 
--- 			full  => rx_fifo_full, 
--- 			empty => rx_fifo_empty);
- 
+	process(clk) 
+	begin
+		if rising_edge(clk) then
+			dout_ack <= '0';
+			din_stb  <= '0';
+			tx_fifo_re          <= '0';
 
+			if dout_stb = '1' then
+				dout_ack <= '1';
+			end if;
+
+			if tx_fifo_empty_internal = '0' then
+				din_stb <= '1';
+				tx_fifo_re         <= '1';
+			end if;
+		end if;
+	end process;
 
 	rx_fifo: work.util.fifo 
 		generic map (
 			data_width => 8, 
-			fifo_depth => 8)
+			fifo_depth => fifo_depth)
 		port map(
 			clk   => clk, 
 			rst   => rst, 
-			din   => data_stream_out, 
-			we    => data_stream_out_stb, 
+			din   => dout, 
+			we    => dout_stb, 
 			re    => rx_data_re, 
 			do    => rx_data, 
 			full  => rx_fifo_full, 
@@ -155,36 +160,18 @@ begin
 	tx_fifo: work.util.fifo 
 		generic map (
 			data_width => 8, 
-			fifo_depth => 8)
+			fifo_depth => fifo_depth)
 		port map(
 			clk   => clk, 
 			rst   => rst, 
 			din   => tx_data,
 			we    => tx_data_we, 
 			re    => tx_fifo_re,
-			do    => data_stream_in,
+			do    => din,
 			full  => tx_fifo_full,
 			empty => tx_fifo_empty_internal);
 
 	tx_fifo_empty <= tx_fifo_empty_internal;
-
-	process(clk) 
-	begin
-		if rising_edge(clk) then
-			data_stream_out_ack <= '0';
-			data_stream_in_stb  <= '0';
-			tx_fifo_re          <= '0';
-
-			if data_stream_out_stb = '1' then
-				data_stream_out_ack <= '1';
-			end if;
-
-			if tx_fifo_empty_internal = '0' then
-				data_stream_in_stb <= '1';
-				tx_fifo_re         <= '1';
-			end if;
-		end if;
-	end process;
 
 	uart: work.uart_pkg.uart_core
 		generic map(
@@ -193,18 +180,20 @@ begin
 		port map(
 			clk                 => clk,
 			rst                 => rst,
-			data_stream_in      => data_stream_in,
-			data_stream_in_stb  => data_stream_in_stb,
-			data_stream_in_ack  => data_stream_in_ack,
-			data_stream_out     => data_stream_out,
-			data_stream_out_stb => data_stream_out_stb,
-			data_stream_out_ack => data_stream_out_ack,
+			din      => din,
+			din_stb  => din_stb,
+			din_ack  => din_ack,
+			dout     => dout,
+			dout_stb => dout_stb,
+			dout_ack => dout_ack,
 			rx                  => rx_uart,
 			tx                  => tx_uart);
 
-
 end;
---------------------------------------------------------------------------------
+
+---- UART Top ------------------------------------------------------------------
+
+---- UART Core -----------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -213,16 +202,16 @@ use ieee.numeric_std.all;
 entity uart_core is
 	generic (baud_rate: positive; clock_frequency: positive);
 	port (  
-	        clk:                 in      std_logic;
-	        rst:                 in      std_logic;
-	        data_stream_in:      in      std_logic_vector(7 downto 0);
-	        data_stream_in_stb:  in      std_logic;
-	        data_stream_in_ack:  out     std_logic := '0';
-	        data_stream_out:     out     std_logic_vector(7 downto 0);
-	        data_stream_out_stb: out     std_logic;
-	        data_stream_out_ack: in      std_logic;
-	        tx:                  out     std_logic;
-	        rx:                  in      std_logic);
+	        clk:      in      std_logic;
+	        rst:      in      std_logic;
+	        din:      in      std_logic_vector(7 downto 0);
+	        din_stb:  in      std_logic;
+	        din_ack:  out     std_logic := '0';
+	        dout:     out     std_logic_vector(7 downto 0);
+	        dout_stb: out     std_logic;
+	        dout_ack: in      std_logic;
+	        tx:       out     std_logic;
+	        rx:       in      std_logic);
 end entity;
 
 architecture behav of uart_core is
@@ -275,10 +264,10 @@ architecture behav of uart_core is
 	signal  uart_rx_bit_tick:     std_logic := '0';
 begin
 
-	data_stream_in_ack  <= uart_rx_data_in_ack;
-	data_stream_out     <= uart_rx_data_block;
-	data_stream_out_stb <= uart_rx_data_out_stb;
-	tx                  <= uart_tx_data;
+	din_ack  <= uart_rx_data_in_ack;
+	dout     <= uart_rx_data_block;
+	dout_stb <= uart_rx_data_out_stb;
+	tx       <= uart_tx_data;
 
 	-- the input clk is 100MHz, this needs to be divided down to the
 	-- rate dictated by the baud_rate. for example, if 115200 baud is selected
@@ -300,7 +289,7 @@ begin
 		end if;
 	end process;
 
-	-- get data from data_stream_in and send it one bit at a time
+	-- get data from din and send it one bit at a time
 	-- upon each baud tick. lsb first.
 	-- wait 1 tick, send start bit (0), send data 0-7, send stop bit (1)
 	uart_send_data:	process(clk, rst)
@@ -315,8 +304,8 @@ begin
 			uart_rx_data_in_ack <= '0';
 			case uart_tx_state is
 			when idle =>
-				if data_stream_in_stb = '1' then
-					uart_tx_data_block  <= data_stream_in;
+				if din_stb = '1' then
+					uart_tx_data_block  <= din;
 					uart_rx_data_in_ack <= '1';
 					uart_tx_state       <= wait_for_tick;
 				end if;
@@ -347,7 +336,7 @@ begin
 					uart_tx_state <= idle;
 				end if;
 			when others =>
-				uart_tx_data <= '1';
+				uart_tx_data  <= '1';
 				uart_tx_state <= idle;
 			end case;
 		end if;
@@ -388,7 +377,7 @@ begin
 	begin
 		if rst = '1' then
 			uart_rx_filter <= (others => '1');
-			uart_rx_bit <= '1';
+			uart_rx_bit    <= '1';
 		elsif rising_edge(clk) then
 			if oversample_baud_tick = '1' then
 				-- filter rxd.
@@ -457,10 +446,10 @@ begin
 					end if;
 				end if;
 			when rx_send_block =>
-				if data_stream_out_ack = '1' then
-					uart_rx_data_out_stb <= '0';
-					uart_rx_data_block   <= (others => '0');
-					uart_rx_state        <= rx_get_start_bit;
+				if dout_ack = '1' then
+					uart_rx_data_out_stb  <= '0';
+					uart_rx_data_block    <= (others => '0');
+					uart_rx_state         <= rx_get_start_bit;
 				else
 					uart_rx_data_out_stb  <= '1';
 				end if;
@@ -471,3 +460,4 @@ begin
 	end process;
 end;
 
+---- UART Core -----------------------------------------------------------------

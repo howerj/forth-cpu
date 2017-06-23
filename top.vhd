@@ -16,6 +16,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.cpu_pkg.all;
 use work.vga_pkg.all;
+use work.led_pkg.all;
 use work.kbd_pkg.ps2_kbd_top;
 use work.uart_pkg.uart_core;
 
@@ -32,6 +33,7 @@ entity top is
 
 		clk:      in  std_logic                    := 'X';  -- clock
 		-- Buttons
+		-- @todo Turn button interface into record.
 		btnu:     in  std_logic                    := 'X';  -- button up
 		btnd:     in  std_logic                    := 'X';  -- button down
 		btnc:     in  std_logic                    := 'X';  -- button centre
@@ -103,12 +105,12 @@ architecture behav of top is
 	signal vga_din:     std_logic_vector(15 downto 0) := (others => '0');
 
 	---- UART
-	-- @todo move this into the UART module
+	-- @todo move this into the UART module / Replace with FIFO version
 	signal uart_din_c, uart_din_n:   std_logic_vector(7 downto 0) := (others => '0');
 	signal ack_din_c, ack_din_n:     std_logic := '0';
-	signal uart_dout_c, uart_dout_n: std_logic_vector(7 downto 0):= (others => '0');
+	signal uart_dout_c, uart_dout_n: std_logic_vector(7 downto 0) := (others => '0');
 	signal stb_dout_c, stb_dout_n:   std_logic := '0';
-	signal uart_din, uart_dout:      std_logic_vector(7 downto 0):= (others => '0');
+	signal uart_din, uart_dout:      std_logic_vector(7 downto 0) := (others => '0');
 	signal stb_din, stb_dout:        std_logic := '0';
 	signal ack_din, ack_dout:        std_logic := '0';
 	signal tx_uart, rx_uart,rx_sync: std_logic := '0';
@@ -122,6 +124,7 @@ architecture behav of top is
 	signal timer_nq:         std_logic;
 
 	---- PS/2
+	-- @todo Replace with FIFO
 	signal kbd_new:      std_logic := '0';  -- new ASCII char available
 	signal kbd_new_edge: std_logic := '0';
 	signal kbd_char:     std_logic_vector(6 downto 0); -- ASCII char
@@ -129,16 +132,20 @@ architecture behav of top is
 	signal kbd_char_c, kbd_char_n:  std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
 
 	---- 8 Segment Display
-	signal led_0:    std_logic_vector(3 downto 0) := (others => '0'); 
-	signal led_1:    std_logic_vector(3 downto 0) := (others => '0'); 
-	signal led_2:    std_logic_vector(3 downto 0) := (others => '0'); 
-	signal led_3:    std_logic_vector(3 downto 0) := (others => '0'); 
-	signal led_0_we: std_logic := '0';
-	signal led_1_we: std_logic := '0';
-	signal led_2_we: std_logic := '0';
-	signal led_3_we: std_logic := '0';
+	constant number_of_led_displays: positive := 4;
+
+	signal leds: led_8_segment_displays_interface(number_of_led_displays - 1 downto 0) := (others => led_8_segment_display_default);
 
 	---- Buttons
+
+-- 	type button is record
+-- 		up:     std_logic;
+-- 		down:   std_logic;
+-- 		center: std_logic;
+-- 		left:   std_logic;
+-- 		right:  std_logic;
+-- 	end record;
+
 	signal btnu_d: std_logic := '0';  -- button up
 	signal btnd_d: std_logic := '0';  -- button down
 	signal btnc_d: std_logic := '0';  -- button centre
@@ -261,14 +268,7 @@ begin
 		ack_dout <= '0';
 		uart_din_n  <=  uart_din_c;
 
-		led_0 <= (others => '0');
-		led_1 <= (others => '0');
-		led_2 <= (others => '0');
-		led_3 <= (others => '0');
-		led_0_we <= '0';
-		led_1_we <= '0';
-		led_2_we <= '0';
-		led_3_we <= '0';
+		leds  <= (others => led_8_segment_display_default);
 
 		ld_n <= ld_c;
 
@@ -314,12 +314,9 @@ begin
 
 		-- @note it might speed things up to delay writes to registers
 		-- one cycle in a register.
-		-- @todo split up io_wr and io_re into two processes?
 		-- @todo It would make a lot more sense if these registers
 		-- somewhat matched up instead of being the crazy values
 		-- that they are at the moment.
-		-- @todo Hardware cores of computation could be added, like a
-		-- multiplier, or a CORDIC unit.
 
 		--if io_wr = '1' and io_daddr(15 downto 5) = "01100000000" then
 		if io_wr = '1' then
@@ -358,17 +355,17 @@ begin
 				timer_control_i  <= io_dout(timer_length - 1 downto 0);
 
 			when "01011" => -- LED 8 Segment display
-				led_0    <= io_dout(3 downto 0);
-				led_0_we <= '1';
+				leds(0).display <= io_dout(3 downto 0);
+				leds(0).we      <= '1';
 			when "01100" => -- LED 8 Segment display
-				led_1    <= io_dout(3 downto 0);
-				led_1_we <= '1';
+				leds(1).display <= io_dout(3 downto 0);
+				leds(1).we      <= '1';
 			when "01101" =>
-				led_2    <= io_dout(3 downto 0);
-				led_2_we <= '1';
+				leds(2).display <= io_dout(3 downto 0);
+				leds(2).we      <= '1';
 			when "01110" =>
-				led_3    <= io_dout(3 downto 0);
-				led_3_we <= '1';
+				leds(3).display <= io_dout(3 downto 0);
+				leds(3).we      <= '1';
 
 			when "01111" =>
 				cpu_irc_mask <= io_dout(number_of_interrupts - 1 downto 0);
@@ -380,7 +377,7 @@ begin
 		elsif io_re = '1' then
 			-- Get input.
 			case io_daddr(4 downto 0) is
-			when "00000" => -- Switches, plus direct access to UART bit.
+			when "00000" => -- buttons, plus direct access to UART bit.
 				io_din <= "0000000000" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d;
 			when "00001" =>
 				io_din <= X"00" & sw_d;
@@ -426,16 +423,16 @@ begin
 		baud_rate           => uart_baud_rate,
 		clock_frequency     => clock_frequency)
 	port map(
-		clk                 => clk,
-		rst                 => rst,
-		data_stream_in      => uart_din,
-		data_stream_in_stb  => stb_din,
-		data_stream_in_ack  => ack_din,
-		data_stream_out     => uart_dout,
-		data_stream_out_stb => stb_dout,
-		data_stream_out_ack => ack_dout,
-		rx                  => rx_uart,
-		tx                  => tx_uart);
+		clk      => clk,
+		rst      => rst,
+		din      => uart_din,
+		din_stb  => stb_din,
+		din_ack  => ack_din,
+		dout     => uart_dout,
+		dout_stb => stb_dout,
+		dout_ack => ack_dout,
+		rx       => rx_uart,
+		tx       => tx_uart);
 	--- UART ----------------------------------------------------------
 
 	--- Timer ---------------------------------------------------------
@@ -498,21 +495,16 @@ begin
 	--- PS/2 ----------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------
-	ledseg_0: entity work.ledseg
-	generic map(clock_frequency => clock_frequency, use_bcd_not_hex => false)
+	ledseg_0: entity work.led_8_segment_display
+	generic map(
+		number_of_led_displays => number_of_led_displays,
+		clock_frequency        => clock_frequency, 
+		use_bcd_not_hex        => false)
 	port map(
 		clk        => clk,
 		rst        => rst,
 
-		led_0      => led_0,
-		led_1      => led_1,
-		led_2      => led_2,
-		led_3      => led_3,
-
-		led_0_we   => led_0_we,
-		led_1_we   => led_1_we,
-		led_2_we   => led_2_we,
-		led_3_we   => led_3_we,
+		leds       => leds,
 
 		an         => an,
 		ka         => ka);

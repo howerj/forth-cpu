@@ -2,7 +2,7 @@
 --| @file util.vhd
 --| @brief A collection of utilities and simple components. The components
 --| should be synthesizable, and the functions can be used within synthesizable
---| components, unless marked with a "_tb" suffix.
+--| components, unless marked with a "_tb" suffix (or is the function n_bits).
 --| @author         Richard James Howe
 --| @copyright      Copyright 2017 Richard James Howe
 --| @license        MIT
@@ -18,50 +18,54 @@ use ieee.numeric_std.all;
 use std.textio.all;
 
 package util is
-	
+	component clock_source_tb is
+		generic(clock_frequency: positive; hold_rst: positive := 1);
+		port(
+			stop:            in  std_logic := '0';
+			clk:             buffer std_logic;
+			clk_with_jitter: out std_logic := '0';
+			rst:             out std_logic := '0');
+	end component;
 
 	component reg
-	generic(N: positive);
-	port(
-		clk: in  std_logic;
-		rst: in  std_logic;
-		we:  in  std_logic;
-		di:  in  std_logic_vector(N - 1 downto 0);
-		do:  out std_logic_vector(N - 1 downto 0));
+		generic(N: positive);
+		port(
+			clk: in  std_logic;
+			rst: in  std_logic;
+			we:  in  std_logic;
+			di:  in  std_logic_vector(N - 1 downto 0);
+			do:  out std_logic_vector(N - 1 downto 0));
 	end component;
 
 	component shift_register
-	generic(N: positive);
-	port(
-		clk: in  std_logic;
-		rst: in  std_logic;
-		we:  in  std_logic;
-		di:  in  std_logic;
-		do:  out std_logic);
+		generic(N: positive);
+		port(
+			clk: in  std_logic;
+			rst: in  std_logic;
+			we:  in  std_logic;
+			di:  in  std_logic;
+			do:  out std_logic);
 	end component;
 
 	component shift_register_tb
-	generic(clock_frequency: positive);
-	port(
-		clk:  in std_logic;
-		rst:  in std_logic;
-		stop: in std_logic);
-	end component;
-
-	component timer_us 
-		generic(clock_frequency: positive; timer_period_us: natural);
-		port(
-			rst: in  std_logic;
-			clk: in  std_logic;
-			co:  out std_logic);
-	end component;
-
-	component timer_us_tb
 		generic(clock_frequency: positive);
 		port(
 			clk:  in std_logic;
 			rst:  in std_logic;
 			stop: in std_logic);
+	end component;
+
+	component timer_us 
+		generic(clock_frequency: positive; timer_period_us: natural);
+		port(
+			clk: in  std_logic;
+			rst: in  std_logic;
+			co:  out std_logic);
+	end component;
+
+	component timer_us_tb
+		generic(clock_frequency: positive);
+		port(stop: in std_logic);
 	end component;
 
 	component edge is
@@ -74,10 +78,7 @@ package util is
 
 	component edge_tb is
 		generic(clock_frequency: positive);
-		port(
-			clk:  in std_logic;
-			rst:  in std_logic;
-			stop: in std_logic);
+		port(stop: in std_logic);
 	end component;
 
 	-- @note half_adder test bench is folded in to full_adder_tb
@@ -100,18 +101,12 @@ package util is
 
 	component full_adder_tb is
 		generic(clock_frequency: positive);
-		port(
-			clk:  in std_logic;
-			rst:  in std_logic;
-			stop: in std_logic);
+		port(stop: in std_logic);
 	end component;
 
 	component function_tb is
 		generic(clock_frequency: positive);
-		port(
-			clk:  in std_logic;
-			rst:  in std_logic;
-			stop: in std_logic);
+		port(stop: in std_logic);
 	end component;
 
 	component fifo is
@@ -130,10 +125,23 @@ package util is
 
 	component fifo_tb is
 		generic(clock_frequency: positive);
+		port(stop: in std_logic);
+	end component;
+
+	component counter is
+		generic(
+			length: positive);
 		port(
-			clk:  in std_logic;
-			rst:  in std_logic;
-			stop: in std_logic);
+			clk: in std_logic;
+			rst: in std_logic;
+			ce:  in std_logic;
+			cr:  in std_logic;
+			dout: out std_logic_vector(length - 1 downto 0));
+	end component;
+
+	component counter_tb is
+		generic(clock_frequency: positive);
+		port(stop: in std_logic);
 	end component;
 
 	function max(a: natural; b: natural) return natural;
@@ -290,7 +298,6 @@ package body util is
 		return r;
 	end;
 
-
 	--- Not synthesizable ---
 
 	-- Find a string in a configuration items array, or returns -1 on
@@ -305,7 +312,6 @@ package body util is
 		return -1;
 	end function;
 
-
 	-- VHDL provides quite a limited set of options for dealing with
 	-- operations that are not synthesizeable but would be useful for
 	-- in test benches. This method provides a crude way of reading
@@ -317,7 +323,11 @@ package body util is
 	-- in configuration_items if it exists. It then reads in an
 	-- integer from the next line and sets the record for it.
 	--
-	-- Any deviation from this format causes an error.
+	-- Any deviation from this format causes an error and the simulation
+	-- to halt, whilst not a good practice to do error checking with asserts
+	-- there is no better way in VHDL in this case. The only sensible
+	-- action on an error would for the configuration file to be fixed
+	-- anyway.
 	--
 	-- Comment lines and variable length strings would be nice, but
 	-- are too much of a hassle.
@@ -371,14 +381,10 @@ use work.util.all;
 
 entity function_tb is
 	generic(clock_frequency: positive);
-	port(
-		clk:  in std_logic;
-		rst:  in std_logic;
-		stop: in std_logic);
+	port(stop: in std_logic);
 end entity;
 
 architecture behav of function_tb is
-	constant clock_period: time := 1000 ms / clock_frequency;
 begin
 
 	stimulus_process: process
@@ -421,6 +427,55 @@ begin
 end architecture;
 
 ------------------------- Function Test Bench ---------------------------------------
+
+------------------------- Test bench clock source -----------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use ieee.math_real.all;
+
+entity clock_source_tb is
+	generic(clock_frequency: positive; hold_rst: positive := 1);
+	port(
+		stop:            in     std_logic := '0';
+		clk:             buffer std_logic;
+		clk_with_jitter: out    std_logic := '0';
+		rst:             out    std_logic := '0');
+end entity;
+
+architecture rtl of clock_source_tb is
+	constant clock_period: time      :=  1000 ms / clock_frequency;
+	signal jitter_delay:   time      := 0 ns;
+	signal jitter_clk:     std_logic := '0';
+begin
+	clk_process: process
+		variable seed1, seed2 : positive;
+		variable r : real;
+	begin
+		while stop = '0' loop
+			uniform(seed1, seed2, r);
+			jitter_delay <= r * 1 ns;
+
+			clk <= '1';
+			wait for clock_period / 2;
+			clk <= '0';
+			wait for clock_period / 2;
+		end loop;
+		wait;
+	end process;
+
+	clk_with_jitter <= transport clk after jitter_delay;
+
+	rst_process: process
+	begin
+		rst <= '1';
+		wait for clock_period * hold_rst;
+		rst <= '0';
+		wait;
+	end process;
+
+end architecture;
 
 ------------------------- Generic Register of std_logic_vector ----------------------
 
@@ -511,19 +566,22 @@ use ieee.numeric_std.all;
 
 entity shift_register_tb is
 	generic(clock_frequency: positive);
-	port(
-		clk:  in std_logic;
-		rst:  in std_logic;
-		stop: in std_logic);
+	port(stop: in std_logic);
 end entity;
 
 architecture behav of shift_register_tb is
 	constant N: positive := 8;
-	constant clock_period: time   :=  1000 ms / clock_frequency;
+	constant clock_period: time :=  1000 ms / clock_frequency;
 	signal we: std_logic := '0';
 	signal di: std_logic := '0';
 	signal do: std_logic := '0';
+
+	signal clk, rst: std_logic := '0';
 begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
 	uut: entity work.shift_register
 	generic map(N => N) port map(clk => clk, rst => rst, we => we, di => di, do => do);
 
@@ -545,10 +603,7 @@ begin
 		wait for clock_period * 1;
 		assert do = '0' report "extra bit set in shift register";
 
-		while stop = '0' loop
-			assert do = '0' report "extra bit in shift register";
-			wait for clock_period;
-		end loop;
+		assert stop = '0' report "Test bench not run to completion";
 		wait;
 	end process;
 end;
@@ -572,8 +627,8 @@ entity timer_us is
 		clock_frequency: positive;        
 		timer_period_us: natural  := 0);
 	port(
-		rst:  in std_logic := 'X';
 		clk:  in std_logic := 'X';
+		rst:  in std_logic := 'X';
 		co:  out std_logic := '0'); 
 end timer_us;
 
@@ -609,16 +664,18 @@ use ieee.numeric_std.all;
 
 entity timer_us_tb is
 	generic(clock_frequency: positive);
-	port(
-		clk:  in std_logic;
-		rst:  in std_logic;
-		stop: in std_logic);
+	port(stop: in std_logic);
 end;
 
 architecture behav of timer_us_tb is
 	constant clock_period: time := 1000 ms / clock_frequency;
 	signal co: std_logic := 'X';
+	signal clk, rst: std_logic := '0';
 begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
 	uut: entity work.timer_us
 		generic map(clock_frequency => clock_frequency, timer_period_us => 1) 
 		port map(clk => clk, rst => rst, co => co);
@@ -629,6 +686,7 @@ begin
 		assert co = '0' severity failure;
 		wait for clock_period;
 		assert co = '1' severity failure;
+		assert stop = '0' report "Test bench not run to completion";
 		wait;
 	end process;
 
@@ -653,7 +711,7 @@ architecture rtl of edge is
 	signal sin0: std_logic := '0';
 	signal sin1: std_logic := '0';
 begin
-	rising_edge_detector: process(clk,rst)
+	rising_edge_detector: process(clk, rst)
 	begin
 		if rst = '1' then
 			sin0 <= '0';
@@ -672,19 +730,22 @@ use ieee.numeric_std.all;
 
 entity edge_tb is
 	generic(clock_frequency: positive);
-	port(
-		clk:  in std_logic;
-		rst:  in std_logic;
-		stop: in std_logic);
+	port(stop: in std_logic);
 end;
 
 architecture behav of edge_tb is
 	constant clock_period: time := 1000 ms / clock_frequency;
 	signal sin:    std_logic := '0';
 	signal output: std_logic := 'X';
+
+	signal clk, rst: std_logic := '0';
 begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
 	uut: entity work.edge
-	port map(clk => clk, rst => rst, sin => sin, output => output);
+		port map(clk => clk, rst => rst, sin => sin, output => output);
 
 	stimulus_process: process
 	begin
@@ -699,6 +760,8 @@ begin
 		assert output = '0' severity failure;
 		wait for clock_period;
 		assert output = '0' severity failure;
+
+		assert stop = '0' report "Test bench not run to completion";
 		wait;
 	end process;
 end architecture;
@@ -752,10 +815,7 @@ use ieee.std_logic_1164.all;
 
 entity full_adder_tb is
 	generic(clock_frequency: positive);
-	port(
-		clk:  in std_logic;
-		rst:  in std_logic;
-		stop: in std_logic);
+	port(stop: in std_logic);
 end entity;
 
 architecture behav of full_adder_tb is
@@ -763,8 +823,8 @@ architecture behav of full_adder_tb is
 	signal x, y, z:    std_logic := '0';
 	signal sum, carry: std_logic := '0';
 
-	type stimulus_data   is array (7 downto 0) of std_logic_vector(2 downto 0);
-	type stimulus_result is array (7 downto 0) of std_logic_vector(0 to     1);
+	type stimulus_data   is array (0 to 7)              of std_logic_vector(2 downto 0);
+	type stimulus_result is array (stimulus_data'range) of std_logic_vector(0 to     1);
 
 	constant data: stimulus_data := (
 		0 => "000", 1 => "001",
@@ -777,7 +837,13 @@ architecture behav of full_adder_tb is
 		2 => "10",  3 => "01",
 		4 => "10",  5 => "01",
 		6 => "01",  7 => "11");
+
+	signal clk, rst: std_logic := '0';
 begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
 	uut: entity work.full_adder port map(x => x, y => y, z => z, sum => sum, carry => carry);
 
 	stimulus_process: process
@@ -796,6 +862,8 @@ begin
 				severity failure;
 			wait for clock_period;
 		end loop;
+
+		assert stop = '0' report "Test bench not run to completion";
 		wait;
 	end process;
 end architecture;
@@ -907,12 +975,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity fifo_tb is
-	generic(
-		clock_frequency: positive);
-	port(
-		clk:  in std_logic;
-		rst:  in std_logic;
-		stop: in std_logic);
+	generic(clock_frequency: positive);
+	port(stop: in std_logic);
 end entity;
 
 architecture behavior of fifo_tb is 
@@ -922,15 +986,19 @@ architecture behavior of fifo_tb is
 
 	--inputs
 	signal din: std_logic_vector(data_width - 1 downto 0) := (others => '0');
-	signal re: std_logic := '0';
-	signal we: std_logic := '0';
+	signal re:  std_logic := '0';
+	signal we:  std_logic := '0';
 	
 	--outputs
-	signal do: std_logic_vector(data_width - 1 downto 0) := (others => '0');
+	signal do:    std_logic_vector(data_width - 1 downto 0) := (others => '0');
 	signal empty: std_logic := '0';
-	signal full: std_logic  := '0';
+	signal full:  std_logic  := '0';
 	
+	signal clk, rst: std_logic := '0';
 begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.fifo
 		generic map(data_width => data_width, fifo_depth => fifo_depth)
@@ -969,6 +1037,7 @@ begin
 			we <= '0';
 		end loop;
 		
+		assert stop = '0' report "Test bench not run to completion";
 		wait;
 	end process;
 	
@@ -980,8 +1049,141 @@ begin
 		re <= '0';
 		wait for clock_period * 256 * 2;
 		re <= '1';
+
+		assert stop = '0' report "Test bench not run to completion";
 		wait;
 	end process;
 end architecture;
 
 ------------------------- FIFO ------------------------------------------------------
+
+------------------------- Free running counter --------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity counter is
+	generic(
+		length: positive);
+	port(
+		clk:  in std_logic;
+		rst:  in std_logic;
+		ce:   in std_logic;
+		cr:   in std_logic;
+		dout: out std_logic_vector(length - 1 downto 0));
+end entity;
+
+architecture rtl of counter is
+	signal c_c, c_n: unsigned(length - 1 downto 0) := (others => '0');
+begin
+	dout <= std_logic_vector(c_c);
+
+	process(clk, rst)
+	begin
+		if rst = '1' then
+			c_c <= (others => '0');
+		elsif rising_edge(clk) then
+			c_c <= c_n;
+		end if;
+	end process;
+
+	process(c_c, cr, ce)
+	begin
+		c_n <= c_c;
+
+		if cr = '1' then
+			c_n <= (others => '0');
+		elsif ce = '1' then
+			c_n <= c_c + 1;
+		end if;
+	end process;
+
+end architecture;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity counter_tb is
+	generic(
+		clock_frequency: positive);
+	port(
+		stop: in std_logic);
+end entity;
+
+architecture behavior of counter_tb is 
+	constant clock_period: time     := 1000 ms / clock_frequency;
+	constant length:       positive := 2;
+
+	-- inputs
+	signal ce: std_logic := '0';
+	signal cr: std_logic := '0';
+
+	-- outputs
+	signal dout: std_logic_vector(length - 1 downto 0);
+
+	-- test data
+	type stimulus_data   is array (0 to 16)             of std_logic_vector(1 downto 0);
+	type stimulus_result is array (stimulus_data'range) of std_logic_vector(0 to     1);
+
+	constant data: stimulus_data := (
+		 0 => "00",  1 => "00",
+		 2 => "01",  3 => "01",
+		 4 => "00",  5 => "00",
+		 6 => "10",  7 => "00",
+		 8 => "01",  9 => "01",
+		10 => "11", 11 => "00",
+		12 => "01", 13 => "01",
+		14 => "01", 15 => "01",
+		16 => "01");
+
+	constant result: stimulus_result := (
+		 0 => "00",  1 => "00",
+		 2 => "00",  3 => "01",
+		 4 => "10",  5 => "10",
+		 6 => "10",  7 => "00",
+		 8 => "00",  9 => "01",
+		10 => "10", 11 => "00",
+		12 => "00", 13 => "01",
+		14 => "10", 15 => "11",
+		16 => "00");
+
+	signal clk, rst: std_logic := '0';
+begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
+	uut: entity work.counter
+		generic map(
+			length => length)
+		port map(
+			clk   => clk,
+			rst   => rst,
+			ce    => ce,
+			cr    => cr,
+			dout  => dout);
+
+	stimulus_process: process
+	begin
+		wait for clock_period;
+		for i in data'range loop
+			ce <= data(i)(0);
+			cr <= data(i)(1);
+			wait for clock_period;
+			assert dout = result(i)
+				report 
+					"For: ce("    & std_logic'image(ce) & ") cr(" & std_logic'image(cr) & ") " & 
+					" Got: "      & integer'image(to_integer(unsigned(dout))) &
+					" Expected: " & integer'image(to_integer(unsigned(result(i))))
+				severity failure;
+		end loop;
+		assert stop = '0' report "Test bench not run to completion";
+		wait;
+	end process;
+
+end architecture;
+
+------------------------- Free running counter --------------------------------------
+

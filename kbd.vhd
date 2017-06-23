@@ -89,8 +89,15 @@ begin
 
 	-- instantiate PS2 keyboard interface logic
 	ps2_kbd_core_0: work.kbd_pkg.ps2_kbd_core
-	generic map(clock_frequency => clock_frequency, debounce_counter_size => ps2_debounce_counter_size)
-	port map(clk => clk, ps2_clk => ps2_clk, ps2_data => ps2_data, ps2_code_new => ps2_code_new, ps2_code => ps2_code);
+		generic map(
+			clock_frequency       => clock_frequency, 
+			debounce_counter_size => ps2_debounce_counter_size)
+		port map(
+			clk                   => clk, 
+			ps2_clk               => ps2_clk, 
+			ps2_data              => ps2_data, 
+			ps2_code_new          => ps2_code_new, 
+			ps2_code              => ps2_code);
 
 	process(clk)
 	begin
@@ -101,23 +108,23 @@ begin
 			-- ready state: wait for a new PS2 code to be received
 			when ready =>
 				if(prev_ps2_code_new = '0' AND ps2_code_new = '1') then -- new PS2 code received
-					ascii_new <= '0';                                       -- reset new ASCII code indicator
-					state <= new_code;                                      -- proceed to new_code state
+					ascii_new <= '0';                               -- reset new ASCII code indicator
+					state <= new_code;                              -- proceed to new_code state
 				else                                                    -- no new PS2 code received yet
-					state <= ready;                                         -- remain in ready state
+					state <= ready;                                 -- remain in ready state
 				end if;
 	
 			-- new_code state: determine what to do with the new PS2 code
 			when new_code =>
 				if(ps2_code = x"F0") then    -- code indicates that next command is break
-					break <= '1';                -- set break flag
-					state <= ready;              -- return to ready state to await next PS2 code
+					break <= '1';        -- set break flag
+					state <= ready;      -- return to ready state to await next PS2 code
 				elsif(ps2_code = x"E0") then -- code indicates multi-key command
-					e0_code <= '1';              -- set multi-code command flag
-					state <= ready;              -- return to ready state to await next PS2 code
+					e0_code <= '1';      -- set multi-code command flag
+					state <= ready;      -- return to ready state to await next PS2 code
 				else                         -- code is the last PS2 code in the make/break code
-					ascii(7) <= '1';             -- set internal ascii value to unsupported code (for verification)
-					state <= translate;          -- proceed to translate state
+					ascii(7) <= '1';     -- set internal ascii value to unsupported code (for verification)
+					state <= translate;  -- proceed to translate state
 				end if;
 
 			-- translate state: translate PS2 code to ASCII value
@@ -128,19 +135,19 @@ begin
 					-- handle codes for control, shift, and caps lock
 					case ps2_code is
 						when x"58" =>                   -- caps lock code
-							if(break = '0') then            -- if make command
-								caps_lock <= NOT caps_lock;     -- toggle caps lock
+							if(break = '0') then    -- if make command
+								caps_lock <= NOT caps_lock; -- toggle caps lock
 							end if;
 						when x"14" =>                   -- code for the control keys
 							if(e0_code = '1') then          -- code for right control
-								control_r <= NOT break;         -- update right control flag
+								control_r <= NOT break; -- update right control flag
 							else                            -- code for left control
-								control_l <= NOT break;         -- update left control flag
+								control_l <= NOT break; -- update left control flag
 							end if;
 						when x"12" =>                   -- left shift code
-							shift_l <= NOT break;           -- update left shift flag
+							shift_l <= NOT break;   -- update left shift flag
 						when x"59" =>                   -- right shift code
-							shift_r <= NOT break;           -- update right shift flag
+							shift_r <= NOT break;   -- update right shift flag
 						when others => null;
 					end case;
 	
@@ -192,8 +199,8 @@ begin
 							when x"5A" => ascii <= x"0D"; -- enter (CR control code)
 							when x"76" => ascii <= x"1B"; -- escape (ESC control code)
 							when x"71" =>
-								if(e0_code = '1') then      -- ps2 code for delete is a multi-key code
-									ascii <= x"7F";             -- delete
+								if(e0_code = '1') then  -- ps2 code for delete is a multi-key code
+									ascii <= x"7F"; -- delete
 								end if;
 							when others => null;
 						end case;

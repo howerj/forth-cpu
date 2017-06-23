@@ -7,15 +7,15 @@
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
---| @todo Load address in, dual port version whose data can be modified,
---| version using millisecond timer.
+--| @todo Create the inverse of this device - a logger that fills up a block
+--| RAM using a counter.
 ---------------------------------------------------------------------------------
-
 
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.bram_pkg.single_port_block_ram;
+use work.util.counter;
 
 entity gen is
 	generic(addr_length: positive := 12;
@@ -32,29 +32,18 @@ entity gen is
 		dout: out std_logic_vector(data_length - 1 downto 0));
 end entity;
 
-architecture behav of gen is
-	signal c_c, c_n: unsigned(addr_length - 1 downto 0) := (others => '0');
+architecture structural of gen is
+	signal addr: std_logic_vector(addr_length - 1 downto 0);
 begin
-
-	process(clk, rst)
-	begin
-		if rst = '1' then
-			c_c <= (others => '0');
-		elsif rising_edge(clk) then
-			c_c <= c_n;
-		end if;
-	end process;
-
-	process(c_c, cr, ce)
-	begin
-		c_n <= c_c;
-
-		if cr = '1' then
-			c_n <= (others => '0');
-		elsif ce = '1' then
-			c_n <= c_c + 1;
-		end if;
-	end process;
+	count: work.util.counter
+		generic map(
+			length => addr_length)
+		port map(
+			clk  => clk,
+			rst  => rst,
+			ce   => ce,
+			cr   => cr,
+			dout => addr);
 
 	ram: work.bram_pkg.single_port_block_ram
 		generic map(
@@ -63,11 +52,11 @@ begin
 			file_name   => file_name,
 			file_type   => file_type)
 		port map(
-			clk => clk,
-			addr => std_logic_vector(c_c),
-			dwe => '0',
-			dre => '1',
-			din => (others => '0'),
+			clk  => clk,
+			addr => addr,
+			dwe  => '0',
+			dre  => '1',
+			din  => (others => '0'),
 			dout => dout);
 
 end architecture;

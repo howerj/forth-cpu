@@ -25,7 +25,7 @@ SOURCES = \
 	h2.vhd \
 	cpu.vhd \
 	gen.vhd \
-	ledseg.vhd 
+	led.vhd 
 
 OBJECTS = ${SOURCES:.vhd=.o}
 
@@ -76,12 +76,12 @@ run: h2 h2.fth
 	ghdl -a $<
 
 irqh.o: util.o
-ledseg.o: util.o
+led.o: util.o
 vga.o: bram.o vga.vhd text.bin font.bin
 kbd.o: kbd.vhd debounce.o
 cpu.o: util.o h2.o irqh.o bram.o cpu.vhd h2.hex
 uart.o: util.o uart.vhd
-top.o: util.o timer.o cpu.o uart.o vga.o kbd.o ledseg.o top.vhd 
+top.o: util.o timer.o cpu.o uart.o vga.o kbd.o led.o top.vhd 
 tb.o: top.o gen.o tb.vhd 
 
 tb: ${OBJECTS} tb.o
