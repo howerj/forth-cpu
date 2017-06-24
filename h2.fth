@@ -28,9 +28,9 @@ constant oVgaCtrl      0x6003
 constant oVgaTxtAddr   0x6004  
 constant oVgaTxtDin    0x6005  
 constant oVgaWrite     0x6006  
-constant oUartWrite    0x6007  
-constant oUartStbWrite 0x6008  
-constant oUartAckDout  0x6009  
+\ constant oUartWrite    0x6007  
+\ constant oUartStbWrite 0x6008  
+\ constant oUartAckDout  0x6009  
 constant oTimerCtrl    0x600a
 constant o8SegLED_0    0x600b 
 constant o8SegLED_1    0x600c
@@ -42,9 +42,9 @@ constant oIrcMask      0x600f
 constant iButtons      0x6000 
 constant iSwitches     0x6001
 constant iVgaTxtDout   0x6002 
-constant iUartRead     0x6003 
-constant iUartAckWrite 0x6004 
-constant iUartStbDout  0x6005 
+\ constant iUartRead     0x6003 
+\ constant iUartAckWrite 0x6004 
+\ constant iUartStbDout  0x6005 
 constant iPs2New       0x6006 
 constant iPs2Char      0x6007 
 constant iTimerCtrl    0x6008
@@ -153,14 +153,14 @@ variable uart-read-count 0
 	uart-read-count 1+!
 	uart-read-count @ led ;
 
+: emit
+	uart-write drop ;
+
 : key ( -- char : read in a key, echoing to output )
-	uart-read dup uart-write drop ;
+	uart-read dup emit ;
 
 : char
 	uart-read ;
-
-: emit
-	uart-write drop ;
 
 
 constant bootstart 1024
@@ -197,7 +197,7 @@ nextChar:
 	begin 
 		iSwitches @ oLeds !  \ Set LEDs to switches
 		\ iPs2New @          \ Wait for PS/2 a character
-		key?                 \ Wait for UART character
+		key? 0=                \ Wait for UART character
 	until 
 	cursorT   @ oVgaTxtAddr !    \ Set index into VGA memory
 	key         oVgaTxtDin  !    \ Character to write

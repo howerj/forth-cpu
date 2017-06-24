@@ -378,7 +378,7 @@ begin
 				-- kbd_new_n <= '0';
 			when "01000" => 
 				io_din <= timer_control_o;
-			when "01001" =>
+			when "01001" => 
 				io_din(7 downto 0) <= rx_data_n;
 				io_din(8)          <= rx_fifo_empty;
 				io_din(9)          <= rx_fifo_full;
@@ -407,7 +407,7 @@ begin
 		port map(
 			clk => clk,
 			rst => rst,
-			we  => rx_data_re,
+			we  => rx_data_re_n,
 			di  => rx_data,
 			do  => rx_data_n);
 
@@ -421,7 +421,7 @@ begin
 			rx_data         =>  rx_data,
 			rx_fifo_empty   =>  rx_fifo_empty,
 			rx_fifo_full    =>  rx_fifo_full,
-			rx_data_re      =>  rx_data_re_n,
+			rx_data_re      =>  rx_data_re,
 			tx_data         =>  tx_data,
 			tx_fifo_full    =>  tx_fifo_full,
 			tx_fifo_empty   =>  tx_fifo_empty,

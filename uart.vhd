@@ -115,6 +115,7 @@ architecture behav of uart_top is
 
 	signal tx_fifo_re:             std_logic := '0';
 	signal tx_fifo_empty_internal: std_logic := '1';
+
 begin
 	uart_deglitch: process (clk)
 	begin
@@ -125,22 +126,24 @@ begin
 		end if;
 	end process;
 
-	process(clk) 
+	process(dout_stb, tx_fifo_empty_internal, din_ack) 
+		variable wrote: boolean := false;
 	begin
-		if rising_edge(clk) then
-			dout_ack <= '0';
-			din_stb  <= '0';
-			tx_fifo_re          <= '0';
+			dout_ack    <= '0';
+			din_stb     <= '0';
+			tx_fifo_re  <= '0';
 
 			if dout_stb = '1' then
 				dout_ack <= '1';
 			end if;
 
 			if tx_fifo_empty_internal = '0' then
-				din_stb <= '1';
-				tx_fifo_re         <= '1';
+				tx_fifo_re <= '1';
+				wrote      := true;
+			elsif din_ack = '0' and wrote then
+				din_stb    <= '1';
+				wrote      := false;
 			end if;
-		end if;
 	end process;
 
 	rx_fifo: work.util.fifo 
@@ -178,16 +181,16 @@ begin
 			baud_rate => baud_rate,
 			clock_frequency => clock_frequency)
 		port map(
-			clk                 => clk,
-			rst                 => rst,
+			clk      => clk,
+			rst      => rst,
 			din      => din,
 			din_stb  => din_stb,
 			din_ack  => din_ack,
 			dout     => dout,
 			dout_stb => dout_stb,
 			dout_ack => dout_ack,
-			rx                  => rx_uart,
-			tx                  => tx_uart);
+			rx       => rx_uart,
+			tx       => tx_uart);
 
 end;
 
