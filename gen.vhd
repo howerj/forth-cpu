@@ -20,7 +20,7 @@ use work.util.counter;
 entity gen is
 	generic(addr_length: positive := 12;
 		data_length: positive := 16;
-		file_name:   string   := "memory.bin"; 
+		file_name:   string   := "memory.bin";
 		file_type:   string   := "bin");
 	port(
 		clk:  in  std_logic;

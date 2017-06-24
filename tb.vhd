@@ -81,7 +81,7 @@ architecture testing of tb is
 	signal ld:    std_logic_vector(7 downto 0) := (others => '0'); -- leds
 
 	-- UART
-	signal rx:    std_logic := '0'; 
+	signal rx:    std_logic := '0';
 	signal tx:    std_logic := '0';
 
 	-- VGA
@@ -138,14 +138,14 @@ begin
 	uut_timer_us: entity work.timer_us_tb       generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
 	uut_edge:     entity work.edge_tb           generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
 	uut_full_add: entity work.full_adder_tb     generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
-	uut_function: entity work.function_tb       generic map(clock_frequency => clock_frequency) port map(stop => wait_flag); 
+	uut_function: entity work.function_tb       generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
 	uut_fifo:     entity work.fifo_tb           generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
 	uut_counter:  entity work.counter_tb        generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
 
 	-- @note a more advanced test bench would send out a string and expect
 	-- the same one back using a loopback circuit. For the moment this
 	-- is just used for testing the SoC.
-	uut_uart: work.uart_pkg.uart_core 
+	uut_uart: work.uart_pkg.uart_core
 		generic map(
 			baud_rate            =>  uart_baud_rate,
 			clock_frequency      =>  clock_frequency)
@@ -159,7 +159,7 @@ begin
 			dout_ack  =>  '0');
 
 	-- Example usage of wave form generator
-	uut_gen: entity work.gen 
+	uut_gen: entity work.gen
 		generic map(
 			addr_length  =>  13,
 			data_length  =>  16,
@@ -176,8 +176,8 @@ begin
 	uart_fifo_rx_fifo_not_empty <= not uart_fifo_rx_fifo_empty;
 	uut_uart_fifo: work.uart_pkg.uart_top
 	generic map(
-		baud_rate => uart_baud_rate, 
-		clock_frequency => clock_frequency) 
+		baud_rate => uart_baud_rate,
+		clock_frequency => clock_frequency)
 	port map(
 		clk            =>  clk,
 		rst            =>  rst,
@@ -238,8 +238,8 @@ begin
 			variable l: line;
 		begin
 			write(l, integer'image(cycles) & ": ");
-			element(l, "pc",    debug.pc);  
-			element(l, "insn",  debug.insn);  
+			element(l, "pc",    debug.pc);
+			element(l, "insn",  debug.insn);
 			element(l, "daddr", debug.daddr);
 			element(l, "dout",  debug.dout);
 			return l;

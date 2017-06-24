@@ -8,7 +8,7 @@
 --| @email          howe.r.j.89@gmail.com
 --|
 --| @note GHDL complains about the function "in_file" not being a pure function,
---| as it reads from a file, it simulates correctly however. 
+--| as it reads from a file, it simulates correctly however.
 --| @warning The function initialize_ram has to be present in each architecture
 --| block ram that uses it (as far as I am aware) which means they could fall
 --| out of sync. This could be remedied with VHDL-2008.
@@ -23,7 +23,7 @@ package bram_pkg is
 	component dual_port_block_ram is
 	generic(addr_length: positive  := 12;
 		data_length: positive  := 16;
-		file_name:   string   := "memory.bin"; 
+		file_name:   string   := "memory.bin";
 		file_type:   string   := "bin");
 	port(
 		--| Port A of dual port RAM
@@ -45,7 +45,7 @@ package bram_pkg is
 	component single_port_block_ram is
 	generic(addr_length: positive := 12;
 		data_length: positive := 16;
-		file_name:   string   := "memory.bin"; 
+		file_name:   string   := "memory.bin";
 		file_type:   string   := "bin");
 	port(
 		clk:  in  std_logic;
@@ -126,7 +126,7 @@ entity dual_port_block_ram is
 	--
 	generic(addr_length: positive := 12;
 		data_length: positive := 16;
-		file_name:   string   := "memory.bin"; 
+		file_name:   string   := "memory.bin";
 		file_type:   string   := "bin");
 	port(
 		--| Port A of dual port RAM
@@ -245,7 +245,7 @@ entity single_port_block_ram is
 	--
 	generic(addr_length: positive := 12;
 		data_length: positive := 16;
-		file_name:   string   := "memory.bin"; 
+		file_name:   string   := "memory.bin";
 		file_type:   string   := "bin");
 	port(
 		clk:  in  std_logic;

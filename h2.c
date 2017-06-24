@@ -120,7 +120,7 @@
 #ifdef _WIN32
 #include <io.h>
 #include <fcntl.h>
-extern int _fileno(FILE *stream); 
+extern int _fileno(FILE *stream);
 #endif
 
 /**@note STK_SIZE is fixed to 32, but h2.vhd allows for the instantiation of
@@ -458,8 +458,8 @@ int h2_save(h2_t *h, FILE *output, bool full)
 #ifdef __unix__
 #include <unistd.h>
 #include <termios.h>
-int getch(void) 
-{ 
+int getch(void)
+{
 	struct termios oldattr, newattr;
 	int ch;
 	tcgetattr(STDIN_FILENO, &oldattr);
@@ -480,8 +480,8 @@ int getch(void)
 	return ch == CHAR_DELETE ? CHAR_BACKSPACE : ch;
 }
 
-int putch(int c) 
-{ 
+int putch(int c)
+{
 	int res = putchar(c);
 	fflush(stdout);
 	return res;
@@ -502,7 +502,7 @@ int putch(int c)
 {
 	return putchar(c);
 }
-#endif 
+#endif
 #endif /** __unix__ **/
 
 
@@ -827,6 +827,20 @@ int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 #define TIMER_RESET                (1 << TIMER_RESET_BIT)
 #define TIMER_INTERRUPT_ENABLE     (1 << TIMER_INTERRUPT_ENABLE)
 
+#define UART_RX_FIFO_EMPTY_BIT     (8)
+#define UART_RX_FIFO_FULL_BIT      (9)
+#define UART_RX_RE_BIT             (10)
+#define UART_TX_FIFO_EMPTY_BIT     (11)
+#define UART_TX_FIFO_FULL_BIT      (12)
+#define UART_TX_WE_BIT             (13)
+
+#define UART_RX_FIFO_EMPTY         (1 << UART_RX_FIFO_EMPTY_BIT)
+#define UART_RX_FIFO_FULL          (1 << UART_RX_FIFO_FULL_BIT)
+#define UART_RX_RE                 (1 << UART_RX_RE_BIT)
+#define UART_TX_FIFO_EMPTY         (1 << UART_TX_FIFO_EMPTY_BIT)
+#define UART_TX_FIFO_FULL          (1 << UART_TX_FIFO_FULL_BIT)
+#define UART_TX_WE                 (1 << UART_TX_WE_BIT)
+
 typedef struct {
 	uint8_t leds;
 	uint16_t vga_cursor;
@@ -840,20 +854,14 @@ typedef struct {
 
 	uint16_t irc_mask;
 
-	bool uart_stb_write;
-	bool uart_ack_read;
+	uint8_t uart_getchar_register;
+
 	uint8_t led0;
 	uint8_t led1;
 	uint8_t led2;
 	uint8_t led3;
-	
 
-	uint8_t buttons;
 	uint8_t switches;
-	bool uart_ack_write;
-	bool uart_stb_read;
-	bool ps2_new;
-	bool ps2_char;
 
 	bool wait;
 } h2_soc_state_t;
@@ -872,39 +880,54 @@ typedef struct {
 	h2_soc_state_t *soc;
 } h2_io_t;
 
-/**@todo used the enumerations h2_input_addr_t and h2_output_addr_t to 
+/**@todo used the enumerations h2_input_addr_t and h2_output_addr_t to
  * generate constants for use with the assembler */
 
 typedef enum {
-	iButtons      = 0x6000,
+	iUart         = 0x6000,
 	iSwitches     = 0x6001,
-	iVgaTxtDout   = 0x6002,
-	iUartRead     = 0x6003,
-	iUartAckWrite = 0x6004,
-	iUartStbDout  = 0x6005,
-	iPs2New       = 0x6006,
-	iPs2Char      = 0x6007,
-	iTimerCtrl    = 0x6008
+	iTimerCtrl    = 0x6002,
+	iTimerDin     = 0x6003,
+	iVgaTxtDout   = 0x6004,
+	iPs2New       = 0x6005,
+	iPs2Char      = 0x6006
 } h2_input_addr_t;
 
 typedef enum {
-	oNotUsed      = 0x6000,
+	oUart         = 0x6000,
 	oLeds         = 0x6001,
-	oVgaCursor    = 0x6002,
-	oVgaCtrl      = 0x6003,
-	oVgaTxtAddr   = 0x6004,
-	oVgaTxtDin    = 0x6005,
-	oVgaWrite     = 0x6006,
-	oUartWrite    = 0x6007,
-	oUartStbWrite = 0x6008,
-	oUartAckDout  = 0x6009,
-	oTimerCtrl    = 0x600a,
-	o8SegLED_0    = 0x600b,
-	o8SegLED_1    = 0x600c,
-	o8SegLED_2    = 0x600d,
-	o8SegLED_3    = 0x600e,
-	oIrcMask      = 0x600f,
+	oTimerCtrl    = 0x6002,
+	oVgaCursor    = 0x6003,
+	oVgaCtrl      = 0x6004,
+	oVgaTxtAddr   = 0x6005,
+	oVgaTxtDin    = 0x6006,
+	oVgaWrite     = 0x6007,
+	o8SegLED_0    = 0x6008,
+	o8SegLED_1    = 0x6009,
+	o8SegLED_2    = 0x600a,
+	o8SegLED_3    = 0x600b,
+	oIrcMask      = 0x600c,
 } h2_output_addr_t;
+
+static void h2_print_soc_state(FILE *out, h2_soc_state_t *soc)
+{
+	fprintf(out, "LEDS:          %"PRIx8"\n", soc->leds);
+	fprintf(out, "VGA Cursor:    %"PRIx16"\n", soc->vga_cursor);
+	fprintf(out, "VGA Control:   %"PRIx16"\n", soc->vga_control);
+	fprintf(out, "VGA Addr:      %"PRIx16"\n", soc->vga_text_addr);
+	fprintf(out, "VGA Write:     %"PRIx16"\n", soc->vga_text_write);
+	/*fprintf(out, "%"PRId16"\n", soc->vga[VGA_BUFFER_LENGTH]);*/
+	fprintf(out, "Timer Control: %"PRIx16"\n", soc->timer_control);
+	fprintf(out, "Timer:         %"PRIx16"\n", soc->timer);
+	fprintf(out, "IRC Mask:      %"PRIx16"\n", soc->irc_mask);
+	fprintf(out, "UART Input:    %"PRIx8"\n", soc->uart_getchar_register);
+	fprintf(out, "LED 0:         %"PRIx8"\n", soc->led0);
+	fprintf(out, "LED 1:         %"PRIx8"\n", soc->led1);
+	fprintf(out, "LED 2:         %"PRIx8"\n", soc->led2);
+	fprintf(out, "LED 3:         %"PRIx8"\n", soc->led3);
+	fprintf(out, "Switches:      %"PRIx8"\n", soc->switches);
+	fprintf(out, "Waiting:       %s\n",       soc->wait ? "true" : "false");
+}
 
 static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 {
@@ -913,15 +936,13 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 		fprintf(stderr, "IO read addr: %"PRIx16"\n", addr);
 
 	switch(addr) {
-	case iButtons:      return soc->buttons;
+	case iUart:         return UART_TX_FIFO_EMPTY | soc->uart_getchar_register; /** @bug This does not reflect accurate timing */
 	case iSwitches:     return soc->switches;
+	case iTimerCtrl:    return soc->timer_control;
+	case iTimerDin:     return soc->timer;
 	case iVgaTxtDout:   return soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH];
-	case iUartRead:     return getch(); /** @bug This does not reflect accurate timing */
-	case iUartAckWrite: return rand()%2;
-	case iUartStbDout:  return rand()%2; /** @note needed to implement blocking on read */
 	case iPs2New:       return 1;
 	case iPs2Char:      return getch();
-	case iTimerCtrl:    return (soc->timer & 0x1FFF) | (soc->timer_control & 0xE000);
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 	}
@@ -934,24 +955,25 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	if(log_level >= LOG_DEBUG)
 		fprintf(stderr, "IO write addr/value: %"PRIx16"/%"PRIx16"\n", addr, value);
 	switch(addr) {
-	case oNotUsed:    break;
+	case oUart:
+			if(value & UART_TX_WE)
+				putchar(0xFF & value);
+			if(value & UART_RX_RE)
+				soc->uart_getchar_register = getch();
+			break;
 	case oLeds:       soc->leds           = value; break;
-	case oVgaCursor:  soc->vga_cursor     = value; break;
+	case oTimerCtrl:  soc->timer_control  = value; break;
 	case oVgaCtrl:    soc->vga_control    = value; break;
+	case oVgaCursor:  soc->vga_cursor     = value; break;
 	case oVgaTxtAddr: soc->vga_text_addr  = value % VGA_BUFFER_LENGTH; break;
 	case oVgaTxtDin:  soc->vga_text_write = value; break;
-	case oVgaWrite:   soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH] = soc->vga_text_write; 
-			  putchar(0xFF & soc->vga_text_write);
+	case oVgaWrite:   soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH] = soc->vga_text_write;
+			  /*putchar(0xFF & soc->vga_text_write);*/
 			  break;
-	case oUartWrite:
-	case oUartStbWrite:
-	case oUartAckDout:
-		break;
-	case oTimerCtrl: soc->timer_control = value; break;
-	case o8SegLED_0: soc->led0  = value; break;
-	case o8SegLED_1: soc->led1  = value; break;
-	case o8SegLED_2: soc->led2  = value; break;
-	case o8SegLED_3: soc->led3  = value; break;
+	case o8SegLED_0: soc->led0  = value & 0xf; break;
+	case o8SegLED_1: soc->led1  = value & 0xf; break;
+	case o8SegLED_2: soc->led2  = value & 0xf; break;
+	case o8SegLED_3: soc->led3  = value & 0xf; break;
 	case oIrcMask:   soc->irc_mask = value; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
@@ -1586,7 +1608,7 @@ again:
  *
  * Program     := Statement* EOF
  * Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
- *                | Identifier | Constant | Variable | Definition | If 
+ *                | Identifier | Constant | Variable | Definition | If
  *                | Begin | Char
  * Label       := Identifier ";"
  * Branch      := "branch"  ( Identifier | Literal )
@@ -2321,7 +2343,11 @@ static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_ta
 		return -1;
 	note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
 	io = h2_io_new();
-	r = h2_run(h, h2_io_new(), output, cmd->steps, symbols);
+	r = h2_run(h, io, output, cmd->steps, symbols);
+
+	if(log_level >= LOG_DEBUG)
+		h2_print_soc_state(output, io->soc);
+
 	h2_free(h);
 	h2_io_free(io);
 	return r;

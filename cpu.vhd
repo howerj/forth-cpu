@@ -23,7 +23,7 @@ package cpu_pkg is
 	end record;
 
 -- 	constant number_of_interrupts: positive := 8;
--- 
+--
 -- 	type cpu_interrupt_interface is record
 -- 		irq:         std_logic;
 -- 		irc:         std_logic_vector(number_of_interrupts - 1 downto 0);

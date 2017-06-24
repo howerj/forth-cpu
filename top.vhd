@@ -178,15 +178,15 @@ begin
 	cpu_irc(7) <= sw_d(1);
 
 	cpu_wait   <= btnc_d;
-	cpu_irq    <= '1' when 
-			timer_irq = '1' or 
-			sw_d(2)   = '1' or 
-			sw_d(3)   = '1' or 
-			btnl_d    = '1' or 
+	cpu_irq    <= '1' when
+			timer_irq = '1' or
+			sw_d(2)   = '1' or
+			sw_d(3)   = '1' or
+			btnl_d    = '1' or
 			btnr_d    = '1' or
 			kbd_new   = '1' or
 			sw_d(0)   = '1' or
-			sw_d(1)   = '1' 
+			sw_d(1)   = '1'
 			else '0';
 
 	cpu_0: entity work.cpu
@@ -241,7 +241,7 @@ begin
 	end process;
 
 	io_select: process(
-		io_wr, io_re, io_dout, io_daddr, 
+		io_wr, io_re, io_dout, io_daddr,
 		ld_c,
 		sw_d, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
 		kbd_char, kbd_new_c, kbd_char_c,
@@ -279,9 +279,9 @@ begin
 		vga_addr    <= (others => '0');
 
 		timer_control_we <= '0';
-		timer_control_i <= (others => '0');
+		timer_control_i  <= (others => '0');
 
-		cpu_irc_mask <= (others => '0');
+		cpu_irc_mask    <= (others => '0');
 		cpu_irc_mask_we <= '0';
 
 		if kbd_new_edge = '1' then
@@ -303,89 +303,84 @@ begin
 		--if io_wr = '1' and io_daddr(15 downto 5) = "01100000000" then
 		if io_wr = '1' then
 			-- Write output.
-			case io_daddr(4 downto 0) is
-			when "00000" => -- UART
+			case io_daddr(3 downto 0) is
+			when "0000" => -- UART
 				tx_data_we <= io_dout(13);
 				rx_data_re <= io_dout(10);
 				tx_data    <= io_dout(tx_data'range);
 
-			when "00001" => -- LEDs, next to switches.
+			when "0001" => -- LEDs, next to switches.
 				ld_n <= io_dout(7 downto 0);
 
-			when "00010" => -- VGA, cursor registers.
+			when "0010" => -- General purpose timer
+				timer_control_we <= '1';
+				timer_control_i  <= io_dout;
+
+			when "0011" => -- VGA, cursor registers.
 				vga_control_we.crx <= '1';
 				vga_control_we.cry <= '1';
 				vga_control.crx    <= io_dout(vga_control.crx'range);
 				vga_control.cry    <= io_dout(vga_control.cry'range);
-			when "00011" => -- VGA, control register.
+			when "0100" => -- VGA, control register.
 				vga_control_we.ctl <= '1';
 				vga_control.ctl    <= io_dout(vga_control.ctl'range);
-			when "00100" => -- VGA update address register.
+			when "0101" => -- VGA update address register.
 				vga_addr_we <= '1';
 				vga_addr    <= io_dout(vga_addr'range);
-			when "00101" => -- VGA, update register.
+			when "0110" => -- VGA, update register.
 				vga_din_we <= '1';
 				vga_din    <= io_dout;
-			when "00110" => -- VGA write RAM write
+			when "0111" => -- VGA write RAM write
 				vga_we_ram <= io_dout(0);
 
-			when "00111" => 
-			when "01000" => 
-			when "01001" =>
-
-			when "01010" => -- General purpose timer
-				timer_control_we <= '1';
-				timer_control_i  <= io_dout;
-
-			when "01011" => -- LED 8 Segment display
+			when "1000" => -- LED 8 Segment display 0
 				leds(0).display <= io_dout(3 downto 0);
 				leds(0).we      <= '1';
-			when "01100" => -- LED 8 Segment display
+			when "1001" => -- LED 8 Segment display 1
 				leds(1).display <= io_dout(3 downto 0);
 				leds(1).we      <= '1';
-			when "01101" =>
+			when "1010" => -- LED 8 Segment display 2
 				leds(2).display <= io_dout(3 downto 0);
 				leds(2).we      <= '1';
-			when "01110" =>
+			when "1011" => -- LED 8 Segment display 3
 				leds(3).display <= io_dout(3 downto 0);
 				leds(3).we      <= '1';
 
-			when "01111" =>
+			when "1100" => -- CPU Mask
 				cpu_irc_mask <= io_dout(number_of_interrupts - 1 downto 0);
 				cpu_irc_mask_we <= '1';
-			when "10000" =>
+
 			when others =>
 			end case;
+
 		-- elsif io_re = '1' and io_daddr(15 downto 5) = "01100000000" then
 		elsif io_re = '1' then
 			-- Get input.
-			case io_daddr(4 downto 0) is
-			when "00000" => -- buttons, plus direct access to UART bit.
-				io_din <= "0000000000" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d;
-			when "00001" =>
-				io_din <= X"00" & sw_d;
-			when "00010" => -- VGA, Read VGA text buffer.
-				io_din <= vga_dout;
-
-			when "00011" => 
-			when "00100" => 
-			when "00101" => 
-
-			when "00110" =>  -- PS/2 Keyboard, Check for new char
-				io_din <= (0 => kbd_new_c, others => '0');
-			when "00111" =>  -- PS/2 ASCII In and ACK
-				io_din <= "000000000" &  kbd_char_c;
-				-- kbd_new_n <= '0';
-			when "01000" => 
-				io_din <= timer_control_o;
-			when "01001" => 
+			case io_daddr(2 downto 0) is
+			when "000" => -- buttons, plus direct access to UART bit.
 				io_din(7 downto 0) <= rx_data_n;
 				io_din(8)          <= rx_fifo_empty;
 				io_din(9)          <= rx_fifo_full;
 				io_din(11)         <= tx_fifo_empty;
 				io_din(12)         <= tx_fifo_full;
-			--when "01010" =>
+
+			when "001" => -- Switches and buttons
+				io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
+
+			when "010" => -- VGA, Read VGA text buffer.
+				io_din <= timer_control_o;
+
+			when "011" => -- Timer in
 			--	io_din(timer_counter_o'range) <= timer_counter_o;
+
+			when "100" => -- VGA dout
+				io_din <= vga_dout;
+
+			when "101" => -- PS/2 Keyboard, Check for new char
+				io_din <= (0 => kbd_new_c, others => '0');
+				-- kbd_new_n <= '0';
+			when "110" => -- PS/2 ASCII In and ACK
+				io_din <= "000000000" &  kbd_char_c;
 
 			when others => io_din <= (others => '0');
 			end case;
@@ -496,7 +491,7 @@ begin
 	ledseg_0: entity work.led_8_segment_display
 	generic map(
 		number_of_led_displays => number_of_led_displays,
-		clock_frequency        => clock_frequency, 
+		clock_frequency        => clock_frequency,
 		use_bcd_not_hex        => false)
 	port map(
 		clk        => clk,

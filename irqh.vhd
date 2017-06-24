@@ -36,7 +36,7 @@ entity irqh is
 		mask_we: in  std_logic;
 
 		irq_o:   out std_logic;
-		addr_o:  out std_logic_vector(n_bits(number_of_interrupts) - 1 downto 0)); 
+		addr_o:  out std_logic_vector(n_bits(number_of_interrupts) - 1 downto 0));
 end;
 
 architecture rtl of irqh is
@@ -50,9 +50,9 @@ architecture rtl of irqh is
 	signal mask_n: std_logic_vector(mask'range) := (others => '0');
 begin
 
-	irq_in: entity work.reg 
+	irq_in: entity work.reg
 		generic map(
-			N      => 1) 
+			N      => 1)
 		port map(
 			clk    =>  clk,
 			rst    =>  rst,
@@ -60,9 +60,9 @@ begin
 			di(0)  =>  irq_i,
 			do(0)  =>  irq_n);
 
-	irc_in: entity work.reg 
+	irc_in: entity work.reg
 		generic map(
-			N    => number_of_interrupts) 
+			N    => number_of_interrupts)
 		port map(
 			clk  =>  clk,
 			rst  =>  rst,
@@ -91,9 +91,9 @@ begin
 		end if;
 	end process;
 
-	irq_out: entity work.reg 
+	irq_out: entity work.reg
 		generic map(
-			N      => 1) 
+			N      => 1)
 		port map(
 			clk    =>  clk,
 			rst    =>  rst,

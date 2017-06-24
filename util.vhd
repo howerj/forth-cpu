@@ -55,7 +55,7 @@ package util is
 			stop: in std_logic);
 	end component;
 
-	component timer_us 
+	component timer_us
 		generic(clock_frequency: positive; timer_period_us: natural);
 		port(
 			clk: in  std_logic;
@@ -163,7 +163,7 @@ package util is
 
 	subtype configuration_name is string(1 to 8);
 
-	type configuration_item is record 
+	type configuration_item is record
 		name:  configuration_name;
 		value: integer;
 	end record;
@@ -213,9 +213,9 @@ package body util is
 			result(i) := aa(i);
 		end loop;
 		return result;
-	end; 
+	end;
 
-	function invert(slv: std_logic_vector) return std_logic_vector is 
+	function invert(slv: std_logic_vector) return std_logic_vector is
 		variable z: std_logic_vector(slv'range);
 	begin
 		for i in slv'range loop
@@ -250,7 +250,7 @@ package body util is
 
 	function priority(order: std_logic_vector; high: boolean) return natural is
 		variable p: natural := 0;
-	begin 
+	begin
 		if not high then
 			for i in order'high + 1 downto 1 loop
 				if order(i-1) = '1' then
@@ -269,7 +269,7 @@ package body util is
 
 	function priority(order: std_logic_vector; high: boolean) return std_logic_vector is
 		variable length: natural := n_bits(order'length);
-	begin 
+	begin
 		return std_logic_vector(to_unsigned(priority(order, high), length));
 	end;
 
@@ -278,7 +278,7 @@ package body util is
 	begin
 		if sel = '0' then m := a; else m := b; end if;
 		return m;
-	end; 
+	end;
 
 	function mux(a: std_logic; b: std_logic; sel: std_logic) return std_logic is
 		variable m: std_logic := 'X';
@@ -288,7 +288,7 @@ package body util is
 	end;
 
 	function mux(a, b : std_logic_vector) return std_logic is
-		variable r: std_logic_vector(b'length - 1 downto 0) := (others => 'X'); 
+		variable r: std_logic_vector(b'length - 1 downto 0) := (others => 'X');
 		variable i: integer;
 	begin
 		r := b;
@@ -370,7 +370,7 @@ package body util is
 	procedure write_configuration_tb(file_name: string; ci: configuration_items) is
 		file     out_file: text is out file_name;
 		variable out_line: line;
-	begin 
+	begin
 		for i in ci'range loop
 			write(out_line, ci(i).name);
 			writeline(out_file, out_line);
@@ -606,7 +606,7 @@ begin
 			assert do = '0' report "bit appeared to quickly";
 			wait for clock_period;
 		end loop;
-		assert do = '1' report "bit disappeared in shift register"; 
+		assert do = '1' report "bit disappeared in shift register";
 		wait for clock_period * 1;
 		assert do = '0' report "extra bit set in shift register";
 
@@ -631,12 +631,12 @@ use work.util.n_bits;
 
 entity timer_us is
 	generic(
-		clock_frequency: positive;        
+		clock_frequency: positive;
 		timer_period_us: natural  := 0);
 	port(
 		clk:  in std_logic := 'X';
 		rst:  in std_logic := 'X';
-		co:  out std_logic := '0'); 
+		co:  out std_logic := '0');
 end timer_us;
 
 architecture rtl of timer_us is
@@ -684,7 +684,7 @@ begin
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.timer_us
-		generic map(clock_frequency => clock_frequency, timer_period_us => 1) 
+		generic map(clock_frequency => clock_frequency, timer_period_us => 1)
 		port map(clk => clk, rst => rst, co => co);
 
 	stimulus_process: process
@@ -815,7 +815,7 @@ begin
 	ha1: entity work.half_adder port map(a => x,    b => y, sum => sum1, carry => carry1);
 	ha2: entity work.half_adder port map(a => sum1, b => z, sum => sum,  carry => carry2);
 	carry <= carry1 or carry2;
-end architecture; 
+end architecture;
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -862,9 +862,9 @@ begin
 			z <= data(i)(2);
 			wait for clock_period;
 			assert sum = result(i)(0) and carry = result(i)(1)
-				report 
+				report
 					"For: "       & std_logic'image(x) & std_logic'image(y) & std_logic'image(z) &
-					" Got: "      & std_logic'image(sum)          & std_logic'image(carry) & 
+					" Got: "      & std_logic'image(sum)          & std_logic'image(carry) &
 					" Expected: " & std_logic'image(result(i)(0)) & std_logic'image(result(i)(1))
 				severity failure;
 			wait for clock_period;
@@ -897,7 +897,7 @@ entity fifo is
 	generic(
 		data_width: positive := 8;
 		fifo_depth: positive := 16);
-	port( 
+	port(
 		clk:   in  std_logic;
 		rst:   in  std_logic;
 		we:    in  std_logic;
@@ -987,7 +987,7 @@ entity fifo_tb is
 	port(stop: in std_logic);
 end entity;
 
-architecture behavior of fifo_tb is 
+architecture behavior of fifo_tb is
 	constant clock_period: time  := 1000 ms / clock_frequency;
 	constant data_width: positive := 8;
 	constant fifo_depth: positive := 16;
@@ -1120,7 +1120,7 @@ entity counter_tb is
 		stop: in std_logic);
 end entity;
 
-architecture behavior of counter_tb is 
+architecture behavior of counter_tb is
 	constant clock_period: time     := 1000 ms / clock_frequency;
 	constant length:       positive := 2;
 
@@ -1181,8 +1181,8 @@ begin
 			cr <= data(i)(1);
 			wait for clock_period;
 			assert dout = result(i)
-				report 
-					"For: ce("    & std_logic'image(ce) & ") cr(" & std_logic'image(cr) & ") " & 
+				report
+					"For: ce("    & std_logic'image(ce) & ") cr(" & std_logic'image(cr) & ") " &
 					" Got: "      & integer'image(to_integer(unsigned(dout))) &
 					" Expected: " & integer'image(to_integer(unsigned(result(i))))
 				severity failure;

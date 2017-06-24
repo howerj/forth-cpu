@@ -1,9 +1,9 @@
 --------------------------------------------------------------------------------
--- 
+--
 --    FileName:         kbd.vhd
 --    Dependencies:     debounce.vhd
 --    Design Software:  Quartus II 32-bit Version 12.1 Build 177 SJ Full Version
--- 
+--
 --    HDL CODE is PROVIDED "AS IS."  DIGI-KEY EXPRESSLY DISCLAIMS ANY
 --    WARRANTY OF ANY KIND, WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT
 --    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
@@ -13,11 +13,11 @@
 --    PROCUREMENT OF SUBSTITUTE GOODS, TECHNOLOGY OR SERVICES, ANY CLAIMS
 --    BY THIRD PARTIES (INCLUDING BUT NOT LIMITED TO ANY DEFENSE THEREOF),
 --    ANY CLAIMS FOR INDEMNITY OR CONTRIBUTION, OR OTHER SIMILAR COSTS.
--- 
+--
 --    Version History
 --    Version 1.0 11/29/2013 Scott Larson
 --      Initial Public Release
--- 
+--
 --  See https://eewiki.net/pages/viewpage.action?pageId=28279002
 --
 --  @note This file has been renamed and updated from the original.
@@ -93,13 +93,13 @@ begin
 	-- instantiate PS2 keyboard interface logic
 	ps2_kbd_core_0: work.kbd_pkg.ps2_kbd_core
 		generic map(
-			clock_frequency       => clock_frequency, 
+			clock_frequency       => clock_frequency,
 			debounce_counter_size => ps2_debounce_counter_size)
 		port map(
-			clk                   => clk, 
-			ps2_clk               => ps2_clk, 
-			ps2_data              => ps2_data, 
-			ps2_code_new          => ps2_code_new, 
+			clk                   => clk,
+			ps2_clk               => ps2_clk,
+			ps2_data              => ps2_data,
+			ps2_code_new          => ps2_code_new,
 			ps2_code              => ps2_code);
 
 	process(clk)

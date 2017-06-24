@@ -31,7 +31,7 @@ package led_pkg is
 
 	component led_8_segment_display is
 		generic(
-			clock_frequency:        positive; 
+			clock_frequency:        positive;
 			use_bcd_not_hex:        boolean := true;
 			refresh_rate_us:        natural := 1500;
 			number_of_led_displays: positive := 4);
@@ -73,7 +73,7 @@ use work.led_pkg.all;
 
 entity led_8_segment_display is
 	generic(
-		clock_frequency:        positive; 
+		clock_frequency:        positive;
 		use_bcd_not_hex:        boolean := true;
 		refresh_rate_us:        natural := 1500;
 		number_of_led_displays: positive := 4);
@@ -100,12 +100,12 @@ architecture rtl of led_8_segment_display is
 	-- is as follows:
 	--
 	--       A
-	--      --- 
+	--      ---
 	--   F |   | B
 	--     |___|
 	--   E | G | C
 	--     |___| . DP
-	--       D  
+	--       D
 	--
 	-- The following encoding is used to convert the input BCD character
 	-- into a value that can be put onto the display.
@@ -143,7 +143,7 @@ architecture rtl of led_8_segment_display is
 		variable r: std_logic_vector(7 downto 0);
 	begin
 		case a is
-			when "0000" => r := x"3F"; -- 0        
+			when "0000" => r := x"3F"; -- 0
 			when "0001" => r := x"06"; -- 1
 			when "0010" => r := x"5B"; -- 2
 			when "0011" => r := x"4F"; -- 3
@@ -168,7 +168,7 @@ architecture rtl of led_8_segment_display is
 		variable r: std_logic_vector(7 downto 0);
 	begin
 		case a is
-			when "0000" => r := x"3F"; -- 0        
+			when "0000" => r := x"3F"; -- 0
 			when "0001" => r := x"06"; -- 1
 			when "0010" => r := x"5B"; -- 2
 			when "0011" => r := x"4F"; -- 3
@@ -201,7 +201,7 @@ begin
 	an <= invert(shift_reg);
 
 	led_gen: for i in leds'range generate
-		led_i: entity work.reg 
+		led_i: entity work.reg
 			generic map(
 				N   => character_length)
 			port map(
@@ -214,11 +214,11 @@ begin
 
 	timer: entity work.timer_us
 		generic map(
-			clock_frequency => clock_frequency, 
-			timer_period_us => refresh_rate_us) 
+			clock_frequency => clock_frequency,
+			timer_period_us => refresh_rate_us)
 		port map(
-			clk             => clk, 
-			rst             => rst, 
+			clk             => clk,
+			rst             => rst,
 			co              => do_shift);
 
 	process(clk, do_shift, shift_reg)

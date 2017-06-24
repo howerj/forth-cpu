@@ -14,48 +14,38 @@ TODO:
 * Bootloader 
 * Minimal Forth interpreter )
 
-
-
-
 ( ======================== System Constants ================= )
-( Outputs: 0x6000 - 0x7FFF
-NB. 0x6000 itself is not used. )
 
+( Outputs: 0x6000 - 0x7FFF )
 constant oUart         0x6000  
 constant oLeds         0x6001  
-constant oVgaCursor    0x6002  
-constant oVgaCtrl      0x6003  
-constant oVgaTxtAddr   0x6004  
-constant oVgaTxtDin    0x6005  
-constant oVgaWrite     0x6006  
-\ constant oUartWrite    0x6007  
-\ constant oUartStbWrite 0x6008  
-\ constant oUartAckDout  0x6009  
-constant oTimerCtrl    0x600a
-constant o8SegLED_0    0x600b 
-constant o8SegLED_1    0x600c
-constant o8SegLED_2    0x600d 
-constant o8SegLED_3    0x600e
-constant oIrcMask      0x600f
+constant oTimerCtrl    0x6002
+constant oVgaCursor    0x6003  
+constant oVgaCtrl      0x6004  
+constant oVgaTxtAddr   0x6005  
+constant oVgaTxtDin    0x6006  
+constant oVgaWrite     0x6007  
+constant o8SegLED_0    0x6008 
+constant o8SegLED_1    0x6009
+constant o8SegLED_2    0x600a 
+constant o8SegLED_3    0x600b
+constant oIrcMask      0x600c
 
 ( Inputs: 0x6000 - 0x7FFF )
-constant iButtons      0x6000 
+constant iUart         0x6000
 constant iSwitches     0x6001
-constant iVgaTxtDout   0x6002 
-\ constant iUartRead     0x6003 
-\ constant iUartAckWrite 0x6004 
-\ constant iUartStbDout  0x6005 
-constant iPs2New       0x6006 
-constant iPs2Char      0x6007 
-constant iTimerCtrl    0x6008
-constant iUart         0x6009
+constant iTimerCtrl    0x6002
+constant iTimerDin     0x6003
+constant iVgaTxtDout   0x6004 
+constant iPs2New       0x6005 
+constant iPs2Char      0x6006 
 
 ( Interrupt service Routine: Memory locations )
 ( @todo update interrupt list )
 constant isrBtnl       0
 constant isrClock      1
-constant isrUartAck    2
-constant isrUartStb    3
+constant isrSw2        2
+constant isrSw3        3
 constant isrBtnr       4
 constant isrKbdNew     5
 constant isrSw0        6
@@ -68,8 +58,8 @@ interrupts to the end of main memory: The problem is caused by the fact
 that the reset is not propagated to the h2 core in the VHDL simulation )
 \ isr reset isrBtnl
 isr noop isrClock
-isr noop isrUartAck
-isr noop isrUartStb
+isr noop isrSw2
+isr noop isrSw3
 isr noop isrBtnr
 isr noop isrKbdNew
 isr noop isrSw0
@@ -195,7 +185,7 @@ nextChar:
 	\ boot
 
 	begin 
-		iSwitches @ oLeds !  \ Set LEDs to switches
+		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches
 		\ iPs2New @          \ Wait for PS/2 a character
 		key? 0=                \ Wait for UART character
 	until 

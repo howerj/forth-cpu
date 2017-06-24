@@ -16,7 +16,7 @@
 --| for a full list of changes.
 --|
 --| @note Changes made to range to stop Xilinx warnings and with formatting,
---| the UART has also been wrapped up in a package and top level component 
+--| the UART has also been wrapped up in a package and top level component
 --| (called "uart_top") to make the interface easier to use and less confusing.
 --| This has not be tested yet.
 --|
@@ -36,7 +36,7 @@ package uart_pkg is
 
 	component uart_top is
 	generic (baud_rate: positive; clock_frequency: positive; fifo_depth: positive := 8);
-	port (  
+	port (
 		clk:                 in      std_logic;
 		rst:                 in      std_logic;
 
@@ -57,7 +57,7 @@ package uart_pkg is
 
 	component uart_core is
 		generic (baud_rate: positive; clock_frequency: positive);
-		port (  
+		port (
 			clk:      in      std_logic;
 			rst:      in      std_logic;
 			din:      in      std_logic_vector(7 downto 0);
@@ -85,7 +85,7 @@ use work.uart_pkg.uart_core;
 
 entity uart_top is
 	generic (baud_rate: positive; clock_frequency: positive; fifo_depth: positive := 8);
-	port (  
+	port (
 		clk:                 in      std_logic;
 		rst:                 in      std_logic;
 
@@ -118,7 +118,7 @@ architecture behav of uart_top is
 
 	signal wrote_c, wrote_n: std_logic := '0';
 begin
-	uart_deglitch: process (clk)
+	uart_deglitch: process (clk, rst)
 	begin
 		if rst = '1' then
 			wrote_c <= '0';
@@ -130,7 +130,7 @@ begin
 		end if;
 	end process;
 
-	process(dout_stb, tx_fifo_empty_internal, din_ack, wrote_c) 
+	process(dout_stb, tx_fifo_empty_internal, din_ack, wrote_c)
 	begin
 			dout_ack    <= '0';
 			din_stb     <= '0';
@@ -150,29 +150,29 @@ begin
 			end if;
 	end process;
 
-	rx_fifo: work.util.fifo 
+	rx_fifo: work.util.fifo
 		generic map (
-			data_width => 8, 
+			data_width => 8,
 			fifo_depth => fifo_depth)
 		port map(
-			clk   => clk, 
-			rst   => rst, 
-			din   => dout, 
-			we    => dout_stb, 
-			re    => rx_data_re, 
-			do    => rx_data, 
-			full  => rx_fifo_full, 
+			clk   => clk,
+			rst   => rst,
+			din   => dout,
+			we    => dout_stb,
+			re    => rx_data_re,
+			do    => rx_data,
+			full  => rx_fifo_full,
 			empty => rx_fifo_empty);
 
-	tx_fifo: work.util.fifo 
+	tx_fifo: work.util.fifo
 		generic map (
-			data_width => 8, 
+			data_width => 8,
 			fifo_depth => fifo_depth)
 		port map(
-			clk   => clk, 
-			rst   => rst, 
+			clk   => clk,
+			rst   => rst,
 			din   => tx_data,
-			we    => tx_data_we, 
+			we    => tx_data_we,
 			re    => tx_fifo_re,
 			do    => din,
 			full  => tx_fifo_full,
@@ -208,7 +208,7 @@ use ieee.numeric_std.all;
 
 entity uart_core is
 	generic (baud_rate: positive; clock_frequency: positive);
-	port (  
+	port (
 	        clk:      in      std_logic;
 	        rst:      in      std_logic;
 	        din:      in      std_logic_vector(7 downto 0);
@@ -301,7 +301,7 @@ begin
 	-- wait 1 tick, send start bit (0), send data 0-7, send stop bit (1)
 	uart_send_data:	process(clk, rst)
 	begin
-		if rst = '1' then 
+		if rst = '1' then
 			uart_tx_data        <= '1';
 			uart_tx_data_block  <= (others => '0');
 			uart_tx_count       <= 0;

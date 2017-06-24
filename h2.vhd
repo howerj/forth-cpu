@@ -45,7 +45,7 @@ entity h2 is
 		io_dout:  out std_logic_vector(15 downto 0);
 		io_daddr: out std_logic_vector(15 downto 0);
 
-		-- Interrupts; irq = request, irq_addr = place to jump to 
+		-- Interrupts; irq = request, irq_addr = place to jump to
 		irq:      in  std_logic;
 		irq_addr: in  std_logic_vector(interrupt_address_length - 1 downto 0);
 
@@ -184,13 +184,13 @@ begin
 
 	alu_select: process(insn, is_instr, is_interrupt)
 	begin
-		if is_interrupt = '1' or is_instr.call = '1' or is_instr.branch = '1' then 
+		if is_interrupt = '1' or is_instr.call = '1' or is_instr.branch = '1' then
 			aluop <= (others => '0');
 		elsif is_instr.branch0 = '1' then
-			aluop <= (0 => '1', others => '0'); 
+			aluop <= (0 => '1', others => '0');
 		elsif is_instr.alu = '1' then
-			aluop <= insn(12 downto 8);  
-		else 
+			aluop <= insn(12 downto 8);
+		else
 			aluop <= (others => '0');
 			-- This assert fails at time = 0 ns
 			-- assert is_instr.lit = '1' report "undefined ALUOP";
@@ -279,7 +279,7 @@ begin
 		rstkp_c, rstk_ram, rd,
 		tos_c,
 		is_instr,
-		is_interrupt, 
+		is_interrupt,
 		pc_plus_one,
 		stop)
 	begin

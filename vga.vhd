@@ -23,8 +23,8 @@ package vga_pkg is
 	end record;
 
 	type vga_control_registers_we_interface is record
-		crx: std_logic; -- Write enable for cursor X position register 
-		ctl: std_logic; -- Write enable for cursor Y position register 
+		crx: std_logic; -- Write enable for cursor X position register
+		ctl: std_logic; -- Write enable for cursor Y position register
 		cry: std_logic; -- Write enable for VGA control register
 	end record;
 
@@ -38,20 +38,20 @@ package vga_pkg is
 -- 		din:     std_logic_vector(15 downto 0);
 -- 		addr:    std_logic_vector(12 downto 0);
 -- 	end record;
--- 
+--
 -- 	type vga_ram_interface is record
 -- 		ram_we:  std_logic; -- Write enable RAM
 -- 		addr_we: std_logic; -- Write enable address
 -- 		din_we:  std_logic; -- Write enable data
 -- 		reg:     vga_ram_registers;
 -- 	end record;
- 
+
 	constant vga_control_registers_initialize: vga_control_registers_interface := (
-			cry => (others => '0'), 
-			crx => (others => '0'), 
+			cry => (others => '0'),
+			crx => (others => '0'),
 			ctl => (others => '0'));
 
-	constant vga_control_registers_we_initialize: vga_control_registers_we_interface := ( 
+	constant vga_control_registers_we_initialize: vga_control_registers_we_interface := (
 			cry => '0',
 			crx => '0',
 			ctl => '0');
@@ -87,7 +87,7 @@ package vga_pkg is
 		font_a:   out std_logic_vector(11 downto 0); -- font buffer
 		font_d:   in  std_logic_vector(7 downto 0);
 		 --
-		ocrx:     in  std_logic_vector(6 downto 0); 
+		ocrx:     in  std_logic_vector(6 downto 0);
 		ocry:     in  std_logic_vector(5 downto 0);
 		octl:     in  std_logic_vector(6 downto 0);
 		--
@@ -315,7 +315,7 @@ entity vga_core is
 		font_a:   out std_logic_vector(11 downto 0); -- font buffer
 		font_d:   in  std_logic_vector(7 downto 0);
 		 --
-		ocrx:     in  std_logic_vector(6 downto 0); 
+		ocrx:     in  std_logic_vector(6 downto 0);
 		ocry:     in  std_logic_vector(5 downto 0);
 		octl:     in  std_logic_vector(6 downto 0);
 		--

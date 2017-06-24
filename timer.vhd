@@ -13,13 +13,13 @@
 --| The control register contains both the value to compare the timer against
 --| as well as three control bits. In this example a counter of 8 bits will
 --| explained.
---| 
---| Bit     Input Description     
---| 7       Clock enable         
---| 6       Timer reset         
---| 5       Interrupt enable    
+--|
+--| Bit     Input Description
+--| 7       Clock enable
+--| 6       Timer reset
+--| 5       Interrupt enable
 --| 4 - 0   Timer compare value
---| 
+--|
 -------------------------------------------------------------------------------
 
 library ieee,work,std;
