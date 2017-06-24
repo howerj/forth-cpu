@@ -116,22 +116,26 @@ architecture behav of uart_top is
 	signal tx_fifo_re:             std_logic := '0';
 	signal tx_fifo_empty_internal: std_logic := '1';
 
+	signal wrote_c, wrote_n: std_logic := '0';
 begin
 	uart_deglitch: process (clk)
 	begin
-		if rising_edge(clk) then
+		if rst = '1' then
+			wrote_c <= '0';
+		elsif rising_edge(clk) then
 			rx_sync <= rx;
 			rx_uart <= rx_sync;
 			tx      <= tx_uart;
+			wrote_c <= wrote_n;
 		end if;
 	end process;
 
-	process(dout_stb, tx_fifo_empty_internal, din_ack) 
-		variable wrote: boolean := false;
+	process(dout_stb, tx_fifo_empty_internal, din_ack, wrote_c) 
 	begin
 			dout_ack    <= '0';
 			din_stb     <= '0';
 			tx_fifo_re  <= '0';
+			wrote_n     <= wrote_c;
 
 			if dout_stb = '1' then
 				dout_ack <= '1';
@@ -139,10 +143,10 @@ begin
 
 			if tx_fifo_empty_internal = '0' then
 				tx_fifo_re <= '1';
-				wrote      := true;
-			elsif din_ack = '0' and wrote then
+				wrote_n    <= '1';
+			elsif din_ack = '0' and wrote_c = '1' then
 				din_stb    <= '1';
-				wrote      := false;
+				wrote_n    <= '0';
 			end if;
 	end process;
 
