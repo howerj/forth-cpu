@@ -122,6 +122,7 @@ architecture behav of top is
 	signal timer_control_we: std_logic := '0';
 	signal timer_control_i:  std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
 	signal timer_control_o:  std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
+	signal timer_counter_o:  std_logic_vector(timer_length - 4 downto 0) := (others =>'0');
 	signal timer_irq:        std_logic;
 	signal timer_q:          std_logic;
 	signal timer_nq:         std_logic;
@@ -192,23 +193,21 @@ begin
 	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 -- synthesis translate_off
-	debug => debug,
+	debug            => debug,
 -- synthesis translate_on
 
-	clk => clk,
-	rst => rst,
-
-	stop     => cpu_wait,
-	io_wr    => io_wr,
-	io_re    => io_re,
-	io_din   => io_din,
-	io_dout  => io_dout,
-	io_daddr => io_daddr,
-
-	cpu_irq   => cpu_irq,
-	cpu_irc   => cpu_irc,
-	cpu_irc_mask    => cpu_irc_mask,
-	cpu_irc_mask_we => cpu_irc_mask_we);
+	clk              => clk,
+	rst              => rst,
+	stop             => cpu_wait,
+	io_wr            => io_wr,
+	io_re            => io_re,
+	io_din           => io_din,
+	io_dout          => io_dout,
+	io_daddr         => io_daddr,
+	cpu_irq          => cpu_irq,
+	cpu_irc          => cpu_irc,
+	cpu_irc_mask     => cpu_irc_mask,
+	cpu_irc_mask_we  => cpu_irc_mask_we);
 
 -------------------------------------------------------------------------------
 -- IO
@@ -228,7 +227,7 @@ begin
 	begin
 		if rst = '1' then
 			-- LEDs/Switches
-			ld_c        <=  (others => '0');
+			ld_c       <= (others => '0');
 			-- PS/2
 			kbd_char_c <= (others => '0');
 			kbd_new_c  <= '0';
@@ -257,7 +256,8 @@ begin
 		tx_fifo_full,
 		tx_fifo_empty,
 
-		timer_control_o)
+		timer_control_o,
+		timer_counter_o)
 	begin
 		ld <= ld_c;
 
@@ -307,7 +307,7 @@ begin
 			when "00000" => -- UART
 				tx_data_we <= io_dout(13);
 				rx_data_re <= io_dout(10);
-				tx_data    <= io_dout(7 downto 0);
+				tx_data    <= io_dout(tx_data'range);
 
 			when "00001" => -- LEDs, next to switches.
 				ld_n <= io_dout(7 downto 0);
@@ -315,17 +315,17 @@ begin
 			when "00010" => -- VGA, cursor registers.
 				vga_control_we.crx <= '1';
 				vga_control_we.cry <= '1';
-				vga_control.crx    <= io_dout(6 downto 0);
-				vga_control.cry    <= io_dout(13 downto 8);
+				vga_control.crx    <= io_dout(vga_control.crx'range);
+				vga_control.cry    <= io_dout(vga_control.cry'range);
 			when "00011" => -- VGA, control register.
 				vga_control_we.ctl <= '1';
-				vga_control.ctl    <= io_dout(7 downto 0);
+				vga_control.ctl    <= io_dout(vga_control.ctl'range);
 			when "00100" => -- VGA update address register.
 				vga_addr_we <= '1';
-				vga_addr    <= io_dout(12 downto 0);
+				vga_addr    <= io_dout(vga_addr'range);
 			when "00101" => -- VGA, update register.
 				vga_din_we <= '1';
-				vga_din    <= io_dout(15 downto 0);
+				vga_din    <= io_dout;
 			when "00110" => -- VGA write RAM write
 				vga_we_ram <= io_dout(0);
 
@@ -335,7 +335,7 @@ begin
 
 			when "01010" => -- General purpose timer
 				timer_control_we <= '1';
-				timer_control_i  <= io_dout(timer_length - 1 downto 0);
+				timer_control_i  <= io_dout;
 
 			when "01011" => -- LED 8 Segment display
 				leds(0).display <= io_dout(3 downto 0);
@@ -384,6 +384,8 @@ begin
 				io_din(9)          <= rx_fifo_full;
 				io_din(11)         <= tx_fifo_empty;
 				io_din(12)         <= tx_fifo_full;
+			--when "01010" =>
+			--	io_din(timer_counter_o'range) <= timer_counter_o;
 
 			when others => io_din <= (others => '0');
 			end case;
@@ -393,7 +395,7 @@ begin
 	--- UART ----------------------------------------------------------
 	uart_rx_data_reg_we_0: work.util.reg
 		generic map(
-			N => 1)
+			N      => 1)
 		port map(
 			clk    => clk,
 			rst    => rst,
@@ -439,6 +441,7 @@ begin
 		we        => timer_control_we,
 		control_i => timer_control_i,
 		control_o => timer_control_o,
+		counter_o => timer_counter_o,
 		irq       => timer_irq,
 		Q         => timer_q,
 		NQ        => timer_nq);

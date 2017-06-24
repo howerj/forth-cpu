@@ -153,7 +153,7 @@ variable uart-read-count 0
 	uart-read-count 1+!
 	uart-read-count @ led ;
 
-: emit
+: emit ( char -- : write out a char )
 	uart-write drop ;
 
 : key ( -- char : read in a key, echoing to output )

@@ -9,7 +9,7 @@
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
---| @todo Add interrupt mask register
+--| @todo Add FIFO to input interrupts
 --------------------------------------------------------------------------------
 
 library ieee,work;
@@ -22,8 +22,9 @@ use work.util.select_bit;
 use work.util.priority;
 
 entity irqh is
-	generic(number_of_interrupts:   positive := 8;
-		lowest_interrupt_first: boolean := true);
+	generic(
+		number_of_interrupts:   positive := 8;
+		lowest_interrupt_first: boolean  := true);
 	port(
 		clk:     in  std_logic;
 		rst:     in  std_logic;
@@ -39,29 +40,49 @@ entity irqh is
 end;
 
 architecture rtl of irqh is
-	constant addr_length: natural := n_bits(number_of_interrupts) - 1;
+	constant addr_length: natural := n_bits(number_of_interrupts);
 	signal irq_n: std_logic := '0';
 	signal irc_n: std_logic_vector(irc_i'range) := (others => '0');
 
-	signal addr:  std_logic_vector(addr_length downto 0) := (others => '0');
+	signal addr:  std_logic_vector(addr_length - 1 downto 0) := (others => '0');
 	signal irq:   std_logic := '0';
 
 	signal mask_n: std_logic_vector(mask'range) := (others => '0');
 begin
 
-	irq_in: entity work.reg generic map(N => 1) 
-		port map(clk => clk, rst => rst, we => '1', di(0) => irq_i, do(0) => irq_n);
+	irq_in: entity work.reg 
+		generic map(
+			N      => 1) 
+		port map(
+			clk    =>  clk,
+			rst    =>  rst,
+			we     =>  '1',
+			di(0)  =>  irq_i,
+			do(0)  =>  irq_n);
 
-	irc_in: entity work.reg generic map(N => number_of_interrupts) 
-		port map(clk => clk, rst => rst, we => '1', di => irc_i, do => irc_n); 
+	irc_in: entity work.reg 
+		generic map(
+			N    => number_of_interrupts) 
+		port map(
+			clk  =>  clk,
+			rst  =>  rst,
+			we   =>  '1',
+			di   =>  irc_i,
+			do   =>  irc_n);
 
-	irc_mask: entity work.reg generic map(N => number_of_interrupts)
-		port map(clk => clk, rst => rst, we => mask_we, di => mask, do => mask_n); 
+	irc_mask: entity work.reg generic map(
+			N    => number_of_interrupts)
+		port map(
+			clk  =>  clk,
+			rst  =>  rst,
+			we   =>  mask_we,
+			di   =>  mask,
+			do   =>  mask_n);
 
 	process(irc_n, irq_n, mask_n)
 		variable addr_n: std_logic_vector(addr'range) := (others => '0');
 	begin
-		addr_n := std_logic_vector(to_unsigned(priority(irc_n, not lowest_interrupt_first), addr_n'length));
+		addr_n := priority(irc_n, not lowest_interrupt_first);
 		addr <= addr_n;
 		if select_bit(mask_n, addr_n) = '1' then
 			irq <= irq_n;
@@ -71,12 +92,23 @@ begin
 	end process;
 
 	irq_out: entity work.reg 
-		generic map(N => 1) 
-		port map(clk => clk, rst => rst, we => '1', di(0) => irq, do(0) => irq_o);
+		generic map(
+			N      => 1) 
+		port map(
+			clk    =>  clk,
+			rst    =>  rst,
+			we     =>  '1',
+			di(0)  =>  irq,
+			do(0)  =>  irq_o);
 
 	addr_out: entity work.reg
-		generic map(N => 3)
-		port map(clk => clk, rst => rst, we => '1', di => addr, do => addr_o);
-
+		generic map(
+			N      => addr_length)
+		port map(
+			clk    =>  clk,
+			rst    =>  rst,
+			we     =>  '1',
+			di     =>  addr,
+			do     =>  addr_o);
 
 end architecture;

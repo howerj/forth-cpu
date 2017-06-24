@@ -153,6 +153,7 @@ package util is
 	function parity(slv:std_logic_vector; even: boolean) return std_logic;
 	function select_bit(indexed, selector: std_logic_vector) return std_logic;
 	function priority(order: std_logic_vector; high: boolean) return natural;
+	function priority(order: std_logic_vector; high: boolean) return std_logic_vector;
 	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector;
 	function mux(a: std_logic; b: std_logic; sel: std_logic) return std_logic;
 	function mux(a, b : std_logic_vector) return std_logic;
@@ -264,6 +265,12 @@ package body util is
 			end loop;
 		end if;
 		return p;
+	end;
+
+	function priority(order: std_logic_vector; high: boolean) return std_logic_vector is
+		variable length: natural := n_bits(order'length);
+	begin 
+		return std_logic_vector(to_unsigned(priority(order, high), length));
 	end;
 
 	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector is

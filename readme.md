@@ -135,10 +135,6 @@ benches written for them.
 * Add "after" and try to model gate delays, this could be done incrementally,
   each entity only assigning its outputs after a delay after the timing for it
   has been worked out.
-* Make test benches for all units I have made:
-	- irqh.vhd
-	- ledseg.vhd
-	- util.vhd
 * GPIO should be added, and perhaps a wave form generator.
 * A [Wishbone interface][] could be implemented for the H2 core
 and peripherals

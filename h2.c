@@ -9,7 +9,8 @@
  * for the device, and allow for simulating the device where there
  * is no tool chain for dealing with VHDL.
  *
- * @todo implement the simulator I/O
+ * @todo Improve the simulator and make changes relating to the new
+ * register map.
  * @todo turn this into a library, and into a literate program
  * @todo make a peephole optimizer for the assembler and a super optimizer
  * utility.

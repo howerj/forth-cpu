@@ -19,7 +19,10 @@
 --      Initial Public Release
 -- 
 --  See https://eewiki.net/pages/viewpage.action?pageId=28279002
+--
 --  @note This file has been renamed and updated from the original.
+--  @todo Move more of the components in top.vhd that deal with the
+--  interface into this component and add an asynchronous reset.
 --------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -396,7 +399,7 @@ architecture rtl of ps2_kbd_core is
 	signal parity_error: std_logic;                       -- validate parity, start, and stop bits
 	signal count_idle: integer range 0 to clock_frequency/18000; --counter to determine PS/2 is idle
 	
-	--declare debounce component for debouncing ps2 input signals
+	-- declare debounce component for debouncing ps2 input signals
 	component debounce is
 	generic(counter_size : integer); -- debounce period (in seconds) = 2^counter_size/(clk freq in hz)
 	port(
@@ -427,8 +430,8 @@ begin
 	-- input ps2 data
 	process(ps2_clk_int)
 	begin
-		if(ps2_clk_int'event and ps2_clk_int = '0') then    --falling edge of ps2 clock
-			ps2_word <= ps2_data_int & ps2_word(10 downto 1);   --shift in ps2 data bit
+		if(ps2_clk_int'event and ps2_clk_int = '0') then          -- falling edge of ps2 clock
+			ps2_word <= ps2_data_int & ps2_word(10 downto 1); -- shift in ps2 data bit
 		end if;
 	end process;
 	

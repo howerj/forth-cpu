@@ -76,8 +76,8 @@ run: h2 h2.fth
 	ghdl -a $<
 
 irqh.o: util.o
-led.o: util.o
-gen.vhd: util.o
+led.o: util.o led.vhd
+gen.o: util.o gen.vhd
 vga.o: bram.o vga.vhd text.bin font.bin
 kbd.o: kbd.vhd debounce.o
 cpu.o: util.o h2.o irqh.o bram.o cpu.vhd h2.hex

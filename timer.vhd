@@ -8,7 +8,18 @@
 --| @copyright      Copyright 2017 Richard James Howe.
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
---| @todo Check this synthesizes correctly.
+--|
+--|
+--| The control register contains both the value to compare the timer against
+--| as well as three control bits. In this example a counter of 8 bits will
+--| explained.
+--| 
+--| Bit     Input Description     
+--| 7       Clock enable         
+--| 6       Timer reset         
+--| 5       Interrupt enable    
+--| 4 - 0   Timer compare value
+--| 
 -------------------------------------------------------------------------------
 
 library ieee,work,std;
@@ -16,17 +27,19 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity timer is
-	generic(timer_length: positive := 16);
+	generic(
+		timer_length: positive := 16);
 	port(
-	clk:          in  std_logic;
-	rst:          in  std_logic;
+		clk:          in  std_logic;
+		rst:          in  std_logic;
 
-	we:           in  std_logic; -- write enable for control register
-	control_i:    in  std_logic_vector(timer_length - 1 downto 0); -- control register
-	control_o:    out std_logic_vector(timer_length - 1 downto 0);
-	irq:          out std_logic;  -- Interrupt signal
-	Q:            out std_logic;  -- Timer signal
-	NQ:           out std_logic); -- Timer signal inverted
+		we:           in  std_logic; -- write enable for control register
+		control_i:    in  std_logic_vector(timer_length - 1 downto 0); -- control register
+		control_o:    out std_logic_vector(timer_length - 1 downto 0);
+		counter_o:    out std_logic_vector(timer_length - 4 downto 0);
+		irq:          out std_logic;  -- Interrupt signal
+		Q:            out std_logic;  -- Timer signal
+		NQ:           out std_logic); -- Timer signal inverted
 end entity;
 
 architecture behav of timer is
@@ -59,16 +72,17 @@ begin
 	compare     <= control_c(timer_highest_bit downto 0);
 
 	control_o   <= control_c;
+	counter_o   <= std_logic_vector(count);
 
 	clockRegisters: process(clk, rst)
 	begin
-	if rst = '1' then
-		q_c    <= '0';
-		control_c <= (others => '0');
-	elsif rising_edge(clk) then
-		q_c    <= q_n;
-		control_c <= control_n;
-	end if;
+		if rst = '1' then
+			q_c       <= '0';
+			control_c <= (others => '0');
+		elsif rising_edge(clk) then
+			q_c       <= q_n;
+			control_c <= control_n;
+		end if;
 	end process;
 
 	counter: process (clk, rst)
