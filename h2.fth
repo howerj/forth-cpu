@@ -169,6 +169,12 @@ variable readin    0
 	r> drop
 	branch bootstart ;
 
+\ @todo This should also set the address of oVgaTxtAddr to
+\ "x * y", however this would require multiplication to
+\ to be implemented.
+: at-xy ( x y -- : set terminal cursor to x-y position )
+	8 lshift or oVgaCursor ! ;
+
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
@@ -198,7 +204,7 @@ nextChar:
 	cursorT1+
 	\ cursorT @ led
 
-	cursorX @ cursorY @ 8 lshift or oVgaCursor !
+	cursorX @ cursorY @ at-xy
 
 branch nextChar
 

@@ -319,8 +319,8 @@ begin
 			when "0011" => -- VGA, cursor registers.
 				vga_control_we.crx <= '1';
 				vga_control_we.cry <= '1';
-				vga_control.crx    <= io_dout(vga_control.crx'range);
-				vga_control.cry    <= io_dout(vga_control.cry'range);
+				vga_control.crx    <= io_dout(6 downto 0);
+				vga_control.cry    <= io_dout(13 downto 8);
 			when "0100" => -- VGA, control register.
 				vga_control_we.ctl <= '1';
 				vga_control.ctl    <= io_dout(vga_control.ctl'range);

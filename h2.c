@@ -817,6 +817,12 @@ int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 
 /* ========================== Simulation =================================== */
 
+/* @note At the moment I/O is not timing accurate, the UART behaves as if reads
+ * and writes happened instantly, along with the PS/2 keyboard. Also the UART
+ * has a FIFO which is not simulated. It should be easy enough to delay for
+ * the roughly the right number of cycles, but not to get exact cycle 
+ * accurate timing */
+
 #define CLOCK_SPEED_HZ             (100000000ULL)
 #define VGA_BUFFER_LENGTH          (1 << 13)
 
