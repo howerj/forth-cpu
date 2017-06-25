@@ -58,7 +58,10 @@ all:
 %.hex: %.fth h2
 	./h2 -a $< > $@
 
-## Virtual Machine =========================================================
+## Virtual Machine and UART communications =================================
+
+uart: uart.c
+	${CC} -Wall -Wextra -g -std=gnu99 $^ -o $@
 
 h2: h2.c
 	${CC} -Wall -Wextra -g -std=c99 $^ -o $@
@@ -214,6 +217,6 @@ clean:
 	      top.unroutes top.xpi top_par.xrpt top.twx top.nlf design.bit top_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf h2 hack
+	@rm -vrf h2 uart
 	@rm -vf usage_statistics_webtalk.html
 	@rm -vf mem_h2.binary mem_h2.hexadecimal

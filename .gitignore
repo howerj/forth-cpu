@@ -23,7 +23,7 @@ h2
 h2.bin
 h2.hex
 h2_tb
-hack
+uart
 iseconfig/
 *.ll
 *.log

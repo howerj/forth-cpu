@@ -300,8 +300,38 @@ begin
 		-- somewhat matched up instead of being the crazy values
 		-- that they are at the moment.
 
+		-- elsif io_re = '1' and io_daddr(15 downto 5) = "01100000000" then
+		if io_re = '1' then
+			-- Get input.
+			case io_daddr(2 downto 0) is
+			when "000" => -- buttons, plus direct access to UART bit.
+				io_din(7 downto 0) <= rx_data_n;
+				io_din(8)          <= rx_fifo_empty;
+				io_din(9)          <= rx_fifo_full;
+				io_din(11)         <= tx_fifo_empty;
+				io_din(12)         <= tx_fifo_full;
+
+			when "001" => -- Switches and buttons
+				io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
+
+			when "010" => -- VGA, Read VGA text buffer.
+				io_din <= timer_control_o;
+
+			when "011" => -- Timer in
+				io_din(timer_counter_o'range) <= timer_counter_o;
+
+			when "100" => -- VGA dout
+				io_din <= vga_dout;
+
+			when "101" => -- PS/2 Keyboard, Check for new char
+				io_din(6 downto 0) <= kbd_char_c;
+				io_din(8)          <= kbd_new_c;
+				kbd_new_n          <= '0';
+
+			when others => io_din <= (others => '0');
+			end case;
 		--if io_wr = '1' and io_daddr(15 downto 5) = "01100000000" then
-		if io_wr = '1' then
+		elsif io_wr = '1' then
 			-- Write output.
 			case io_daddr(3 downto 0) is
 			when "0000" => -- UART
@@ -352,39 +382,8 @@ begin
 
 			when others =>
 			end case;
-
-		-- elsif io_re = '1' and io_daddr(15 downto 5) = "01100000000" then
-		elsif io_re = '1' then
-			-- Get input.
-			case io_daddr(2 downto 0) is
-			when "000" => -- buttons, plus direct access to UART bit.
-				io_din(7 downto 0) <= rx_data_n;
-				io_din(8)          <= rx_fifo_empty;
-				io_din(9)          <= rx_fifo_full;
-				io_din(11)         <= tx_fifo_empty;
-				io_din(12)         <= tx_fifo_full;
-
-			when "001" => -- Switches and buttons
-				io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
-
-			when "010" => -- VGA, Read VGA text buffer.
-				io_din <= timer_control_o;
-
-			when "011" => -- Timer in
-			--	io_din(timer_counter_o'range) <= timer_counter_o;
-
-			when "100" => -- VGA dout
-				io_din <= vga_dout;
-
-			when "101" => -- PS/2 Keyboard, Check for new char
-				io_din <= (0 => kbd_new_c, others => '0');
-				-- kbd_new_n <= '0';
-			when "110" => -- PS/2 ASCII In and ACK
-				io_din <= "000000000" &  kbd_char_c;
-
-			when others => io_din <= (others => '0');
-			end case;
 		end if;
+
 	end process;
 
 	--- UART ----------------------------------------------------------
@@ -444,6 +443,8 @@ begin
 
 
 	--- VGA -----------------------------------------------------------
+
+	-- @todo Add read enable for vga_dout
 	vga_0: entity work.vga_top
 	port map(
 		clk        => clk,

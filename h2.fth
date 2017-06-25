@@ -1,6 +1,6 @@
 ( This program is written in a pseudo Forth like language,
-it is not Forth and does not behave like it, it just looks 
-like it. This should be thought of as assembly code and 
+it is not Forth and does not behave like it, it just looks
+like it. This should be thought of as assembly code and
 not Forth.
 
 For a grammar of the language look into the file "h2.c".
@@ -11,23 +11,25 @@ TODO:
 * Function for displaying numbers on the display
 * VGA driver
 * Hex number printer
-* Bootloader 
-* Minimal Forth interpreter )
+* Bootloader
+* Minimal Forth interpreter 
+* Add assembler directives for setting starting position of
+program counter and the like )
 
 ( ======================== System Constants ================= )
 
 ( Outputs: 0x6000 - 0x7FFF )
-constant oUart         0x6000  
-constant oLeds         0x6001  
+constant oUart         0x6000
+constant oLeds         0x6001
 constant oTimerCtrl    0x6002
-constant oVgaCursor    0x6003  
-constant oVgaCtrl      0x6004  
-constant oVgaTxtAddr   0x6005  
-constant oVgaTxtDin    0x6006  
-constant oVgaWrite     0x6007  
-constant o8SegLED_0    0x6008 
+constant oVgaCursor    0x6003
+constant oVgaCtrl      0x6004
+constant oVgaTxtAddr   0x6005
+constant oVgaTxtDin    0x6006
+constant oVgaWrite     0x6007
+constant o8SegLED_0    0x6008
 constant o8SegLED_1    0x6009
-constant o8SegLED_2    0x600a 
+constant o8SegLED_2    0x600a
 constant o8SegLED_3    0x600b
 constant oIrcMask      0x600c
 
@@ -36,9 +38,8 @@ constant iUart         0x6000
 constant iSwitches     0x6001
 constant iTimerCtrl    0x6002
 constant iTimerDin     0x6003
-constant iVgaTxtDout   0x6004 
-constant iPs2New       0x6005 
-constant iPs2Char      0x6006 
+constant iVgaTxtDout   0x6004
+constant iPs2          0x6005
 
 ( Interrupt service Routine: Memory locations )
 ( @todo update interrupt list )
@@ -77,9 +78,9 @@ isr noop isrSw1
   4   -  Cursor blinks
   3   -  Cursor mode
   2   -  Blue
-  1   -  Green 
+  1   -  Green
   0   -  Blue )
-constant vgaInit       122 \ 0x007A 
+constant vgaInit       122 \ 0x007A
 
 constant vgaX          80
 constant vgaY          40
@@ -130,7 +131,7 @@ variable cursorT 0  ( index into VGA text memory )
 	dup  4 rshift o8SegLED_2 !
 	              o8SegLED_3 ! ;
 
-: uart-write ( char -- bool : write out a character ) 
+: uart-write ( char -- bool : write out a character )
 	0x2000 or oUart ! 1 ; \ @todo Check that the write succeeded by looking at the TX FIFO
 
 : key?
@@ -159,13 +160,13 @@ variable readin    0
 
 : boot
 	bootstart readin !
-	begin 
+	begin
 		key 8 lshift ( big endian )
 		key
 		or readin !
 		readin 1+!
 		readin @ programsz u>=
-	until 
+	until
 	r> drop
 	branch bootstart ;
 
@@ -190,14 +191,12 @@ start:
 nextChar:
 	\ boot
 
-	begin 
+	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches
-		\ iPs2New @          \ Wait for PS/2 a character
 		key? 0=                \ Wait for UART character
-	until 
+	until
 	cursorT   @ oVgaTxtAddr !    \ Set index into VGA memory
 	key         oVgaTxtDin  !    \ Character to write
-	\ iPs2Char @ oVgaTxtDin  !   \ Character to write
 	          1 oVgaWrite   !    \ Perform write
 
 	x1+

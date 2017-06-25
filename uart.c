@@ -1,12 +1,14 @@
-/**@filehack.c
- * @brief This is a temporary hack, there is a problems some where on the SoC with
- * the UART, it seems to drop when receiving characters - transmission appears fine.
- * So this program does the following reads a byte from standard in, attempts
- * to send it to the named terminal, the H2 board responds by echoing the byte
- * back - but only if it received it, if not retransmission will be attempted.
- * @author Richard Jame sHowe
+/**@file uart.c
+ * @brief This is a program for transferring data via the UART to the target
+ * board, it is currently Linux only (not tested on other Unixen). It sends
+ * a byte via a UART (115200 baud, 8 bits, 1 stop bit) to the device and
+ * expects the same byte to be send back to it, if it does not receive a reply
+ * it keeps sending the same byte until gets a reply.
+ *
+ * @author Richard James Howe
  * @copyright Richard James Howe (c) 2017
- * @license MIT*/
+ * @license MIT
+ */
 
 #include <errno.h>
 #include <stdint.h>
@@ -23,7 +25,7 @@ static int open_tty(const char * port)
 	errno = 0;
 	fd = open(port, O_RDWR | O_NOCTTY);
 	if (fd == -1) {
-		fprintf(stderr, "open_tty unable to open '%s': %s\n", port, strerror(errno));
+		fprintf(stderr, "%s unable to open '%s': %s\n", __func__, port, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	return fd;

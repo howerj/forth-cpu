@@ -73,9 +73,9 @@
  *
  * All ALU operations replace T:
  *
- *	*------------------------*-----------------------*
+ *	*-------*----------------*-----------------------*
  *	| Value |   Operation    |     Description       |
- *	*------------------------*-----------------------*
+ *	*-------*----------------*-----------------------*
  *	|   0   |       T        |  Top of Stack         |
  *	|   1   |       N        |  Copy T to N          |
  *	|   2   |     T + N      |  Addition             |
@@ -96,7 +96,7 @@
  *	|  17   | interrupts on? |  Are interrupts on?   |
  *	|  18   |     rdepth     |  Depth of return stk  |
  *	|  19   |      0=        |  T == 0?              |
- *	*------------------------*-----------------------*
+ *	*-------*----------------*-----------------------*
  *
  * More information about the original J1 CPU can be found at:
  *
@@ -820,7 +820,7 @@ int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 /* @note At the moment I/O is not timing accurate, the UART behaves as if reads
  * and writes happened instantly, along with the PS/2 keyboard. Also the UART
  * has a FIFO which is not simulated. It should be easy enough to delay for
- * the roughly the right number of cycles, but not to get exact cycle 
+ * the roughly the right number of cycles, but not to get exact cycle
  * accurate timing */
 
 #define CLOCK_SPEED_HZ             (100000000ULL)
@@ -846,6 +846,9 @@ int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 #define UART_TX_FIFO_EMPTY         (1 << UART_TX_FIFO_EMPTY_BIT)
 #define UART_TX_FIFO_FULL          (1 << UART_TX_FIFO_FULL_BIT)
 #define UART_TX_WE                 (1 << UART_TX_WE_BIT)
+
+#define PS2_NEW_CHAR_BIT           (8)
+#define PS2_NEW_CHAR               (1 << PS2_NEW_CHAR_BIT)
 
 typedef struct {
 	uint8_t leds;
@@ -895,8 +898,7 @@ typedef enum {
 	iTimerCtrl    = 0x6002,
 	iTimerDin     = 0x6003,
 	iVgaTxtDout   = 0x6004,
-	iPs2New       = 0x6005,
-	iPs2Char      = 0x6006
+	iPs2          = 0x6005,
 } h2_input_addr_t;
 
 typedef enum {
@@ -947,8 +949,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
 	case iVgaTxtDout:   return soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH];
-	case iPs2New:       return 1;
-	case iPs2Char:      return getch();
+	case iPs2:          return PS2_NEW_CHAR | getch();
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 	}
