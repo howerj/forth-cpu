@@ -168,27 +168,37 @@ begin
 	gpt0_q  <= timer_q;
 	gpt0_nq <= timer_nq;
 
+	-- @warning These are both temporary measures for testing only!
 	rst        <= btnu_d;
-	cpu_irc(0) <= btnl_d;
-	cpu_irc(1) <= timer_irq;
-	cpu_irc(2) <= sw_d(2);
-	cpu_irc(3) <= sw_d(3);
-	cpu_irc(4) <= btnr_d;
-	cpu_irc(5) <= kbd_new;
-	cpu_irc(6) <= sw_d(0);
-	cpu_irc(7) <= sw_d(1);
-
 	cpu_wait   <= btnc_d;
-	cpu_irq    <= '1' when
-			timer_irq = '1' or
-			sw_d(2)   = '1' or
-			sw_d(3)   = '1' or
-			btnl_d    = '1' or
-			btnr_d    = '1' or
-			kbd_new   = '1' or
-			sw_d(0)   = '1' or
-			sw_d(1)   = '1'
-			else '0';
+
+	irq_block: block
+		signal rx_fifo_not_empty: std_logic := '0';
+		signal tx_fifo_not_empty: std_logic := '0';
+	begin
+		rx_fifo_not_empty <= not rx_fifo_empty;
+		tx_fifo_not_empty <= not rx_fifo_empty;
+
+		cpu_irc(0) <= btnr_d;
+		cpu_irc(1) <= rx_fifo_not_empty;
+		cpu_irc(2) <= rx_fifo_full;
+		cpu_irc(3) <= tx_fifo_not_empty;
+		cpu_irc(4) <= tx_fifo_full;
+		cpu_irc(5) <= kbd_new;
+		cpu_irc(6) <= timer_irq;
+		cpu_irc(7) <= btnl_d;
+
+		cpu_irq    <= '1' when
+				btnr_d            = '1' or
+				timer_irq         = '1' or
+				rx_fifo_not_empty = '1' or
+				rx_fifo_full      = '1' or
+				tx_fifo_not_empty = '1' or
+				tx_fifo_full      = '1' or
+				kbd_new           = '1' or
+				btnl_d            = '1'
+				else '0';
+	end block;
 
 	cpu_0: entity work.cpu
 	generic map(number_of_interrupts => number_of_interrupts)

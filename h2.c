@@ -14,9 +14,10 @@
  * @todo turn this into a library, and into a literate program
  * @todo make a peephole optimizer for the assembler and a super optimizer
  * utility.
- * @todo Make code generator character aligned.
  * @todo Allow code generation to produce a bootloader with a program
  * loaded to an address specified by the user.
+ * @todo Implement a debugger for the simulator that can be accessed
+ * by hitting escape (instead of quitting).
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
@@ -917,14 +918,24 @@ typedef enum {
 	oIrcMask      = 0x600c,
 } h2_output_addr_t;
 
-static void h2_print_soc_state(FILE *out, h2_soc_state_t *soc)
+static void h2_print_memory(FILE *out, uint16_t *p, uint16_t length)
+{
+	for(uint16_t i = 0; i < length; i+= 16) {
+		fprintf(out, "%04"PRIx16 ": ", i);
+		for(uint16_t j = 0; j < 16 && j+i < length; j++)
+			fprintf(out, "%04"PRIx16 " ", p[j+i]);
+		putc('\n', out);
+	}
+	putc('\n', out);
+}
+
+static void h2_print_soc_state(FILE *out, h2_soc_state_t *soc, bool verbose)
 {
 	fprintf(out, "LEDS:          %"PRIx8"\n", soc->leds);
 	fprintf(out, "VGA Cursor:    %"PRIx16"\n", soc->vga_cursor);
 	fprintf(out, "VGA Control:   %"PRIx16"\n", soc->vga_control);
 	fprintf(out, "VGA Addr:      %"PRIx16"\n", soc->vga_text_addr);
 	fprintf(out, "VGA Write:     %"PRIx16"\n", soc->vga_text_write);
-	/*fprintf(out, "%"PRId16"\n", soc->vga[VGA_BUFFER_LENGTH]);*/
 	fprintf(out, "Timer Control: %"PRIx16"\n", soc->timer_control);
 	fprintf(out, "Timer:         %"PRIx16"\n", soc->timer);
 	fprintf(out, "IRC Mask:      %"PRIx16"\n", soc->irc_mask);
@@ -935,6 +946,11 @@ static void h2_print_soc_state(FILE *out, h2_soc_state_t *soc)
 	fprintf(out, "LED 3:         %"PRIx8"\n", soc->led3);
 	fprintf(out, "Switches:      %"PRIx8"\n", soc->switches);
 	fprintf(out, "Waiting:       %s\n",       soc->wait ? "true" : "false");
+	
+	if(verbose) {
+		fputs("VGA Memory:\n", out);
+		h2_print_memory(out, soc->vga, VGA_BUFFER_LENGTH);
+	}
 }
 
 static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
@@ -1105,8 +1121,6 @@ static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, co
 	return r;
 }
 
-/** @todo interrupt handling, CPU hold, implement instruction set and I/O
- *  @todo split into a step and a run function */
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols)
 {
 	assert(h);
@@ -1172,8 +1186,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 					else
 						warning("I/O read attempted on addr: %"PRIx16, h->tos);
 				} else {
-					/**@note h->tos is divided by 2 on the original j1 core */
-					tos = h->core[h->tos % MAX_CORE];
+					/**@note The lowest bit is not used in the address for memory reads */
+					tos = h->core[(h->tos % MAX_CORE) >> 1];
 				}
 				break;
 			case ALU_OP_N_LSHIFT_T: tos <<= nos; break;
@@ -1213,8 +1227,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 					else
 						warning("I/O write attempted wth addr/value: %"PRIx16 "/%"PRIx16, tos, nos);
 				} else {
-					/**@note h->tos is divided by 2 on the original j1 core */
-					h->core[tos % MAX_CORE] = nos;
+					/**@note The lowest bit is not used in the address for memory writes */
+					h->core[(tos % MAX_CORE) >> 1] = nos;
 				}
 			}
 
@@ -2152,7 +2166,9 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_VARIABLE:
 		hole1 = hole(h) - 1;
 		fix(h, hole1, n->o[0]->token->p.number);
-		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, hole1, e);
+		/**@note The lowest bit of the address for memory loads is
+		 * discarded. */
+		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, hole1 << 1, e);
 		break;
 	case SYM_LITERAL:
 		generate_literal(h, n->token->p.number);
@@ -2352,8 +2368,8 @@ static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_ta
 	io = h2_io_new();
 	r = h2_run(h, io, output, cmd->steps, symbols);
 
-	if(log_level >= LOG_DEBUG)
-		h2_print_soc_state(output, io->soc);
+	if(log_level >= LOG_NOTE)
+		h2_print_soc_state(output, io->soc, log_level >= LOG_DEBUG);
 
 	h2_free(h);
 	h2_io_free(io);

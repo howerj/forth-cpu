@@ -111,7 +111,24 @@ subject to the most change.
 ### H2 CPU
 
 The H2 CPU behaves very similarly to the [J1][] CPU, and the [J1 PDF][] can be
-read in order to better understand this processor.
+read in order to better understand this processor. The processor is 16-bit with
+instructions taking a single clock cycle (except stores, which consist of a
+store followed by a drop which has to be inserted by the assembler). 
+
+The CPU has the following state within it:
+
+* A 32 deep return stack
+* A 33 deep variable stack
+* A program counter
+* An interrupt enable and interrupt request bit
+* An interrupt address register
+
+Loads and stores into the block RAM that holds the H2 program discard the
+lowest bit, every other memory operation uses the lower bit (such as jumps
+and loads and stores to Input/Output peripherals). This is so applications can
+use the lowest bit for character operations.
+
+The instruction set is decoded in the following manner:
 
 	*---------------------------------------------------------------*
 	| F | E | D | C | B | A | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
@@ -178,7 +195,27 @@ All ALU operations replace T:
 ### Peripherals and registers
 
 Registers marked prefixed with an 'o' are output registers, those with an 'i'
-prefix are input registers.
+prefix are input registers. Registers are divided into an input and output
+section of registers and the addresses of the input and output registers do not
+correspond to each other in all cases. Unlike for RAM reads, the I/O registers
+are indexed by word aligned addresses, without the lowest bit being discarded
+(this should be fixed at a later date).
+
+The following peripherals have been implemented in the [VHDL][] SoC to
+interface with devices on the [Nexys3][] board:
+
+* [VGA][] output device, text mode only, 80 by 40 characters from
+  <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>
+* Timer 
+* [UART][] (Rx/Tx) with a [FIFO][]
+from <https://github.com/pabennett/uart>
+* [PS/2][] Keyboard
+from <https://eewiki.net/pages/viewpage.action?pageId=28279002>
+* [LED][] next to a bank of switches
+* An [8 Segment LED Display][] driver (a 7 segment display with a decimal point)
+
+The SoC also features a limited set of interrupts that can be enabled or
+disabled.
 
 	*---------------------------------------------------------*
 	|                   Input Registers                       |
@@ -213,6 +250,9 @@ prefix are input registers.
 	| oIrcMask    | 0x600c  | CPU Interrupt Mask              |
 	*-------------*---------*---------------------------------*
 
+The following description of the registers should be read in order and describe
+how the peripherals work as well.
+
 #### oUart
 
 A UART with a fixed baud rate and format (115200, 8 bits, 1 stop bit) is
@@ -225,6 +265,10 @@ The FIFO state can be analyzed by looking at the iUart register.
 To read a value from the UART: iUart can be checked to see if data is present
 in the FIFO, if it is assert RXRE in the oUart register, on the next clock
 cycle the data will be present in the iUart register.
+
+The baud rate of the UART can be changed by rebuilding the VHDL project, bit
+length, parity bits and stop bits can only be changed with modifications to
+[uart.vhd][]
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -239,6 +283,10 @@ cycle the data will be present in the iUart register.
 
 #### oLeds
 
+On the [Nexys3][] board there is a bank of LEDs that are situated next to the
+switches, these LEDs can be turned on (1) or off (0) by writing to LEDO. Each
+LED here corresponds to the switch it is next to.
+
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
@@ -248,6 +296,17 @@ cycle the data will be present in the iUart register.
 	LEDO: LED Output
 
 #### oTimerCtrl
+
+The timer is controllable by the oTimerCtrl register, it is a 13-bit timer
+running at 100MHz, it can optionally generate interrupts and the current timers
+internal count can be read back in with the iTimerDin register.
+
+The timer counts once the TE bit is asserted, once the timer reaches TCMP value
+it wraps around and can optionally generate an interrupt by asserting INTE.
+This also toggles the Q and NQ lines that come out of the timer and are routed
+to pins on the board (see the constraints file [top.ucf][] for the pins).
+
+The timer can be reset by writing to RST.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -262,6 +321,9 @@ cycle the data will be present in the iUart register.
 
 #### oVgaCursor
 
+The VGA Text peripheral has a cursor, the cursor position can be changed with
+this register.
+
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
@@ -273,6 +335,15 @@ cycle the data will be present in the iUart register.
 
 
 #### oVgaCtrl
+
+The VGA control register contains bits that affect the behavior of the VGA Text
+display. The VGA peripheral is a text only display, each location in video ram
+gets written out to the display as a character. The display is monochrome, but
+which color is used can be selected with the RED (for red), GRN (for green) and
+BLU (for blue) bits in the oVgaCtrl register.
+
+The CEN bit enables the cursor, and the BLK bit makes the cursor blink. The MOD
+bit changes the cursors shape.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -290,6 +361,15 @@ cycle the data will be present in the iUart register.
 
 #### oVgaTxtAddr
 
+To write to or read from the VGA memory the address has to be set by writing it to 
+this register. It would be better if the VGA RAM was memory mapped into the H2 cores
+IO address space, however this would slow the SoC down too much.
+
+Once the address is written the value iVgaTxtDout can be read for the contents
+of that location of VGA RAM.
+
+To write to a location, write to oVgaWrite then to the VRWE bit of oVgaWrite.
+
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
@@ -299,6 +379,11 @@ cycle the data will be present in the iUart register.
 	VRAD: VGA RAM Address
 
 #### oVgaTxtDin
+
+The data to write to at oVgaTxtAddr, only the lowest eight bits are used by the
+display and contain a character of the [ISO 8859-1 (Latin-1)][] character set
+(this can be changed by modifying [font.bin][]). [text.bin][] contains the
+initial data to be stored in RAM.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -310,6 +395,9 @@ cycle the data will be present in the iUart register.
 
 #### oVgaWrite
 
+When VRWE asserted oVgaTxtDin is written to the address stored in oVgaTxtAddr
+into the VGA Video memory.
+
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
@@ -319,6 +407,18 @@ cycle the data will be present in the iUart register.
 	VRWE: VGA Ram Write Enable
 
 #### o8SegLED\_0
+
+On the [Nexys3][] board there is a bank of 7 segment displays, with a dot
+(8-segment really), which can be used for numeric output. The LED segments
+cannot be directly addressed. Instead the value stored in L8SD is mapped
+to a hexadecimal display value (or a BCD value, but this requires regeneration 
+of the SoC and modification of a generic in the VHDL).
+
+The value '0' corresponds to a zero displayed on the LED segment, '15' to an
+'F', etcetera.
+
+o8SegLED\_0 is the rightmost display, o8SegLED\_3 the leftmost. This display
+can there be used to show a 16-bit hexadecimal value.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -330,6 +430,8 @@ cycle the data will be present in the iUart register.
 
 #### o8SegLED\_1
 
+See o8SegLED\_0.
+
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
@@ -339,6 +441,8 @@ cycle the data will be present in the iUart register.
 	L8SD: LED 8 Segment Display
 
 #### o8SegLED\_2
+
+See o8SegLED\_0.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -350,6 +454,8 @@ cycle the data will be present in the iUart register.
 
 #### o8SegLED\_3
 
+See o8SegLED\_0.
+
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
@@ -359,6 +465,12 @@ cycle the data will be present in the iUart register.
 	L8SD: LED 8 Segment Display
 
 #### oIrcMask
+
+The H2 core has a mechanism for interrupts, interrupts have to be enabled or
+disabled with an instruction. Each interrupt can be masked off with a bit in
+IMSK to enable that specific interrupt. A '1' in a bit of IMSK enables that
+specific interrupt, which will be delivered to the CPU if interrupts are
+enabled within it.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -388,6 +500,15 @@ the iUart register, as well as any received bytes.
 
 #### iSwitches
 
+iSwitches contains input lines from multiple sources. The RX bit corresponds to
+the UART input line, it is the raw input without any processing. The buttons
+(BUP, BDWN, BLFT, BRGH, and BCNT) correspond to a [D-Pad][] on the [Nexys3][]
+board. The switches (TSWI) are the ones mentioned in oLeds, each have an LED
+next to them. 
+
+The switches and the buttons are already debounced in hardware so they do not
+have to be further processed once read in from these registers.
+
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
@@ -395,15 +516,16 @@ the iUart register, as well as any received bytes.
 	*-------------------------------------------------------------------------------*
 
 	RX:   UART RX Line
-	DUP:  Button Up
+	BUP:  Button Up
 	BDWN: Button Down
 	BLFT: Button Left
 	BRGH: Button Right
 	BCNT: Button Center
 	TSWI: Two Position Switches
 
-
 #### iTimerCtrl
+
+This register contains the contents stored in oTimerCtrl.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -418,6 +540,8 @@ the iUart register, as well as any received bytes.
 
 #### iTimerDin
 
+This register contains the current value of the timers counter. 
+
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
@@ -428,6 +552,8 @@ the iUart register, as well as any received bytes.
 
 #### iVgaTxtDout
 
+This register contains the value of the video memory index by oVgaTxtAddr.
+
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
@@ -437,6 +563,9 @@ the iUart register, as well as any received bytes.
 	VRDO: VGA RAM Data Output
 
 #### iPs2
+
+This register contains the interface to the PS/2 keyboard. If PS2N is set then
+an ASCII character is present in ACHR. Both PS2N and ACHR will be cleared.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -449,6 +578,37 @@ the iUart register, as well as any received bytes.
 
 #### Interrupt Service Routines
 
+The following interrupt service routines are defined:
+
+	*-------------------*--------*-----------------------------*
+	|       Name        | Number |         Description         |
+	*-------------------*--------*-----------------------------*
+	| isrBtnRight       |   0    | Right D-Pad button pressed  |
+	| isrRxFifoNotEmpty |   1    | UART RX FIFO Is Not Empty   |
+	| isrRxFifoFull     |   2    | UART RX FIFI Is Full        |
+	| isrTxFifoNotEmpty |   3    | UART TX FIFO Is Not Empty   |
+	| isrTxFifoFull     |   4    | UART TX FIFO Is Full        |
+	| isrKbdNew         |   5    | New PS/2 Keyboard Character |
+	| isrTimer          |   6    | Timer Counter               |
+	| isrBrnLeft        |   7    | Left D-Pad button pressed   |
+	*-------------------*--------*-----------------------------*
+
+When an interrupt occurs, and interrupts are enabled within the processor, then
+a call to the location in memory is performed - the location is the same as the
+ISR number. An ISR with a number of '4' will perform a call (not a jump) to the
+location '4' within memory, for example.
+
+Interrupts have a latency of at least 4-5 cycles before they are acted on, there
+is a two to three cycle delay in the interrupt request handler, then the call
+to the ISR location in memory has to be done, then the call to the word that
+implements the ISR itself.
+
+If two interrupts occur at the same time they are processed from the lowest
+interrupt number to the highest.
+
+Interrupts are lost when an interrupt with the same number occurs that has not
+been processed.
+
 ### Assembler, Disassembler and Simulator
 
 The Assembler, Disassembler and [C][] based simulator for the H2 is in a single
@@ -459,6 +619,19 @@ program (see [h2.c][]). This simulator complements the [VHDL][] test bench
 
 The assembler is actually a compiler for a pseudo Forth like language with a
 fixed grammar. 
+
+#### Disassembler
+
+The disassembler takes a text file containing the assembled program, which
+consists of 16-bit hexadecimal numbers. It then attempts to disassemble the
+instructions. It can also be fed a symbols file which can be generated by the
+assembler and attempt to find the locations jumps and calls point to.
+
+#### Simulator
+
+The simulator in C implements the H2 core and most of the SoC. The IO for the
+simulator is not cycle accurate (and most likely will never be), but can be
+used for running programs.
 
 ### Coding standards
 
@@ -475,6 +648,7 @@ fixed grammar.
 * Memory interface to Nexys 3 board on board memory
 * A [Wishbone interface][] could be implemented for the H2 core
 and peripherals
+* Make a utility for generating text for the VGA screen.
 
 
 ## Forth
@@ -496,8 +670,12 @@ project.
 
 [h2.c]: h2.c
 [tb.vhd]: tb.vhd
+[uart.vhd]: uart.vhd
+[top.ucf]: top.ucf
+[font.bin]: font.bin
+[text.bin]: text.bin
 [J1]: http://www.excamera.com/sphinx/fpga-j1.html
-[J1 PDF]: excamera.com/files/j1.pdf
+[J1 PDF]: http://excamera.com/files/j1.pdf
 [PL/0]: https://github.com/howerj/pl0
 [libforth]: https://github.com/howerj/libforth/
 [MIT]: https://en.wikipedia.org/wiki/MIT_License
@@ -519,5 +697,13 @@ project.
 [C99]: https://en.wikipedia.org/wiki/C99
 [tcl]: https://en.wikipedia.org/wiki/Tcl
 [Wishbone interface]: https://en.wikipedia.org/wiki/Wishbone_%28computer_bus%29
+[D-Pad]: https://en.wikipedia.org/wiki/D-pad
+[FIFO]: https://en.wikipedia.org/wiki/FIFO_%28computing_and_electronics%29
+[UART]: https://en.wikipedia.org/wiki/Universal_asynchronous_receiver/transmitter
+[VGA]: https://en.wikipedia.org/wiki/Video_Graphics_Array
+[PS/2]: https://en.wikipedia.org/wiki/PS/2_port
+[LED]: https://en.wikipedia.org/wiki/Light-emitting_diode
+[8 Segment LED Display]: https://en.wikipedia.org/wiki/Seven-segment_display
+[ISO 8859-1 (Latin-1)]: https://cs.stanford.edu/people/miles/iso8859.html
 
 <style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}</style>

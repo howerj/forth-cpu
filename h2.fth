@@ -42,29 +42,29 @@ constant iVgaTxtDout   0x6004
 constant iPs2          0x6005
 
 ( Interrupt service Routine: Memory locations )
-( @todo update interrupt list )
-constant isrBtnl       0
-constant isrClock      1
-constant isrSw2        2
-constant isrSw3        3
-constant isrBtnr       4
-constant isrKbdNew     5
-constant isrSw0        6
-constant isrSw1        7
+constant isrBtnRight       0
+constant isrRxFifoNotEmpty 1
+constant isrRxFifoFull     2
+constant isrTxFifoNotEmpty 3
+constant isrTxFifoFull     4
+constant isrKbdNew         5
+constant isrTimer          6
+constant isrBrnLeft        7
 
-: noop ;
-: reset >r drop branch 8 ;
+: isrNoop >r drop ; ( Return to suspended instruction )
+
 ( @todo fix setting isr 0: perhaps by moving
 interrupts to the end of main memory: The problem is caused by the fact
 that the reset is not propagated to the h2 core in the VHDL simulation )
-\ isr reset isrBtnl
-isr noop isrClock
-isr noop isrSw2
-isr noop isrSw3
-isr noop isrBtnr
-isr noop isrKbdNew
-isr noop isrSw0
-isr noop isrSw1
+\ : reset >r drop branch 8 ;
+\ isr reset isrBtnRight
+isr isrNoop isrRxFifoNotEmpty
+isr isrNoop isrRxFifoFull
+isr isrNoop isrTxFifoNotEmpty
+isr isrNoop isrTxFifoFull
+isr isrNoop isrKbdNew
+isr isrNoop isrTimer
+isr isrNoop isrBrnLeft
 
 ( ======================== System Constants ================= )
 
@@ -119,8 +119,6 @@ variable cursorT 0  ( index into VGA text memory )
 : 1+! 1 swap +! ;
 : ?dup dup if dup then ;
 
-
-\ @todo AT-XY
 : y1+ cursorY 1+! cursorY @ vgaY u>= if 0 cursorY ! then ;
 : x1+ cursorX 1+! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
 : cursorT1+ cursorT 1+! cursorT @ vgaTextSize u>= if 0 cursorT ! then ;

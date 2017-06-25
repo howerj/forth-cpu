@@ -11,12 +11,9 @@
 --|
 --| TODO:
 --|  * Use more generics: The instruction width and even features of this
---|  CPU (such as interrupts and ALU operations) could be made to be optional
---|  * Assertions should be added to the core and check they work as intended
+--|  CPU (such as interrupts and ALU operations) could be made to be optional.
+--|  * Turn this component into a package
 --|  * Turn this into a literate file, describing the CPU
---|  * Address should be character aligned, not cell aligned
---|  * This file should use records for input and output
---|  * Add carry flag to addition
 --|
 -------------------------------------------------------------------------------
 
@@ -128,6 +125,7 @@ begin
 	assert(stack_size > 4)   report "stack size too small: " & integer'image(stack_size) severity failure;
 	assert(stack_size < 128) report "stack size too large: " & integer'image(stack_size) severity failure;
 
+	-- instruction decoding is performed here
 	is_instr.alu     <=  '1' when insn(15 downto 13) = "011" else '0';
 	is_instr.lit     <=  '1' when insn(15) = '1' else '0';
 	is_instr.branch  <=  '1' when insn(15 downto 13) = "000" else '0';
@@ -152,8 +150,13 @@ begin
 	-- @note The loading and read timings really need looking at and
 	-- comparing with previous versions of this file, and with the original
 	-- j1.v source.
+	-- @note The lowest bit is not used for reading and writing to BRAM,
+	-- this is so it can be used for character addressing within
+	-- applications. All RAM I/O is 16-bit aligned however. The lowest bit
+	-- can be used by any external I/O. If the lowest bit is set this
+	-- should really raise a bus error, but this is not implemented.
 	dout   <=  nos;
-	daddr  <=  tos_c(12 downto 0) when is_ram_write = '1' else tos_n(12 downto 0);
+	daddr  <=  tos_c(13 downto 1) when is_ram_write = '1' else tos_n(13 downto 1);
 	dwe    <=  '1' when is_ram_write = '1' and tos_c(14 downto 13) /= "11" else '0';
 	dre    <=  '1' when tos_n(15 downto 14) = "00" else '0';
 
