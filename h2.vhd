@@ -357,6 +357,7 @@ begin
 			if is_instr.branch = '1' or (is_instr.branch0 = '1' and compare.zero = '1') or is_instr.call = '1' then
 				pc_n <=  insn(12 downto 0);
 			elsif is_instr.alu = '1' and insn(4) = '1' then
+				-- @warning rtos_c discards the lowest bit in the original core
 				pc_n <=  rtos_c(12 downto 0);
 			else
 				pc_n <=  pc_plus_one;

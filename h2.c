@@ -920,9 +920,10 @@ typedef enum {
 
 static void h2_print_memory(FILE *out, uint16_t *p, uint16_t length)
 {
-	for(uint16_t i = 0; i < length; i+= 16) {
+	const uint16_t line_length = 16;
+	for(uint16_t i = 0; i < length; i+= line_length) {
 		fprintf(out, "%04"PRIx16 ": ", i);
-		for(uint16_t j = 0; j < 16 && j+i < length; j++)
+		for(uint16_t j = 0; j < line_length && j+i < length; j++)
 			fprintf(out, "%04"PRIx16 " ", p[j+i]);
 		putc('\n', out);
 	}

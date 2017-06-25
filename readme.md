@@ -649,7 +649,10 @@ used for running programs.
 * A [Wishbone interface][] could be implemented for the H2 core
 and peripherals
 * Make a utility for generating text for the VGA screen.
-
+* Investigate:
+	- The H2 simulator needs all of its peripherals checking,
+	specifically the VGA memory.
+	- The TX FIFO Full signal is apparently not working.
 
 ## Forth
 
