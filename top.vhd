@@ -23,8 +23,8 @@ use work.uart_pkg.uart_core;
 entity top is
 	generic(
 		clock_frequency:      positive := 100_000_000;
-		number_of_interrupts: positive := 8;
-		uart_baud_rate:       positive := 115200);
+		uart_baud_rate:       positive := 115200;
+		uart_fifo_depth:      positive := 8);
 	port
 	(
 -- synthesis translate_off
@@ -63,7 +63,8 @@ entity top is
 end;
 
 architecture behav of top is
-	constant timer_length: positive := 16;
+	constant timer_length:         positive := 16;
+	constant number_of_interrupts: positive := 8;
 
 	-- Signals
 	signal rst: std_logic := '0';
@@ -363,6 +364,9 @@ begin
 			when "0111" => -- VGA write RAM write
 				vga_we_ram <= io_dout(0);
 
+			-- @note It would make sense to merge these LED 8 
+			-- segment registers into one, however this slows
+			-- things down slightly
 			when "1000" => -- LED 8 Segment display 0
 				leds(0).display <= io_dout(3 downto 0);
 				leds(0).we      <= '1';
@@ -410,7 +414,8 @@ begin
 	uart_0: work.uart_pkg.uart_top
 		generic map(
 			baud_rate       => uart_baud_rate,
-			clock_frequency => clock_frequency)
+			clock_frequency => clock_frequency,
+			fifo_depth      => uart_fifo_depth)
 		port map(
 			clk             =>  clk,
 			rst             =>  rst,

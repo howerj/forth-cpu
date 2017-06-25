@@ -112,7 +112,6 @@ begin
 	uut: entity work.top
 	generic map(
 		clock_frequency      => clock_frequency,
-		number_of_interrupts => number_of_interrupts,
 		uart_baud_rate       => uart_baud_rate)
 	port map(
 		debug       => debug,

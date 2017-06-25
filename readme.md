@@ -215,14 +215,26 @@ prefix are input registers.
 
 #### oUart
 
+A UART with a fixed baud rate and format (115200, 8 bits, 1 stop bit) is
+present on the SoC. The UART has a FIFO of depth 8 on both the RX and TX
+channels. The control of the UART is split across oUart and iUart. 
+
+To write a value to the UART assert TXWE along with putting the data in TXDO.
+The FIFO state can be analyzed by looking at the iUart register.
+
+To read a value from the UART: iUart can be checked to see if data is present
+in the FIFO, if it is assert RXRE in the oUart register, on the next clock
+cycle the data will be present in the iUart register.
+
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |TXWE|  X |  X |RXRE|  X |  X |            UART TX Data               |
+	|  X |  X |TXWE|  X |  X |RXRE|  X |  X |               TXDO                    |
 	*-------------------------------------------------------------------------------*
 
 	TXWE: UART RT Write Enable
 	RXRE: UART RX Read Enable
+	TXDO: Uart TX Data Output
 
 
 #### oLeds
@@ -230,24 +242,34 @@ prefix are input registers.
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |           LED Data                    |
+	|  X |  X |  X |  X |  X |  X |  X |  X |              LEDO                     |
 	*-------------------------------------------------------------------------------*
+
+	LEDO: LED Output
 
 #### oTimerCtrl
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	| TE | RST|INTE|                      TCMP                                      |
 	*-------------------------------------------------------------------------------*
+
+	TE:   Timer Enable
+	RST:  Timer Reset
+	INTE: Interrupt Enable
+	TCMP: Timer Compare Value
 
 #### oVgaCursor
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |      Y Cursor Position      |  X |       X Cursor Position          |
+	|  X |  X |          POSY               |  X |            POSX                  |
 	*-------------------------------------------------------------------------------*
+
+	POSY: VGA Text Cursor Position Y
+	POSX: VGA Text Cursor Position X
 
 
 #### oVgaCtrl
@@ -255,24 +277,36 @@ prefix are input registers.
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|  X |  X |  X |  X |  X |  X |  X |  X |  X | VEN| CEN| BLK| MOD| RED| GRN| BLU|
 	*-------------------------------------------------------------------------------*
+
+	VEN: VGA Enable
+	CEN: Cursor Enable
+	BLK: Cursor Blink
+	MOD: Cursor Mode
+	RED: Red Enable
+	GRN: Green Enable
+	BLU: Blue Enable
 
 #### oVgaTxtAddr
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |              VGA RAM Address Register                          |
+	|  X |  X |  X |                      VRAD                                      |
 	*-------------------------------------------------------------------------------*
+
+	VRAD: VGA RAM Address
 
 #### oVgaTxtDin
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|                            VGA RAM Data Input                                 |
+	|                                     VRDI                                      |
 	*-------------------------------------------------------------------------------*
+
+	VRDI: VGA RAM Data Input
 
 #### oVgaWrite
 
@@ -289,92 +323,142 @@ prefix are input registers.
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |       L8SD        |
 	*-------------------------------------------------------------------------------*
+
+	L8SD: LED 8 Segment Display
 
 #### o8SegLED\_1
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |       L8SD        |
 	*-------------------------------------------------------------------------------*
+
+	L8SD: LED 8 Segment Display
 
 #### o8SegLED\_2
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |       L8SD        |
 	*-------------------------------------------------------------------------------*
+
+	L8SD: LED 8 Segment Display
 
 #### o8SegLED\_3
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |       L8SD        |
 	*-------------------------------------------------------------------------------*
+
+	L8SD: LED 8 Segment Display
 
 #### oIrcMask
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|  X |  X |  X |  X |  X |  X |  X |  X |                 IMSK                  |
 	*-------------------------------------------------------------------------------*
 
+	IMSK: Interrupt Mask
+
 #### iUart
+
+The iUart register works in conjunction with the oUart register. The status of
+the FIFO that buffers both transmission and reception of bytes is available in
+the iUart register, as well as any received bytes.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|  X |  X |  X |TFFL|TFEM|  X |RFFL|RFEM|                RXDI                   |
 	*-------------------------------------------------------------------------------*
+
+	TFFL: UART TX FIFO Full
+	TFEM: UART TX FIFO Empty
+	RFFL: UART RX FIFO Full
+	RFEM: UART RX FIFO Empty
+	RXDI: UART RX Data Input
 
 #### iSwitches
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|  X |  X | RX | BUP|BDWN|BLFT|BRGH|BCNT|               TSWI                    |
 	*-------------------------------------------------------------------------------*
+
+	RX:   UART RX Line
+	DUP:  Button Up
+	BDWN: Button Down
+	BLFT: Button Left
+	BRGH: Button Right
+	BCNT: Button Center
+	TSWI: Two Position Switches
+
 
 #### iTimerCtrl
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	| TE | RST|INTE|                      TCMP                                      |
 	*-------------------------------------------------------------------------------*
+
+	TE:   Timer Enable
+	RST:  Timer Reset
+	INTE: Interrupt Enable
+	TCMP: Timer Compare Value
 
 #### iTimerDin
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|  X |  X |  X |                       TCNT                                     |
 	*-------------------------------------------------------------------------------*
+
+	TCNT: Timer Counter Value
 
 #### iVgaTxtDout
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|                                     VRDO                                      |
 	*-------------------------------------------------------------------------------*
+
+	VRDO: VGA RAM Data Output
 
 #### iPs2
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |
+	|  X |  X |  X |  X |  X |  X |  X |PS2N|  X |              ACHR                |
 	*-------------------------------------------------------------------------------*
+
+	PS2N: New character available on PS2 Keyboard
+	ACHR: ASCII Character
 
 #### Interrupt Service Routines
 
-### Assembler
+### Assembler, Disassembler and Simulator
+
+The Assembler, Disassembler and [C][] based simulator for the H2 is in a single
+program (see [h2.c][]). This simulator complements the [VHDL][] test bench
+[tb.vhd][] and is not a replacement for it.
+
+#### Assembler
+
+The assembler is actually a compiler for a pseudo Forth like language with a
+fixed grammar. 
 
 ### Coding standards
 
@@ -410,6 +494,8 @@ project.
 * <https://github.com/samawati/j1eforth>
 * <https://github.com/jamesbowman/j1>
 
+[h2.c]: h2.c
+[tb.vhd]: tb.vhd
 [J1]: http://www.excamera.com/sphinx/fpga-j1.html
 [J1 PDF]: excamera.com/files/j1.pdf
 [PL/0]: https://github.com/howerj/pl0
