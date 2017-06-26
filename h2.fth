@@ -57,14 +57,14 @@ constant isrBrnLeft        7
 interrupts to the end of main memory: The problem is caused by the fact
 that the reset is not propagated to the h2 core in the VHDL simulation )
 \ : reset >r drop branch 8 ;
-\ isr reset isrBtnRight
-isr isrNoop isrRxFifoNotEmpty
-isr isrNoop isrRxFifoFull
-isr isrNoop isrTxFifoNotEmpty
-isr isrNoop isrTxFifoFull
-isr isrNoop isrKbdNew
-isr isrNoop isrTimer
-isr isrNoop isrBrnLeft
+\ .isr reset isrBtnRight
+.isr isrNoop isrRxFifoNotEmpty
+.isr isrNoop isrRxFifoFull
+.isr isrNoop isrTxFifoNotEmpty
+.isr isrNoop isrTxFifoFull
+.isr isrNoop isrKbdNew
+.isr isrNoop isrTimer
+.isr isrNoop isrBrnLeft
 
 ( ======================== System Constants ================= )
 
@@ -182,7 +182,11 @@ variable readin    0
 	\ 1   seti ;
 
 ( The start up code begins here, on initialization the assembler
-jumps to a special symbol "start". )
+jumps to a special symbol "start".
+
+@todo This special case symbol should be removed by adding
+adequate assembler directives )
+
 start:
 	 init
 

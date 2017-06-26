@@ -6,6 +6,9 @@
 --| @license    LGPL version 3
 --| @email      javier.valcarce@gmail.com
 --| @note       (Modifications and repackaging by Richard James Howe)
+--|
+--| @todo A mode where the cursor follows the text-address automatically
+--| would be useful.
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------

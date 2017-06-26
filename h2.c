@@ -11,13 +11,21 @@
  *
  * @todo Improve the simulator and make changes relating to the new
  * register map.
- * @todo turn this into a library, and into a literate program
+ * @todo Turn this into a library, and into a literate program, and possibly
+ * make a nice and shiny OpenGL version which simulates the VGA output, LEDs
+ * and Switches.
  * @todo make a peephole optimizer for the assembler and a super optimizer
  * utility.
  * @todo Allow code generation to produce a bootloader with a program
  * loaded to an address specified by the user.
  * @todo Implement a debugger for the simulator that can be accessed
- * by hitting escape (instead of quitting).
+ * by hitting escape (instead of quitting). This should act somewhat
+ * likes DEBUG.EXE from MS-DOS
+ * @todo Add assembler directives such as setting the current
+ * instruction count, adding breakpoints, setting memory locations to
+ * raw values, etcetera.
+ * @todo Add unit tests for the program, if possible.
+ * @todo Implement load/save of debug and h2_t state
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
@@ -236,6 +244,11 @@ typedef enum {
 } forth_alu_words_e;
 
 typedef struct {
+	size_t length;
+	uint16_t *points;
+} break_point_t;
+
+typedef struct {
 	uint16_t core[MAX_CORE]; /**< main memory */
 	uint16_t rstk[STK_SIZE]; /**< return stack */
 	uint16_t dstk[STK_SIZE]; /**< variable stack */
@@ -244,6 +257,8 @@ typedef struct {
 	uint16_t rp;  /**< return stack pointer */
 	uint16_t sp;  /**< variable stack pointer */
 	bool     ie;  /**< interrupt enable */
+
+	break_point_t ram;
 } h2_t; /**< state of the H2 CPU */
 
 /** @warning LOG_FATAL level kills the program */
@@ -408,6 +423,7 @@ void h2_free(h2_t *h)
 {
 	if(!h)
 		return;
+	free(h->ram.points);
 	memset(h, 0, sizeof(*h));
 	free(h);
 }
@@ -459,7 +475,7 @@ int h2_save(h2_t *h, FILE *output, bool full)
 #ifdef __unix__
 #include <unistd.h>
 #include <termios.h>
-int getch(void)
+static int getch(void)
 {
 	struct termios oldattr, newattr;
 	int ch;
@@ -473,15 +489,10 @@ int getch(void)
 
 	tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
 
-	if(ch == CHAR_ESCAPE) {
-		note("escape character (%d) read in - exiting", CHAR_ESCAPE);
-		exit(EXIT_SUCCESS);
-	}
-
-	return ch == CHAR_DELETE ? CHAR_BACKSPACE : ch;
+	return ch;
 }
 
-int putch(int c)
+static int putch(int c)
 {
 	int res = putchar(c);
 	fflush(stdout);
@@ -494,18 +505,29 @@ extern int getch(void);
 extern int putch(int c);
 
 #else
-int getch(void)
+static int getch(void)
 {
 	return getchar();
 }
 
-int putch(int c)
+static int putch(int c)
 {
 	return putchar(c);
 }
 #endif
 #endif /** __unix__ **/
 
+static int wrap_getch(void)
+{
+	int ch = getch();
+	/**@todo Exit to debugger if escape is hit */
+	if(ch == CHAR_ESCAPE) {
+		note("escape character (%d) read in - exiting", CHAR_ESCAPE);
+		exit(EXIT_SUCCESS);
+	}
+
+	return ch == CHAR_DELETE ? CHAR_BACKSPACE : ch;
+}
 
 /* ========================== Utilities ==================================== */
 
@@ -918,9 +940,11 @@ typedef enum {
 	oIrcMask      = 0x600c,
 } h2_output_addr_t;
 
-static void h2_print_memory(FILE *out, uint16_t *p, uint16_t length)
+static void memory_print(FILE *out, uint16_t *p, uint16_t length)
 {
 	const uint16_t line_length = 16;
+	assert(out);
+	assert(p);
 	for(uint16_t i = 0; i < length; i+= line_length) {
 		fprintf(out, "%04"PRIx16 ": ", i);
 		for(uint16_t j = 0; j < line_length && j+i < length; j++)
@@ -930,9 +954,33 @@ static void h2_print_memory(FILE *out, uint16_t *p, uint16_t length)
 	putc('\n', out);
 }
 
-static void h2_print_soc_state(FILE *out, h2_soc_state_t *soc, bool verbose)
+static uint16_t *break_point_add(break_point_t *bp, uint16_t point)
 {
-	fprintf(out, "LEDS:          %"PRIx8"\n", soc->leds);
+	assert(bp);
+	size_t    a = (bp->length + 1) * sizeof(bp->points[0]);
+	uint16_t *r = realloc(bp->points, a);
+	if(!r || a < bp->length)
+		fatal("realloc of size %zu failed", a);
+	r[bp->length] = point;
+	bp->length++;
+	bp->points = r;
+	return NULL;
+}
+
+static bool break_point_find(break_point_t *bp, uint16_t find_me)
+{
+	assert(bp);
+	for(size_t i = 0; i < bp->length; i++)
+		if(bp->points[i] == find_me)
+			return true;
+	return false;
+}
+
+static void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
+{
+	assert(out);
+	assert(soc);
+	fprintf(out, "LEDS:          %"PRIx8"\n",  soc->leds);
 	fprintf(out, "VGA Cursor:    %"PRIx16"\n", soc->vga_cursor);
 	fprintf(out, "VGA Control:   %"PRIx16"\n", soc->vga_control);
 	fprintf(out, "VGA Addr:      %"PRIx16"\n", soc->vga_text_addr);
@@ -940,17 +988,17 @@ static void h2_print_soc_state(FILE *out, h2_soc_state_t *soc, bool verbose)
 	fprintf(out, "Timer Control: %"PRIx16"\n", soc->timer_control);
 	fprintf(out, "Timer:         %"PRIx16"\n", soc->timer);
 	fprintf(out, "IRC Mask:      %"PRIx16"\n", soc->irc_mask);
-	fprintf(out, "UART Input:    %"PRIx8"\n", soc->uart_getchar_register);
-	fprintf(out, "LED 0:         %"PRIx8"\n", soc->led0);
-	fprintf(out, "LED 1:         %"PRIx8"\n", soc->led1);
-	fprintf(out, "LED 2:         %"PRIx8"\n", soc->led2);
-	fprintf(out, "LED 3:         %"PRIx8"\n", soc->led3);
-	fprintf(out, "Switches:      %"PRIx8"\n", soc->switches);
-	fprintf(out, "Waiting:       %s\n",       soc->wait ? "true" : "false");
+	fprintf(out, "UART Input:    %"PRIx8"\n",  soc->uart_getchar_register);
+	fprintf(out, "LED 0:         %"PRIx8"\n",  soc->led0);
+	fprintf(out, "LED 1:         %"PRIx8"\n",  soc->led1);
+	fprintf(out, "LED 2:         %"PRIx8"\n",  soc->led2);
+	fprintf(out, "LED 3:         %"PRIx8"\n",  soc->led3);
+	fprintf(out, "Switches:      %"PRIx8"\n",  soc->switches);
+	fprintf(out, "Waiting:       %s\n",        soc->wait ? "true" : "false");
 	
 	if(verbose) {
 		fputs("VGA Memory:\n", out);
-		h2_print_memory(out, soc->vga, VGA_BUFFER_LENGTH);
+		memory_print(out, soc->vga, VGA_BUFFER_LENGTH);
 	}
 }
 
@@ -966,7 +1014,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
 	case iVgaTxtDout:   return soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH];
-	case iPs2:          return PS2_NEW_CHAR | getch();
+	case iPs2:          return PS2_NEW_CHAR | wrap_getch();
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 	}
@@ -981,9 +1029,9 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	switch(addr) {
 	case oUart:
 			if(value & UART_TX_WE)
-				putchar(0xFF & value);
+				putch(0xFF & value);
 			if(value & UART_RX_RE)
-				soc->uart_getchar_register = getch();
+				soc->uart_getchar_register = wrap_getch();
 			break;
 	case oLeds:       soc->leds           = value; break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
@@ -992,7 +1040,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	case oVgaTxtAddr: soc->vga_text_addr  = value % VGA_BUFFER_LENGTH; break;
 	case oVgaTxtDin:  soc->vga_text_write = value; break;
 	case oVgaWrite:   soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH] = soc->vga_text_write;
-			  /*putchar(0xFF & soc->vga_text_write);*/
+			  /*putch(0xFF & soc->vga_text_write);*/
 			  break;
 	case o8SegLED_0: soc->led0  = value & 0xf; break;
 	case o8SegLED_1: soc->led1  = value & 0xf; break;
@@ -1081,6 +1129,7 @@ static uint16_t dpop(h2_t *h)
 
 static void rpush(h2_t *h, uint16_t r)
 {
+	assert(h);
 	h->rstk[(h->rp) % STK_SIZE] = r;
 	h->rp++;
 	if(h->rp >= STK_SIZE)
@@ -1102,6 +1151,7 @@ static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, co
 {
 	int r = 0;
 	va_list ap;
+	assert(output);
 	if(!output)
 		return r;
 	assert(fmt);
@@ -1122,29 +1172,144 @@ static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, co
 	return r;
 }
 
-int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols)
+typedef struct {
+	FILE *input;
+	FILE *output;
+	bool step;
+	bool trace_on;
+} debug_state_t;
+
+/** @todo implement all these instructions */
+static const char *debug_help = "\
+Debug help:\n\
+*-------------------------*---------*-----------------*\n\
+| Description             | Command | Arguments       |\n\
+*-------------------------*---------*-----------------*\n\
+| assemble                |    a    | address         |\n\
+| unassemble              |    u    | address-range   |\n\
+| dump                    |    d    | address length  |\n\
+| help                    |    h    |                 |\n\
+| quit                    |    q    |                 |\n\
+| save state to file      |    f    | file-name       |\n\
+| set break point         |    b    | address/symbol  |\n\
+| remove all break points |    r    |                 |\n\
+| set debug level         |    l    | value           |\n\
+| print IO state          |    p    |                 |\n\
+| set value               |    w    | address value   |\n\
+| step                    |    s    |                 |\n\
+| continue                |    c    |                 |\n\
+| list symbols            |    y    |                 |\n\
+| input                   |    i    | address         |\n\
+| output                  |    o    | address value   |\n\
+| print H2 state          |    .    |                 |\n\
+| toggle tracing          |    t    |                 |\n\
+*-------------------------*---------*-----------------*\n";
+
+static const char *debug_prompt = "\ndebug> ";
+
+static int h2_debug(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *symbols)
 {
 	assert(h);
-	for(unsigned i = 0; i < steps || steps == 0; i++) {
+	assert(ds);
+	if(ds->step || break_point_find(&h->ram, h->pc)) {
+		int c = 0;
+		ds->step = true;
+
+again:
+		fputs(debug_prompt, ds->output);
+no_prompt:
+		c = fgetc(ds->input);
+		switch(c) {
+		case 'a':
+		case 'u':
+		case 'd':
+		case 'f':
+		case 'b':
+		case 'r':
+		case 'l':
+		case 'w':
+		case 'i':
+		case 'o':
+		case '.':
+			fprintf(ds->output, "command '%c' not implemented yet!\n", c);
+			break;
+
+		case ' ':
+		case '\t':
+			goto no_prompt;
+		case '\n':
+			break;
+		case 'h':
+			fputs(debug_help, ds->output);
+			break;
+		case 's':
+			return 0;
+		case 'c':
+			ds->step = false;
+			return 0;
+		case 't':
+			ds->trace_on = !ds->trace_on;
+			fprintf(ds->output, "trace %s\n", ds->trace_on ? "on" : "off");
+			break;
+		case 'y':
+			if(symbols)
+				symbol_table_print(symbols, ds->output);
+			else
+				fprintf(ds->output, "symbol table unavailable\n");
+			break;
+		case 'p':
+			if(io)
+				soc_print(ds->output, io->soc, log_level >= LOG_DEBUG);
+			else
+				fprintf(ds->output, "I/O unavailable\n");
+			break;
+		case EOF:
+			fprintf(ds->output, "End of Input\n");
+			/* fall through */
+		case 'q':
+			fprintf(ds->output, "Quiting simulator\n");
+			return 1;
+		default:
+			fprintf(ds->output, "unknown command '%c'\n", c);
+		}
+		goto again;
+
+	}
+	return 0;
+}
+
+int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
+{
+	assert(h);
+	debug_state_t ds = { .input = stdin, .output = stderr, .step = run_debugger, .trace_on = false };
+
+	if(run_debugger)
+		fputs("Debugger running, type 'h' for a list of commands.", ds.output);
+
+	for(unsigned i = 0; i < steps || steps == 0 || run_debugger; i++) {
 		uint16_t instruction,
 			 literal,
 			 address,
 			 pc_plus_one;
 
+		if(run_debugger)
+			if(h2_debug(&ds, h, io, symbols))
+				return 0;
+
 		if(io)
 			io->update(io->soc);
+
 		if(io && io->soc->wait) /* wait only applies to the H2 core not the rest of the SoC */
 			continue;
 
 		instruction = h->core[h->pc];
-
 
 		literal = instruction & 0x7FFF;
 		address = instruction & 0x1FFF; /* NB. also used for ALU OP */
 
 		pc_plus_one = h->pc + 1 % MAX_CORE;
 
-		if(log_level >= LOG_DEBUG)
+		if(log_level >= LOG_DEBUG || ds.trace_on)
 			trace(output, instruction, symbols,
 				"%04u: pc(%04x) inst(%04x) sp(%x) rp(%x) tos(%04x)",
 				i,
@@ -1283,7 +1448,14 @@ typedef enum {
 	LEX_CHAR,
 	LEX_COMPILE,
 	LEX_VARIABLE,
+
 	LEX_ISR,
+	LEX_SET,
+	LEX_PC,
+	LEX_BREAK,
+	LEX_MODE,
+	LEX_ALLOCATE,
+
 	LEX_DUP,   /* start of instructions */
 	LEX_OVER,
 	LEX_INVERT,
@@ -1335,7 +1507,12 @@ static const char *keywords[] =
 	[LEX_CHAR]      =  "[char]",
 	[LEX_COMPILE]   =  ",",
 	[LEX_VARIABLE]  =  "variable",
-	[LEX_ISR]       =  "isr",
+	[LEX_ISR]       =  ".isr",
+	[LEX_SET]       =  ".set",
+	[LEX_PC]        =  ".pc",
+	[LEX_BREAK]     =  ".break",
+	[LEX_MODE]      =  ".mode",
+	[LEX_ALLOCATE]  =  ".allocate",
 	[LEX_DUP]       =  "dup",
 	[LEX_OVER]      =  "over",
 	[LEX_INVERT]    =  "invert",
@@ -1437,7 +1614,7 @@ static void lexer_free(lexer_t *l)
 	free(l);
 }
 
-static int print_token(token_t *t, FILE *output, unsigned depth)
+static int token_print(token_t *t, FILE *output, unsigned depth)
 {
 	token_e type;
 	int r = 0;
@@ -1474,7 +1651,7 @@ static int _syntax_error(lexer_t *l,
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fputc('\n', stderr);
-	print_token(l->token, stderr, 2);
+	token_print(l->token, stderr, 2);
 	ethrow(&l->error);
 	return 0;
 }
@@ -1631,11 +1808,16 @@ again:
  * Program     := Statement* EOF
  * Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
  *                | Identifier | Constant | Variable | Definition | If
- *                | Begin | Char
+ *                | Begin | Char | Set | Pc | Break | Mode
  * Label       := Identifier ";"
  * Branch      := "branch"  ( Identifier | Literal )
  * 0Branch     := "0branch" ( Identifier | Literal )
  * Call        := "call"    ( Identifier | Literal )
+ * Set         := ".set"    ( Identifier | Literal ) ( Identifier | Literal )
+ * Pc          := ".pc"     ( Identifier | Literal )
+ * Break       := ".break"
+ * Mode        := ".mode"      Literal
+ * Allocate    := ".allocate" ( Identifier | Literal )
  * Constant    := "constant" Identifier Literal
  * Variable    := "variable" Identifier Literal
  * Instruction := "@" | "!" | "exit" | ...
@@ -1685,6 +1867,11 @@ again:
 	X(SYM_DEFINITION,       "definition")\
 	X(SYM_CHAR,             "char")\
 	X(SYM_ISR,              "isr")\
+	X(SYM_SET,              "set")\
+	X(SYM_PC,               "pc")\
+	X(SYM_BREAK,            "break")\
+	X(SYM_MODE,             "mode")\
+	X(SYM_ALLOCATE,         "allocate")\
 	X(SYM_CALL_DEFINITION,  "call-definition")
 
 typedef enum {
@@ -1774,7 +1961,7 @@ static void use(lexer_t *l, node_t *n)
 	l->accepted = NULL;
 }
 
-static int token_print_enum(token_e sym, FILE *output)
+static int token_enum_print(token_e sym, FILE *output)
 { /**@todo improve this function */
 	assert(output);
 	return fprintf(stderr, "%u", sym);
@@ -1787,7 +1974,7 @@ static void node_print(FILE *output, node_t *n, bool shallow, unsigned depth)
 	assert(output);
 	indent(output, ' ', depth);
 	fprintf(output, "node(%d): %s\n", n->type, names[n->type]);
-	print_token(n->token, output, depth);
+	token_print(n->token, output, depth);
 	if(n->token)
 		fputc('\n', output);
 	if(shallow)
@@ -1805,9 +1992,9 @@ static int _expect(lexer_t *l, token_e token, const char *file, const char *func
 		return 1;
 	fprintf(stderr, "%s:%s:%u\n", file, func, line);
 	fprintf(stderr, "  Syntax error: unexpected token\n  Got:          ");
-	print_token(l->token, stderr, 0);
+	token_print(l->token, stderr, 0);
 	fputs("  Expected:     ", stderr);
-	token_print_enum(token, stderr);
+	token_enum_print(token, stderr);
 	fprintf(stderr, "\n  On line: %u\n", l->line);
 	ethrow(&l->error);
 	return 0;
@@ -1886,7 +2073,7 @@ static node_t *define(lexer_t *l)
 	return r;
 }
 
-static node_t *charcompile(lexer_t *l)
+static node_t *char_compile(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
@@ -1906,12 +2093,55 @@ static node_t *isr(lexer_t *l)
 	r = node_new(l, SYM_ISR, 0);
 	expect(l, LEX_IDENTIFIER);
 	use(l, r);
-	if(accept(l, LEX_IDENTIFIER)) {
-		use(l, r);
-	} else {
+	if(!accept(l, LEX_IDENTIFIER))
 		expect(l, LEX_LITERAL);
-		use(l, r);
-	}
+	use(l, r);
+	return r;
+}
+
+static node_t *mode(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_MODE, 0);
+	expect(l, LEX_LITERAL);
+	use(l, r);
+	return r;
+}
+
+static node_t *pc(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_PC, 0);
+	if(!accept(l, LEX_LITERAL))
+		expect(l, LEX_IDENTIFIER);
+	use(l, r);
+	return r;
+}
+
+static node_t *set(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_SET, 0);
+	if(!accept(l, LEX_IDENTIFIER))
+		expect(l, LEX_LITERAL);
+	use(l, r);
+	if(!accept(l, LEX_IDENTIFIER))
+		expect(l, LEX_LITERAL);
+	use(l, r);
+	return r;
+}
+
+static node_t *allocate(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_ALLOCATE, 0);
+	if(!accept(l, LEX_IDENTIFIER))
+		expect(l, LEX_LITERAL);
+	use(l, r);
 	return r;
 }
 
@@ -1951,7 +2181,7 @@ again:
 		r->o[i++] = define(l);
 		goto again;
 	} else if(accept(l, LEX_CHAR)) {
-		r->o[i++] = charcompile(l);
+		r->o[i++] = char_compile(l);
 		goto again;
 	} else if(accept(l, LEX_BEGIN)) {
 		r->o[i++] = begin(l);
@@ -1961,6 +2191,21 @@ again:
 		goto again;
 	} else if(accept(l, LEX_ISR)) {
 		r->o[i++] = isr(l);
+		goto again;
+	} else if(accept(l, LEX_SET)) {
+		r->o[i++] = set(l);
+		goto again;
+	} else if(accept(l, LEX_PC)) {
+		r->o[i++] = pc(l);
+		goto again;
+	} else if(accept(l, LEX_BREAK)) {
+		r->o[i++] = defined_by_token(l, SYM_BREAK);
+		goto again;
+	} else if(accept(l, LEX_MODE)) {
+		r->o[i++] = mode(l);
+		goto again;
+	} else if(accept(l, LEX_ALLOCATE)) {
+		r->o[i++] = allocate(l);
 		goto again;
 	} else if(accept_range(l, LEX_DUP, LEX_TE0)) {
 		r->o[i++] = defined_by_token(l, SYM_INSTRUCTION);
@@ -2002,6 +2247,7 @@ typedef struct {
 	bool in_definition;
 	bool start_defined;
 	uint16_t start;
+	uint16_t mode;
 } assembler_t;
 
 static void generate(h2_t *h, uint16_t instruction)
@@ -2121,6 +2367,21 @@ static uint16_t lexer_to_alu_op(token_e t)
 	return 0;
 }
 
+static uint16_t literal_or_symbol_lookup(error_t *e, token_t *token, symbol_table_t *t)
+{
+	symbol_t *s = NULL;
+	assert(token);
+	assert(t);
+	if(token->type == LEX_LITERAL)
+		return token->p.number;
+
+	assert(token->type == LEX_IDENTIFIER);
+
+	if(!(s = symbol_table_lookup(t, token->p.id)))
+		asmfail(e, "symbol not found: %s", token->p.id);
+	return s->value;
+}
+
 /**@todo define various variables that the programmer can use */
 static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
 {
@@ -2139,6 +2400,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	switch(n->type) {
 	case SYM_PROGRAM:
 	{
+		/**@todo Remove special cased start symbol and replace with
+		 * assembler directives */
 		symbol_t *s;
 		uint16_t start = hole(h) - 1;
 		assemble(h, a, n->o[0], t, e);
@@ -2243,6 +2506,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	{
 		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
 		uint16_t fixme = 0, fixval = 0;
+
 		if(!s || s->type != SYMBOL_TYPE_CALL)
 			asmfail(e, "not a function call/defined symbol: %s", n->token->p.id);
 		if(n->value->type == LEX_IDENTIFIER) {
@@ -2256,11 +2520,33 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			fixme  = n->value->p.number;
 			fixval = s->value;
 		}
-		if(fixme > NUMBER_OF_INTERRUPTS)
+		if(fixme >= NUMBER_OF_INTERRUPTS)
 			asmfail(e, "invalid interrupt number: %"PRId16, fixme);
 		fix(h, fixme, fixval);
 		break;
 	}
+	case SYM_SET:
+	{
+		/**@todo Only allow constants or literal */
+		uint16_t location, value;
+		location = literal_or_symbol_lookup(e, n->token, t);
+		value    = literal_or_symbol_lookup(e, n->value, t);
+		fix(h, location, value);
+		break;
+	}
+	case SYM_PC:
+		h->pc = literal_or_symbol_lookup(e, n->token, t);
+		break;
+	case SYM_MODE:
+		a->mode = n->token->p.number;
+		break;
+	case SYM_ALLOCATE:
+		/**@todo Only allow constants or literal */
+		h->pc += literal_or_symbol_lookup(e, n->token, t);
+		break;
+	case SYM_BREAK:
+		h->ram.points = break_point_add(&h->ram, h->pc);
+		break;
 	default:
 		fatal("Invalid or unknown type: %u", n->type);
 	}
@@ -2271,7 +2557,7 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	error_t e;
 	h2_t *h;
 	symbol_table_t *t = NULL;
-	assembler_t a = { false, false, 0 };
+	assembler_t a = { false, false, 0, 0 };
 	assert(n);
 
 	t = symbols ? symbols : symbol_table_new();
@@ -2331,10 +2617,11 @@ typedef struct {
 	command_e cmd;
 	long steps;
 	bool full_disassembly;
+	bool debug_mode;
 } command_args_t;
 
 static const char *help = "\
-usage ./h2 [-hvdDarR] [-s number] [-l symbol.file] files*\n\n\
+usage ./h2 [-hvdDarRT] [-s number] [-L symbol.file] [-S symbol.file] files*\n\n\
 Brief:     A H2 CPU Assembler, disassembler and Simulator.\n\
 Author:    Richard James Howe\n\
 Site:      https://github.com/howerj/forth-cpu\n\
@@ -2346,10 +2633,12 @@ Options:\n\n\
 \t-v\tincrease logging level\n\
 \t-d\tdisassemble input files (default)\n\
 \t-D\tfull disassembly of input files\n\
+\t-T\tEnter debug mode when running simulation\n\
 \t-a\tassemble file\n\
 \t-r\trun hex file\n\
 \t-R\tassemble file then run it\n\
-\t-l #\tload symbol file\n\
+\t-L #\tload symbol file\n\
+\t-S #\tsave symbols to file\n\
 \t-s #\tnumber of steps to run simulation (0 = forever)\n\
 \tfile*\tfile to process\n\n\
 Options must precede any files given, if no files have been\n\
@@ -2367,10 +2656,10 @@ static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_ta
 		return -1;
 	note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
 	io = h2_io_new();
-	r = h2_run(h, io, output, cmd->steps, symbols);
+	r = h2_run(h, io, output, cmd->steps, symbols, cmd->debug_mode);
 
 	if(log_level >= LOG_NOTE)
-		h2_print_soc_state(output, io->soc, log_level >= LOG_DEBUG);
+		soc_print(output, io->soc, log_level >= LOG_DEBUG);
 
 	h2_free(h);
 	h2_io_free(io);
@@ -2481,12 +2770,15 @@ int main(int argc, char **argv)
 				goto fail;
 			cmd.cmd = RUN_COMMAND;
 			break;
+		case 'T':
+			cmd.debug_mode = true;
+			break;
 		case 'R':
 			if(cmd.cmd)
 				goto fail;
 			cmd.cmd = ASSEMBLE_RUN_COMMAND;
 			break;
-		case 'l':
+		case 'L':
 			if(i >= (argc - 1) || symfile)
 				goto fail;
 			optarg = argv[++i];
@@ -2494,7 +2786,7 @@ int main(int argc, char **argv)
 			symfile = fopen_or_die(optarg, "rb");
 			symbols = symbol_table_load(symfile);
 			break;
-		case 'b':
+		case 'S':
 			if(i >= (argc - 1) || newsymfile)
 				goto fail;
 			optarg = argv[++i];

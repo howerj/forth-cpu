@@ -21,7 +21,7 @@ Email:
 This project implements a small stack computer tailored to executing Forth
 based on the [J1][] CPU. The processor has been rewritten in [VHDL][] from
 [Verilog][], and extended slightly. The project is a work in progress and is
-needs a lot of work before become usable.
+needs a lot of work before become usable. 
 
 The goals of the project are as follows:
 
@@ -33,10 +33,12 @@ The goals of the project are as follows:
 The H2 processor, like the [J1][], is a stack based processor that executes an
 instruction set especially suited for [FORTH][].
 
-The current target is the [Nexys3][] board, new boards will be targeted in the
-future as this board is reaching it's end of life. The [VHDL][] is written in a
-generic way, with hardware components being inferred instead of explicitly
-instantiated, this should make the code fairly portable.
+The current target is the [Nexys3][] board, with a [Xilinx][] Spartan-6 XC6LX16-CS324 
+[FPGA][], new boards will be targeted in the future as this board is reaching it's 
+end of life. The [VHDL][] is written in a generic way, with hardware components 
+being inferred instead of explicitly instantiated, this should make the code 
+fairly portable, although the interfaces to the [Nexys3][] board components are
+specific to the peripherals on that board.
 
 ## License
 
@@ -454,7 +456,7 @@ See o8SegLED\_0.
 
 #### o8SegLED\_3
 
-See o8SegLED\_0.
+See o8SegLED\_0. Leftmost display.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -618,7 +620,16 @@ program (see [h2.c][]). This simulator complements the [VHDL][] test bench
 #### Assembler
 
 The assembler is actually a compiler for a pseudo Forth like language with a
-fixed grammar. 
+fixed grammar. It is a much more restricted language than Forth and cannot be
+extended within itself like Forth can. 
+
+The main program can be found in [h2.fth][], which is still currently in
+testing. 
+
+The assembler/compiler reads in a text file containing a program and produces a
+hex file which can be read in by the simulator, disassembler, the VHDL test
+bench or read in by the [Xilinx ISE][] toolchain when it generates the bit file
+for the [Spartan 6][] on the [Nexys3][] board.
 
 #### Disassembler
 
@@ -632,6 +643,9 @@ assembler and attempt to find the locations jumps and calls point to.
 The simulator in C implements the H2 core and most of the SoC. The IO for the
 simulator is not cycle accurate (and most likely will never be), but can be
 used for running programs.
+
+The simulator will eventually include a debugger, similar in nature to
+[DEBUG.COM][] available in [DOS][].
 
 ### Coding standards
 
@@ -671,7 +685,10 @@ project.
 * <https://github.com/samawati/j1eforth>
 * <https://github.com/jamesbowman/j1>
 
+[DEBUG.COM]: https://en.wikipedia.org/wiki/Debug_%28command%29
+[DOS]: https://en.wikipedia.org/wiki/DOS
 [h2.c]: h2.c
+[h2.fth]: h2.fth
 [tb.vhd]: tb.vhd
 [uart.vhd]: uart.vhd
 [top.ucf]: top.ucf
@@ -708,5 +725,7 @@ project.
 [LED]: https://en.wikipedia.org/wiki/Light-emitting_diode
 [8 Segment LED Display]: https://en.wikipedia.org/wiki/Seven-segment_display
 [ISO 8859-1 (Latin-1)]: https://cs.stanford.edu/people/miles/iso8859.html
+[Spartan 6]: https://www.xilinx.com/products/silicon-devices/fpga/spartan-6.html
+[FPGA]: https://en.wikipedia.org/wiki/Field-programmable_gate_array
 
 <style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}</style>

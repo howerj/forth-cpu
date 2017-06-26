@@ -207,7 +207,7 @@ architecture rtl of led_8_segment_display is
 begin
 	an <= invert(shift_reg);
 
-	led_gen: for i in leds'range generate
+	led_gen: for i in number_of_led_displays - 1 downto 0 generate
 		led_i: entity work.reg
 			generic map(
 				N   => character_length)
