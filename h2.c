@@ -26,6 +26,8 @@
  * raw values, etcetera.
  * @todo Add unit tests for the program, if possible.
  * @todo Implement load/save of debug and h2_t state
+ * @todo Turn the diagrams in this file into help strings which can
+ * be printed out
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
@@ -1179,7 +1181,8 @@ typedef struct {
 	bool trace_on;
 } debug_state_t;
 
-/** @todo implement all these instructions */
+/** @todo implement all these instructions and more from
+ * http://thestarman.pcministry.com/asm/debug/debug.htm */
 static const char *debug_help = "\
 Debug help:\n\
 *-------------------------*---------*-----------------*\n\
@@ -1203,6 +1206,7 @@ Debug help:\n\
 | output                  |    o    | address value   |\n\
 | print H2 state          |    .    |                 |\n\
 | toggle tracing          |    t    |                 |\n\
+| goto address            |    g    | address/symbol  |\n\
 *-------------------------*---------*-----------------*\n";
 
 static const char *debug_prompt = "\ndebug> ";
@@ -1803,7 +1807,10 @@ again:
 
 /********* PARSER *********/
 
-/* Grammar:
+/** @todo Each statement here could be turned into a string and printed out
+ * when an error occurs, or all of them printed out as a help message.
+ *
+ * Grammar:
  *
  * Program     := Statement* EOF
  * Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
