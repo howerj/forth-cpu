@@ -119,6 +119,14 @@ variable cursorT 0  ( index into VGA text memory )
 : 1+! 1 swap +! ;
 : ?dup dup if dup then ;
 
+: um+ ( d d -- d carry )
+	2dup + >r
+	r@ 0 >= >r
+	2dup and
+	0< r> or >r
+	or 0< r> and negate
+	r> swap ;
+
 : y1+ cursorY 1+! cursorY @ vgaY u>= if 0 cursorY ! then ;
 : x1+ cursorX 1+! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
 : cursorT1+ cursorT 1+! cursorT @ vgaTextSize u>= if 0 cursorT ! then ;

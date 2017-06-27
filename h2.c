@@ -260,7 +260,7 @@ typedef struct {
 	uint16_t sp;  /**< variable stack pointer */
 	bool     ie;  /**< interrupt enable */
 
-	break_point_t ram;
+	break_point_t bp;
 } h2_t; /**< state of the H2 CPU */
 
 /** @warning LOG_FATAL level kills the program */
@@ -425,7 +425,7 @@ void h2_free(h2_t *h)
 {
 	if(!h)
 		return;
-	free(h->ram.points);
+	free(h->bp.points);
 	memset(h, 0, sizeof(*h));
 	free(h);
 }
@@ -956,7 +956,7 @@ static void memory_print(FILE *out, uint16_t *p, uint16_t length)
 	putc('\n', out);
 }
 
-static uint16_t *break_point_add(break_point_t *bp, uint16_t point)
+static void break_point_add(break_point_t *bp, uint16_t point)
 {
 	assert(bp);
 	size_t    a = (bp->length + 1) * sizeof(bp->points[0]);
@@ -966,7 +966,6 @@ static uint16_t *break_point_add(break_point_t *bp, uint16_t point)
 	r[bp->length] = point;
 	bp->length++;
 	bp->points = r;
-	return NULL;
 }
 
 static bool break_point_find(break_point_t *bp, uint16_t find_me)
@@ -976,6 +975,14 @@ static bool break_point_find(break_point_t *bp, uint16_t find_me)
 		if(bp->points[i] == find_me)
 			return true;
 	return false;
+}
+
+static int break_point_print(FILE *out, break_point_t *bp)
+{
+	for(size_t i = 0; i < bp->length; i++)
+		if(fprintf(out, "\t0x%04"PRIx16 "\n", bp->points[i]) < 0)
+			return -1;
+	return 0;
 }
 
 static void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
@@ -1183,7 +1190,8 @@ typedef struct {
 } debug_state_t;
 
 /** @todo implement all these instructions and more from
- * http://thestarman.pcministry.com/asm/debug/debug.htm */
+ * http://thestarman.pcministry.com/asm/debug/debug.htm as
+ * well as push/pop numbers */
 static const char *debug_help = "\
 Debug help:\n\
 *-------------------------*---------*-----------------*\n\
@@ -1208,44 +1216,125 @@ Debug help:\n\
 | print H2 state          |    .    |                 |\n\
 | toggle tracing          |    t    |                 |\n\
 | goto address            |    g    | address/symbol  |\n\
+| list break points       |    k    |                 |\n\
 *-------------------------*---------*-----------------*\n";
 
-static const char *debug_prompt = "\ndebug> ";
+static const char *debug_prompt = "debug> ";
+
+static int number(char *s, uint16_t *o, size_t length);
+
+static void h2_print(FILE *out, h2_t *h)
+{
+	fputs("Return Stack:\n", out);
+	memory_print(out, h->rstk, STK_SIZE);
+	fputs("Variable Stack:\n", out);
+	fprintf(out, "tos:  %04"PRIx16"\n", h->tos);
+	memory_print(out, h->dstk, STK_SIZE);
+	
+	fprintf(out, "pc:   %04"PRIx16"\n", h->pc);
+	fprintf(out, "rp:   %04"PRIx16"\n", h->rp);
+	fprintf(out, "dp:   %04"PRIx16"\n", h->sp);
+	fprintf(out, "ie:   %s\n", h->ie ? "true" : "false");
+}
 
 static int h2_debug(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *symbols)
 {
 	assert(h);
 	assert(ds);
-	if(ds->step || break_point_find(&h->ram, h->pc)) {
-		int c = 0;
+	if(ds->step || break_point_find(&h->bp, h->pc)) {
+		int argc;
+		char op[256], arg1[256], arg2[256];
+		bool is_numeric1, is_numeric2;
+		uint16_t num1, num2;
+
+		char line[256];
+
 		ds->step = true;
+	
+		memset(line, 0, sizeof(line));
+		memset(op,   0, sizeof(op));
+		memset(arg1, 0, sizeof(arg1));
+		memset(arg2, 0, sizeof(arg2));
 
 again:
 		fputs(debug_prompt, ds->output);
-no_prompt:
-		/**@todo replace with fgets and scanf*/
-		c = fgetc(ds->input);
-		switch(c) {
+		if(!fgets(line, sizeof(line), ds->input)) {
+			fputs("End of Input\n", ds->output);
+			return -1;
+		}
+
+		argc = sscanf(line, "%256s %256s %256s", op, arg1, arg2);
+		if(argc < 1)
+			goto again;
+
+		is_numeric1 = number(arg1, &num1, strlen(arg1));
+		is_numeric2 = number(arg2, &num2, strlen(arg2));
+
+		if(!(strlen(op) == 1)) {
+			fprintf(ds->output, "invalid command '%s'\n", op);
+			goto again;
+		}
+		
+		switch(op[0]) {
+		case 'd':
+			if(argc != 3 || !is_numeric1 || !is_numeric2) {
+				fprintf(ds->output, "dump expects two numeric arguments\n");
+				break;
+			}
+			if(((long)num1 + (long)num2) > MAX_CORE) {
+				fprintf(ds->output, "overflow in dump\n");
+				break;
+			}
+
+			memory_print(ds->output, h->core + num1, num2);
+			break;
+		case 'l':
+			if(argc != 2 || !is_numeric1) {
+				fprintf(ds->output, "set log level expects one numeric argument\n");
+				break;
+			}
+			log_level = num1;
+			break;
+		case 'b': /**@todo lookup symbol*/
+			if(argc != 2 || !is_numeric1) {
+				fprintf(ds->output, "set break point expects one numeric argument\n");
+				break;
+			}
+			break_point_add(&h->bp, num1);
+			break;
+
+		case 'g': /**@todo lookup symbol*/
+			if(argc != 2 || !is_numeric1) {
+				fprintf(ds->output, "goto expects one numeric argument\n");
+				break;
+			}
+			h->pc = num1;
+			break;
+		case '.':
+			h2_print(ds->output, h);
+			break;
+
 		case 'a':
 		case 'u':
-		case 'd':
 		case 'f':
-		case 'b':
 		case 'r':
-		case 'l':
 		case 'w':
 		case 'i':
 		case 'o':
-		case '.':
-			fprintf(ds->output, "command '%c' not implemented yet!\n", c);
+			fprintf(ds->output, "command '%c' not implemented yet!\n", op[0]);
 			break;
 
+		
 		case ' ':
 		case '\t':
 		case '\r':
-			goto no_prompt;
 		case '\n':
+			goto again;
+
+		case 'k':
+			break_point_print(ds->output, &h->bp);
 			break;
+
 		case 'h':
 			fputs(debug_help, ds->output);
 			break;
@@ -1272,16 +1361,14 @@ no_prompt:
 				fprintf(ds->output, "I/O unavailable\n");
 			break;
 		case EOF:
-			fprintf(ds->output, "End of Input\n");
 			/* fall through */
 		case 'q':
 			fprintf(ds->output, "Quiting simulator\n");
-			return 1;
+			return -1;
 		default:
-			fprintf(ds->output, "unknown command '%c'\n", c);
+			fprintf(ds->output, "unknown command '%c'\n", op[0]);
 		}
 		goto again;
-
 	}
 	return 0;
 }
@@ -1290,10 +1377,10 @@ no_prompt:
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
 {
 	assert(h);
-	debug_state_t ds = { .input = stdin, .output = stderr, .step = run_debugger, .trace_on = false };
+	debug_state_t ds = { .input = stdin, .output = stderr, .step = run_debugger, .trace_on = run_debugger };
 
 	if(run_debugger)
-		fputs("Debugger running, type 'h' for a list of commands.", ds.output);
+		fputs("Debugger running, type 'h' for a list of command\n", ds.output);
 
 	for(unsigned i = 0; i < steps || steps == 0 || run_debugger; i++) {
 		uint16_t instruction,
@@ -1687,16 +1774,13 @@ static bool numeric(int c, int base)
 	return isxdigit(c);
 }
 
-static int number(lexer_t *l, uint16_t *o, size_t length)
+static int number(char *s, uint16_t *o, size_t length)
 {
 	size_t i = 0, start = 0;
 	uint32_t out = 0;
 	int base = 10;
 	bool negate = false;
-	char *s;
-	assert(l);
 	assert(o);
-        s = l->id;
 	if(s[i] == '\0')
 		return 0;
 
@@ -1785,7 +1869,7 @@ again:
 			syntax_error(l, "invalid character: %c", ch);
 		}
 
-		if(number(l, &lit, i)) {
+		if(number(l->id, &lit, i)) {
 			l->token->type = LEX_LITERAL;
 			l->token->p.number = lit;
 			break;
@@ -2558,7 +2642,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		h->pc += literal_or_symbol_lookup(e, n->token, t);
 		break;
 	case SYM_BREAK:
-		h->ram.points = break_point_add(&h->ram, h->pc);
+		fprintf(stderr, "BREAK %04"PRIx16"\n", h->pc);
+		break_point_add(&h->bp, h->pc);
 		break;
 	default:
 		fatal("Invalid or unknown type: %u", n->type);
@@ -2694,6 +2779,7 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 
 	t = symbols ? symbols : symbol_table_new();
 
+	/**@bug break points are not kept across assembly to running */
 	if((r = h2_assemble(input, assembled, t)) < 0)
 		goto fail;
 
