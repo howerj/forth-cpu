@@ -947,10 +947,10 @@ static void memory_print(FILE *out, uint16_t *p, uint16_t length)
 	const uint16_t line_length = 16;
 	assert(out);
 	assert(p);
-	for(uint16_t i = 0; i < length; i+= line_length) {
+	for(uint16_t i = 0; i < length; i += line_length) {
 		fprintf(out, "%04"PRIx16 ": ", i);
-		for(uint16_t j = 0; j < line_length && j+i < length; j++)
-			fprintf(out, "%04"PRIx16 " ", p[j+i]);
+		for(uint16_t j = 0; j < line_length && j + i < length; j++)
+			fprintf(out, "%04"PRIx16 " ", p[j + i]);
 		putc('\n', out);
 	}
 	putc('\n', out);
@@ -1147,8 +1147,9 @@ static uint16_t stack_delta(uint16_t d)
 }
 
 /**@todo Trace should generate something consumable by the VHDL
- * simulation so they can be compared (actually it would be easier
- * to do it the other way around). */
+ * simulation so they can be compared. This could be done with a
+ * series of test programs that do not rely on I/O (which is not
+ * cycle accurate). */
 static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, const char *fmt, ...)
 {
 	int r = 0;
@@ -1222,6 +1223,7 @@ static int h2_debug(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *sym
 again:
 		fputs(debug_prompt, ds->output);
 no_prompt:
+		/**@todo replace with fgets and scanf*/
 		c = fgetc(ds->input);
 		switch(c) {
 		case 'a':
@@ -1240,6 +1242,7 @@ no_prompt:
 
 		case ' ':
 		case '\t':
+		case '\r':
 			goto no_prompt;
 		case '\n':
 			break;
@@ -1247,6 +1250,7 @@ no_prompt:
 			fputs(debug_help, ds->output);
 			break;
 		case 's':
+			/**@todo print something useful out?*/
 			return 0;
 		case 'c':
 			ds->step = false;
@@ -1282,6 +1286,7 @@ no_prompt:
 	return 0;
 }
 
+/**@todo rewrite so variables used within here mirror the VHDL */
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
 {
 	assert(h);
@@ -1311,7 +1316,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 		literal = instruction & 0x7FFF;
 		address = instruction & 0x1FFF; /* NB. also used for ALU OP */
 
-		pc_plus_one = h->pc + 1 % MAX_CORE;
+		/**@todo interrupt handling */
+		pc_plus_one = (h->pc + 1) % MAX_CORE;
 
 		if(log_level >= LOG_DEBUG || ds.trace_on)
 			trace(output, instruction, symbols,
@@ -1323,7 +1329,6 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 				(unsigned)h->rp,
 				(unsigned)h->tos);
 
-		/**@todo interrupt handling and wait */
 
 		/* decode / execute */
 		if(IS_LITERAL(instruction)) {
@@ -1343,10 +1348,10 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			case ALU_OP_T_AND_N:     tos &= nos; break;
 			case ALU_OP_T_OR_N:      tos |= nos; break;
 			case ALU_OP_T_XOR_N:     tos ^= nos; break;
-			case ALU_OP_T_INVERT:    tos = ~nos; break;
+			case ALU_OP_T_INVERT:    tos = ~tos; break;
 			case ALU_OP_T_EQUAL_N:   tos = -(tos == nos); break;
-			case ALU_OP_N_LESS_T:    tos = -((int16_t)nos < (int16_t)nos); break;
-			case ALU_OP_N_RSHIFT_T:  tos >>= nos; break;
+			case ALU_OP_N_LESS_T:    tos = -((int16_t)nos < (int16_t)tos); break;
+			case ALU_OP_N_RSHIFT_T:  tos = nos >> tos; break;
 			case ALU_OP_T_DECREMENT: tos--; break;
 			case ALU_OP_R:           tos = h->rstk[h->rp % STK_SIZE]; break;
 			case ALU_OP_T_LOAD:
@@ -1357,10 +1362,10 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 						warning("I/O read attempted on addr: %"PRIx16, h->tos);
 				} else {
 					/**@note The lowest bit is not used in the address for memory reads */
-					tos = h->core[(h->tos % MAX_CORE) >> 1];
+					tos = h->core[(h->tos >> 1) % MAX_CORE];
 				}
 				break;
-			case ALU_OP_N_LSHIFT_T: tos <<= nos; break;
+			case ALU_OP_N_LSHIFT_T: tos = nos << tos; break;
 			case ALU_OP_DEPTH:      tos = h->sp; break;
 			case ALU_OP_N_ULESS_T:  tos = -(nos < tos); break;
 			case ALU_OP_ENABLE_INTERRUPTS: h->ie = tos & 1; break;
@@ -1370,6 +1375,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			default:
 				warning("unknown ALU operation: %u", (unsigned)ALU_OP(instruction));
 			}
+			if(instruction & T_TO_R)
+				h->rstk[h->sp % STK_SIZE] = h->tos;
 
 			h->sp += dd;
 			if(h->sp >= STK_SIZE)
@@ -1382,23 +1389,20 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			h->rp %= STK_SIZE;
 
 			if(instruction & T_TO_N)
-				h->dstk[h->sp % STK_SIZE] = tos;
+				h->dstk[h->sp % STK_SIZE] = h->tos;
 
 			if(instruction & R_TO_PC)
 				npc = h->rstk[h->rp % STK_SIZE];
-
-			if(instruction & T_TO_R)
-				h->rstk[h->sp % STK_SIZE] = tos;
 
 			if(instruction & N_TO_ADDR_T) {
 				if(h->tos & 0x6000) {
 					if(io)
 						io->out(io->soc, h->tos, nos);
 					else
-						warning("I/O write attempted wth addr/value: %"PRIx16 "/%"PRIx16, tos, nos);
+						warning("I/O write attempted with addr/value: %"PRIx16 "/%"PRIx16, tos, nos);
 				} else {
 					/**@note The lowest bit is not used in the address for memory writes */
-					h->core[(tos % MAX_CORE) >> 1] = nos;
+					h->core[(h->tos >> 1) % MAX_CORE] = nos;
 				}
 			}
 
@@ -1951,6 +1955,8 @@ static int accept(lexer_t *l, token_e sym)
 
 static int accept_range(lexer_t *l, token_e low, token_e high)
 {
+	assert(l);
+	assert(low <= high);
 	for(token_e i = low; i <= high; i++)
 		if(accept(l, i))
 			return 1;
@@ -2737,10 +2743,11 @@ int main(int argc, char **argv)
 	cmd.steps = DEFAULT_STEPS;
 
 #ifdef _WIN32
-	/* Windows Only: Put the used standard streams into binary mode,
-	 * this is a binary, not a text utility */
+	/* Windows Only: Put the used standard streams into binary mode. 
+	 * Text mode sucks. */
 	_setmode(_fileno(stdin),  _O_BINARY);
 	_setmode(_fileno(stdout), _O_BINARY);
+	_setmode(_fileno(stderr), _O_BINARY);
 #endif
 
 	for(i = 1; i < argc && argv[i][0] == '-'; i++) {
