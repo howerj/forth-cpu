@@ -371,10 +371,10 @@ begin
 			when "0101" => -- VGA update address register.
 				vga_addr_we <= '1';
 				vga_addr    <= io_dout(vga_addr'range);
-			when "0110" => -- VGA, update register.
+			when "0110" => -- VGA, update data register.
 				vga_din_we <= '1';
 				vga_din    <= io_dout;
-			-- @todo  merge vga_we_ram with VGA address register?
+			-- @todo  merge vga_we_ram with VGA control register?
 			when "0111" => -- VGA write RAM write
 				vga_we_ram <= io_dout(0);
 

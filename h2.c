@@ -1229,7 +1229,7 @@ typedef struct
 
 /** @todo implement all these instructions and more from
  * http://thestarman.pcministry.com/asm/debug/debug.htm as
- * well as push/pop numbers */
+ * well as push/pop numbers, and call (not just jump) */
 static const debug_command_t debug_commands[] = {
 	{ .cmd = 'a', .argc = 1, .arg1 = DBG_CMD_NUMBER, .arg2 = DBG_CMD_NO_ARG, .description = "assemble               " },
 	{ .cmd = 'b', .argc = 1, .arg1 = DBG_CMD_EITHER, .arg2 = DBG_CMD_NO_ARG, .description = "set break point        " },
@@ -2046,6 +2046,12 @@ again:
  *
  * NB. Literals have higher priority than Identifiers, and comments are '\'
  * until a new line is encountered, or '(' until a ')' is encountered.
+ *
+ * The following looping constructs need to be implemented:
+ *
+ * Begin ... While ... Repeat
+ * For   ... Next
+ * For   ... Aft   ... Then ... Next
  *
  * @bug The grammar allows nested word definitions.
  *

@@ -9,7 +9,7 @@
 --| @email          howe.r.j.89@gmail.com
 --|
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
---| vice versa), pulse generator, small RAM model, LIFO, population count
+--| vice versa), pulse generator, small RAM model, population count
 --| priority encoder, types, and other generic functions and components.
 -------------------------------------------------------------------------------
 library ieee;
@@ -143,6 +143,24 @@ package util is
 		generic(clock_frequency: positive);
 		port(stop: in std_logic);
 	end component;
+
+	component lfsr is
+		generic(tap: std_logic_vector);
+		port
+		(
+			clk: in  std_logic;
+			rst: in  std_logic;
+			ce:  in  std_logic := '1';
+			we:  in  std_logic;
+			di:  in  std_logic_vector(tap'high + 1 to tap'low);
+			do:  out std_logic_vector(tap'high + 1 to tap'low));
+	end component;
+
+	component lfsr_tb is
+		generic(clock_frequency: positive);
+		port(stop: in std_logic);
+	end component;
+
 
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
@@ -1195,3 +1213,119 @@ end architecture;
 
 ------------------------- Free running counter --------------------------------------
 
+------------------------- Linear Feedback Shift Register ----------------------------
+-- For good sources on LFSR see
+-- * https://sites.ualberta.ca/~delliott/ee552/studentAppNotes/1999f/Drivers_Ed/lfsr.html
+-- * https://en.wikipedia.org/wiki/Linear-feedback_shift_register
+--
+--
+-- Some optimal taps
+--
+-- Taps start at the left most std_logic element of tap at '0' and proceed to
+-- the highest bit. To instantiate an instance of the LFSR set tap to a
+-- standard logic vector one less the size of LFSR that you want. An 8-bit
+-- LFSR can be made by setting it 'tap' to "0111001". The LFSR will need to
+-- be loaded with a seed value, set 'do' to that value and assert 'we'. The
+-- LFSR will only run when 'ce' is asserted, otherwise it will preserve the
+-- current value.
+--
+-- Number of bits   Taps      Cycle Time
+--      8           1,2,3,7    255
+--      16          1,2,4,15   65535
+--      32          1,5,6,31   4294967295
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity lfsr is
+	generic(tap: std_logic_vector);
+	port
+	(
+		clk: in  std_logic;
+		rst: in  std_logic;
+		we:  in  std_logic;
+		ce:  in  std_logic := '1';
+		di:  in  std_logic_vector(tap'high + 1 downto tap'low);
+		do:  out std_logic_vector(tap'high + 1 downto tap'low));
+end entity;
+
+architecture rtl of lfsr is
+	signal r_c, r_n : std_logic_vector(di'range) := (others => '0');
+begin
+	do <= r_c;
+
+	process(rst, clk)
+	begin
+		if rst = '1' then
+			r_c <= (others => '0');
+		elsif rising_edge(clk) then
+			r_c <= r_n;
+		end if;
+	end process;
+
+	process(r_c, di, we)
+	begin
+		if we = '1' then
+			r_n <= di;
+		elsif ce = '1' then
+
+			r_n(r_n'high) <= r_c(r_c'low);
+
+			for i in tap'high downto tap'low loop
+				if tap(i) = '1' then
+					r_n(i) <= r_c(r_c'low) xor r_c(i+1);
+				else
+					r_n(i) <= r_c(i+1);
+				end if;
+			end loop;
+		else
+			r_n <= r_c;
+		end if;
+
+	end process;
+
+
+end architecture;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity lfsr_tb is
+	generic(clock_frequency: positive);
+	port(stop: in std_logic);
+end entity;
+
+architecture behavior of lfsr_tb is
+	constant clock_period: time     := 1000 ms / clock_frequency;
+	signal we: std_logic := '0';
+	signal do, di: std_logic_vector(7 downto 0) := (others => '0');
+
+	signal clk, rst: std_logic := '0';
+begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
+	uut: entity work.lfsr
+		generic map(tap => "0111001")
+		port map(clk => clk, 
+			 rst => rst, 
+			 we => we, 
+			 di => di, 
+			 do => do);
+
+	stimulus_process: process
+	begin
+		wait for clock_period * 2;
+		we <= '1';
+		di <= "00000001";
+		wait for clock_period;
+		we <= '0';
+		wait;
+	end process;
+
+end architecture;
+
+------------------------- Linear Feedback Shift Register ----------------------------

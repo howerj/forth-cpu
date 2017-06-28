@@ -140,6 +140,7 @@ begin
 	uut_function: entity work.function_tb       generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
 	uut_fifo:     entity work.fifo_tb           generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
 	uut_counter:  entity work.counter_tb        generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
+	uut_lfsr:     entity work.lfsr_tb           generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
 
 	-- @note a more advanced test bench would send out a string and expect
 	-- the same one back using a loopback circuit. For the moment this

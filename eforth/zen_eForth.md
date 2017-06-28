@@ -517,7 +517,7 @@ It is not a very good idea to change the contents of the dictionary,
 except in the parameter fields of variables and arrays you defined
 specifically for data storage.  The space occupied by the stacks should
 be respected, too.  The user variable area holds vital information for
-the system to run correctly.  The space bewteen the code dictionary and
+the system to run correctly.  The space between the code dictionary and
 the name dictionary are not used and you are free to use it to store
 temporary data.  Be reminded, however, that as you define new words,
 the dictionaries are extended and may over-write data you placed there.

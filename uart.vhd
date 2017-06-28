@@ -115,6 +115,7 @@ architecture behav of uart_top is
 
 	signal tx_fifo_re:             std_logic := '0';
 	signal tx_fifo_empty_internal: std_logic := '1';
+	signal tx_fifo_full_internal:  std_logic := '0';
 
 	signal wrote_c, wrote_n: std_logic := '0';
 begin
@@ -130,7 +131,7 @@ begin
 		end if;
 	end process;
 
-	process(dout_stb, tx_fifo_empty_internal, din_ack, wrote_c)
+	process(dout_stb, tx_fifo_empty_internal, tx_fifo_full_internal, din_ack, wrote_c)
 	begin
 			dout_ack    <= '0';
 			din_stb     <= '0';
@@ -141,7 +142,9 @@ begin
 				dout_ack <= '1';
 			end if;
 
-			if tx_fifo_empty_internal = '0' then
+			-- @note this should signal that data has been lost if
+			-- "tx_fifo_empty_internal" is '1'
+			if tx_fifo_empty_internal = '0' and tx_fifo_full_internal = '0' then
 				tx_fifo_re <= '1';
 				wrote_n    <= '1';
 			elsif din_ack = '0' and wrote_c = '1' then
@@ -175,10 +178,11 @@ begin
 			we    => tx_data_we,
 			re    => tx_fifo_re,
 			do    => din,
-			full  => tx_fifo_full,
+			full  => tx_fifo_full_internal,
 			empty => tx_fifo_empty_internal);
 
 	tx_fifo_empty <= tx_fifo_empty_internal;
+	tx_fifo_full  <= tx_fifo_empty_internal;
 
 	uart: work.uart_pkg.uart_core
 		generic map(

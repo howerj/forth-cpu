@@ -98,6 +98,7 @@ variable cursorX 0  ( x component of cursor )
 variable cursorY 0  ( y component of cursor )
 variable cursorT 0  ( index into VGA text memory )
 
+: sp@ depth ;
 : 1+ 1 + ;
 : 2+ 2 + ;
 : 2/ 1 rshift ;
@@ -118,14 +119,31 @@ variable cursorT 0  ( index into VGA text memory )
 : +! tuck @ + swap ! ;
 : 1+! 1 swap +! ;
 : ?dup dup if dup then ;
+: execute >r ;
+: c@ dup @ swap 1 and if 8 rshift else 0xff and then exit ;
+: c! 
+	swap 0xff and dup 8 lshift or swap
+	tuck dup @ swap 1 and 0 = 0xff xor
+	>r over xor r> and xor swap ! ;
 
-: um+ ( d d -- d carry )
+: !io ; ( Initialize I/O devices )
+: ?rx ( -- c 1 | 0 : read in a character of input from UART )
+	iUart @ 0x0100 and if 0xff and 1 else drop 0 then ;
+: tx! ( c -- : write a character to UART )
+	0x2000 or oUart ! ; ( @todo loop until TX FIFO is not full )
+
+: um+ ( w w -- w carry )
 	2dup + >r
 	r@ 0 >= >r
 	2dup and
 	0< r> or >r
 	or 0< r> and negate
 	r> swap ;
+
+
+( With the built in words defined in the assembler, and the words
+defined so far, all of the primitive words needed by eForth should
+be available. )
 
 : y1+ cursorY 1+! cursorY @ vgaY u>= if 0 cursorY ! then ;
 : x1+ cursorX 1+! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
