@@ -326,6 +326,7 @@ begin
 				io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
 
 			when "010" => -- VGA, Read VGA text buffer.
+				-- @todo remove this register
 				io_din <= timer_control_o;
 
 			when "011" => -- Timer in
@@ -357,6 +358,8 @@ begin
 				timer_control_we <= '1';
 				timer_control_i  <= io_dout;
 
+			-- @todo Turn VGA display into 64x16 text display, then have the
+			-- cursor track the VGA address register
 			when "0011" => -- VGA, cursor registers.
 				vga_control_we.crx <= '1';
 				vga_control_we.cry <= '1';
@@ -371,12 +374,11 @@ begin
 			when "0110" => -- VGA, update register.
 				vga_din_we <= '1';
 				vga_din    <= io_dout;
+			-- @todo  merge vga_we_ram with VGA address register?
 			when "0111" => -- VGA write RAM write
 				vga_we_ram <= io_dout(0);
 
-			-- @note It would make sense to merge these LED 8 
-			-- segment registers into one, however this slows
-			-- things down slightly
+			-- @todo merge these registers into one
 			when "1000" => -- LED 8 Segment display 0
 				leds(0).display <= io_dout(3 downto 0);
 				leds(0).we      <= '1';

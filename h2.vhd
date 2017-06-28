@@ -58,15 +58,15 @@ entity h2 is
 end;
 
 architecture rtl of h2 is
-	constant stack_size: integer := 2 ** stack_size_log2;
 
 	-- Program counter.
 	signal pc_c:  std_logic_vector(12 downto 0) := std_logic_vector(to_unsigned(start_address, 13));
 	signal pc_n:  std_logic_vector(12 downto 0) := (others => '0');
 
 	-- Stack Type
-	type    stack is array (stack_size - 1 downto 0) of std_logic_vector(15 downto 0);
-	subtype depth is std_logic_vector(stack_size_log2 - 1 downto 0);
+	constant stack_size: integer := 2 ** stack_size_log2;
+	type     stack is array (stack_size - 1 downto 0) of std_logic_vector(15 downto 0);
+	subtype  depth is std_logic_vector(stack_size_log2 - 1 downto 0);
 
 	-- Variable stack (RAM Template)
 	signal vstkp_c, vstkp_n:  depth := (others => '0');
@@ -333,9 +333,9 @@ begin
 	end process;
 
 	pc_update: process(
-		pc_c,insn,rtos_c,pc_plus_one,
+		pc_c,insn, rtos_c, pc_plus_one,
 		is_instr,
-		is_interrupt,irq_c,irq_addr_c,irq_addr,irq,
+		is_interrupt, irq_c, irq_addr_c, irq_addr,irq,
 		compare.zero,
 		stop)
 	begin

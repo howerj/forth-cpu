@@ -9,6 +9,25 @@
 --|
 --| @todo A mode where the cursor follows the text-address automatically
 --| would be useful.
+--| Also useful would be the following:
+--|	* 64x16 mode (this simplify cursor control and text address arithmetic),
+--|	This could perhaps be made into a generic option.
+--|	* Extending the cursor bits so multiple screens can be switched in
+--|	and out.
+--|	* Inverted color mode (extra bit in the control register) and
+--|	automatic cursor tracking mode
+--|	* Perhaps using the highest eight bits for attribute bits
+--|	* A selectable Text or Graphics (320x240 monochrome) mode
+--|
+--| By making the display 64x16, and making the cursor register layout
+--| as follows:
+--|	.-------------.----------.----------.
+--|	| Bank Select | Cursor Y | Cursor X |
+--|	.-------------.----------.----------.
+--|	|  13 - 11    | 10 - 4   |  3 - 0   |
+--|	.-------------.----------.----------.
+--| The cursor could be updated with a simple increment, and should track
+--| the "text_a".
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------

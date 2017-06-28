@@ -9,8 +9,6 @@
  * for the device, and allow for simulating the device where there
  * is no tool chain for dealing with VHDL.
  *
- * @todo Improve the simulator and make changes relating to the new
- * register map.
  * @todo Turn this into a library, and into a literate program, and possibly
  * make a nice and shiny OpenGL version which simulates the VGA output, LEDs
  * and Switches.
@@ -18,12 +16,6 @@
  * utility.
  * @todo Allow code generation to produce a bootloader with a program
  * loaded to an address specified by the user.
- * @todo Implement a debugger for the simulator that can be accessed
- * by hitting escape (instead of quitting). This should act somewhat
- * likes DEBUG.EXE from MS-DOS
- * @todo Add assembler directives such as setting the current
- * instruction count, adding breakpoints, setting memory locations to
- * raw values, etcetera.
  * @todo Add unit tests for the program, if possible.
  * @todo Implement load/save of debug and h2_t state
  * @todo Turn the diagrams in this file into help strings which can
@@ -622,7 +614,7 @@ static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *i
 	assert(t);
 
 	if(symbol_table_lookup(t, id)) {
-		error("definition of symbol: %s", id);
+		error("redefinition of symbol: %s", id);
 		if(e)
 			ethrow(e);
 		else
@@ -854,9 +846,9 @@ int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 #define TIMER_ENABLE_BIT           (15)
 #define TIMER_RESET_BIT            (14)
 #define TIMER_INTERRUPT_ENABLE_BIT (13)
-#define TIMER_ENABLE               (1 << TIMER_INTERRUPT_ENABLE_BIT)
+#define TIMER_ENABLE               (1 << TIMER_ENABLE_BIT)
 #define TIMER_RESET                (1 << TIMER_RESET_BIT)
-#define TIMER_INTERRUPT_ENABLE     (1 << TIMER_INTERRUPT_ENABLE)
+#define TIMER_INTERRUPT_ENABLE     (1 << TIMER_INTERRUPT_ENABLE_BIT)
 
 #define UART_RX_FIFO_EMPTY_BIT     (8)
 #define UART_RX_FIFO_FULL_BIT      (9)
@@ -990,25 +982,31 @@ static int break_point_print(FILE *out, break_point_t *bp)
 	return 0;
 }
 
+#define LED_8_SEGMENT_DISPLAY_CHARSET_HEX  "0123456789AbCdEF"
+#define LED_8_SEGMENT_DISPLAY_CHARSET_BCD  "0123456789 .-   "
+
+static char l8seg(uint8_t c)
+{
+	static const char *v = LED_8_SEGMENT_DISPLAY_CHARSET_HEX;
+	return v[c & 0xf];
+}
+
 static void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 {
 	assert(out);
 	assert(soc);
-	fprintf(out, "LEDS:          %"PRIx8"\n",  soc->leds);
-	fprintf(out, "VGA Cursor:    %"PRIx16"\n", soc->vga_cursor);
-	fprintf(out, "VGA Control:   %"PRIx16"\n", soc->vga_control);
-	fprintf(out, "VGA Addr:      %"PRIx16"\n", soc->vga_text_addr);
-	fprintf(out, "VGA Write:     %"PRIx16"\n", soc->vga_text_write);
-	fprintf(out, "Timer Control: %"PRIx16"\n", soc->timer_control);
-	fprintf(out, "Timer:         %"PRIx16"\n", soc->timer);
-	fprintf(out, "IRC Mask:      %"PRIx16"\n", soc->irc_mask);
-	fprintf(out, "UART Input:    %"PRIx8"\n",  soc->uart_getchar_register);
-	fprintf(out, "LED 0:         %"PRIx8"\n",  soc->led0);
-	fprintf(out, "LED 1:         %"PRIx8"\n",  soc->led1);
-	fprintf(out, "LED 2:         %"PRIx8"\n",  soc->led2);
-	fprintf(out, "LED 3:         %"PRIx8"\n",  soc->led3);
-	fprintf(out, "Switches:      %"PRIx8"\n",  soc->switches);
-	fprintf(out, "Waiting:       %s\n",        soc->wait ? "true" : "false");
+	fprintf(out, "LEDS:          %02"PRIx8"\n",  soc->leds);
+	fprintf(out, "VGA Cursor:    %04"PRIx16"\n", soc->vga_cursor);
+	fprintf(out, "VGA Control:   %04"PRIx16"\n", soc->vga_control);
+	fprintf(out, "VGA Addr:      %04"PRIx16"\n", soc->vga_text_addr);
+	fprintf(out, "VGA Write:     %04"PRIx16"\n", soc->vga_text_write);
+	fprintf(out, "Timer Control: %04"PRIx16"\n", soc->timer_control);
+	fprintf(out, "Timer:         %04"PRIx16"\n", soc->timer);
+	fprintf(out, "IRC Mask:      %04"PRIx16"\n", soc->irc_mask);
+	fprintf(out, "UART Input:    %02"PRIx8"\n",  soc->uart_getchar_register);
+	fprintf(out, "LED 7seg:      %c%c%c%c\n",    l8seg(soc->led0), l8seg(soc->led1), l8seg(soc->led2), l8seg(soc->led3));
+	fprintf(out, "Switches:      %02"PRIx8"\n",  soc->switches);
+	fprintf(out, "Waiting:       %s\n",          soc->wait ? "true" : "false");
 	
 	if(verbose) {
 		fputs("VGA Memory:\n", out);
@@ -1075,9 +1073,10 @@ static void h2_io_update_default(h2_soc_state_t *soc)
 	if(soc->timer_control & TIMER_ENABLE) {
 		if(soc->timer_control & TIMER_RESET) {
 			soc->timer = 0;
+			soc->timer_control &= ~TIMER_RESET;
 		} else {
 			soc->timer++;
-			if((soc->timer > soc->timer_control) & 0x1FFF) {
+			if((soc->timer > (soc->timer_control & 0x1FFF))) {
 				/**@todo generate interrupt*/
 				soc->timer = 0;
 			}	
@@ -1315,6 +1314,8 @@ static int debug_resolve_symbol(FILE *out, char *symbol, symbol_table_t *symbols
 	return 0;
 }
 
+/**@todo If a breakpoint is set on a location a load or store could to
+ * that location should also trigger a break */
 static int h2_debug(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *symbols)
 {
 	bool breaks = false;
