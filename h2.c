@@ -1305,7 +1305,7 @@ static int h2_debugger(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *
 
 	breaks = break_point_find(&h->bp, point);
 	if(breaks)
-		fprintf(ds->output, "\n === BREAK(%04"PRIx16") ===\n", h->pc);
+		fprintf(ds->output, "\n === BREAK(0x%04"PRIx16") ===\n", h->pc);
 	
 	if(ds->step || breaks) {
 		char line[256];
@@ -1654,8 +1654,13 @@ typedef enum {
 	LEX_BRANCH,
 	LEX_0BRANCH,
 	LEX_BEGIN,
+	LEX_WHILE,
+	LEX_REPEAT,
 	LEX_AGAIN,
 	LEX_UNTIL,
+	LEX_FOR,
+	LEX_AFT,
+	LEX_NEXT,
 	LEX_IF,
 	LEX_ELSE,
 	LEX_THEN,
@@ -1713,8 +1718,13 @@ static const char *keywords[] =
 	[LEX_BRANCH]    =  "branch",
 	[LEX_0BRANCH]   =  "0branch",
 	[LEX_BEGIN]     =  "begin",
+	[LEX_WHILE]     =  "while",
+	[LEX_REPEAT]    =  "repeat",
 	[LEX_AGAIN]     =  "again",
 	[LEX_UNTIL]     =  "until",
+	[LEX_FOR]       =  "for",
+	[LEX_AFT]       =  "aft",
+	[LEX_NEXT]      =  "next",
 	[LEX_IF]        =  "if",
 	[LEX_ELSE]      =  "else",
 	[LEX_THEN]      =  "then",
@@ -1778,6 +1788,7 @@ typedef struct {
 	char id[MAX_ID_LENGTH];
 	token_t *token;
 	token_t *accepted;
+	bool in_definition;
 } lexer_t;
 
 /********* LEXER *********/
@@ -1868,6 +1879,7 @@ static int _syntax_error(lexer_t *l,
 	va_end(ap);
 	fputc('\n', stderr);
 	token_print(l->token, stderr, 2);
+	fputc('\n', stderr);
 	ethrow(&l->error);
 	return 0;
 }
@@ -2008,6 +2020,17 @@ again:
 			l->token->p.id = duplicate(l->id);
 		} else {
 			l->token->type = sym;
+
+			if(sym == LEX_DEFINE) {
+				if(l->in_definition)
+					syntax_error(l, "Nested definitions are not allowed");
+				l->in_definition = true;
+			}
+			if(sym == LEX_ENDDEFINE) {
+				if(!(l->in_definition))
+					syntax_error(l, "Use of ';' not terminating word definition");
+				l->in_definition = false;
+			}
 		}
 		break;
 	}
@@ -2039,7 +2062,8 @@ again:
  * Instruction := "@" | "store" | "exit" | ...
  * Definition  := ":" Statement* ";"
  * If          := "if" Statement* [ "else" ] Statement* "then"
- * Begin       := "begin" Statement* ("until" | "again")
+ * Begin       := "begin" Statement* ("until" | "again" | "while" Statement* "repeat")
+ * For         := "for"   Statement* ("aft" Statement* "then" Statement* | "next")
  * Isr         := "isr" Identifier (Identifier | Literal)
  * Literal     := [ "-" ] Number
  * Char        := "char" ASCII ","
@@ -2059,7 +2083,8 @@ again:
  * For   ... Aft   ... Then ... Next
  * :     ... Immediate?
  *
- * @bug The grammar allows nested word definitions.
+ * The grammar allows for nested word definitions, however state is held in the
+ * lexer to prevent this.
  *
  * Add words:
  *
@@ -2074,28 +2099,31 @@ again:
 
 
 #define XMACRO_PARSE\
-	X(SYM_PROGRAM,          "program")\
-	X(SYM_STATEMENTS,       "statements")\
-	X(SYM_LABEL,            "label")\
-	X(SYM_BRANCH,           "branch")\
-	X(SYM_0BRANCH,          "0branch")\
-	X(SYM_CALL,             "call")\
-	X(SYM_CONSTANT,         "constant")\
-	X(SYM_VARIABLE,         "variable")\
-	X(SYM_LITERAL,          "literal")\
-	X(SYM_INSTRUCTION,      "instruction")\
-	X(SYM_BEGIN_UNTIL,      "begin...until")\
-	X(SYM_BEGIN_AGAIN,      "begin...again")\
-	X(SYM_IF1,              "if1")\
-	X(SYM_DEFINITION,       "definition")\
-	X(SYM_CHAR,             "char")\
-	X(SYM_ISR,              "isr")\
-	X(SYM_SET,              "set")\
-	X(SYM_PC,               "pc")\
-	X(SYM_BREAK,            "break")\
-	X(SYM_MODE,             "mode")\
-	X(SYM_ALLOCATE,         "allocate")\
-	X(SYM_CALL_DEFINITION,  "call-definition")
+	X(SYM_PROGRAM,             "program")\
+	X(SYM_STATEMENTS,          "statements")\
+	X(SYM_LABEL,               "label")\
+	X(SYM_BRANCH,              "branch")\
+	X(SYM_0BRANCH,             "0branch")\
+	X(SYM_CALL,                "call")\
+	X(SYM_CONSTANT,            "constant")\
+	X(SYM_VARIABLE,            "variable")\
+	X(SYM_LITERAL,             "literal")\
+	X(SYM_INSTRUCTION,         "instruction")\
+	X(SYM_BEGIN_UNTIL,         "begin...until")\
+	X(SYM_BEGIN_AGAIN,         "begin...again")\
+	X(SYM_BEGIN_WHILE_REPEAT,  "begin...while...repeat")\
+	X(SYM_FOR_NEXT,            "for...next")\
+	X(SYM_FOR_AFT_THEN_NEXT,   "for...aft...then...next")\
+	X(SYM_IF1,                 "if1")\
+	X(SYM_DEFINITION,          "definition")\
+	X(SYM_CHAR,                "char")\
+	X(SYM_ISR,                 "isr")\
+	X(SYM_SET,                 "set")\
+	X(SYM_PC,                  "pc")\
+	X(SYM_BREAK,               "break")\
+	X(SYM_MODE,                "mode")\
+	X(SYM_ALLOCATE,            "allocate")\
+	X(SYM_CALL_DEFINITION,     "call-definition")
 
 typedef enum {
 #define X(ENUM, NAME) ENUM,
@@ -2261,16 +2289,40 @@ static node_t *jump(lexer_t *l, parse_e type)
 
 static node_t *statements(lexer_t *l);
 
+static node_t *for_next(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_FOR_NEXT, 1);
+	r->o[0] = statements(l);
+	if(accept(l, LEX_AFT)) {
+		r->type = SYM_FOR_AFT_THEN_NEXT;
+		r = node_grow(l, r);
+		r->o[1] = statements(l);
+		r = node_grow(l, r);
+		expect(l, LEX_THEN);
+		r->o[2] = statements(l);
+	} 
+	expect(l, LEX_NEXT);
+	return r;
+}
+
 static node_t *begin(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
 	r = node_new(l, SYM_BEGIN_UNTIL, 1);
 	r->o[0] = statements(l);
-	if(accept(l, LEX_AGAIN))
+	if(accept(l, LEX_AGAIN)) {
 		r->type = SYM_BEGIN_AGAIN;
-	else
+	} else if(accept(l, LEX_WHILE)) {
+		r->type = SYM_BEGIN_WHILE_REPEAT;
+		r = node_grow(l, r);
+		r->o[1] = statements(l);
+		expect(l, LEX_REPEAT);
+	} else {
 		expect(l, LEX_UNTIL);
+	}
 	return r;
 }
 
@@ -2410,6 +2462,9 @@ again:
 		goto again;
 	} else if(accept(l, LEX_BEGIN)) {
 		r->o[i++] = begin(l);
+		goto again;
+	} else if(accept(l, LEX_FOR)) {
+		r->o[i++] = for_next(l);
 		goto again;
 	} else if(accept(l, LEX_IDENTIFIER)) {
 		r->o[i++] = defined_by_token(l, SYM_CALL_DEFINITION);
@@ -2667,10 +2722,17 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_INSTRUCTION:
 		generate(h, lexer_to_alu_op(n->token->type));
 		break;
+	case SYM_BEGIN_AGAIN: /* fall through */
 	case SYM_BEGIN_UNTIL:
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
-		generate(h, OP_0BRANCH | hole1);
+		generate(h, (n->type == SYM_BEGIN_AGAIN ? OP_BRANCH : OP_0BRANCH) | hole1);
+		break;
+	
+	case SYM_FOR_NEXT:
+	case SYM_FOR_AFT_THEN_NEXT:
+	case SYM_BEGIN_WHILE_REPEAT:
+		asmfail(e, "not implemented");
 		break;
 	case SYM_IF1:
 		hole1 = hole(h) - 1;
@@ -2700,7 +2762,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 	}
 	case SYM_DEFINITION:
-		/**@bug definitions are allowed after start symbol has been declared */
 		/**@todo compile a word header into the dictionary (optionally) with an
 		 * immediate and a hidden bit */
 		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
@@ -2808,7 +2869,11 @@ int h2_assemble(FILE *input, FILE *output, symbol_table_t *symbols)
 		h2_t *h = code(n, symbols);
 		if(h)
 			r = h2_save(h, output, false);
+		else
+			r = -1;
 		h2_free(h);
+	} else {
+		r = -1;
 	}
 	node_free(n);
 	return r;
@@ -2867,7 +2932,10 @@ static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_ta
 	h = h2_new(START_ADDR);
 	if(h2_load(h, input) < 0)
 		return -1;
-	note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
+	if(cmd->debug_mode)
+		note("entering debug mode");
+	else
+		note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
 	io = h2_io_new();
 	r = h2_run(h, io, output, cmd->steps, symbols, cmd->debug_mode);
 
