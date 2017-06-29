@@ -14,10 +14,6 @@
  * and Switches.
  * @todo make a peephole optimizer for the assembler and a super optimizer
  * utility.
- * @todo Allow code generation to produce a bootloader with a program
- * loaded to an address specified by the user.
- * @todo Add unit tests for the program, if possible.
- * @todo Implement load/save of debug and h2_t state
  * @todo Turn the diagrams in this file into help strings which can
  * be printed out
  *
@@ -530,7 +526,8 @@ static int wrap_getch(void)
 typedef enum {
 	SYMBOL_TYPE_LABEL,
 	SYMBOL_TYPE_CALL,
-	SYMBOL_TYPE_CONSTANT
+	SYMBOL_TYPE_CONSTANT 
+	/**@todo add a variable type */
 } symbol_type_e;
 
 typedef struct {
@@ -700,7 +697,7 @@ static const char *instruction_to_string(uint16_t i)
 	case CODE_FROMR:  return "r>";
 	case CODE_RAT:    return "r@";
 	case CODE_LOAD:   return "@";
-	case CODE_STORE:  return "!";
+	case CODE_STORE:  return "store";
 	case CODE_RSHIFT: return "rshift";
 	case CODE_LSHIFT: return "lshift";
 	case CODE_EQUAL:  return "equal";
@@ -871,8 +868,6 @@ typedef struct {
 	uint8_t leds;
 	uint16_t vga_cursor;
 	uint16_t vga_control;
-	uint16_t vga_text_addr;
-	uint16_t vga_text_write;
 	uint16_t vga[VGA_BUFFER_LENGTH];
 
 	uint16_t timer_control;
@@ -882,23 +877,17 @@ typedef struct {
 
 	uint8_t uart_getchar_register;
 
-	uint8_t led0;
-	uint8_t led1;
-	uint8_t led2;
-	uint8_t led3;
+	uint8_t led_8_segments;
 
 	uint8_t switches;
 
 	bool wait;
 } h2_soc_state_t;
 
-/**@todo add function for print h2_soc_state_t */
 typedef uint16_t (*h2_io_get)(h2_soc_state_t *soc, uint16_t addr);
 typedef void     (*h2_io_set)(h2_soc_state_t *soc, uint16_t addr, uint16_t value);
 typedef void     (*h2_io_update)(h2_soc_state_t *soc);
 
-/**@todo populate a default that only contains a UART driver and a timer,
- * VGA and other stuff can be done later */
 typedef struct {
 	h2_io_get in;
 	h2_io_set out;
@@ -924,14 +913,8 @@ typedef enum {
 	oTimerCtrl    = 0x6002,
 	oVgaCursor    = 0x6003,
 	oVgaCtrl      = 0x6004,
-	oVgaTxtAddr   = 0x6005,
-	oVgaTxtDin    = 0x6006,
-	oVgaWrite     = 0x6007,
-	o8SegLED_0    = 0x6008,
-	o8SegLED_1    = 0x6009,
-	o8SegLED_2    = 0x600a,
-	o8SegLED_3    = 0x600b,
-	oIrcMask      = 0x600c,
+	o8SegLED      = 0x6005,
+	oIrcMask      = 0x6006,
 } h2_output_addr_t;
 
 static void memory_print(FILE *out, uint16_t start, uint16_t *p, uint16_t length)
@@ -995,16 +978,19 @@ static void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 {
 	assert(out);
 	assert(soc);
+	unsigned char led0 = l8seg(soc->led_8_segments >> 12);
+	unsigned char led1 = l8seg(soc->led_8_segments >>  8);
+	unsigned char led2 = l8seg(soc->led_8_segments >>  4);
+	unsigned char led3 = l8seg(soc->led_8_segments);
+
 	fprintf(out, "LEDS:          %02"PRIx8"\n",  soc->leds);
 	fprintf(out, "VGA Cursor:    %04"PRIx16"\n", soc->vga_cursor);
 	fprintf(out, "VGA Control:   %04"PRIx16"\n", soc->vga_control);
-	fprintf(out, "VGA Addr:      %04"PRIx16"\n", soc->vga_text_addr);
-	fprintf(out, "VGA Write:     %04"PRIx16"\n", soc->vga_text_write);
 	fprintf(out, "Timer Control: %04"PRIx16"\n", soc->timer_control);
 	fprintf(out, "Timer:         %04"PRIx16"\n", soc->timer);
 	fprintf(out, "IRC Mask:      %04"PRIx16"\n", soc->irc_mask);
 	fprintf(out, "UART Input:    %02"PRIx8"\n",  soc->uart_getchar_register);
-	fprintf(out, "LED 7seg:      %c%c%c%c\n",    l8seg(soc->led0), l8seg(soc->led1), l8seg(soc->led2), l8seg(soc->led3));
+	fprintf(out, "LED 7seg:      %c%c%c%c\n",    led0, led1, led2, led3);
 	fprintf(out, "Switches:      %02"PRIx8"\n",  soc->switches);
 	fprintf(out, "Waiting:       %s\n",          soc->wait ? "true" : "false");
 	
@@ -1025,7 +1011,8 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 	case iSwitches:     return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
-	case iVgaTxtDout:   return soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH];
+	/** @bug reading from VGA memory is broken for the moment */
+	case iVgaTxtDout:   return 0; 
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch();
 	default:
 		warning("invalid read from %04"PRIx16, addr);
@@ -1038,6 +1025,12 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	assert(soc);
 	if(log_level >= LOG_DEBUG)
 		fprintf(stderr, "IO write addr/value: %"PRIx16"/%"PRIx16"\n", addr, value);
+
+	if(addr & 0x8000) {
+		soc->vga[addr & 0x1FFF] = value;
+		return;
+	}
+
 	switch(addr) {
 	case oUart:
 			if(value & UART_TX_WE)
@@ -1049,16 +1042,8 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	case oTimerCtrl:  soc->timer_control  = value; break;
 	case oVgaCtrl:    soc->vga_control    = value; break;
 	case oVgaCursor:  soc->vga_cursor     = value; break;
-	case oVgaTxtAddr: soc->vga_text_addr  = value % VGA_BUFFER_LENGTH; break;
-	case oVgaTxtDin:  soc->vga_text_write = value; break;
-	case oVgaWrite:   soc->vga[soc->vga_text_addr % VGA_BUFFER_LENGTH] = soc->vga_text_write;
-			  /*putch(0xFF & soc->vga_text_write);*/
-			  break;
-	case o8SegLED_0: soc->led0  = value & 0xf; break;
-	case o8SegLED_1: soc->led1  = value & 0xf; break;
-	case o8SegLED_2: soc->led2  = value & 0xf; break;
-	case o8SegLED_3: soc->led3  = value & 0xf; break;
-	case oIrcMask:   soc->irc_mask = value; break;
+	case o8SegLED:    soc->led_8_segments = value; break;
+	case oIrcMask:    soc->irc_mask       = value; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 	}
@@ -1157,10 +1142,6 @@ static uint16_t stack_delta(uint16_t d)
 	return i[d];
 }
 
-/**@todo Trace should generate something consumable by the VHDL
- * simulation so they can be compared. This could be done with a
- * series of test programs that do not rely on I/O (which is not
- * cycle accurate). */
 static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, const char *fmt, ...)
 {
 	int r = 0;
@@ -1316,13 +1297,13 @@ static int debug_resolve_symbol(FILE *out, char *symbol, symbol_table_t *symbols
 
 /**@todo If a breakpoint is set on a location a load or store could to
  * that location should also trigger a break */
-static int h2_debug(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *symbols)
+static int h2_debugger(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *symbols, uint16_t point)
 {
 	bool breaks = false;
 	assert(h);
 	assert(ds);
 
-	breaks = break_point_find(&h->bp, h->pc);
+	breaks = break_point_find(&h->bp, point);
 	if(breaks)
 		fprintf(ds->output, "\n === BREAK(%04"PRIx16") ===\n", h->pc);
 	
@@ -1374,12 +1355,24 @@ again:
 			break;
 
 		case 'd':
-			if(((long)num1 + (long)num2) > MAX_CORE) {
-				fprintf(ds->output, "overflow in dump\n");
-				break;
-			}
+			if(num1 & 0x8000) { /* VGA memory */
+				if((long)(num1 & 0x1FFF) + (long)num2 > VGA_BUFFER_LENGTH) {
+					fprintf(ds->output, "overflow in VGA dump\n");
+					break;
+				}
 
-			memory_print(ds->output, num1, h->core + num1, num2);
+				if(io)
+					memory_print(ds->output, num1, io->soc->vga + (num1 & 0x1FFF), num2);
+				else
+					fprintf(ds->output, "I/O unavailable\n");
+			} else { /* RAM */
+
+				if(((long)num1 + (long)num2) > MAX_CORE)
+					fprintf(ds->output, "overflow in RAM dump\n");
+				else
+					memory_print(ds->output, num1, h->core + num1, num2);
+
+			}
 			break;
 		case 'l':
 			if(!is_numeric1) {
@@ -1505,7 +1498,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			 pc_plus_one;
 
 		if(run_debugger)
-			if(h2_debug(&ds, h, io, symbols))
+			if(h2_debugger(&ds, h, io, symbols, h->pc))
 				return 0;
 
 		if(io)
@@ -1558,6 +1551,11 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			case ALU_OP_T_DECREMENT: tos--; break;
 			case ALU_OP_R:           tos = h->rstk[h->rp % STK_SIZE]; break;
 			case ALU_OP_T_LOAD:
+
+				/* if(run_debugger)
+					if(h2_debugger(&ds, h, io, symbols, h->tos))
+						return 0; */
+
 				if(h->tos & 0x6000) {
 					if(io)
 						tos = io->in(io->soc, h->tos);
@@ -1597,7 +1595,14 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			if(instruction & R_TO_PC)
 				npc = h->rstk[h->rp % STK_SIZE];
 
+			/** @bug A read operation with ALU_OP_T_LOAD should
+			 * stop a write from happening - except for VGA memory
+			 * writes, for the moment. */
 			if(instruction & N_TO_ADDR_T) {
+				/* if(run_debugger)
+					if(h2_debugger(&ds, h, io, symbols, h->tos))
+						return 0; */
+
 				if(h->tos & 0x6000) {
 					if(io)
 						io->out(io->soc, h->tos, nos);
@@ -1736,7 +1741,7 @@ static const char *keywords[] =
 	[LEX_FROMR]     =  "r>",
 	[LEX_RAT]       =  "r@",
 	[LEX_LOAD]      =  "@",
-	[LEX_STORE]     =  "!",
+	[LEX_STORE]     =  "store",
 	[LEX_RSHIFT]    =  "rshift",
 	[LEX_LSHIFT]    =  "lshift",
 	[LEX_EQUAL]     =  "=",
@@ -2031,7 +2036,7 @@ again:
  * Allocate    := ".allocate" ( Identifier | Literal )
  * Constant    := "constant" Identifier Literal
  * Variable    := "variable" Identifier Literal
- * Instruction := "@" | "!" | "exit" | ...
+ * Instruction := "@" | "store" | "exit" | ...
  * Definition  := ":" Statement* ";"
  * If          := "if" Statement* [ "else" ] Statement* "then"
  * Begin       := "begin" Statement* ("until" | "again")
@@ -2052,6 +2057,7 @@ again:
  * Begin ... While ... Repeat
  * For   ... Next
  * For   ... Aft   ... Then ... Next
+ * :     ... Immediate?
  *
  * @bug The grammar allows nested word definitions.
  *
@@ -2601,7 +2607,9 @@ static uint16_t literal_or_symbol_lookup(error_t *e, token_t *token, symbol_tabl
 	return s->value;
 }
 
-/**@todo define various variables that the programmer can use */
+/**@todo define various special variables that the programmer can use:
+ * such as $pwd for the Previous Word Register and $pc for the program
+ * counter. "$pwd" will require word header compilation to be used. */
 static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
 {
 	uint16_t hole1, hole2;
@@ -2657,23 +2665,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate_literal(h, n->token->p.number);
 		break;
 	case SYM_INSTRUCTION:
-	{
-		/**@todo optimize calls to exit by smushing it with the
-		 * previous instruction if possible. Further optimizations
-		 * could be done by pushing instructions onto a queue in
-		 * generate() and then by recognizing groups of instructions,
-		 * deferring the emission of code and replacing them with
-		 * more optimal versions. Jumps and Calls would empty the
-		 * stack before they emitted any code */
-		uint16_t alu_instruction = lexer_to_alu_op(n->token->type);
-		if(alu_instruction == CODE_STORE) {
-			generate(h, CODE_STORE);
-			generate(h, CODE_DROP); /* drop has to be inserted after a store */
-		} else {
-			generate(h, alu_instruction);
-		}
+		generate(h, lexer_to_alu_op(n->token->type));
 		break;
-	}
 	case SYM_BEGIN_UNTIL:
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);

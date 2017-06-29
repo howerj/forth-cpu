@@ -517,9 +517,9 @@ begin
 	losr_ld <= '1' when (chrx = 7) else '0';
 
 	-- video out, vga_en control signal enable/disable vga signal
-	R_int <= (ctl_r and y) and blank;
-	G_int <= (ctl_g and y) and blank;
-	B_int <= (ctl_b and y) and blank;
+	R_int <= ctl_r and y and blank;
+	G_int <= ctl_g and y and blank;
+	B_int <= ctl_b and y and blank;
 
 	hsync <= hsync_int and vga_en;
 	vsync <= vsync_int and vga_en;
@@ -546,8 +546,8 @@ begin
 		cry <= to_integer(unsigned(ocry(5 downto 0)));
 
 		--
-		curpos <= '1' when (scry = cry) and (scrx = crx) else '0';
-		small  <= '1' when (chry > 8)                    else '0';
+		curpos <= '1' when scry = cry and scrx = crx else '0';
+		small  <= '1' when (chry > 8)                else '0';
 		curen2 <= (slowclk or (not cur_blink)) and cur_en;
 		yint   <= '1' when cur_mode = '0'                else small;
 		y      <= (yint and curpos and curen2) xor losr_do;

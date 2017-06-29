@@ -24,14 +24,8 @@ constant oLeds         0x6001
 constant oTimerCtrl    0x6002
 constant oVgaCursor    0x6003
 constant oVgaCtrl      0x6004
-constant oVgaTxtAddr   0x6005
-constant oVgaTxtDin    0x6006
-constant oVgaWrite     0x6007
-constant o8SegLED_0    0x6008
-constant o8SegLED_1    0x6009
-constant o8SegLED_2    0x600a
-constant o8SegLED_3    0x600b
-constant oIrcMask      0x600c
+constant o8SegLED      0x6005
+constant oIrcMask      0x6006
 
 ( Inputs: 0x6000 - 0x7FFF )
 constant iUart         0x6000
@@ -50,6 +44,7 @@ constant isrTxFifoFull     4
 constant isrKbdNew         5
 constant isrTimer          6
 constant isrBrnLeft        7
+
 
 : isrNoop >r drop ; ( Return to suspended instruction )
 
@@ -98,6 +93,7 @@ variable cursorX 0  ( x component of cursor )
 variable cursorY 0  ( y component of cursor )
 variable cursorT 0  ( index into VGA text memory )
 
+: ! store drop ;
 : sp@ depth ;
 : 1+ 1 + ;
 : 2+ 2 + ;
@@ -145,15 +141,14 @@ variable cursorT 0  ( index into VGA text memory )
 defined so far, all of the primitive words needed by eForth should
 be available. )
 
+( If the VGA display was 64 characters by 16 lines of text 
+this cursor logic would be a lot simpler )
 : y1+ cursorY 1+! cursorY @ vgaY u>= if 0 cursorY ! then ;
 : x1+ cursorX 1+! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
 : cursorT1+ cursorT 1+! cursorT @ vgaTextSize u>= if 0 cursorT ! then ;
 
 : led ( n -- : display a number on the LED 8 display )
-	dup 12 rshift o8SegLED_0 !
-	dup  8 rshift o8SegLED_1 !
-	dup  4 rshift o8SegLED_2 !
-	              o8SegLED_3 ! ;
+	o8SegLED ! ;
 
 : uart-write ( char -- bool : write out a character )
 	0x2000 or oUart ! 1 ; \ @todo Check that the write succeeded by looking at the TX FIFO
@@ -223,13 +218,10 @@ nextChar:
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches
 		key? 0=                \ Wait for UART character
 	until
-	cursorT   @ oVgaTxtAddr !    \ Set index into VGA memory
-	key         oVgaTxtDin  !    \ Character to write
-	          1 oVgaWrite   !    \ Perform write
+	key cursorT @ 0xE000 or !
 
 	x1+
 	cursorT1+
-	\ cursorT @ led
 
 	cursorX @ cursorY @ at-xy
 

@@ -91,19 +91,14 @@ architecture behav of top is
 
 	-- Basic IO register
 	---- LEDs/Switches
-
-	signal ld_c,ld_n: std_logic_vector(7 downto 0):=  (others => '0');
+	
+	signal ld_c, ld_n: std_logic_vector(7 downto 0):=  (others => '0');
 
 	---- VGA
 	signal vga_control:    vga_control_registers_interface    := vga_control_registers_initialize;
 	signal vga_control_we: vga_control_registers_we_interface := vga_control_registers_we_initialize;
 
-	signal vga_we_ram:  std_logic :=  '0';
-	signal vga_addr_we: std_logic :=  '0';
-	signal vga_din_we:  std_logic :=  '0';
-	signal vga_addr:    std_logic_vector(12 downto 0) := (others => '0');
 	signal vga_dout:    std_logic_vector(15 downto 0) := (others => '0');
-	signal vga_din:     std_logic_vector(15 downto 0) := (others => '0');
 
 	---- UART
 	signal rx_data:        std_logic_vector(7 downto 0) := (others => '0');
@@ -137,9 +132,10 @@ architecture behav of top is
 	signal kbd_char_c, kbd_char_n:  std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
 
 	---- 8 Segment Display
-	constant number_of_led_displays: positive := 4;
 
-	signal leds: led_8_segment_displays_interface(number_of_led_displays - 1 downto 0) := (others => led_8_segment_display_default);
+
+	signal leds_reg:    std_logic_vector(15 downto 0) := (others => '0');
+	signal leds_reg_we: std_logic := '0';
 
 	---- Buttons
 
@@ -271,29 +267,18 @@ begin
 		timer_counter_o)
 	begin
 		ld <= ld_c;
-
-		leds  <= (others => led_8_segment_display_default);
-
 		ld_n <= ld_c;
 
 		tx_data_we <= '0';
 		rx_data_re <= '0';
-		tx_data    <= (others => '0');
 
 		vga_control_we <= vga_control_registers_we_initialize;
-		vga_control    <= vga_control_registers_initialize;
-
-		vga_we_ram  <= '0';
-		vga_addr_we <= '0';
-		vga_din_we  <= '0';
-		vga_din     <= (others => '0');
-		vga_addr    <= (others => '0');
 
 		timer_control_we <= '0';
-		timer_control_i  <= (others => '0');
 
-		cpu_irc_mask    <= (others => '0');
 		cpu_irc_mask_we <= '0';
+
+		leds_reg_we <= '0';
 
 		if kbd_new_edge = '1' then
 			kbd_new_n  <= '1';
@@ -305,14 +290,15 @@ begin
 
 		io_din <= (others => '0');
 
-		-- @note it might speed things up to delay writes to registers
-		-- one cycle in a register.
-		-- @todo It would make a lot more sense if these registers
-		-- somewhat matched up instead of being the crazy values
-		-- that they are at the moment.
+		cpu_irc_mask     <= io_dout(number_of_interrupts - 1 downto 0);
+		timer_control_i  <= io_dout;
+		vga_control.crx  <= io_dout(6 downto 0);
+		vga_control.cry  <= io_dout(13 downto 8);
+		vga_control.ctl  <= io_dout(vga_control.ctl'range);
+		leds_reg         <= io_dout;
+		tx_data          <= io_dout(tx_data'range);
 
-		-- elsif io_re = '1' and io_daddr(15 downto 5) = "01100000000" then
-		if io_re = '1' then
+		if io_re = '1' and io_daddr(15) = '0' then
 			-- Get input.
 			case io_daddr(2 downto 0) is
 			when "000" => -- buttons, plus direct access to UART bit.
@@ -342,60 +328,31 @@ begin
 
 			when others => io_din <= (others => '0');
 			end case;
-		--if io_wr = '1' and io_daddr(15 downto 5) = "01100000000" then
-		elsif io_wr = '1' then
+		elsif io_wr = '1' and io_daddr(15) = '0' then
 			-- Write output.
-			case io_daddr(3 downto 0) is
-			when "0000" => -- UART
+			case io_daddr(2 downto 0) is
+			when "000" => -- UART
 				tx_data_we <= io_dout(13);
 				rx_data_re <= io_dout(10);
-				tx_data    <= io_dout(tx_data'range);
 
-			when "0001" => -- LEDs, next to switches.
+			when "001" => -- LEDs, next to switches.
 				ld_n <= io_dout(7 downto 0);
 
-			when "0010" => -- General purpose timer
+			when "010" => -- General purpose timer
 				timer_control_we <= '1';
-				timer_control_i  <= io_dout;
 
 			-- @todo Turn VGA display into 64x16 text display, then have the
 			-- cursor track the VGA address register
-			when "0011" => -- VGA, cursor registers.
+			when "011" => -- VGA, cursor registers.
 				vga_control_we.crx <= '1';
 				vga_control_we.cry <= '1';
-				vga_control.crx    <= io_dout(6 downto 0);
-				vga_control.cry    <= io_dout(13 downto 8);
-			when "0100" => -- VGA, control register.
+			when "100" => -- VGA, control register.
 				vga_control_we.ctl <= '1';
-				vga_control.ctl    <= io_dout(vga_control.ctl'range);
-			when "0101" => -- VGA update address register.
-				vga_addr_we <= '1';
-				vga_addr    <= io_dout(vga_addr'range);
-			when "0110" => -- VGA, update data register.
-				vga_din_we <= '1';
-				vga_din    <= io_dout;
-			-- @todo  merge vga_we_ram with VGA control register?
-			when "0111" => -- VGA write RAM write
-				vga_we_ram <= io_dout(0);
-
-			-- @todo merge these registers into one
-			when "1000" => -- LED 8 Segment display 0
-				leds(0).display <= io_dout(3 downto 0);
-				leds(0).we      <= '1';
-			when "1001" => -- LED 8 Segment display 1
-				leds(1).display <= io_dout(3 downto 0);
-				leds(1).we      <= '1';
-			when "1010" => -- LED 8 Segment display 2
-				leds(2).display <= io_dout(3 downto 0);
-				leds(2).we      <= '1';
-			when "1011" => -- LED 8 Segment display 3
-				leds(3).display <= io_dout(3 downto 0);
-				leds(3).we      <= '1';
-
-			when "1100" => -- CPU Mask
-				cpu_irc_mask <= io_dout(number_of_interrupts - 1 downto 0);
+			when "101" => -- LEDs
+				leds_reg_we <= '1';
+			when "110" => -- CPU Mask
 				cpu_irc_mask_we <= '1';
-
+			when "111" => 
 			when others =>
 			end case;
 		end if;
@@ -461,24 +418,50 @@ begin
 
 	--- VGA -----------------------------------------------------------
 
-	-- @todo Add read enable for vga_dout
-	vga_0: entity work.vga_top
-	port map(
-		clk        => clk,
-		clk25MHz   => clk25MHz,
-		rst        => rst,
+	-- @todo The interface for reading from the VGA needs sorting
+	-- it is currently unusable
+	vga: block 
+		signal vga_din_we_d: std_logic := '0';
+		signal vga_we_ram:   std_logic := '0';
+		signal vga_addr_we:  std_logic := '0';
+		signal vga_din_we:   std_logic := '0';
+		signal vga_addr:     std_logic_vector(12 downto 0) := (others => '0');
+		signal vga_din:      std_logic_vector(15 downto 0) := (others => '0');
+	begin 
+		-- vga_din_we   <= '1' when io_wr = '1' and io_re = '0' and io_daddr(15) = '1' else '0';
+		vga_din_we   <= '1' when io_wr = '1' and io_daddr(15) = '1' else '0';
+		vga_addr_we  <= vga_din_we;
+		vga_din_we_d <= vga_din_we;
+		vga_addr     <= io_daddr(12 downto 0);
+		vga_din      <= io_dout;
 
-		i_vga_control    => vga_control,
-		i_vga_control_we => vga_control_we,
+		delay: process(clk, rst)
+		begin
+			if rst = '1' then
+				vga_we_ram <= '0';
+			elsif rising_edge(clk) then
+				vga_we_ram <= vga_din_we_d;
+			end if;
+		end process;
 
-		vga_we_ram  => vga_we_ram,
-		vga_addr_we => vga_addr_we,
-		vga_din_we  => vga_din_we,
-		vga_dout    => vga_dout,
-		vga_din     => vga_din,
-		vga_addr    => vga_addr,
+		vga_0: entity work.vga_top
+		port map(
+			clk        => clk,
+			clk25MHz   => clk25MHz,
+			rst        => rst,
 
-		o_vga      => o_vga);
+			i_vga_control    => vga_control,
+			i_vga_control_we => vga_control_we,
+
+			vga_we_ram  => vga_we_ram,
+			vga_addr_we => vga_addr_we,
+			vga_din_we  => vga_din_we,
+			vga_dout    => vga_dout,
+			vga_din     => vga_din,
+			vga_addr    => vga_addr,
+
+			o_vga      => o_vga);
+	end block;
 
 	--- VGA -----------------------------------------------------------
 
@@ -506,19 +489,54 @@ begin
 	--- PS/2 ----------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------
-	ledseg_0: entity work.led_8_segment_display
-	generic map(
-		number_of_led_displays => number_of_led_displays,
-		clock_frequency        => clock_frequency,
-		use_bcd_not_hex        => false)
-	port map(
-		clk        => clk,
-		rst        => rst,
+	segments: block
+		constant number_of_led_displays: positive := 4;
+		signal leds: led_8_segment_displays_interface(number_of_led_displays - 1 downto 0) := (others => led_8_segment_display_default);
 
-		leds       => leds,
+		signal leds_reg_o: std_logic_vector(15 downto 0) := (others => '0');
+		signal leds_reg_we_o: std_logic := '0';
+	begin
+		segment_reg: entity work.reg
+			generic map(N => 16)
+			port map(
+				clk => clk,
+				rst => rst,
+				we  => leds_reg_we,
+				di  => leds_reg,
+				do  => leds_reg_o);
 
-		an         => an,
-		ka         => ka);
+		segment_reg_re: entity work.reg
+			generic map(N => 1)
+			port map(
+				clk   => clk,
+				rst   => rst,
+				we    => '1',
+				di(0) => leds_reg_we,
+				do(0) => leds_reg_we_o);
+
+		leds(0).display <= leds_reg_o(15 downto 12);
+		leds(0).we      <= leds_reg_we_o;
+		leds(1).display <= leds_reg_o(11 downto 8);
+		leds(1).we      <= leds_reg_we_o;
+		leds(2).display <= leds_reg_o(7 downto 4);
+		leds(2).we      <= leds_reg_we_o;
+		leds(3).display <= leds_reg_o(3 downto 0);
+		leds(3).we      <= leds_reg_we_o;
+
+		ledseg_0: entity work.led_8_segment_display
+		generic map(
+			number_of_led_displays => number_of_led_displays,
+			clock_frequency        => clock_frequency,
+			use_bcd_not_hex        => false)
+		port map(
+			clk        => clk,
+			rst        => rst,
+
+			leds       => leds,
+
+			an         => an,
+			ka         => ka);
+	end block;
 	--- LED 8 Segment display -----------------------------------------
 
 	--- Buttons -------------------------------------------------------

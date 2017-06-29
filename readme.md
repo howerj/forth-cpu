@@ -114,8 +114,7 @@ subject to the most change.
 
 The H2 CPU behaves very similarly to the [J1][] CPU, and the [J1 PDF][] can be
 read in order to better understand this processor. The processor is 16-bit with
-instructions taking a single clock cycle (except stores, which consist of a
-store followed by a drop which has to be inserted by the assembler). 
+instructions taking a single clock cycle. 
 
 The CPU has the following state within it:
 
@@ -242,14 +241,11 @@ disabled.
 	| oTimerCtrl  | 0x6002  | Timer control                   |
 	| oVgaCursor  | 0x6003  | VGA Cursor X/Y cursor position  |
 	| oVgaCtrl    | 0x6004  | VGA control registers           |
-	| oVgaTxtAddr | 0x6005  | VGA Address to write to         |
-	| oVgaTxtDin  | 0x6006  | VGA Data to write to            |
-	| oVgaWrite   | 0x6007  | Write oVgaTxtDin to oVgaTxtAddr |
-	| o8SegLED_0  | 0x6008  | LED 8 Segment display 0         |
-	| o8SegLED_1  | 0x6009  | LED 8 Segment display 1         |
-	| o8SegLED_2  | 0x600a  | LED 8 Segment display 2         |
-	| o8SegLED_3  | 0x600b  | LED 8 Segment display 3         |
-	| oIrcMask    | 0x600c  | CPU Interrupt Mask              |
+	| o8SegLED    | 0x6005  | 4 x LED 8 Segment display 0     |
+	| oIrcMask    | 0x6006  | CPU Interrupt Mask              |
+	| VGA Memory  | 0xE000  | VGA memory                      |
+	|             |    -    |                                 |
+	|             | 0xFFFF  |                                 |
 	*-------------*---------*---------------------------------*
 
 The following description of the registers should be read in order and describe
@@ -361,54 +357,7 @@ bit changes the cursors shape.
 	GRN: Green Enable
 	BLU: Blue Enable
 
-#### oVgaTxtAddr
-
-To write to or read from the VGA memory the address has to be set by writing it to 
-this register. It would be better if the VGA RAM was memory mapped into the H2 cores
-IO address space, however this would slow the SoC down too much.
-
-Once the address is written the value iVgaTxtDout can be read for the contents
-of that location of VGA RAM.
-
-To write to a location, write to oVgaWrite then to the VRWE bit of oVgaWrite.
-
-	*-------------------------------------------------------------------------------*
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |                      VRAD                                      |
-	*-------------------------------------------------------------------------------*
-
-	VRAD: VGA RAM Address
-
-#### oVgaTxtDin
-
-The data to write to at oVgaTxtAddr, only the lowest eight bits are used by the
-display and contain a character of the [ISO 8859-1 (Latin-1)][] character set
-(this can be changed by modifying [font.bin][]). [text.bin][] contains the
-initial data to be stored in RAM.
-
-	*-------------------------------------------------------------------------------*
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	*-------------------------------------------------------------------------------*
-	|                                     VRDI                                      |
-	*-------------------------------------------------------------------------------*
-
-	VRDI: VGA RAM Data Input
-
-#### oVgaWrite
-
-When VRWE asserted oVgaTxtDin is written to the address stored in oVgaTxtAddr
-into the VGA Video memory.
-
-	*-------------------------------------------------------------------------------*
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |VRWE|
-	*-------------------------------------------------------------------------------*
-
-	VRWE: VGA Ram Write Enable
-
-#### o8SegLED\_0
+#### o8SegLED
 
 On the [Nexys3][] board there is a bank of 7 segment displays, with a dot
 (8-segment really), which can be used for numeric output. The LED segments
@@ -419,52 +368,18 @@ of the SoC and modification of a generic in the VHDL).
 The value '0' corresponds to a zero displayed on the LED segment, '15' to an
 'F', etcetera.
 
-o8SegLED\_0 is the rightmost display, o8SegLED\_3 the leftmost. This display
-can there be used to show a 16-bit hexadecimal value.
+There are 4 displays in a row.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |       L8SD        |
+	|      L8SD0        |       L8SD1       |       L8SD2       |       L8SD3       |
 	*-------------------------------------------------------------------------------*
 
-	L8SD: LED 8 Segment Display
-
-#### o8SegLED\_1
-
-See o8SegLED\_0.
-
-	*-------------------------------------------------------------------------------*
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |       L8SD        |
-	*-------------------------------------------------------------------------------*
-
-	L8SD: LED 8 Segment Display
-
-#### o8SegLED\_2
-
-See o8SegLED\_0.
-
-	*-------------------------------------------------------------------------------*
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |       L8SD        |
-	*-------------------------------------------------------------------------------*
-
-	L8SD: LED 8 Segment Display
-
-#### o8SegLED\_3
-
-See o8SegLED\_0. Leftmost display.
-
-	*-------------------------------------------------------------------------------*
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	*-------------------------------------------------------------------------------*
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |  X |       L8SD        |
-	*-------------------------------------------------------------------------------*
-
-	L8SD: LED 8 Segment Display
+	L8SD0: LED 8 Segment Display (leftmost display)
+	L8SD1: LED 8 Segment Display
+	L8SD2: LED 8 Segment Display
+	L8SD3: LED 8 Segment Display (right most display)
 
 #### oIrcMask
 
@@ -481,6 +396,16 @@ enabled within it.
 	*-------------------------------------------------------------------------------*
 
 	IMSK: Interrupt Mask
+
+#### VGA Memory
+
+The VGA memory occupies the range 0xE000 to 0xFFFF, it can be written to (but
+not read from) like normal memory, except like all I/O registers the lowest bit
+is used for addressing, whereas in normal memory it is not. The lowest byte is
+display on the screen out of the 16-bit value. 
+
+The value stored is treated as a [ISO 8859-1 (Latin-1)][] character (which is
+an extended [ASCII][] character set.
 
 #### iUart
 
@@ -554,7 +479,8 @@ This register contains the current value of the timers counter.
 
 #### iVgaTxtDout
 
-This register contains the value of the video memory index by oVgaTxtAddr.
+This register contains the value of the video memory index by oVgaTxtAddr. The
+mechanism for reading from VGA ram does not work correctly at the moment.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -567,7 +493,7 @@ This register contains the value of the video memory index by oVgaTxtAddr.
 #### iPs2
 
 This register contains the interface to the PS/2 keyboard. If PS2N is set then
-an ASCII character is present in ACHR. Both PS2N and ACHR will be cleared.
+an [ASCII][] character is present in ACHR. Both PS2N and ACHR will be cleared.
 
 	*-------------------------------------------------------------------------------*
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -712,6 +638,7 @@ project.
 [Linux]: https://en.wikipedia.org/wiki/Linux
 [GCC]: https://en.wikipedia.org/wiki/GNU_Compiler_Collection
 [Xilinx ISE]: https://www.xilinx.com/products/design-tools/ise-design-suite.html
+[Xilinx]: https://www.xilinx.com
 [GHDL]: http://ghdl.free.fr/
 [GTKWave]: http://gtkwave.sourceforge.net/
 [C99]: https://en.wikipedia.org/wiki/C99
@@ -727,5 +654,6 @@ project.
 [ISO 8859-1 (Latin-1)]: https://cs.stanford.edu/people/miles/iso8859.html
 [Spartan 6]: https://www.xilinx.com/products/silicon-devices/fpga/spartan-6.html
 [FPGA]: https://en.wikipedia.org/wiki/Field-programmable_gate_array
+[ASCII]: https://en.wikipedia.org/wiki/ASCII
 
 <style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}</style>
