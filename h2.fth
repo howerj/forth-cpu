@@ -10,6 +10,8 @@ Execution begins at a label called "start".
 TODO:
 * Function for displaying numbers on the display
 * VGA driver
+* Factor phrases like "8 lshift" and "8 rshift", size
+is what matters, not speed
 * Hex number printer
 * Bootloader
 * Minimal Forth interpreter 
@@ -67,12 +69,12 @@ that the reset is not propagated to the h2 core in the VHDL simulation )
 
 ( Initial value of VGA
   BIT     MEANING
-  7   -  Select high fonts
+  7   -  Display Next Screen
   6   -  Enable VGA
   5   -  Cursor enable
   4   -  Cursor blinks
   3   -  Cursor mode
-  2   -  Blue
+  2   -  Red
   1   -  Green
   0   -  Blue )
 constant vgaInit       122 \ 0x007A
