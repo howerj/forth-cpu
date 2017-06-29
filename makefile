@@ -56,7 +56,7 @@ all:
 ## Assembler ===============================================================
 
 %.hex: %.fth h2
-	./h2 -a $< > $@
+	./h2 -S syms.txt -a $< > $@
 
 ## Virtual Machine and UART communications =================================
 
@@ -67,8 +67,8 @@ h2: h2.c
 	${CC} -Wall -Wextra -g -std=c99 $^ -o $@
 
 disassemble: h2 h2.fth
-	./h2 -b syms.txt -a h2.fth > h2.hex
-	./h2 -l syms.txt h2.hex | awk '{printf "%04x %s\n", NR-1, $$0;}' | less -
+	./h2 -S syms.txt -a h2.fth > h2.hex
+	./h2 -L syms.txt h2.hex | awk '{printf "%04x %s\n", NR-1, $$0;}' | less -
 
 run: h2 h2.fth
 	./h2 -T -v -R h2.fth

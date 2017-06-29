@@ -527,7 +527,9 @@ typedef enum {
 	SYMBOL_TYPE_LABEL,
 	SYMBOL_TYPE_CALL,
 	SYMBOL_TYPE_CONSTANT 
-	/**@todo add a variable type */
+	/**@todo add a variable type, and instead of having a separate break
+	 * point structure, a breakpoint type could be added to the symbol
+	 * table! */
 } symbol_type_e;
 
 typedef struct {
