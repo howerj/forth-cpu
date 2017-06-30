@@ -526,10 +526,8 @@ static int wrap_getch(void)
 typedef enum {
 	SYMBOL_TYPE_LABEL,
 	SYMBOL_TYPE_CALL,
-	SYMBOL_TYPE_CONSTANT 
-	/**@todo add a variable type, and instead of having a separate break
-	 * point structure, a breakpoint type could be added to the symbol
-	 * table! */
+	SYMBOL_TYPE_CONSTANT,
+	SYMBOL_TYPE_VARIABLE,
 } symbol_type_e;
 
 typedef struct {
@@ -545,9 +543,10 @@ typedef struct {
 
 static const char *symbol_names[] =
 {
-	[SYMBOL_TYPE_LABEL]    = "label",
-	[SYMBOL_TYPE_CALL]     = "call",
-	[SYMBOL_TYPE_CONSTANT] = "constant",
+	[SYMBOL_TYPE_LABEL]       = "label",
+	[SYMBOL_TYPE_CALL]        = "call",
+	[SYMBOL_TYPE_CONSTANT]    = "constant",
+	[SYMBOL_TYPE_VARIABLE]    = "variable",
 	NULL
 };
 
@@ -2716,7 +2715,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		fix(h, hole1, n->o[0]->token->p.number);
 		/**@note The lowest bit of the address for memory loads is
 		 * discarded. */
-		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, hole1 << 1, e);
+		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e);
 		break;
 	case SYM_LITERAL:
 		generate_literal(h, n->token->p.number);
@@ -2755,7 +2754,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			asmfail(e, "not a constant or a defined procedure: %s", n->token->p.id);
 		if(s->type == SYMBOL_TYPE_CALL) {
 			generate(h, OP_CALL | s->value);
-		} else if(s->type == SYMBOL_TYPE_CONSTANT) {
+		} else if(s->type == SYMBOL_TYPE_CONSTANT || s->type == SYMBOL_TYPE_VARIABLE) {
 			generate_literal(h, s->value);
 		} else {
 			error("can only call or push literal: %s", s->id);
@@ -2820,7 +2819,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		h->pc += literal_or_symbol_lookup(e, n->token, t);
 		break;
 	case SYM_BREAK:
-		fprintf(stderr, "BREAK %04"PRIx16"\n", h->pc);
 		break_point_add(&h->bp, h->pc);
 		break;
 	default:
@@ -2856,7 +2854,7 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	return h;
 }
 
-int h2_assemble(FILE *input, FILE *output, symbol_table_t *symbols)
+int h2_assemble_file(FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	int r = 0;
 	node_t *n;
@@ -2879,6 +2877,19 @@ int h2_assemble(FILE *input, FILE *output, symbol_table_t *symbols)
 	}
 	node_free(n);
 	return r;
+}
+
+h2_t *h2_assemble_core(FILE *input, symbol_table_t *symbols)
+{
+	assert(input);
+	h2_t *h = NULL;
+	node_t *n = parse(input);
+	if(log_level >= LOG_DEBUG)
+		node_print(stderr, n, false, 0);
+	if(n)
+		h = code(n, symbols);
+	node_free(n);
+	return h;
 }
 
 /* ========================== Assembler ==================================== */
@@ -2926,6 +2937,14 @@ given as arguments input is taken from stdin. Output is to\n\
 stdout. Program returns zero on success, non zero on failure.\n\n\
 ";
 
+static void debug_note(command_args_t *cmd)
+{
+	if(cmd->debug_mode)
+		note("entering debug mode");
+	else
+		note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
+}
+
 static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	h2_t *h = NULL;
@@ -2934,10 +2953,7 @@ static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_ta
 	h = h2_new(START_ADDR);
 	if(h2_load(h, input) < 0)
 		return -1;
-	if(cmd->debug_mode)
-		note("entering debug mode");
-	else
-		note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
+	debug_note(cmd);
 	io = h2_io_new();
 	r = h2_run(h, io, output, cmd->steps, symbols, cmd->debug_mode);
 
@@ -2951,38 +2967,21 @@ static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_ta
 
 static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols)
 {
+	assert(input);
+	assert(output);
+	h2_t *h = h2_assemble_core(input, symbols);
+	h2_io_t *io = h2_io_new();
 	int r = 0;
-	FILE *assembled = NULL;
-	symbol_table_t *t = NULL;
-
-	errno = 0;
-	assembled = tmpfile();
-	if(!assembled) {
-		error("unable to open temporary file: %s", reason());
+	if(!h)
 		return -1;
-	}
 
-	t = symbols ? symbols : symbol_table_new();
+	h->pc = START_ADDR;
+	debug_note(cmd);
+	r = h2_run(h, io, output, cmd->steps, symbols, cmd->debug_mode);
 
-	/**@bug break points are not kept across assembly to running */
-	if((r = h2_assemble(input, assembled, t)) < 0)
-		goto fail;
-
-	errno = 0;
-	if((r = fseek(assembled, 0, SEEK_SET)) < 0) {
-		error("unable to seek to beginning of temporary file: %s", reason());
-		goto fail;
-	}
-
-	r = run_command(cmd, assembled, output, t);
-	
-fail:
-	if(assembled)
-		fclose(assembled);
-	if(!symbols)
-		symbol_table_free(t);
-
-	return r < 0 ? -1 : 0;
+	h2_free(h);
+	h2_io_free(io);
+	return r;
 }
 
 int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols)
@@ -2993,7 +2992,7 @@ int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symb
 	switch(cmd->cmd) {
 	case DEFAULT_COMMAND:      /* fall through */
 	case DISASSEMBLE_COMMAND:  return h2_disassemble(input, output, symbols);
-	case ASSEMBLE_COMMAND:     return h2_assemble(input, output, symbols);
+	case ASSEMBLE_COMMAND:     return h2_assemble_file(input, output, symbols);
 	case RUN_COMMAND:          return run_command(cmd, input, output, symbols);
 	case ASSEMBLE_RUN_COMMAND: return assemble_run_command(cmd, input, output, symbols);
 	default:                   fatal("invalid command: %d", cmd->cmd);

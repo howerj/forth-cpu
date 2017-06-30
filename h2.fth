@@ -211,9 +211,11 @@ jumps to a special symbol "start".
 adequate assembler directives )
 
 start:
+	.break
 	 init
 
 nextChar:
+	.break
 	\ boot
 
 	begin

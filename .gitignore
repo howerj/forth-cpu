@@ -2,6 +2,7 @@
 *.a
 *.bgn
 *.bit
+*.sym
 *_bitgen.xwbt
 *.bld
 *.cmd_log
