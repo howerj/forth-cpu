@@ -211,8 +211,11 @@ typedef enum {
 	CODE_DROP   = (OP_ALU_OP | MK_CODE(ALU_OP_N)                      | MK_DSTACK(DELTA_N1)),
 	CODE_EXIT   = (OP_ALU_OP | MK_CODE(ALU_OP_T)        | R_TO_PC | MK_RSTACK(DELTA_N1)),
 	CODE_TOR    = (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_R  | MK_DSTACK(DELTA_N1) | MK_RSTACK(DELTA_1)),
-	CODE_FROMR  = (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | T_TO_R | MK_DSTACK(DELTA_1) | MK_RSTACK(DELTA_N1)),
-	CODE_RAT    = (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | T_TO_R | MK_DSTACK(DELTA_1)),
+	/**@note In the original J1 specification both r@ and r> both have
+	 * their T_TO_R bit set in their instruction description tables, this
+	 * appears to be incorrect */
+	CODE_FROMR  = (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1) | MK_RSTACK(DELTA_N1)),
+	CODE_RAT    = (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)),
 	CODE_LOAD   = (OP_ALU_OP | MK_CODE(ALU_OP_T_LOAD)),
 	CODE_STORE  = (OP_ALU_OP | MK_CODE(ALU_OP_N)        | N_TO_ADDR_T | MK_DSTACK(DELTA_N1)),
 	CODE_RSHIFT = (OP_ALU_OP | MK_CODE(ALU_OP_N_RSHIFT_T)             | MK_DSTACK(DELTA_N1)),
@@ -1508,6 +1511,10 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 		if(io && io->soc->wait) /* wait only applies to the H2 core not the rest of the SoC */
 			continue;
 
+		if(h->pc >= MAX_CORE) {
+			error("invalid program counter: %04x > %04x", (unsigned)h->pc, MAX_CORE);
+			return -1;
+		}
 		instruction = h->core[h->pc];
 
 		literal = instruction & 0x7FFF;
@@ -1518,13 +1525,14 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 
 		if(log_level >= LOG_DEBUG || ds.trace_on)
 			trace(output, instruction, symbols,
-				"%04u: pc(%04x) inst(%04x) sp(%x) rp(%x) tos(%04x)",
+				"%04u: pc(%04x) inst(%04x) sp(%x) rp(%x) tos(%04x) r(%04x)",
 				i,
 				(unsigned)h->pc,
 				(unsigned)instruction,
 				(unsigned)h->sp,
 				(unsigned)h->rp,
-				(unsigned)h->tos);
+				(unsigned)h->tos,
+				(unsigned)h->rstk[h->rp % STK_SIZE]);
 
 
 		/* decode / execute */

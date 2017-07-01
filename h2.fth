@@ -212,7 +212,7 @@ jumps to a special symbol "start".
 @todo This special case symbol should be removed by adding
 adequate assembler directives )
 
-variable ok "hello world"
+variable welcome "H2 Forth:"
 
 : rot >r swap r> swap ;
 : -rot rot rot ;
@@ -228,31 +228,29 @@ variable ok "hello world"
 : /string ( c-addr u1 u2 -- c-addr u : advance a string u2 characters )
 	over min rot over + -rot - ;
 
-\ : type ( c-addr u )
-\ 	dup 0= if 2drop exit then
-\ 	>r begin 
-\ 		dup c@ emit 1+ 
-\ 		r> 1- dup >r 
-\ 		.break
-\ 	0= until r> 2drop ;
-
-
-: type
+: type ( c-addr u )
 	dup 0= if 2drop exit then
-	begin 
-		swap dup c@ emit 1+ swap 1-
-		dup 0=
-	until 2drop ;
+	>r begin 
+		dup c@ emit 1+ 
+		r> 1- dup >r 
+	
+	0= until r> 2drop ;
+
+\ : type
+\ 	dup 0= if 2drop exit then
+\ 	begin 
+\ 		swap dup c@ emit 1+ swap 1-
+\ 		dup 0=
+\ 	until 2drop ;
 
 start:
-	.break
 	 init
 
-nextChar:
-	.break
 	\ boot
 
-	\ cr ok count type cr  branch nextChar
+	welcome count type cr  
+
+nextChar:
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches
