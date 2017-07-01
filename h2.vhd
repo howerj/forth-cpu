@@ -219,6 +219,8 @@ begin
 	elsif is_instr.lit = '1' then
 		tos_n   <=  "0" & insn(14 downto 0);
 	else
+		-- @todo Experiment with these instructions to see if removing
+		-- some or rearranging them speeds things up
 		case aluop is -- ALU operation, 12 downto 8
 		when "00000" => tos_n <= tos_c;
 		when "00001" => tos_n <= nos;

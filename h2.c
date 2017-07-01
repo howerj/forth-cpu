@@ -1129,8 +1129,8 @@ static uint16_t dpop(h2_t *h)
 static void rpush(h2_t *h, uint16_t r)
 {
 	assert(h);
-	h->rstk[(h->rp) % STK_SIZE] = r;
 	h->rp++;
+	h->rstk[(h->rp) % STK_SIZE] = r;
 	if(h->rp >= STK_SIZE)
 		warning("return stack overflow");
 	h->rp %= STK_SIZE;
@@ -1538,6 +1538,9 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			uint16_t tos = h->tos;
 			uint16_t npc = pc_plus_one;
 
+			if(instruction & R_TO_PC)
+				npc = h->rstk[h->rp % STK_SIZE];
+
 			switch(ALU_OP(instruction)) {
 			case ALU_OP_T:           /* tos = tos; */ break;
 			case ALU_OP_N:           tos = nos; break;
@@ -1577,8 +1580,6 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			default:
 				warning("unknown ALU operation: %u", (unsigned)ALU_OP(instruction));
 			}
-			if(instruction & T_TO_R)
-				h->rstk[h->sp % STK_SIZE] = h->tos;
 
 			h->sp += dd;
 			if(h->sp >= STK_SIZE)
@@ -1590,11 +1591,11 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 				warning("return stack overflow");
 			h->rp %= STK_SIZE;
 
+			if(instruction & T_TO_R)
+				h->rstk[h->rp % STK_SIZE] = h->tos;
+
 			if(instruction & T_TO_N)
 				h->dstk[h->sp % STK_SIZE] = h->tos;
-
-			if(instruction & R_TO_PC)
-				npc = h->rstk[h->rp % STK_SIZE];
 
 			/** @bug A read operation with ALU_OP_T_LOAD should
 			 * stop a write from happening - except for VGA memory
@@ -1649,6 +1650,7 @@ typedef enum {
 	LEX_LITERAL,
 	LEX_IDENTIFIER,
 	LEX_LABEL,
+	LEX_STRING,
 
 	LEX_CONSTANT, /* start of named tokens */
 	LEX_CALL,
@@ -1810,7 +1812,7 @@ void token_free(token_t *t)
 {
 	if(!t)
 		return;
-	if(t->type == LEX_IDENTIFIER)
+	if(t->type == LEX_IDENTIFIER || t->type == LEX_STRING)
 		free(t->p.id);
 	memset(t, 0, sizeof(*t));
 	free(t);
@@ -1989,13 +1991,26 @@ again:
 				l->line++;
 		ch = next_char(l);
 		goto again;
+	case '"':
+		for(i = 0; '"' != (ch = next_char(l));) {
+			if(ch == EOF)
+				syntax_error(l, "string terminated by EOF");
+			if(i >= MAX_ID_LENGTH - 1)
+				syntax_error(l, "identifier too large: %s", l->id);
+			l->id[i++] = ch;
+		}
+		l->id[i] = '\0';
+		l->token->type = LEX_STRING;
+		l->token->p.id = duplicate(l->id);
+		ch = next_char(l);
+		break;
 	default:
 		i = 0;
 		if(isgraph(ch)) {
 			while(isgraph(ch)) {
-				l->id[i++] = ch;
 				if(i >= MAX_ID_LENGTH - 1)
 					syntax_error(l, "identifier too large: %s", l->id);
+				l->id[i++] = ch;
 				ch = next_char(l);
 			}
 			l->id[i] = '\0';
@@ -2048,7 +2063,7 @@ again:
  * Program     := Statement* EOF
  * Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
  *                | Identifier | Constant | Variable | Definition | If
- *                | Begin | Char | Set | Pc | Break | Mode
+ *                | Begin | Char | Set | Pc | Break | Mode | String
  * Label       := Identifier ";"
  * Branch      := "branch"  ( Identifier | Literal )
  * 0Branch     := "0branch" ( Identifier | Literal )
@@ -2059,7 +2074,7 @@ again:
  * Mode        := ".mode"      Literal
  * Allocate    := ".allocate" ( Identifier | Literal )
  * Constant    := "constant" Identifier Literal
- * Variable    := "variable" Identifier Literal
+ * Variable    := "variable" Identifier ( Literal | String )
  * Instruction := "@" | "store" | "exit" | ...
  * Definition  := ":" Statement* ";"
  * If          := "if" Statement* [ "else" ] Statement* "then"
@@ -2067,12 +2082,14 @@ again:
  * For         := "for"   Statement* ("aft" Statement* "then" Statement* | "next")
  * Isr         := "isr" Identifier (Identifier | Literal)
  * Literal     := [ "-" ] Number
+ * String      := '"' SChar* '"'
  * Char        := "char" ASCII ","
  * Number      := Octal | Hex | Decimal
  * Octal       := "0" ... "7"
  * Decimal     := "1" ... "9" ( "0" ... "9" )*
  * Hex         := ( "x" | "X" ) HexDigit HexDigit*
  * HexDigit    := ( "a" ... "f" | "A" ... "F" )
+ * SChar       := Any character except quote
  *
  * NB. Literals have higher priority than Identifiers, and comments are '\'
  * until a new line is encountered, or '(' until a ')' is encountered.
@@ -2109,6 +2126,7 @@ again:
 	X(SYM_CONSTANT,            "constant")\
 	X(SYM_VARIABLE,            "variable")\
 	X(SYM_LITERAL,             "literal")\
+	X(SYM_STRING,              "string")\
 	X(SYM_INSTRUCTION,         "instruction")\
 	X(SYM_BEGIN_UNTIL,         "begin...until")\
 	X(SYM_BEGIN_AGAIN,         "begin...again")\
@@ -2273,8 +2291,12 @@ static node_t *variable_or_constant(lexer_t *l, bool variable)
 	r = node_new(l, variable ? SYM_VARIABLE : SYM_CONSTANT, 1);
 	expect(l, LEX_IDENTIFIER);
 	use(l, r);
-	expect(l, LEX_LITERAL);
-	r->o[0] = defined_by_token(l, SYM_LITERAL);
+	if(accept(l, LEX_LITERAL)) {
+		r->o[0] = defined_by_token(l, SYM_LITERAL);
+	} else {
+		expect(l, LEX_STRING);
+		r->o[0] = defined_by_token(l, SYM_STRING);
+	}
 	return r;
 }
 
@@ -2550,8 +2572,7 @@ static uint16_t hole(h2_t *h)
 {
 	assert(h);
 	assert(h->pc < MAX_CORE);
-	h->pc++;
-	return h->pc;
+	return h->pc++;
 }
 
 static void fix(h2_t *h, uint16_t hole, uint16_t patch)
@@ -2562,7 +2583,7 @@ static void fix(h2_t *h, uint16_t hole, uint16_t patch)
 }
 
 /**@todo print line number of error */
-#define asmfail(ERROR, FMT, ...) do{ error(FMT, ##__VA_ARGS__); ethrow(e); }while(0)
+#define assembly_error(ERROR, FMT, ...) do{ error(FMT, ##__VA_ARGS__); ethrow(e); }while(0)
 
 static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type, error_t *e)
 {
@@ -2575,11 +2596,11 @@ static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type
 	if(tok->type == LEX_IDENTIFIER) {
 		s = symbol_table_lookup(t, tok->p.id);
 		if(!s)
-			asmfail(e, "undefined symbol: %s", tok->p.id);
+			assembly_error(e, "undefined symbol: %s", tok->p.id);
 		addr = s->value;
 
 		if(s->type == SYMBOL_TYPE_CALL && type != SYM_CALL)
-			asmfail(e, "cannot branch/0branch to call: %s", tok->p.id);
+			assembly_error(e, "cannot branch/0branch to call: %s", tok->p.id);
 
 	} else if (tok->type == LEX_LITERAL) {
 		addr = tok->p.number;
@@ -2588,7 +2609,7 @@ static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type
 	}
 
 	if(addr > MAX_CORE)
-		asmfail(e, "invalid jump address: %"PRId16, addr);
+		assembly_error(e, "invalid jump address: %"PRId16, addr);
 
 	switch(type) {
 	case SYM_BRANCH:  or = OP_BRANCH ; break;
@@ -2659,13 +2680,37 @@ static uint16_t literal_or_symbol_lookup(error_t *e, token_t *token, symbol_tabl
 	assert(token->type == LEX_IDENTIFIER);
 
 	if(!(s = symbol_table_lookup(t, token->p.id)))
-		asmfail(e, "symbol not found: %s", token->p.id);
+		assembly_error(e, "symbol not found: %s", token->p.id);
 	return s->value;
+}
+
+static uint16_t pack_16(const char lb, const char hb)
+{
+	return (((uint16_t)hb) << 8) | (uint16_t)lb;
+}
+
+static uint16_t pack_string(h2_t *h, const char *s, error_t *e)
+{
+	assert(h);
+	assert(s);
+	size_t l = strlen(s);
+	size_t i = 0;
+	uint16_t r = h->pc;
+	if(l > 255)
+		assembly_error(e, "string \"%s\" is too large (%zu > 255)", s, l);
+	h->core[hole(h)] = pack_16(l, s[0]);
+	for(i = 1; i < l; i += 2)
+		h->core[hole(h)] = pack_16(s[i], s[i+1]);
+	if(i < l)
+		h->core[hole(h)] = pack_16(s[i], 0);
+	return r;
 }
 
 /**@todo define various special variables that the programmer can use:
  * such as $pwd for the Previous Word Register and $pc for the program
- * counter. "$pwd" will require word header compilation to be used. */
+ * counter. "$pwd" will require word header compilation to be used. 
+ * @todo Make constructs aware of they are in a Forth definition or
+ * not */
 static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
 {
 	uint16_t hole1, hole2;
@@ -2678,7 +2723,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		return;
 
 	if(h->pc > MAX_CORE)
-		asmfail(e, "PC/Dictionary overflow: %"PRId16, h->pc);
+		assembly_error(e, "PC/Dictionary overflow: %"PRId16, h->pc);
 
 	switch(n->type) {
 	case SYM_PROGRAM:
@@ -2686,12 +2731,12 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		/**@todo Remove special cased start symbol and replace with
 		 * assembler directives */
 		symbol_t *s;
-		uint16_t start = hole(h) - 1;
+		uint16_t start = hole(h);
 		assemble(h, a, n->o[0], t, e);
 		if(!(s = symbol_table_lookup(t, start_symbol)))
-			asmfail(e, "unable to locate start symbol: %s", start_symbol);
+			assembly_error(e, "unable to locate start symbol: %s", start_symbol);
 		if(s->type != SYMBOL_TYPE_LABEL)
-			asmfail(e, "start symbol '%s' can only be a label", start_symbol);
+			assembly_error(e, "start symbol '%s' can only be a label", start_symbol);
 		fix(h, start, OP_BRANCH | s->value);
 		break;
 	}
@@ -2711,8 +2756,13 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e);
 		break;
 	case SYM_VARIABLE:
-		hole1 = hole(h) - 1;
-		fix(h, hole1, n->o[0]->token->p.number);
+		if(n->o[0]->token->type == LEX_LITERAL) {
+			hole1 = hole(h);
+			fix(h, hole1, n->o[0]->token->p.number);
+		} else {
+			assert(n->o[0]->token->type == LEX_STRING);
+			hole1 = pack_string(h, n->o[0]->token->p.id, e);
+		}
 		/**@note The lowest bit of the address for memory loads is
 		 * discarded. */
 		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e);
@@ -2733,13 +2783,13 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_FOR_NEXT:
 	case SYM_FOR_AFT_THEN_NEXT:
 	case SYM_BEGIN_WHILE_REPEAT:
-		asmfail(e, "not implemented");
+		assembly_error(e, "not implemented");
 		break;
 	case SYM_IF1:
-		hole1 = hole(h) - 1;
+		hole1 = hole(h);
 		assemble(h, a, n->o[0], t, e);
 		if(n->o[1]) { /* if ... else .. then */
-			hole2 = hole(h) - 1;
+			hole2 = hole(h);
 			fix(h, hole1, OP_0BRANCH | (hole2 + 1));
 			assemble(h, a, n->o[1], t, e);
 			fix(h, hole2, OP_BRANCH  | here(h));
@@ -2751,7 +2801,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	{
 		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
 		if(!s)
-			asmfail(e, "not a constant or a defined procedure: %s", n->token->p.id);
+			assembly_error(e, "not a constant or a defined procedure: %s", n->token->p.id);
 		if(s->type == SYMBOL_TYPE_CALL) {
 			generate(h, OP_CALL | s->value);
 		} else if(s->type == SYMBOL_TYPE_CONSTANT || s->type == SYMBOL_TYPE_VARIABLE) {
@@ -2767,7 +2817,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		 * immediate and a hidden bit */
 		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
 		if(a->in_definition)
-			asmfail(e, "nested word definition is not allowed");
+			assembly_error(e, "nested word definition is not allowed");
 		a->in_definition = true;
 		assemble(h, a, n->o[0], t, e);
 		generate(h, CODE_EXIT);
@@ -2782,11 +2832,11 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		uint16_t fixme = 0, fixval = 0;
 
 		if(!s || s->type != SYMBOL_TYPE_CALL)
-			asmfail(e, "not a function call/defined symbol: %s", n->token->p.id);
+			assembly_error(e, "not a function call/defined symbol: %s", n->token->p.id);
 		if(n->value->type == LEX_IDENTIFIER) {
 			symbol_t *l = symbol_table_lookup(t, n->value->p.id);
 			if(!l || l->type != SYMBOL_TYPE_CONSTANT)
-				asmfail(e, "identifier is not a constant: %s", n->value->p.id);
+				assembly_error(e, "identifier is not a constant: %s", n->value->p.id);
 			fixme  = l->value;
 			fixval = s->value;
 		} else {
@@ -2795,7 +2845,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			fixval = s->value;
 		}
 		if(fixme >= NUMBER_OF_INTERRUPTS)
-			asmfail(e, "invalid interrupt number: %"PRId16, fixme);
+			assembly_error(e, "invalid interrupt number: %"PRId16, fixme);
 		fix(h, fixme, fixval);
 		break;
 	}

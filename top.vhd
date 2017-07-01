@@ -298,6 +298,9 @@ begin
 		leds_reg         <= io_dout;
 		tx_data          <= io_dout(tx_data'range);
 
+		-- @note a 32 bit ALU could be added as an I/O port for
+		-- multiplication and addition at least. This should speed
+		-- up the CPU.
 		if io_re = '1' and io_daddr(15) = '0' then
 			-- Get input.
 			case io_daddr(2 downto 0) is

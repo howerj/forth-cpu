@@ -96,6 +96,8 @@ variable cursorY 0  ( y component of cursor )
 variable cursorT 0  ( index into VGA text memory )
 
 : ! store drop ;
+: 256* 8 lshift ;
+: 256/ 8 rshift ;
 : sp@ depth ;
 : 1+ 1 + ;
 : 2+ 2 + ;
@@ -118,9 +120,9 @@ variable cursorT 0  ( index into VGA text memory )
 : 1+! 1 swap +! ;
 : ?dup dup if dup then ;
 : execute >r ;
-: c@ dup @ swap 1 and if 8 rshift else 0xff and then exit ;
+: c@ dup @ swap 1 and if 256/ else 0xff and then ;
 : c! 
-	swap 0xff and dup 8 lshift or swap
+	swap 0xff and dup 256* or swap
 	tuck dup @ swap 1 and 0 = 0xff xor
 	>r over xor r> and xor swap ! ;
 
@@ -174,6 +176,8 @@ variable uart-read-count 0
 : char
 	uart-read ;
 
+: count ( cs -- c-addr u )
+	dup c@ swap 1+ swap ;
 
 constant bootstart 1024
 constant programsz 5120 ( bootstart + 4096 )
@@ -210,6 +214,31 @@ jumps to a special symbol "start".
 @todo This special case symbol should be removed by adding
 adequate assembler directives )
 
+variable ok "hello"
+
+: rot >r swap r> swap ;
+: -rot rot rot ;
+
+: cr 10 emit ;
+
+: min ( u u -- u : return the minimum of two unsigned numbers )
+	2dup < if drop else nip then ;
+
+: max ( u u -- u : return the maximum of two unsigned numbers )
+	2dup > if drop else nip then ;
+
+: /string ( c-addr u1 u2 -- c-addr u : advance a string u2 characters )
+	over min rot over + -rot - ;
+
+: type ( c-addr u )
+	dup 0= if 2drop exit then
+	.break
+	>r begin 
+		dup c@ emit 1+ 
+		r> 1- dup >r 
+		.break
+	0= until r> 2drop ;
+
 start:
 	.break
 	 init
@@ -217,6 +246,8 @@ start:
 nextChar:
 	.break
 	\ boot
+
+	\ ok count type branch nextChar
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches

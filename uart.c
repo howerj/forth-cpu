@@ -71,28 +71,14 @@ int main(int argc, char **argv)
 	while (EOF != (ch = fgetc(stdin))) {
 		char c1 = ch, c2 = 0;
 		int r = 0;
- again:
 		errno = 0;
 		if (write(fd, &c1, 1) != 1) {
 			fprintf(stderr, "write error:%s\n", strerror(errno));
 			return -1;
 		}
-		tcflush(fd,TCIOFLUSH);
-		usleep(100);
-		errno = 0;
 		r = read(fd, &c2, 1);
-		if (r == 0) {
-			/*fprintf(stderr,"retransmitting...\n"); */
-			goto again;
-		} else if(r < 0) {
-			fprintf(stderr, "read error:%s\n", strerror(errno));
-			return -1;
-		}
-
-		if (c1 != c2)
-			fprintf(stderr, "error: transmitted '%d' got back '%d'\n", c1, c2);
-
-		write(2, &c1, 1);
+		if(r == 1)
+			write(1, &c2, 1);
 	}
 
 	close(fd);
