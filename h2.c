@@ -2797,9 +2797,17 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	
 	case SYM_FOR_NEXT:
 	case SYM_FOR_AFT_THEN_NEXT:
-	case SYM_BEGIN_WHILE_REPEAT:
 		assembly_error(e, "not implemented");
+	case SYM_BEGIN_WHILE_REPEAT:
+	{
+		hole1 = here(h);
+		assemble(h, a, n->o[0], t, e);
+		hole2 = hole(h);
+		assemble(h, a, n->o[1], t, e);
+		generate(h, OP_BRANCH  | hole1);
+		fix(h, hole2, OP_0BRANCH | here(h));
 		break;
+	}
 	case SYM_IF1:
 		hole1 = hole(h);
 		assemble(h, a, n->o[0], t, e);
@@ -2829,7 +2837,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	}
 	case SYM_DEFINITION:
 		/**@todo Add mode bits field to word header (for immediate and
-		 * hidden words */
+		 * hidden words: They could be added into the PWD field as
+		 * the highest bits are not a valid RAM address */
 		if(a->mode & MODE_COMPILE_WORD_HEADER) {
 			hole1 = hole(h);
 			fix(h, hole1, a->pwd);

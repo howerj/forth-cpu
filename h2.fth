@@ -253,11 +253,11 @@ the end of the assembly file )
 
 : words
 	latest
-	begin 
-		dup 0= if drop cr exit then
-		dup cell+ count type space
-		@
-	again ;
+	begin
+		dup
+	while
+		dup cell+ count type space @
+	repeat drop cr ;
 
 start:
 	 init
@@ -283,5 +283,6 @@ nextChar:
 branch nextChar
 
 ( ======================== User Code ======================== )
+
 
 
