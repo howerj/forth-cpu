@@ -2796,10 +2796,27 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 	
 	case SYM_FOR_NEXT:
+	/* The code for for...next loops can be reduced in size with by generating
+	    complex words that mess with the stack, this is an optimization that should
+	    be considered. Also of note is the fact that the for...next loop is nearly
+	    identical to the begin...while...repeat loop, just with inserted instructions
+	    to perform the task */
+		generate(h, CODE_TOR);
+		hole1 = here(h);
+		assemble(h, a, n->o[0], t, e);
+		generate(h, CODE_RAT);
+		hole2 = hole(h);
+		generate(h, CODE_FROMR);
+		generate(h, CODE_T_N1);
+		generate(h, CODE_TOR);
+		generate(h, OP_BRANCH | hole1);
+		fix(h, hole2, OP_0BRANCH | here(h));
+		generate(h, CODE_FROMR);
+		generate(h, CODE_DROP);
+		break;
 	case SYM_FOR_AFT_THEN_NEXT:
 		assembly_error(e, "not implemented");
 	case SYM_BEGIN_WHILE_REPEAT:
-	{
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
 		hole2 = hole(h);
@@ -2807,7 +2824,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate(h, OP_BRANCH  | hole1);
 		fix(h, hole2, OP_0BRANCH | here(h));
 		break;
-	}
 	case SYM_IF1:
 		hole1 = hole(h);
 		assemble(h, a, n->o[0], t, e);

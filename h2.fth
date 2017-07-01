@@ -3,6 +3,9 @@ it is not Forth and does not behave like it, it just looks
 like it. This should be thought of as assembly code and
 not Forth.
 
+A lot of the code has been taken verbatim from "The Zen
+of eForth by C. H. Ting".
+
 For a grammar of the language look into the file "h2.c".
 
 Execution begins at a label called "start".
@@ -111,7 +114,7 @@ variable cursorT 0  ( index into VGA text memory )
 : <> = invert ;
 : 0<> 0= invert ;
 : 0>  0 > ;
-: 0<  0 > ;
+: 0<  0 < ;
 : 2dup over over ;
 : 2drop drop drop ;
 : tuck swap over ;
@@ -159,10 +162,44 @@ be available. )
 	dup 1+ swap c@ ;
 	\ dup c@ swap 1+ swap ;
 : rot >r swap r> swap ;
-: -rot rot rot ;
+: -rot swap >r swap r> ;
 : min  2dup < if drop else nip then ;
 : max  2dup > if drop else nip then ;
 
+: um/mod ( ud u -- ur uq )
+	2dup u<
+	if negate  15
+	for >r dup um+ >r >r dup um+ r> + dup
+		r> r@ swap >r um+ r> or
+		if >r drop 1 + r> else drop then r>
+	next drop swap exit
+	then drop 2drop  -1 dup ;
+
+: m/mod ( d n -- r q ) \ floored division
+	dup 0< dup >r
+	if 
+		negate >r dnegate r>
+	then 
+		>r dup 0< if r@ + then r> um/mod r>
+	if swap negate swap then ;
+
+: /mod ( n n -- r q ) over 0< swap m/mod ;
+: mod ( n n -- r ) /mod drop ;
+: / ( n n -- q ) /mod swap drop ;
+
+: um* ( u u -- ud )
+	0 swap ( u1 0 u2 ) 15
+	for dup um+ >r >r dup um+ r> + r>
+		if >r over um+ r> + then
+	next rot drop ;
+
+: * ( n n -- n ) um* drop ;
+
+: m* ( n n -- d )
+	2dup xor 0< >r abs swap abs um*  r> if dnegate then ;
+
+: */mod ( n n n -- r q ) >r m* r> m/mod ;
+: */ ( n n n -- q ) */mod swap drop ;
 
 
 ( If the VGA display was 64 characters by 16 lines of text 
@@ -283,6 +320,5 @@ nextChar:
 branch nextChar
 
 ( ======================== User Code ======================== )
-
 
 
