@@ -10,8 +10,6 @@ Execution begins at a label called "start".
 TODO:
 * Function for displaying numbers on the display
 * VGA driver
-* Factor phrases like "8 lshift" and "8 rshift", size
-is what matters, not speed
 * Hex number printer
 * Bootloader
 * Minimal Forth interpreter 
@@ -199,7 +197,7 @@ variable readin    0
 \ "x * y", however this would require multiplication to
 \ to be implemented.
 : at-xy ( x y -- : set terminal cursor to x-y position )
-	8 lshift or oVgaCursor ! ;
+	256* or oVgaCursor ! ;
 
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
@@ -214,7 +212,7 @@ jumps to a special symbol "start".
 @todo This special case symbol should be removed by adding
 adequate assembler directives )
 
-variable ok "hello"
+variable ok "hello world"
 
 : rot >r swap r> swap ;
 : -rot rot rot ;
@@ -230,14 +228,21 @@ variable ok "hello"
 : /string ( c-addr u1 u2 -- c-addr u : advance a string u2 characters )
 	over min rot over + -rot - ;
 
-: type ( c-addr u )
+\ : type ( c-addr u )
+\ 	dup 0= if 2drop exit then
+\ 	>r begin 
+\ 		dup c@ emit 1+ 
+\ 		r> 1- dup >r 
+\ 		.break
+\ 	0= until r> 2drop ;
+
+
+: type
 	dup 0= if 2drop exit then
-	.break
-	>r begin 
-		dup c@ emit 1+ 
-		r> 1- dup >r 
-		.break
-	0= until r> 2drop ;
+	begin 
+		swap dup c@ emit 1+ swap 1-
+		dup 0=
+	until 2drop ;
 
 start:
 	.break
@@ -247,7 +252,7 @@ nextChar:
 	.break
 	\ boot
 
-	\ ok count type branch nextChar
+	\ cr ok count type cr  branch nextChar
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches

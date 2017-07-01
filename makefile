@@ -9,6 +9,8 @@
 #
 
 NETLIST=top
+#TIME=time -p 
+TIME=
 
 .PHONY: simulation viewer synthesis bitfile upload clean
 
@@ -56,12 +58,12 @@ all:
 ## Assembler ===============================================================
 
 %.hex: %.fth h2
-	./h2 -S %.sym -a $< > $@
+	./h2 -S h2.sym -a $< > $@
 
 ## Virtual Machine and UART communications =================================
 
 uart: uart.c
-	${CC} -Wall -Wextra -g -std=gnu99 $^ -o $@
+	${CC} -Wall -Wextra -g -std=gnu99 $^ -lpthread -o $@
 
 h2: h2.c
 	${CC} -Wall -Wextra -g -std=c99 $^ -o $@
@@ -136,9 +138,9 @@ tmp/top.xst: tmp tmp/_xmsgs tmp/top.lso tmp/top.lso
 	    echo "-opt_level 2" \
 	) > tmp/top.xst
 
-synthesis: reports tmp tmp/_xmsgs tmp/top.prj tmp/top.xst
+synthesis: h2.hex reports tmp tmp/_xmsgs tmp/top.prj tmp/top.xst
 	@echo "Synthesis running..."
-	@xst -intstyle silent -ifn tmp/top.xst -ofn reports/xst.log
+	@${TIME} xst -intstyle silent -ifn tmp/top.xst -ofn reports/xst.log
 	@mv _xmsgs/* tmp/_xmsgs
 	@rmdir _xmsgs
 	@mv top_xst.xrpt tmp
@@ -151,7 +153,7 @@ implementation: reports tmp
 	
 	@[ -d tmp/xlnx_auto_0_xdb ] || mkdir tmp/xlnx_auto_0_xdb
 
-	@ngdbuild -intstyle silent -quiet -dd tmp -uc top.ucf -p xc6slx16-csg324-3 top.ngc top.ngd
+	@${TIME} ngdbuild -intstyle silent -quiet -dd tmp -uc top.ucf -p xc6slx16-csg324-3 top.ngc top.ngd
 	@mv top.bld reports/ngdbuild.log
 	@mv _xmsgs/* tmp/_xmsgs
 	@rmdir _xmsgs
@@ -159,13 +161,13 @@ implementation: reports tmp
 	@rmdir xlnx_auto_0_xdb
 	@mv top_ngdbuild.xrpt tmp
 
-	@map -intstyle silent -detail -p xc6slx16-csg324-3 -pr b -c 100 -w -o top_map.ncd top.ngd top.pcf
+	@${TIME} map -intstyle silent -detail -p xc6slx16-csg324-3 -pr b -c 100 -w -o top_map.ncd top.ngd top.pcf
 	@mv top_map.mrp reports/map.log
 	@mv _xmsgs/* tmp/_xmsgs
 	@rmdir _xmsgs
 	@mv top_usage.xml top_summary.xml top_map.map top_map.xrpt tmp
 
-	@par -intstyle silent -w -ol std top_map.ncd top.ncd top.pcf
+	@${TIME} par -intstyle silent -w -ol std top_map.ncd top.ncd top.pcf
 	@mv top.par reports/par.log
 	@mv top_pad.txt reports/par_pad.txt
 	@mv _xmsgs/* tmp/_xmsgs
@@ -188,7 +190,7 @@ implementation: reports tmp
 design.bit: reports tmp/_xmsgs
 	@echo "Generate bitfile running..."
 	@touch webtalk.log
-	@bitgen -intstyle silent -w top.ncd
+	@${TIME} bitgen -intstyle silent -w top.ncd
 	@mv top.bit design.bit
 	@mv top.bgn reports/bitgen.log
 	@mv _xmsgs/* tmp/_xmsgs
