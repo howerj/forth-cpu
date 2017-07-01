@@ -13,10 +13,13 @@ TODO:
 * Hex number printer
 * Bootloader
 * Minimal Forth interpreter 
+* Add built in words to the dictionary
 * Add assembler directives for setting starting position of
 program counter and the like )
 
 ( ======================== System Constants ================= )
+
+.mode 1 ( Turn word header compilation on )
 
 ( Outputs: 0x6000 - 0x7FFF )
 constant oUart         0x6000
@@ -114,6 +117,7 @@ variable cursorT 0  ( index into VGA text memory )
 : tuck swap over ;
 : negate invert 1+ ;
 : - negate + ;
+: 2- 2 - ;
 : +! tuck @ + swap ! ;
 : 1+! 1 swap +! ;
 : ?dup dup if dup then ;
@@ -142,6 +146,24 @@ variable cursorT 0  ( index into VGA text memory )
 ( With the built in words defined in the assembler, and the words
 defined so far, all of the primitive words needed by eForth should
 be available. )
+
+: cell- 2- ;
+: cell+ 2+ ;
+: cells 2* ;
+: bl 32 ;
+: within over - >r - r> u< ; ( u lo hi -- t )
+: not -1 xor ;
+: dnegate not >r not 1 um+ r> + ; ( d -- d )
+: abs dup 0< if negate then ;
+: count ( cs -- c-addr u )
+	dup 1+ swap c@ ;
+	\ dup c@ swap 1+ swap ;
+: rot >r swap r> swap ;
+: -rot rot rot ;
+: min  2dup < if drop else nip then ;
+: max  2dup > if drop else nip then ;
+
+
 
 ( If the VGA display was 64 characters by 16 lines of text 
 this cursor logic would be a lot simpler )
@@ -174,8 +196,8 @@ variable uart-read-count 0
 : char
 	uart-read ;
 
-: count ( cs -- c-addr u )
-	dup c@ swap 1+ swap ;
+: cr 10 emit ;
+: space bl emit ;
 
 constant bootstart 1024
 constant programsz 5120 ( bootstart + 4096 )
@@ -214,34 +236,28 @@ adequate assembler directives )
 
 variable welcome "H2 Forth:"
 
-: rot >r swap r> swap ;
-: -rot rot rot ;
-
-: cr 10 emit ;
-
-: min ( u u -- u : return the minimum of two unsigned numbers )
-	2dup < if drop else nip then ;
-
-: max ( u u -- u : return the maximum of two unsigned numbers )
-	2dup > if drop else nip then ;
-
 : /string ( c-addr u1 u2 -- c-addr u : advance a string u2 characters )
 	over min rot over + -rot - ;
 
-: type ( c-addr u )
-	dup 0= if 2drop exit then
-	>r begin 
-		dup c@ emit 1+ 
-		r> 1- dup >r 
-	
-	0= until r> 2drop ;
+: type
+ 	dup 0= if 2drop exit then
+ 	begin 
+ 		swap dup c@ emit 1+ swap 1-
+ 		dup 0=
+ 	until 2drop ;
 
-\ : type
-\ 	dup 0= if 2drop exit then
-\ 	begin 
-\ 		swap dup c@ emit 1+ swap 1-
-\ 		dup 0=
-\ 	until 2drop ;
+( @todo Add a special variable to the assembler, this should contain
+the previous word pointer, which will be set into a variable at
+the end of the assembly file )
+: latest 0x6d 2* ;
+
+: words
+	latest
+	begin 
+		dup 0= if drop cr exit then
+		dup cell+ count type space
+		@
+	again ;
 
 start:
 	 init
@@ -249,6 +265,7 @@ start:
 	\ boot
 
 	welcome count type cr  
+	words
 
 nextChar:
 

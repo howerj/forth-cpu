@@ -803,6 +803,7 @@ static int disassembler_instruction(uint16_t instruction, FILE *output, symbol_t
 	return r < 0 ? -1 : 0;
 }
 
+/**@todo The disassembler should decompile word headers */
 int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	assert(input);
@@ -2554,11 +2555,17 @@ static node_t *parse(FILE *input)
 
 /********* CODE ***********/
 
+typedef enum {
+	MODE_NORMAL = 0,
+	MODE_COMPILE_WORD_HEADER = 1,
+} assembler_mode_e;
+
 typedef struct {
 	bool in_definition;
 	bool start_defined;
 	uint16_t start;
 	uint16_t mode;
+	uint16_t pwd; /* previous word register */
 } assembler_t;
 
 static void generate(h2_t *h, uint16_t instruction)
@@ -2821,14 +2828,21 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 	}
 	case SYM_DEFINITION:
-		/**@todo compile a word header into the dictionary (optionally) with an
-		 * immediate and a hidden bit */
+		/**@todo Add mode bits field to word header (for immediate and
+		 * hidden words */
+		if(a->mode & MODE_COMPILE_WORD_HEADER) {
+			hole1 = hole(h);
+			fix(h, hole1, a->pwd);
+			a->pwd = hole1 << 1;
+			pack_string(h, n->token->p.id, e);
+		}
+
 		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
 		if(a->in_definition)
 			assembly_error(e, "nested word definition is not allowed");
 		a->in_definition = true;
 		assemble(h, a, n->o[0], t, e);
-		generate(h, CODE_EXIT);
+		generate(h, CODE_EXIT); /**@todo smush this with the previous instruction if possible*/
 		a->in_definition = false;
 		break;
 	case SYM_CHAR: /* char A , */
@@ -2889,7 +2903,7 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	error_t e;
 	h2_t *h;
 	symbol_table_t *t = NULL;
-	assembler_t a = { false, false, 0, 0 };
+	assembler_t a = { false, false, 0, 0, 0 };
 	assert(n);
 
 	t = symbols ? symbols : symbol_table_new();
