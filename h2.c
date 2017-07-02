@@ -201,6 +201,7 @@ typedef enum {
 #define MK_RSTACK(DELTA) ((DELTA) << RSTACK_START)
 #define MK_CODE(CODE)    ((CODE)  << ALU_OP_START)
 
+/**@todo Make a table of instructions, instruction strings and lexer symbols */
 typedef enum {
 	CODE_DUP    = (OP_ALU_OP | MK_CODE(ALU_OP_T)        | T_TO_N  | MK_DSTACK(DELTA_1)),
 	CODE_OVER   = (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N  | MK_DSTACK(DELTA_1)),
@@ -519,6 +520,9 @@ static int wrap_getch(bool *debug_on)
 		note("End Of Input - exiting", CHAR_ESCAPE);
 		exit(EXIT_SUCCESS);
 	}
+	/**@bug Escape is sent to the I/O process if all we intend to do it
+	 * exit back to the debugger, perhaps C signals should be used
+	 * instead */
 	if(ch == CHAR_ESCAPE && debug_on)
 		*debug_on = true;
 
