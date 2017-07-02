@@ -510,14 +510,17 @@ static int putch(int c)
 #endif
 #endif /** __unix__ **/
 
-static int wrap_getch(void)
+static int wrap_getch(bool *debug_on)
 {
 	int ch = getch();
+	assert(debug_on);
 	/**@todo Exit to debugger if escape is hit */
-	if(ch == CHAR_ESCAPE) {
-		note("escape character (%d) read in - exiting", CHAR_ESCAPE);
+	if(ch == EOF) {
+		note("End Of Input - exiting", CHAR_ESCAPE);
 		exit(EXIT_SUCCESS);
 	}
+	if(ch == CHAR_ESCAPE && debug_on)
+		*debug_on = true;
 
 	return ch == CHAR_DELETE ? CHAR_BACKSPACE : ch;
 }
@@ -889,8 +892,8 @@ typedef struct {
 	bool wait;
 } h2_soc_state_t;
 
-typedef uint16_t (*h2_io_get)(h2_soc_state_t *soc, uint16_t addr);
-typedef void     (*h2_io_set)(h2_soc_state_t *soc, uint16_t addr, uint16_t value);
+typedef uint16_t (*h2_io_get)(h2_soc_state_t *soc, uint16_t addr, bool *debug_on);
+typedef void     (*h2_io_set)(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on);
 typedef void     (*h2_io_update)(h2_soc_state_t *soc);
 
 typedef struct {
@@ -1005,7 +1008,7 @@ static void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 	}
 }
 
-static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
+static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debug_on)
 {
 	assert(soc);
 	if(log_level >= LOG_DEBUG)
@@ -1018,14 +1021,14 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 	case iTimerDin:     return soc->timer;
 	/** @bug reading from VGA memory is broken for the moment */
 	case iVgaTxtDout:   return 0; 
-	case iPs2:          return PS2_NEW_CHAR | wrap_getch();
+	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 	}
 	return 0;
 }
 
-static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value)
+static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on)
 {
 	assert(soc);
 	if(log_level >= LOG_DEBUG)
@@ -1041,7 +1044,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 			if(value & UART_TX_WE)
 				putch(0xFF & value);
 			if(value & UART_RX_RE)
-				soc->uart_getchar_register = wrap_getch();
+				soc->uart_getchar_register = wrap_getch(debug_on);
 			break;
 	case oLeds:       soc->leds           = value; break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
@@ -1240,20 +1243,34 @@ static const debug_command_t debug_commands[] = {
 	{ .cmd = -1,  .argc = 0, .arg1 = DBG_CMD_EITHER, .arg2 = DBG_CMD_NO_ARG, .description = NULL },
 };
 
+/**@todo install signal handler for CTRL+C that exits to the debugger */
 static void debug_command_print_help(FILE *out, const debug_command_t *dc)
 {
+	assert(out);
+	assert(dc);
+
+	static const char *debug_help = "\
+Debugger Help: \n\n\
+Hit 'Escape' when the simulation is and is reading from input to exit \n\
+into the back debugger.\n\n\
+Command list:\n\n";
+
+
 	static const char *arg_type[] = { 
 		[DBG_CMD_NO_ARG] = "             ",
 		[DBG_CMD_NUMBER] = "number       ",
 		[DBG_CMD_STRING] = "string       ",
 		[DBG_CMD_EITHER] = "number/string"
 	};
+	fputs(debug_help, out);
 	for(unsigned i = 0; dc[i].cmd != -1; i++)
 		fprintf(out, " %c %s\t%d\t%s %s\n", dc[i].cmd, dc[i].description, dc[i].argc, arg_type[dc[i].arg1], arg_type[dc[i].arg2]);
 }
 
 static int debug_command_check(FILE *out, const debug_command_t *dc, int cmd, int argc, bool is_numeric1, bool is_numeric2)
 {
+	assert(out);
+	assert(dc);
 	for(unsigned i = 0; dc[i].cmd != -1 ; i++) {
 		if(dc[i].cmd == cmd) {
 			if(dc[i].argc != argc) {
@@ -1286,6 +1303,10 @@ static int debug_command_check(FILE *out, const debug_command_t *dc, int cmd, in
 
 static int debug_resolve_symbol(FILE *out, char *symbol, symbol_table_t *symbols, uint16_t *value)
 {
+	assert(out);
+	assert(symbol);
+	assert(symbols);
+	assert(value);
 	symbol_t *sym;
 	*value = 0;
 	if(!(sym = symbol_table_lookup(symbols, symbol))) {
@@ -1327,7 +1348,7 @@ again:
 
 		fputs(debug_prompt, ds->output);
 		if(!fgets(line, sizeof(line), ds->input)) {
-			fputs("End of Input\n", ds->output);
+			fputs("End Of Input - exiting\n", ds->output);
 			return -1;
 		}
 
@@ -1433,7 +1454,7 @@ again:
 				fprintf(ds->output, "I/O unavailable\n");
 				break;
 			}
-			io->out(io->soc, num1, num2);
+			io->out(io->soc, num1, num2, NULL);
 
 			break;
 
@@ -1442,7 +1463,7 @@ again:
 				fprintf(ds->output, "I/O unavailable\n");
 				break;
 			}
-			fprintf(ds->output, "read: %"PRIx16"\n", io->in(io->soc, num1));
+			fprintf(ds->output, "read: %"PRIx16"\n", io->in(io->soc, num1, NULL));
 			break;
 		
 		case 'k':
@@ -1487,6 +1508,7 @@ again:
 
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
 {
+	bool turn_debug_on = false;
 	assert(h);
 	debug_state_t ds = { .input = stdin, .output = stderr, .step = run_debugger, .trace_on = run_debugger };
 
@@ -1567,10 +1589,16 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 						return 0; */
 
 				if(h->tos & 0x6000) {
-					if(io)
-						tos = io->in(io->soc, h->tos);
-					else
+					if(io) {
+						tos = io->in(io->soc, h->tos, &turn_debug_on);
+						if(turn_debug_on) {
+							ds.step = true;
+							run_debugger = true;
+							turn_debug_on = false;
+						}
+					} else {
 						warning("I/O read attempted on addr: %"PRIx16, h->tos);
+					}
 				} else {
 					/**@note The lowest bit is not used in the address for memory reads */
 					tos = h->core[(h->tos >> 1) % MAX_CORE];
@@ -1612,10 +1640,16 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 						return 0; */
 
 				if(h->tos & 0x6000) {
-					if(io)
-						io->out(io->soc, h->tos, nos);
-					else
+					if(io) {
+						io->out(io->soc, h->tos, nos, &turn_debug_on);
+						if(turn_debug_on) {
+							ds.step = true;
+							run_debugger = true;
+							turn_debug_on = false;
+						}
+					} else {
 						warning("I/O write attempted with addr/value: %"PRIx16 "/%"PRIx16, tos, nos);
+					}
 				} else {
 					/**@note The lowest bit is not used in the address for memory writes */
 					h->core[(h->tos >> 1) % MAX_CORE] = nos;
