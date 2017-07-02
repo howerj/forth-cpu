@@ -128,8 +128,8 @@ architecture behav of top is
 	signal kbd_new:      std_logic := '0';  -- new ASCII char available
 	signal kbd_new_edge: std_logic := '0';
 	signal kbd_char:     std_logic_vector(6 downto 0); -- ASCII char
-	signal kbd_new_c, kbd_new_n: std_logic := '0';
-	signal kbd_char_c, kbd_char_n:  std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
+	signal kbd_new_c,  kbd_new_n:  std_logic := '0';
+	signal kbd_char_c, kbd_char_n: std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
 
 	---- 8 Segment Display
 
@@ -138,14 +138,6 @@ architecture behav of top is
 	signal leds_reg_we: std_logic := '0';
 
 	---- Buttons
-
--- 	type button is record
--- 		up:     std_logic;
--- 		down:   std_logic;
--- 		center: std_logic;
--- 		left:   std_logic;
--- 		right:  std_logic;
--- 	end record;
 
 	signal btnu_d: std_logic := '0';  -- button up
 	signal btnd_d: std_logic := '0';  -- button down
@@ -175,14 +167,14 @@ begin
 		rx_fifo_not_empty <= not rx_fifo_empty;
 		tx_fifo_not_empty <= not rx_fifo_empty;
 
-		cpu_irc(0) <= '0'; -- @todo replace with change state of switch
+		cpu_irc(0) <= '0'; 
 		cpu_irc(1) <= rx_fifo_not_empty;
 		cpu_irc(2) <= rx_fifo_full;
 		cpu_irc(3) <= tx_fifo_not_empty;
 		cpu_irc(4) <= tx_fifo_full;
 		cpu_irc(5) <= kbd_new;
 		cpu_irc(6) <= timer_irq;
-		cpu_irc(7) <= btnl_d; -- @todo replace with button pressed
+		cpu_irc(7) <= btnl_d; -- @todo replace with button change state
 
 		cpu_irq    <= '1' when
 				timer_irq         = '1' or

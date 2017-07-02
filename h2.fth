@@ -56,7 +56,7 @@ constant isrBrnLeft        7
 
 : isrNoop >r drop ; ( Return to suspended instruction )
 
-\ .isr reset isrBtnRight
+\ .isr reset isrNoop
 .isr isrNoop isrRxFifoNotEmpty
 .isr isrNoop isrRxFifoFull
 .isr isrNoop isrTxFifoNotEmpty
@@ -69,9 +69,10 @@ constant isrBrnLeft        7
 
 ( ======================== System Variables ================= )
 
-
-variable pwd 0 ( Present Word Variable: Set at end of file )
-variable cp  0 ( Dictionary Pointer: Set at end of file )
+variable pwd  0  ( Present Word Variable: Set at end of file )
+variable cp   0  ( Dictionary Pointer: Set at end of file )
+variable hld  0  ( Pointer into hold area for numeric output )
+variable base 10 ( Current output radix )
 
 ( ======================== System Variables ================= )
 
@@ -195,6 +196,75 @@ be available. )
 	dup 0 2 um/mod drop dup
 	if 2 swap - then + ;
 
+: uart-write ( char -- bool : write out a character )
+	0x2000 or oUart ! 1 ; \ @todo Check that the write succeeded by looking at the TX FIFO
+
+: emit ( char -- : write out a char )
+	uart-write drop ;
+
+: cr 10 emit ;
+: space bl emit ;
+
+
+
+: type
+ 	dup 0= if 2drop exit then
+ 	begin 
+ 		swap dup c@ emit 1+ swap 1-
+ 		dup 0=
+ 	until 2drop ;
+
+: digit ( u -- c ) 9 over < 7 and + 48 + ;
+: extract ( n base -- n c ) 0 swap um/mod swap digit ;
+
+: <# ( -- ) pad hld ! ;
+
+: hold ( c -- ) hld @ 1 - dup hld ! c! ;
+
+: # ( u -- u ) base @ extract hold ;
+
+: #s ( u -- 0 ) begin # dup while repeat ;
+
+: sign ( n -- ) 0< if 45 hold then ;
+
+: #> ( w -- b u ) drop hld @ pad over - ;
+
+: hex ( -- ) 16 base ! ;
+: decimal ( -- ) 10 base ! ;
+
+: str   ( n -- b u : convert a signed integer to a numeric string.)
+	dup >r                ( save a copy for sign)
+	abs                   ( use absolute of n)
+	<# #s                 ( convert all digits)        
+	r> sign               ( add sign from n)
+	#> ;                  ( return number string addr and length)
+
+\ : .r    ( n +n -- :display an integer in a field of n columns, right justified.)
+\ 	>r str                ( convert n to a number string)
+\ 	r> over - spaces      ( print leading spaces)
+\ 	type ;                ( print number in +n column format)
+\ 
+\ : u.r   ( u +n -- : display an unsigned integer in n column, right justified.)
+\ 	>r                    ( save column number)
+\ 	<# #s #> r>           ( convert unsigned number)
+\ 	over - spaces         ( print leading spaces)
+\ 	type ;                ( print number in +n columns)
+
+: u.    ( u -- : display an unsigned integer in free format.)
+	<# #s #>              ( convert unsigned number)
+	space                 ( print one leading space)
+	type ;                ( print number)
+
+: .     ( w -- )
+	( display an integer in free format, preceeded by a space.)
+	base @ 10 xor         ( if not in decimal mode)
+	if u. exit then       ( print unsigned number)
+	str space type ;      ( print signed number if decimal)
+
+: ?     ( a -- : display the contents in a memory cell.)
+	@ . ;    ( very simple but useful command)
+
+
 ( ======================== Word Set ========================= )
 
 ( ======================== System setup ===================== )
@@ -227,8 +297,6 @@ variable cursorX 0  ( x component of cursor )
 variable cursorY 0  ( y component of cursor )
 variable cursorT 0  ( index into VGA text memory )
 
-
-
 ( If the VGA display was 64 characters by 16 lines of text 
 this cursor logic would be a lot simpler )
 : y1+ cursorY 1+! cursorY @ vgaY u>= if 0 cursorY ! then ;
@@ -238,8 +306,6 @@ this cursor logic would be a lot simpler )
 : led ( n -- : display a number on the LED 8 display )
 	o8SegLED ! ;
 
-: uart-write ( char -- bool : write out a character )
-	0x2000 or oUart ! 1 ; \ @todo Check that the write succeeded by looking at the TX FIFO
 
 : key?
 	iUart @ 0x0100 and ;
@@ -251,17 +317,11 @@ variable uart-read-count 0
 	uart-read-count 1+!
 	uart-read-count @ led ;
 
-: emit ( char -- : write out a char )
-	uart-write drop ;
-
 : key ( -- char : read in a key, echoing to output )
 	uart-read dup emit ;
 
 : char
 	uart-read ;
-
-: cr 10 emit ;
-: space bl emit ;
 
 constant bootstart 1024
 constant programsz 5120 ( bootstart + 4096 )
@@ -303,13 +363,6 @@ variable welcome "H2 Forth:"
 : /string ( c-addr u1 u2 -- c-addr u : advance a string u2 characters )
 	over min rot over + -rot - ;
 
-: type
- 	dup 0= if 2drop exit then
- 	begin 
- 		swap dup c@ emit 1+ swap 1-
- 		dup 0=
- 	until 2drop ;
-
 : latest pwd @ ;
 
 : words
@@ -330,7 +383,9 @@ start:
 	\ boot
 
 	welcome count type cr  
+
 	words
+
 
 nextChar:
 

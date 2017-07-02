@@ -1300,8 +1300,6 @@ static int debug_resolve_symbol(FILE *out, char *symbol, symbol_table_t *symbols
 	return 0;
 }
 
-/**@todo If a breakpoint is set on a location a load or store could to
- * that location should also trigger a break */
 static int h2_debugger(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *symbols, uint16_t point)
 {
 	bool breaks = false;
@@ -1487,7 +1485,6 @@ again:
 	return 0;
 }
 
-/**@todo rewrite so variables used within here mirror the VHDL */
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
 {
 	assert(h);
@@ -2596,7 +2593,6 @@ static void fix(h2_t *h, uint16_t hole, uint16_t patch)
 	h->core[hole] = patch;
 }
 
-/**@todo print line number of error */
 #define assembly_error(ERROR, FMT, ...) do{ error(FMT, ##__VA_ARGS__); ethrow(e); }while(0)
 
 static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type, error_t *e)
@@ -2756,11 +2752,6 @@ static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t 
 	return 0;
 }
 
-/**@todo define various special variables that the programmer can use:
- * such as $pwd for the Previous Word Register and $pc for the program
- * counter. "$pwd" will require word header compilation to be used. 
- * @todo Make constructs aware of they are in a Forth definition or
- * not */
 static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
 {
 	uint16_t hole1, hole2;
@@ -2803,9 +2794,11 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate_jump(h, t, n->token, n->type, e);
 		break;
 	case SYM_CONSTANT:
+		/**@todo optionally compile header */
 		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e);
 		break;
 	case SYM_VARIABLE:
+		/**@todo add dictionary header */
 		if(n->o[0]->token->type == LEX_LITERAL) {
 			hole1 = hole(h);
 			fix(h, hole1, n->o[0]->token->p.number);
@@ -3146,7 +3139,6 @@ int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symb
 	return -1;
 }
 
-/**@todo limit number of input files to one? */
 int main(int argc, char **argv)
 {
 	int i;

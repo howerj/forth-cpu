@@ -511,7 +511,7 @@ The following interrupt service routines are defined:
 	*-------------------*--------*-----------------------------*
 	|       Name        | Number |         Description         |
 	*-------------------*--------*-----------------------------*
-	| isrBtnRight       |   0    | Right D-Pad button pressed  |
+	| isrNone           |   0    | Not used                    |
 	| isrRxFifoNotEmpty |   1    | UART RX FIFO Is Not Empty   |
 	| isrRxFifoFull     |   2    | UART RX FIFI Is Full        |
 	| isrTxFifoNotEmpty |   3    | UART TX FIFO Is Not Empty   |
