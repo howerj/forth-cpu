@@ -43,6 +43,10 @@ static void *stdin_to_uart(void *x)
 			fprintf(stderr, "write error:%s\n", strerror(errno));
 			return NULL;
 		}
+		/** @bug Writing too fast causes problems! The H2 CPU
+		 * probably cannot process things fast enough. */
+		tcflush(fd,TCIOFLUSH);
+		usleep(100);
 
 	}
 	exit(EXIT_SUCCESS);

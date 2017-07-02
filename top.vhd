@@ -175,17 +175,16 @@ begin
 		rx_fifo_not_empty <= not rx_fifo_empty;
 		tx_fifo_not_empty <= not rx_fifo_empty;
 
-		cpu_irc(0) <= btnr_d;
+		cpu_irc(0) <= '0'; -- @todo replace with change state of switch
 		cpu_irc(1) <= rx_fifo_not_empty;
 		cpu_irc(2) <= rx_fifo_full;
 		cpu_irc(3) <= tx_fifo_not_empty;
 		cpu_irc(4) <= tx_fifo_full;
 		cpu_irc(5) <= kbd_new;
 		cpu_irc(6) <= timer_irq;
-		cpu_irc(7) <= btnl_d;
+		cpu_irc(7) <= btnl_d; -- @todo replace with button pressed
 
 		cpu_irq    <= '1' when
-				btnr_d            = '1' or
 				timer_irq         = '1' or
 				rx_fifo_not_empty = '1' or
 				rx_fifo_full      = '1' or

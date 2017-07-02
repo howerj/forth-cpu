@@ -256,13 +256,13 @@ typedef struct {
 
 /** @warning LOG_FATAL level kills the program */
 #define X_MACRO_LOGGING\
- X(LOG_MESSAGE_OFF,  "")\
- X(LOG_FATAL,        "fatal")\
- X(LOG_ERROR,        "error")\
- X(LOG_WARNING,      "warning")\
- X(LOG_NOTE,         "note")\
- X(LOG_DEBUG,        "debug")\
- X(LOG_ALL_MESSAGES, "any")
+	X(LOG_MESSAGE_OFF,  "")\
+	X(LOG_FATAL,        "fatal")\
+	X(LOG_ERROR,        "error")\
+	X(LOG_WARNING,      "warning")\
+	X(LOG_NOTE,         "note")\
+	X(LOG_DEBUG,        "debug")\
+	X(LOG_ALL_MESSAGES, "any")
 
 typedef enum {
 #define X(ENUM, NAME) ENUM,
@@ -2092,7 +2092,7 @@ again:
  * Isr         := "isr" Identifier (Identifier | Literal)
  * Literal     := [ "-" ] Number
  * String      := '"' SChar* '"'
- * Char        := "char" ASCII ","
+ * Char        := "[char]" ASCII ","
  * Number      := Octal | Hex | Decimal
  * Octal       := "0" ... "7"
  * Decimal     := "1" ... "9" ( "0" ... "9" )*
@@ -2144,7 +2144,7 @@ again:
 	X(SYM_FOR_AFT_THEN_NEXT,   "for...aft...then...next")\
 	X(SYM_IF1,                 "if1")\
 	X(SYM_DEFINITION,          "definition")\
-	X(SYM_CHAR,                "char")\
+	X(SYM_CHAR,                "[char]")\
 	X(SYM_ISR,                 "isr")\
 	X(SYM_SET,                 "set")\
 	X(SYM_PC,                  "pc")\
@@ -2391,7 +2391,6 @@ static node_t *char_compile(lexer_t *l)
 	use(l, r);
 	if(strlen(r->token->p.id) > 1)
 		syntax_error(l, "expected single character, got identifier: %s", r->token->p.id);
-	expect(l, LEX_COMPILE);
 	return r;
 }
 
@@ -2684,7 +2683,7 @@ static uint16_t lexer_to_alu_op(token_e t)
 	return 0;
 }
 
-static uint16_t literal_or_symbol_lookup(error_t *e, token_t *token, symbol_table_t *t)
+static uint16_t literal_or_symbol_lookup(token_t *token, symbol_table_t *t, error_t *e)
 {
 	symbol_t *s = NULL;
 	assert(token);
@@ -2719,6 +2718,42 @@ static uint16_t pack_string(h2_t *h, const char *s, error_t *e)
 	if(i < l)
 		h->core[hole(h)] = pack_16(s[i], 0);
 	return r;
+}
+
+static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t *e)
+{
+	static const char *special[] = {
+		"$pc",
+		"$pwd",
+		NULL
+	};
+
+	enum special_e {
+		SPECIAL_VARIABLE_PC,
+		SPECIAL_VARIABLE_PWD
+	};
+
+	size_t i;
+	assert(h);
+	assert(id);
+	assert(a);
+
+	for(i = 0; special[i]; i++) 
+		if(!strcmp(id, special[i]))
+			break;
+	if(!special[i])
+		assembly_error(e, "'%s' is not a symbol", id);
+
+	switch(i) {
+	case SPECIAL_VARIABLE_PC:  
+		return h->pc << 1;
+	case SPECIAL_VARIABLE_PWD: 
+		return a->pwd;
+	default:
+		fatal("reached the unreachable: %zu", i);
+	}
+
+	return 0;
 }
 
 /**@todo define various special variables that the programmer can use:
@@ -2870,7 +2905,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate(h, CODE_EXIT); /**@todo smush this with the previous instruction if possible*/
 		a->in_definition = false;
 		break;
-	case SYM_CHAR: /* char A , */
+	case SYM_CHAR: /* [char] A  */
 		generate(h, OP_LITERAL | n->token->p.id[0]);
 		break;
 	case SYM_ISR:
@@ -2898,22 +2933,36 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	}
 	case SYM_SET:
 	{
-		/**@todo Only allow constants or literal */
 		uint16_t location, value;
-		location = literal_or_symbol_lookup(e, n->token, t);
-		value    = literal_or_symbol_lookup(e, n->value, t);
-		fix(h, location, value);
+		symbol_t *l = NULL;
+		location = literal_or_symbol_lookup(n->token, t, e);
+		
+		/**@note Special variables should probably handled in a better
+		 * way */
+		if(n->value->type == LEX_LITERAL) {
+			value = n->value->p.number;
+		} else {
+			l = symbol_table_lookup(t, n->value->p.id);
+			if(l) { 
+				value = l->value;
+			} else {
+				value = symbol_special(h, a, n->value->p.id, e);
+			}
+		}
+		/**@bug only divide by 2 if literal_or_symbol_lookup was a
+		 * variable */
+		fix(h, location >> 1, value);
 		break;
 	}
 	case SYM_PC:
-		h->pc = literal_or_symbol_lookup(e, n->token, t);
+		h->pc = literal_or_symbol_lookup(n->token, t, e);
 		break;
 	case SYM_MODE:
 		a->mode = n->token->p.number;
 		break;
 	case SYM_ALLOCATE:
 		/**@todo Only allow constants or literal */
-		h->pc += literal_or_symbol_lookup(e, n->token, t);
+		h->pc += literal_or_symbol_lookup(n->token, t, e);
 		break;
 	case SYM_BREAK:
 		break_point_add(&h->bp, h->pc);

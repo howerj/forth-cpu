@@ -17,12 +17,14 @@ TODO:
 * Bootloader
 * Minimal Forth interpreter 
 * Add built in words to the dictionary
+* Turn this into a literal file
 * Add assembler directives for setting starting position of
 program counter and the like )
 
 ( ======================== System Constants ================= )
 
 .mode 1 ( Turn word header compilation on )
+
 
 ( Outputs: 0x6000 - 0x7FFF )
 constant oUart         0x6000
@@ -42,7 +44,7 @@ constant iVgaTxtDout   0x6004
 constant iPs2          0x6005
 
 ( Interrupt service Routine: Memory locations )
-constant isrBtnRight       0
+constant isrNone           0
 constant isrRxFifoNotEmpty 1
 constant isrRxFifoFull     2
 constant isrTxFifoNotEmpty 3
@@ -54,10 +56,6 @@ constant isrBrnLeft        7
 
 : isrNoop >r drop ; ( Return to suspended instruction )
 
-( @todo fix setting isr 0: perhaps by moving
-interrupts to the end of main memory: The problem is caused by the fact
-that the reset is not propagated to the h2 core in the VHDL simulation )
-\ : reset >r drop branch 8 ;
 \ .isr reset isrBtnRight
 .isr isrNoop isrRxFifoNotEmpty
 .isr isrNoop isrRxFifoFull
@@ -69,35 +67,16 @@ that the reset is not propagated to the h2 core in the VHDL simulation )
 
 ( ======================== System Constants ================= )
 
-( ======================== User Code ======================== )
+( ======================== System Variables ================= )
 
-( Initial value of VGA
-  BIT     MEANING
-  7   -  Display Next Screen
-  6   -  Enable VGA
-  5   -  Cursor enable
-  4   -  Cursor blinks
-  3   -  Cursor mode
-  2   -  Red
-  1   -  Green
-  0   -  Blue )
-constant vgaInit       122 \ 0x007A
 
-constant vgaX          80
-constant vgaY          40
-constant vgaTextSize   3200
+variable pwd 0 ( Present Word Variable: Set at end of file )
+variable cp  0 ( Dictionary Pointer: Set at end of file )
 
-( Initial value of timer
-  BIT     MEANING
-  15   -  Enable Timer
-  14   -  Reset Timer Value immediately
-  13   -  Interrupt Enable
-  12-0 -  Value to compare against )
-constant timerInit     0x8032
+( ======================== System Variables ================= )
 
-variable cursorX 0  ( x component of cursor )
-variable cursorY 0  ( y component of cursor )
-variable cursorT 0  ( index into VGA text memory )
+( ======================== Forth Kernel ===================== )
+
 
 : ! store drop ;
 : 256* 8 lshift ;
@@ -145,6 +124,9 @@ variable cursorT 0  ( index into VGA text memory )
 	or 0< r> and negate
 	r> swap ;
 
+( ======================== Forth Kernel ===================== )
+
+( ======================== Word Set ========================= )
 
 ( With the built in words defined in the assembler, and the words
 defined so far, all of the primitive words needed by eForth should
@@ -153,6 +135,11 @@ be available. )
 : cell- 2- ;
 : cell+ 2+ ;
 : cells 2* ;
+: 2! ( d a -- ) tuck ! cell+ ! ;
+: 2@ ( a -- d ) dup cell+ @ swap @ ;
+: here cp @ ;
+: pad here 80 + ;
+: @execute @ ?dup if execute then ;
 : bl 32 ;
 : within over - >r - r> u< ; ( u lo hi -- t )
 : not -1 xor ;
@@ -165,14 +152,17 @@ be available. )
 : -rot swap >r swap r> ;
 : min  2dup < if drop else nip then ;
 : max  2dup > if drop else nip then ;
+: >char ( c -- c : convert character to '_' if not ASCII or is control char )
+  0x7f and dup 127 bl within if drop [char] _ then ;
 
 : um/mod ( ud u -- ur uq )
 	2dup u<
 	if negate  15
-	for >r dup um+ >r >r dup um+ r> + dup
-		r> r@ swap >r um+ r> or
-		if >r drop 1 + r> else drop then r>
-	next drop swap exit
+		for >r dup um+ >r >r dup um+ r> + dup
+			r> r@ swap >r um+ r> or
+			if >r drop 1 + r> else drop then r>
+		next 
+		drop swap exit
 	then drop 2drop  -1 dup ;
 
 : m/mod ( d n -- r q ) \ floored division
@@ -180,7 +170,7 @@ be available. )
 	if 
 		negate >r dnegate r>
 	then 
-		>r dup 0< if r@ + then r> um/mod r>
+	>r dup 0< if r@ + then r> um/mod r>
 	if swap negate swap then ;
 
 : /mod ( n n -- r q ) over 0< swap m/mod ;
@@ -200,6 +190,43 @@ be available. )
 
 : */mod ( n n n -- r q ) >r m* r> m/mod ;
 : */ ( n n n -- q ) */mod swap drop ;
+
+: aligned ( b -- a )
+	dup 0 2 um/mod drop dup
+	if 2 swap - then + ;
+
+( ======================== Word Set ========================= )
+
+( ======================== System setup ===================== )
+
+( Initial value of VGA
+  BIT     MEANING
+  7   -  Display Next Screen
+  6   -  Enable VGA
+  5   -  Cursor enable
+  4   -  Cursor blinks
+  3   -  Cursor mode
+  2   -  Red
+  1   -  Green
+  0   -  Blue )
+constant vgaInit       0x7A \ 0x007A
+
+constant vgaX          80
+constant vgaY          40
+constant vgaTextSize   3200
+
+( Initial value of timer
+  BIT     MEANING
+  15   -  Enable Timer
+  14   -  Reset Timer Value immediately
+  13   -  Interrupt Enable
+  12-0 -  Value to compare against )
+constant timerInit     0x8032
+
+variable cursorX 0  ( x component of cursor )
+variable cursorY 0  ( y component of cursor )
+variable cursorT 0  ( index into VGA text memory )
+
 
 
 ( If the VGA display was 64 characters by 16 lines of text 
@@ -283,10 +310,7 @@ variable welcome "H2 Forth:"
  		dup 0=
  	until 2drop ;
 
-( @todo Add a special variable to the assembler, this should contain
-the previous word pointer, which will be set into a variable at
-the end of the assembly file )
-: latest 0x6d 2* ;
+: latest pwd @ ;
 
 : words
 	latest
@@ -295,6 +319,10 @@ the end of the assembly file )
 	while
 		dup cell+ count type space @
 	repeat drop cr ;
+
+( ======================== System setup ===================== )
+
+( ======================== Starting Code ==================== )
 
 start:
 	 init
@@ -321,4 +349,6 @@ branch nextChar
 
 ( ======================== User Code ======================== )
 
+.set pwd $pwd
+.set cp  $pc
 

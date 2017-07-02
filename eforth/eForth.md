@@ -77,11 +77,11 @@ Forth is a computer model which can be implemented on any real CPU
 with reasonable resources.  This model is often called a virtual Forth
 computer.  The minimal components of a virtual Forth computer are:
 
-1. A dictionary in memory to hold all the execution procedures.  
+1. A dictionary in memory to hold all the execution procedures.
 2. A return stack to hold return addresses of procedures yet to be executed.
-3. A data stack to hold parameters passing between procedures.  
-4. A user area in RAM memory to hold all the system variables.  
-5. A CPU to move date among stacks and memory, and to do ALU 
+3. A data stack to hold parameters passing between procedures.
+4. A user area in RAM memory to hold all the system variables.
+5. A CPU to move date among stacks and memory, and to do ALU
 operations to parameters stored on the data stack.
 
 The eForth model is a detailed specification of a virtual Forth computer
@@ -94,13 +94,13 @@ functions, we will use the 8086 machine code to clarify the specification.
 
 The following registers are required for a virtual Forth computer:
 
-        Forth Register         8086 Register          Function        
+        Forth Register         8086 Register          Function
 
-        IP                     SI                     Interpreter Pointer        
-        SP                     SP                     Data Stack Pointer        
+        IP                     SI                     Interpreter Pointer
+        SP                     SP                     Data Stack Pointer
         RP                     RP                     Return Stack Pointer
         WP                     AX                     Word or Work Pointer
-        UP                     (in memory )           User Area Pointer               
+        UP                     (in memory )           User Area Pointer
 
 In the dictionary, each procedure (or word in Forth terminology) occupies
 an area called code field, which contains executable machine code and
@@ -145,7 +145,7 @@ interrupted by the last colon word in this word list.
                 JMP     AX       \ jump directly to the word thru WP
                 ENDM             \ IP (SI) now points to the next word
 
-        doLIST        ( a -- )   \ Run address list in a colon word. 
+        doLIST        ( a -- )   \ Run address list in a colon word.
                 XCHG    BP,SP    \ exchange pointers
                 PUSH    SI       \ push return stack
                 XCHG    BP,SP    \ restore the pointers
@@ -245,7 +245,7 @@ visulization.
         CODEE   EQU     COLDD+US        ;code dictionary
 
 ![eForth Memory Map](eForthMemoryMap.png)
- 
+
 ## eForth Kernel
 
 
@@ -257,7 +257,7 @@ other primitive words.  From this set of kernel words, all other Forth
 words have to be built.  The kernel words can be classified as following:
 
         System interface:       BYE, ?rx, tx!, !io
-        Inner interpreters:     doLIT, doLIST, next, ?branch,  branch, 
+        Inner interpreters:     doLIT, doLIST, next, ?branch,  branch,
                                 EXECUTE, EXIT
         Memory access:          ! , @,  C!,  C@
         Return stack:           RP@,  RP!,  R>, R@,  R>
@@ -306,7 +306,7 @@ If such a system can be built from this small set of kernel words, it
 should be obvious that most practical applications can also be built
 from it.
 
-## System Interface 
+## System Interface
 
 BYE returns control from eForth back to the operating system.  !io
 initializes the serial I/O device in the system so that it can interact
@@ -334,10 +334,10 @@ necessary here because it is taking care of by the DOS.  In embedded
 systems, the I/O device must be initialized by !IO.
 
         CODE BYE        ( -- , exit Forth )
-                INT     020H            \ return to DOS 
+                INT     020H            \ return to DOS
 
-        CODE    ?RX     ( -- c T | F )  \ Return input character and true, 
-                                        \ or a false if no input. 
+        CODE    ?RX     ( -- c T | F )  \ Return input character and true,
+                                        \ or a false if no input.
                 $CODE   3,'?RX',QRX
                 XOR     BX,BX           \ BX=0 setup for false flag
                 MOV     DL,0FFH         \ input command
@@ -367,7 +367,7 @@ systems, the I/O device must be initialized by !IO.
         CODE    !IO        ( -- )       \ Initialize the serial I/O devices.
                 $NEXT
 
-## Inner Interpreter 
+## Inner Interpreter
 
 In the word list of a colon definition, it is generally assumed that
 words are execution addresses, which can be executed sequentially by the
@@ -411,7 +411,7 @@ colon definitions.
                 JMP     AX        \ jump directly to the word thru WP
                 ENDM              \ IP (SI) now points to the next word
 
-        doLIST  ( a -- )          \ Run address list in a colon word. 
+        doLIST  ( a -- )          \ Run address list in a colon word.
                 XCHG    BP,SP     \ exchange pointers
                 PUSH    SI        \ push return stack
                 XCHG    BP,SP     \ restore the pointers
@@ -444,7 +444,7 @@ An address literal is followed by a branch pointer which causes execution
 to be transferred to that location.  The branch location most often
 points to a different location in the address list of the same colon word.
 
-        CODE    next ( -- )              \ Decrement index and exit loop 
+        CODE    next ( -- )              \ Decrement index and exit loop
                                          \ if index is less than 0.
                 SUB     WORD PTR [BP],1  \ decrement the index
                 JC      NEXT1            \ ?decrement below 0
@@ -548,7 +548,7 @@ The moral is: Use @ and C@ freely, but be careful with ! and C!.
                 $NEXT
 
 
-## Return Stack 
+## Return Stack
 
 RP! pushes the address on the top of the data stack to the return stack
 and thus initializes the return stack.  RP! is only used to initialize
@@ -603,7 +603,7 @@ wrong address to return to, and the system generally will crash.
                 $NEXT
 
 
-## Data Stack 
+## Data Stack
 
 The data stack is the centralized location where all numerical data are
 processed, and where parameters are passed from one word to another.
@@ -696,7 +696,7 @@ between the real flags and the generalized flags.
                 $NEXT
 
 
-## Primitive Arithmetic 
+## Primitive Arithmetic
 
 The only primitive arithmetic word in the eForth kernel is UM+.
 All other arithmetic words, like +, -, * and / are derived from UM+ as
@@ -806,7 +806,7 @@ Ragsdale in the Forth 83 Standard.
 CURRENT points to a vocabulary thread to which new definitions are to
 be added.
 
-        : doVAR ( -- a ) R> ; 
+        : doVAR ( -- a ) R> ;
 
         VARIABLE UP      ( -- a, Pointer to the user area.)
 
@@ -818,7 +818,7 @@ be added.
 
         : FORTH ( -- ) doVOC [ 0 , 0 ,
 
-        : doUSER ( -- a ) R> @ UP @ + ; 
+        : doUSER ( -- a ) R> @ UP @ + ;
 
 eForth provides many functions in the vectored form to allow the
 behavior the these functions to be changed dynamically at run time.
@@ -838,7 +838,7 @@ Following is the list of user variables defined in eForth:
         tmp       ( -- a, a temporary storage location used in parse and find.)
         SPAN      ( -- a, hold character count received by EXPECT.)
         >IN       ( -- a, hold the character pointer while parsing input stream.)
-        #TIB      ( -- a, hold the current count and address of the terminal input 
+        #TIB      ( -- a, hold the current count and address of the terminal input
                     buffer. Terminal Input Buffer used one cell after #TIB.)
         CSP       ( -- a, hold the stack pointer for error checking.)
         'EVAL     ( -- a, execution vector of EVAL. Default to EVAL.)
@@ -941,8 +941,8 @@ to be unsigned integers.
           OVER - >R - R> U< ;
 
 
- 
-## Divide 
+
+## Divide
 
 This group of words provide a variety of multiplication and division
 functions.  The most interesting feature of this word set is that they
@@ -999,7 +999,7 @@ words in machine code.
         : / ( n n -- q ) /MOD SWAP DROP ;
 
 
-## Multiply 
+## Multiply
 
 UM\* is the most complicated multiplication operation.  Once it is coded,
 all other multiplication words can be derived from it.
@@ -1036,7 +1036,7 @@ the intermediate product of n1 and n2 is a double precision integer so
 that the precision of scaling is maintained.
 
 \*/MOD multiplies the signed integers n1 and n2, and then divides
-the double integer product by n3.  It in fact is ratioing n1 by n2/n3.
+the double integer product by n3.  It in fact is ratio-ing n1 by n2/n3.
 It returns both the remainder and the quotient.  \*/ is similar to \*/MOD
 except that it only returns the quotient.
 
@@ -1055,7 +1055,7 @@ except that it only returns the quotient.
         : */ ( n n n -- q ) */MOD SWAP DROP ;
 
 
-## Memory  Alignment 
+## Memory  Alignment
 
 The most serious problem in porting system from one computer to another
 is that different computers have different sizes for their addresses and
@@ -1294,8 +1294,8 @@ different output formats.
 
         : HEX ( -- ) 16 BASE ! ;
         : DECIMAL ( -- ) 10 BASE ! ;
- 
-## Number Output 
+
+## Number Output
 
 With the number formatting word set as shown above, one can format numbers
 for output in any form desired.  The free output format is a number
@@ -1307,7 +1307,7 @@ U., and ? use the free format.  The words .R and U.R use the fix format.
                 ( Convert a signed integer to a numeric string.)
                 DUP >R                ( save a copy for sign)
                 ABS                   ( use absolute of n)
-                <# #S                 ( convert all digits)        
+                <# #S                 ( convert all digits)
                 R> SIGN               ( add sign from n)
                 #> ;                  ( return number string addr and length)
 
@@ -1404,7 +1404,7 @@ integer, only the modulus to 2\*\*n will be kept.
           THEN R> ( n ?sign) 2DROP R> BASE ! ;
 
 
-## Basic I/O 
+## Basic I/O
 
 The eForth system assumes that the system will communicate with its
 environment only through a serial I/O interface.  To support the serial
@@ -1472,7 +1472,7 @@ compiled string.  This address will allow the address interpreter to skip
 over the string literal and continue to execute the word list as intended.
 
         : ?KEY ( -- c T | F ) '?KEY @EXECUTE ;
-        : KEY ( -- c ) BEGIN ?KEY UNTIL ;     
+        : KEY ( -- c ) BEGIN ?KEY UNTIL ;
         : EMIT ( c -- ) 'EMIT @EXECUTE ;
 
         : NUF? ( -- f ) ?KEY DUP IF 2DROP KEY 13 = THEN ;
@@ -1490,9 +1490,9 @@ over the string literal and continue to execute the word list as intended.
         : CR ( -- ) 13 EMIT 10 EMIT ;
 
         : do$ ( -- a )
-          R> R@ R> COUNT + ALIGNED >R SWAP >R ; 
+          R> R@ R> COUNT + ALIGNED >R SWAP >R ;
 
-        : $"| ( -- a ) do$ ; 
+        : $"| ( -- a ) do$ ;
 
         : ."| ( -- ) do$ COUNT TYPE ; COMPILE-ONLY
 
@@ -1505,7 +1505,7 @@ over the string literal and continue to execute the word list as intended.
         : ? ( a -- ) @ . ;
 
 
-## Parsing 
+## Parsing
 
 Parsing is always thought of as a very advanced topic in computer
 sciences.  However, because Forth uses very simple syntax rules, parsing
@@ -1656,7 +1656,7 @@ the searching priority among the vocabularies.
           UNTIL R> DROP EXIT THEN R> DROP  0 ;
 
 
-## Terminal 
+## Terminal
 
 The text interpreter interprets source text  stored in the terminal
 input buffer.  To process characters from the input device, we need
@@ -1760,7 +1760,7 @@ the error frame on the return stack.
                 R> HANDLER !     ( restore previously saved error handler frame )
                 R> SWAP >R       ( retrieve the data stack pointer saved )
                 SP!              ( restore the data stack )
-                DROP 
+                DROP
                 R> ;             ( retrived err# )
 
 NULL$ is the address of a string with a zero count.  This address is
@@ -1791,12 +1791,12 @@ a better understanding of the CATCH-THROW error handling mechanism.
 
         : ABORT ( -- ) NULL$ THROW ;
 
-        : abort" ( f -- ) IF do$ THROW THEN do$ DROP ; 
+        : abort" ( f -- ) IF do$ THROW THEN do$ DROP ;
 
 Let's look at how the CATCH-THROW pair is used.  In QUIT, there is this
 indefinite loop:
 
-        BEGIN QUERY [ ' EVAL ] LITERAL CATCH 
+        BEGIN QUERY [ ' EVAL ] LITERAL CATCH
         ?DUP UNTIL
 
 QUERY get a line of text and CATCH causes EVAL to interpret the
@@ -1830,7 +1830,7 @@ Here are some of the examples which generate error conditions:
         : $INTERPRET   ... 'NUMBER @EXECUTE  IF EXIT THEN THROW ;
 
 
-## Text Interpreter 
+## Text Interpreter
 
 Text interpreter in Forth is like the operating system of a computer. It
 is the primary interface a user goes through to get the computer to do
@@ -1892,7 +1892,7 @@ with $INTERPRET or compile it with $COMPILE.
           REPEAT DROP 'PROMPT @EXECUTE ;
 
 
-## Shell 
+## Shell
 
 Source code can be downloaded to eForth through the serial input device.
 The only precaution we have to take is that during file downloading,
@@ -1985,7 +1985,7 @@ transparent.
 This set stage for enlightenment to strike.
 
 
- 
+
 ## Interpreter and Compiler
 
 The Forth compiler is the twin brother of the Forth text interpreter. They
@@ -2014,15 +2014,15 @@ immediate word, which must be executed immediately, not compiled to the
 code dictionary.  Immediate words are used to compile special structures
 in colon definitions.
 
-        : [ ( -- ) 
-                [ ' $INTERPRET ] LITERAL 
+        : [ ( -- )
+                [ ' $INTERPRET ] LITERAL
                 'EVAL !      ( vector EVAL to $INTERPRET )
                 ; IMMEDIATE  ( enter into text interpreter mode )
 
-        : ] ( -- ) 
-                [ ' $COMPILE ] LITERAL 
+        : ] ( -- )
+                [ ' $COMPILE ] LITERAL
                 'EVAL ! ( vector EVAL to $COMPILE )
-                ; 
+                ;
 
 ## Primitive Compiler Words
 
@@ -2096,7 +2096,7 @@ A set of immediate words are defined in eForth to help building control
 structures in colon definitions.  The control structures used in eForth
 are the following:
 
-        Conditional branch   IF ... THEN 
+        Conditional branch   IF ... THEN
                              IF ... ELSE ... THEN
         Finite loop          FOR ... NEXT
                              FOR ... AFT ... THEN ... NEXT
@@ -2171,7 +2171,7 @@ a string array.
         : ." ( -- ; <string> ) COMPILE ."| $," ; IMMEDIATE
 
 
-## Compiler 
+## Compiler
 
 We had discussed how the compiler compiles words and structures into the
 code field of a colon definition in the code dictionary.  To build a new
@@ -2395,7 +2395,7 @@ are different, abort and display the error message 'stack depth'.
 
         : !CSP ( -- ) SP@ CSP ! ;
         : ?CSP ( -- ) SP@ CSP @ XOR ABORT" stack depth" ;
- 
+
 ## Dictionary Dump
 
 The Forth dictionary contains all the words defined in the system, ready
@@ -2537,7 +2537,7 @@ QUIT.
 
         : COLD ( -- )
           BEGIN
-            U0 UP 74 CMOVE 
+            U0 UP 74 CMOVE
             PRESET  'BOOT @EXECUTE
             FORTH CONTEXT @ DUP CURRENT 2! OVERT
             QUIT
