@@ -269,14 +269,14 @@ be available. "doList" and "doLit" do not need to be implemented. )
 ( @todo Test cmove and the following words )
 
 : cmove ( b b u -- )
-	for aft >r dup c@ r@ c! 1 + r> 1 + then next 2drop ;
+	for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ;
 
 : fill ( b u c -- )
-	swap for swap aft 2dup c! 1 + then next 2drop ;
+	swap for swap aft 2dup c! 1+ then next 2drop ;
 
 : -trailing ( b u -- b u )
 	for aft bl over r@ + c@ <
-		if r> 1 + exit then then
+		if r> 1+ exit then then
 	next 0 ;
 
 : pack$ ( b u a -- a ) \ null fill
