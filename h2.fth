@@ -114,13 +114,16 @@ variable base 10 ( Current output radix )
 	or 0< r> and negate
 	r> swap ;
 
+( @todo Implement "sp!" and "next" )
+
+( With the built in words defined in the assembler, and the words
+defined so far, all of the primitive words needed by eForth should
+be available. "doList" and "doLit" do not need to be implemented. )
+
 ( ======================== Forth Kernel ===================== )
 
 ( ======================== Word Set ========================= )
 
-( With the built in words defined in the assembler, and the words
-defined so far, all of the primitive words needed by eForth should
-be available. )
 
 : cell- 2- ;
 : cell+ 2+ ;
@@ -234,16 +237,21 @@ be available. )
 	r> sign               ( add sign from n )
 	#> ;                  ( return number string addr and length )
 
-\ : .r    ( n +n -- :display an integer in a field of n columns, right justified )
-\ 	>r str                ( convert n to a number string )
-\ 	r> over - spaces      ( print leading spaces )
-\ 	type ;                ( print number in +n column format )
-\ 
-\ : u.r   ( u +n -- : display an unsigned integer in n column, right justified )
-\ 	>r                    ( save column number )
-\ 	<# #s #> r>           ( convert unsigned number )
-\ 	over - spaces         ( print leading spaces )
-\ 	type ;                ( print number in +n columns )
+: nchars ( +n c -- ) \ "chars" in eForth, this is an ANS FORTH conflict
+  swap 0 max for aft dup emit then next drop ;
+
+: spaces ( +n -- ) bl nchars ;
+
+: .r    ( n +n -- :display an integer in a field of n columns, right justified )
+	>r str                ( convert n to a number string )
+	r> over - spaces      ( print leading spaces )
+	type ;                ( print number in +n column format )
+
+: u.r   ( u +n -- : display an unsigned integer in n column, right justified )
+	>r                    ( save column number )
+	<# #s #> r>           ( convert unsigned number )
+	over - spaces         ( print leading spaces )
+	type ;                ( print number in +n columns )
 
 : u.    ( u -- : display an unsigned integer in free format )
 	<# #s #>              ( convert unsigned number )
@@ -382,6 +390,8 @@ start:
 
 	words
 
+	\ @bug This should print 8...0
+	9 for r@ . cr next
 
 nextChar:
 
@@ -400,6 +410,11 @@ branch nextChar
 
 ( ======================== User Code ======================== )
 
+\ 0 for dup dup aft key key then over over next
+
+
 .set pwd $pwd
 .set cp  $pc
+
+
 

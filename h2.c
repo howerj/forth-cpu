@@ -11,7 +11,9 @@
  *
  * @todo Turn this into a library, and into a literate program, and possibly
  * make a nice and shiny OpenGL version which simulates the VGA output, LEDs
- * and Switches.
+ * and Switches. The OpenGL version could be implemented in parts, making
+ * the GUI first, then integrating it with the H2 simulator once it is
+ * turned into a library.
  * @todo make a peephole optimizer for the assembler and a super optimizer
  * utility.
  * @todo Turn the diagrams in this file into help strings which can
@@ -201,7 +203,8 @@ typedef enum {
 #define MK_RSTACK(DELTA) ((DELTA) << RSTACK_START)
 #define MK_CODE(CODE)    ((CODE)  << ALU_OP_START)
 
-/**@todo Make a table of instructions, instruction strings and lexer symbols */
+/**@todo Make a table of instructions, instruction strings and lexer symbols 
+ * @todo Implement more instructions: rdrop, up1, down1, ... */
 typedef enum {
 	CODE_DUP    = (OP_ALU_OP | MK_CODE(ALU_OP_T)        | T_TO_N  | MK_DSTACK(DELTA_1)),
 	CODE_OVER   = (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N  | MK_DSTACK(DELTA_1)),
@@ -235,7 +238,7 @@ typedef enum {
 	CODE_RDEPTH = (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)                 | MK_DSTACK(DELTA_1)),
 	CODE_TE0    = (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0))
 
-} forth_alu_words_e;
+} forth_word_codes_e;
 
 typedef struct {
 	size_t length;
@@ -1510,6 +1513,7 @@ again:
 	return 0;
 }
 
+/**@todo make a incredibly simple version of the simulator only in a single C file */
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
 {
 	bool turn_debug_on = false;
@@ -2790,6 +2794,8 @@ static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t 
 	return 0;
 }
 
+/**@todo implement built in words that can be assembled with a directive, these
+ * built in words can then be called by the words in here. */
 static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
 {
 	uint16_t hole1, hole2;
@@ -2881,7 +2887,24 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate(h, CODE_DROP);
 		break;
 	case SYM_FOR_AFT_THEN_NEXT:
-		assembly_error(e, "not implemented");
+		/**@todo make a word "(next)" that implements the terminating
+		 * loop control */
+		generate(h, CODE_TOR);
+		assemble(h, a, n->o[0], t, e);
+		hole1 = hole(h);
+		generate(h, CODE_RAT);
+		hole2 = hole(h);
+		assemble(h, a, n->o[1], t, e);
+		fix(h, hole1, OP_BRANCH | (here(h)));
+		assemble(h, a, n->o[2], t, e);
+		generate(h, CODE_FROMR);
+		generate(h, CODE_T_N1);
+		generate(h, CODE_TOR);
+		generate(h, OP_BRANCH | (hole1 + 1));
+		fix(h, hole2, OP_0BRANCH | (here(h)));
+		generate(h, CODE_FROMR);
+		generate(h, CODE_DROP);
+		break;
 	case SYM_BEGIN_WHILE_REPEAT:
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
