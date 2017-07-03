@@ -265,7 +265,7 @@ words have to be built.  The kernel words can be classified as following:
         Logic:                  0<,  AND,  OR,  XOR
         Arithmetic:             UM+
 
-The virtual Forth computer is based on a tw-stack architecture.
+The virtual Forth computer is based on a two-stack architecture.
 The return stack is used to allow a high level word to be executed in
 the address list of another high level word.  It is very similar to the
 return stack used for nested subroutine calls in a conventional computer.
