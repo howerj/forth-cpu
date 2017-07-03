@@ -266,6 +266,24 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : ?     ( a -- : display the contents in a memory cell )
 	@ . ;    ( very simple but useful command)
 
+( @todo Test cmove and the following words )
+
+: cmove ( b b u -- )
+	for aft >r dup c@ r@ c! 1 + r> 1 + then next 2drop ;
+
+: fill ( b u c -- )
+	swap for swap aft 2dup c! 1 + then next 2drop ;
+
+: -trailing ( b u -- b u )
+	for aft bl over r@ + c@ <
+		if r> 1 + exit then then
+	next 0 ;
+
+: pack$ ( b u a -- a ) \ null fill
+	aligned  dup >r over
+	dup 0 2 um/mod drop
+	- over +  0 swap !  2dup c!  1 + swap cmove  r> ;
+
 : words
 	latest
 	begin
