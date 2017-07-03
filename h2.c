@@ -2893,13 +2893,13 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		assemble(h, a, n->o[0], t, e);
 		hole1 = hole(h);
 		generate(h, CODE_RAT);
+		generate(h, CODE_FROMR);
+		generate(h, CODE_T_N1);
+		generate(h, CODE_TOR);
 		hole2 = hole(h);
 		assemble(h, a, n->o[1], t, e);
 		fix(h, hole1, OP_BRANCH | (here(h)));
 		assemble(h, a, n->o[2], t, e);
-		generate(h, CODE_FROMR);
-		generate(h, CODE_T_N1);
-		generate(h, CODE_TOR);
 		generate(h, OP_BRANCH | (hole1 + 1));
 		fix(h, hole2, OP_0BRANCH | (here(h)));
 		generate(h, CODE_FROMR);

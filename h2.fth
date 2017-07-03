@@ -390,9 +390,6 @@ start:
 
 	words
 
-	\ @bug This should print 8...0
-	9 for r@ . cr next
-
 nextChar:
 
 	begin
@@ -410,11 +407,6 @@ branch nextChar
 
 ( ======================== User Code ======================== )
 
-\ 0 for dup dup aft key key then over over next
-
-
 .set pwd $pwd
 .set cp  $pc
-
-
 
