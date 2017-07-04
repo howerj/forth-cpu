@@ -21,18 +21,7 @@ package cpu_pkg is
 		dout:      std_logic_vector(15 downto 0);
 		daddr:     std_logic_vector(12 downto 0);
 	end record;
-
--- 	constant number_of_interrupts: positive := 8;
---
--- 	type cpu_interrupt_interface is record
--- 		irq:         std_logic;
--- 		irc:         std_logic_vector(number_of_interrupts - 1 downto 0);
--- 		irc_mask:    std_logic_vector(number_of_interrupts - 1 downto 0);
--- 		irc_mask_we: std_logic;
--- 	end record;
-
 end package;
-
 
 ----- CPU ----------------------------------------------------------------------
 

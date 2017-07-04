@@ -11,7 +11,9 @@
  *
  * @todo Turn this into a library, and into a literate program, and possibly
  * make a nice and shiny OpenGL version which simulates the VGA output, LEDs
- * and Switches.
+ * and Switches. The OpenGL version could be implemented in parts, making
+ * the GUI first, then integrating it with the H2 simulator once it is
+ * turned into a library.
  * @todo make a peephole optimizer for the assembler and a super optimizer
  * utility.
  * @todo Turn the diagrams in this file into help strings which can
@@ -201,6 +203,8 @@ typedef enum {
 #define MK_RSTACK(DELTA) ((DELTA) << RSTACK_START)
 #define MK_CODE(CODE)    ((CODE)  << ALU_OP_START)
 
+/**@todo Make a table of instructions, instruction strings and lexer symbols 
+ * @todo Implement more instructions: rdrop, up1, down1, ... */
 typedef enum {
 	CODE_DUP    = (OP_ALU_OP | MK_CODE(ALU_OP_T)        | T_TO_N  | MK_DSTACK(DELTA_1)),
 	CODE_OVER   = (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N  | MK_DSTACK(DELTA_1)),
@@ -234,7 +238,7 @@ typedef enum {
 	CODE_RDEPTH = (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)                 | MK_DSTACK(DELTA_1)),
 	CODE_TE0    = (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0))
 
-} forth_alu_words_e;
+} forth_word_codes_e;
 
 typedef struct {
 	size_t length;
@@ -256,13 +260,13 @@ typedef struct {
 
 /** @warning LOG_FATAL level kills the program */
 #define X_MACRO_LOGGING\
- X(LOG_MESSAGE_OFF,  "")\
- X(LOG_FATAL,        "fatal")\
- X(LOG_ERROR,        "error")\
- X(LOG_WARNING,      "warning")\
- X(LOG_NOTE,         "note")\
- X(LOG_DEBUG,        "debug")\
- X(LOG_ALL_MESSAGES, "any")
+	X(LOG_MESSAGE_OFF,  "")\
+	X(LOG_FATAL,        "fatal")\
+	X(LOG_ERROR,        "error")\
+	X(LOG_WARNING,      "warning")\
+	X(LOG_NOTE,         "note")\
+	X(LOG_DEBUG,        "debug")\
+	X(LOG_ALL_MESSAGES, "any")
 
 typedef enum {
 #define X(ENUM, NAME) ENUM,
@@ -510,14 +514,20 @@ static int putch(int c)
 #endif
 #endif /** __unix__ **/
 
-static int wrap_getch(void)
+static int wrap_getch(bool *debug_on)
 {
 	int ch = getch();
+	assert(debug_on);
 	/**@todo Exit to debugger if escape is hit */
-	if(ch == CHAR_ESCAPE) {
-		note("escape character (%d) read in - exiting", CHAR_ESCAPE);
+	if(ch == EOF) {
+		note("End Of Input - exiting", CHAR_ESCAPE);
 		exit(EXIT_SUCCESS);
 	}
+	/**@bug Escape is sent to the I/O process if all we intend to do it
+	 * exit back to the debugger, perhaps C signals should be used
+	 * instead */
+	if(ch == CHAR_ESCAPE && debug_on)
+		*debug_on = true;
 
 	return ch == CHAR_DELETE ? CHAR_BACKSPACE : ch;
 }
@@ -889,8 +899,8 @@ typedef struct {
 	bool wait;
 } h2_soc_state_t;
 
-typedef uint16_t (*h2_io_get)(h2_soc_state_t *soc, uint16_t addr);
-typedef void     (*h2_io_set)(h2_soc_state_t *soc, uint16_t addr, uint16_t value);
+typedef uint16_t (*h2_io_get)(h2_soc_state_t *soc, uint16_t addr, bool *debug_on);
+typedef void     (*h2_io_set)(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on);
 typedef void     (*h2_io_update)(h2_soc_state_t *soc);
 
 typedef struct {
@@ -1005,7 +1015,7 @@ static void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 	}
 }
 
-static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
+static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debug_on)
 {
 	assert(soc);
 	if(log_level >= LOG_DEBUG)
@@ -1018,14 +1028,14 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr)
 	case iTimerDin:     return soc->timer;
 	/** @bug reading from VGA memory is broken for the moment */
 	case iVgaTxtDout:   return 0; 
-	case iPs2:          return PS2_NEW_CHAR | wrap_getch();
+	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 	}
 	return 0;
 }
 
-static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value)
+static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on)
 {
 	assert(soc);
 	if(log_level >= LOG_DEBUG)
@@ -1041,7 +1051,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 			if(value & UART_TX_WE)
 				putch(0xFF & value);
 			if(value & UART_RX_RE)
-				soc->uart_getchar_register = wrap_getch();
+				soc->uart_getchar_register = wrap_getch(debug_on);
 			break;
 	case oLeds:       soc->leds           = value; break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
@@ -1240,20 +1250,34 @@ static const debug_command_t debug_commands[] = {
 	{ .cmd = -1,  .argc = 0, .arg1 = DBG_CMD_EITHER, .arg2 = DBG_CMD_NO_ARG, .description = NULL },
 };
 
+/**@todo install signal handler for CTRL+C that exits to the debugger */
 static void debug_command_print_help(FILE *out, const debug_command_t *dc)
 {
+	assert(out);
+	assert(dc);
+
+	static const char *debug_help = "\
+Debugger Help: \n\n\
+Hit 'Escape' when the simulation is and is reading from input to exit \n\
+into the back debugger.\n\n\
+Command list:\n\n";
+
+
 	static const char *arg_type[] = { 
 		[DBG_CMD_NO_ARG] = "             ",
 		[DBG_CMD_NUMBER] = "number       ",
 		[DBG_CMD_STRING] = "string       ",
 		[DBG_CMD_EITHER] = "number/string"
 	};
+	fputs(debug_help, out);
 	for(unsigned i = 0; dc[i].cmd != -1; i++)
 		fprintf(out, " %c %s\t%d\t%s %s\n", dc[i].cmd, dc[i].description, dc[i].argc, arg_type[dc[i].arg1], arg_type[dc[i].arg2]);
 }
 
 static int debug_command_check(FILE *out, const debug_command_t *dc, int cmd, int argc, bool is_numeric1, bool is_numeric2)
 {
+	assert(out);
+	assert(dc);
 	for(unsigned i = 0; dc[i].cmd != -1 ; i++) {
 		if(dc[i].cmd == cmd) {
 			if(dc[i].argc != argc) {
@@ -1286,6 +1310,10 @@ static int debug_command_check(FILE *out, const debug_command_t *dc, int cmd, in
 
 static int debug_resolve_symbol(FILE *out, char *symbol, symbol_table_t *symbols, uint16_t *value)
 {
+	assert(out);
+	assert(symbol);
+	assert(symbols);
+	assert(value);
 	symbol_t *sym;
 	*value = 0;
 	if(!(sym = symbol_table_lookup(symbols, symbol))) {
@@ -1300,8 +1328,6 @@ static int debug_resolve_symbol(FILE *out, char *symbol, symbol_table_t *symbols
 	return 0;
 }
 
-/**@todo If a breakpoint is set on a location a load or store could to
- * that location should also trigger a break */
 static int h2_debugger(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *symbols, uint16_t point)
 {
 	bool breaks = false;
@@ -1329,7 +1355,7 @@ again:
 
 		fputs(debug_prompt, ds->output);
 		if(!fgets(line, sizeof(line), ds->input)) {
-			fputs("End of Input\n", ds->output);
+			fputs("End Of Input - exiting\n", ds->output);
 			return -1;
 		}
 
@@ -1435,7 +1461,7 @@ again:
 				fprintf(ds->output, "I/O unavailable\n");
 				break;
 			}
-			io->out(io->soc, num1, num2);
+			io->out(io->soc, num1, num2, NULL);
 
 			break;
 
@@ -1444,7 +1470,7 @@ again:
 				fprintf(ds->output, "I/O unavailable\n");
 				break;
 			}
-			fprintf(ds->output, "read: %"PRIx16"\n", io->in(io->soc, num1));
+			fprintf(ds->output, "read: %"PRIx16"\n", io->in(io->soc, num1, NULL));
 			break;
 		
 		case 'k':
@@ -1487,9 +1513,10 @@ again:
 	return 0;
 }
 
-/**@todo rewrite so variables used within here mirror the VHDL */
+/**@todo make a incredibly simple version of the simulator only in a single C file */
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
 {
+	bool turn_debug_on = false;
 	assert(h);
 	debug_state_t ds = { .input = stdin, .output = stderr, .step = run_debugger, .trace_on = run_debugger };
 
@@ -1570,10 +1597,16 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 						return 0; */
 
 				if(h->tos & 0x6000) {
-					if(io)
-						tos = io->in(io->soc, h->tos);
-					else
+					if(io) {
+						tos = io->in(io->soc, h->tos, &turn_debug_on);
+						if(turn_debug_on) {
+							ds.step = true;
+							run_debugger = true;
+							turn_debug_on = false;
+						}
+					} else {
 						warning("I/O read attempted on addr: %"PRIx16, h->tos);
+					}
 				} else {
 					/**@note The lowest bit is not used in the address for memory reads */
 					tos = h->core[(h->tos >> 1) % MAX_CORE];
@@ -1615,10 +1648,16 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 						return 0; */
 
 				if(h->tos & 0x6000) {
-					if(io)
-						io->out(io->soc, h->tos, nos);
-					else
+					if(io) {
+						io->out(io->soc, h->tos, nos, &turn_debug_on);
+						if(turn_debug_on) {
+							ds.step = true;
+							run_debugger = true;
+							turn_debug_on = false;
+						}
+					} else {
 						warning("I/O write attempted with addr/value: %"PRIx16 "/%"PRIx16, tos, nos);
+					}
 				} else {
 					/**@note The lowest bit is not used in the address for memory writes */
 					h->core[(h->tos >> 1) % MAX_CORE] = nos;
@@ -2092,7 +2131,7 @@ again:
  * Isr         := "isr" Identifier (Identifier | Literal)
  * Literal     := [ "-" ] Number
  * String      := '"' SChar* '"'
- * Char        := "char" ASCII ","
+ * Char        := "[char]" ASCII ","
  * Number      := Octal | Hex | Decimal
  * Octal       := "0" ... "7"
  * Decimal     := "1" ... "9" ( "0" ... "9" )*
@@ -2144,7 +2183,7 @@ again:
 	X(SYM_FOR_AFT_THEN_NEXT,   "for...aft...then...next")\
 	X(SYM_IF1,                 "if1")\
 	X(SYM_DEFINITION,          "definition")\
-	X(SYM_CHAR,                "char")\
+	X(SYM_CHAR,                "[char]")\
 	X(SYM_ISR,                 "isr")\
 	X(SYM_SET,                 "set")\
 	X(SYM_PC,                  "pc")\
@@ -2391,7 +2430,6 @@ static node_t *char_compile(lexer_t *l)
 	use(l, r);
 	if(strlen(r->token->p.id) > 1)
 		syntax_error(l, "expected single character, got identifier: %s", r->token->p.id);
-	expect(l, LEX_COMPILE);
 	return r;
 }
 
@@ -2597,7 +2635,6 @@ static void fix(h2_t *h, uint16_t hole, uint16_t patch)
 	h->core[hole] = patch;
 }
 
-/**@todo print line number of error */
 #define assembly_error(ERROR, FMT, ...) do{ error(FMT, ##__VA_ARGS__); ethrow(e); }while(0)
 
 static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type, error_t *e)
@@ -2684,7 +2721,7 @@ static uint16_t lexer_to_alu_op(token_e t)
 	return 0;
 }
 
-static uint16_t literal_or_symbol_lookup(error_t *e, token_t *token, symbol_table_t *t)
+static uint16_t literal_or_symbol_lookup(token_t *token, symbol_table_t *t, error_t *e)
 {
 	symbol_t *s = NULL;
 	assert(token);
@@ -2721,11 +2758,44 @@ static uint16_t pack_string(h2_t *h, const char *s, error_t *e)
 	return r;
 }
 
-/**@todo define various special variables that the programmer can use:
- * such as $pwd for the Previous Word Register and $pc for the program
- * counter. "$pwd" will require word header compilation to be used. 
- * @todo Make constructs aware of they are in a Forth definition or
- * not */
+static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t *e)
+{
+	static const char *special[] = {
+		"$pc",
+		"$pwd",
+		NULL
+	};
+
+	enum special_e {
+		SPECIAL_VARIABLE_PC,
+		SPECIAL_VARIABLE_PWD
+	};
+
+	size_t i;
+	assert(h);
+	assert(id);
+	assert(a);
+
+	for(i = 0; special[i]; i++) 
+		if(!strcmp(id, special[i]))
+			break;
+	if(!special[i])
+		assembly_error(e, "'%s' is not a symbol", id);
+
+	switch(i) {
+	case SPECIAL_VARIABLE_PC:  
+		return h->pc << 1;
+	case SPECIAL_VARIABLE_PWD: 
+		return a->pwd;
+	default:
+		fatal("reached the unreachable: %zu", i);
+	}
+
+	return 0;
+}
+
+/**@todo implement built in words that can be assembled with a directive, these
+ * built in words can then be called by the words in here. */
 static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
 {
 	uint16_t hole1, hole2;
@@ -2768,9 +2838,11 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate_jump(h, t, n->token, n->type, e);
 		break;
 	case SYM_CONSTANT:
+		/**@todo optionally compile header */
 		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e);
 		break;
 	case SYM_VARIABLE:
+		/**@todo add dictionary header */
 		if(n->o[0]->token->type == LEX_LITERAL) {
 			hole1 = hole(h);
 			fix(h, hole1, n->o[0]->token->p.number);
@@ -2815,7 +2887,24 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate(h, CODE_DROP);
 		break;
 	case SYM_FOR_AFT_THEN_NEXT:
-		assembly_error(e, "not implemented");
+		/**@todo make a word "(next)" that implements the terminating
+		 * loop control */
+		generate(h, CODE_TOR);
+		assemble(h, a, n->o[0], t, e);
+		hole1 = hole(h);
+		generate(h, CODE_RAT);
+		generate(h, CODE_FROMR);
+		generate(h, CODE_T_N1);
+		generate(h, CODE_TOR);
+		hole2 = hole(h);
+		assemble(h, a, n->o[1], t, e);
+		fix(h, hole1, OP_BRANCH | (here(h)));
+		assemble(h, a, n->o[2], t, e);
+		generate(h, OP_BRANCH | (hole1 + 1));
+		fix(h, hole2, OP_0BRANCH | (here(h)));
+		generate(h, CODE_FROMR);
+		generate(h, CODE_DROP);
+		break;
 	case SYM_BEGIN_WHILE_REPEAT:
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
@@ -2870,7 +2959,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate(h, CODE_EXIT); /**@todo smush this with the previous instruction if possible*/
 		a->in_definition = false;
 		break;
-	case SYM_CHAR: /* char A , */
+	case SYM_CHAR: /* [char] A  */
 		generate(h, OP_LITERAL | n->token->p.id[0]);
 		break;
 	case SYM_ISR:
@@ -2898,22 +2987,36 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	}
 	case SYM_SET:
 	{
-		/**@todo Only allow constants or literal */
 		uint16_t location, value;
-		location = literal_or_symbol_lookup(e, n->token, t);
-		value    = literal_or_symbol_lookup(e, n->value, t);
-		fix(h, location, value);
+		symbol_t *l = NULL;
+		location = literal_or_symbol_lookup(n->token, t, e);
+		
+		/**@note Special variables should probably handled in a better
+		 * way */
+		if(n->value->type == LEX_LITERAL) {
+			value = n->value->p.number;
+		} else {
+			l = symbol_table_lookup(t, n->value->p.id);
+			if(l) { 
+				value = l->value;
+			} else {
+				value = symbol_special(h, a, n->value->p.id, e);
+			}
+		}
+		/**@bug only divide by 2 if literal_or_symbol_lookup was a
+		 * variable */
+		fix(h, location >> 1, value);
 		break;
 	}
 	case SYM_PC:
-		h->pc = literal_or_symbol_lookup(e, n->token, t);
+		h->pc = literal_or_symbol_lookup(n->token, t, e);
 		break;
 	case SYM_MODE:
 		a->mode = n->token->p.number;
 		break;
 	case SYM_ALLOCATE:
 		/**@todo Only allow constants or literal */
-		h->pc += literal_or_symbol_lookup(e, n->token, t);
+		h->pc += literal_or_symbol_lookup(n->token, t, e);
 		break;
 	case SYM_BREAK:
 		break_point_add(&h->bp, h->pc);
@@ -3097,7 +3200,6 @@ int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symb
 	return -1;
 }
 
-/**@todo limit number of input files to one? */
 int main(int argc, char **argv)
 {
 	int i;

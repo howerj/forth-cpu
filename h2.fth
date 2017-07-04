@@ -17,12 +17,14 @@ TODO:
 * Bootloader
 * Minimal Forth interpreter 
 * Add built in words to the dictionary
+* Turn this into a literal file
 * Add assembler directives for setting starting position of
 program counter and the like )
 
 ( ======================== System Constants ================= )
 
 .mode 1 ( Turn word header compilation on )
+
 
 ( Outputs: 0x6000 - 0x7FFF )
 constant oUart         0x6000
@@ -42,7 +44,7 @@ constant iVgaTxtDout   0x6004
 constant iPs2          0x6005
 
 ( Interrupt service Routine: Memory locations )
-constant isrBtnRight       0
+constant isrNone           0
 constant isrRxFifoNotEmpty 1
 constant isrRxFifoFull     2
 constant isrTxFifoNotEmpty 3
@@ -52,52 +54,19 @@ constant isrTimer          6
 constant isrBrnLeft        7
 
 
-: isrNoop >r drop ; ( Return to suspended instruction )
-
-( @todo fix setting isr 0: perhaps by moving
-interrupts to the end of main memory: The problem is caused by the fact
-that the reset is not propagated to the h2 core in the VHDL simulation )
-\ : reset >r drop branch 8 ;
-\ .isr reset isrBtnRight
-.isr isrNoop isrRxFifoNotEmpty
-.isr isrNoop isrRxFifoFull
-.isr isrNoop isrTxFifoNotEmpty
-.isr isrNoop isrTxFifoFull
-.isr isrNoop isrKbdNew
-.isr isrNoop isrTimer
-.isr isrNoop isrBrnLeft
-
 ( ======================== System Constants ================= )
 
-( ======================== User Code ======================== )
+( ======================== System Variables ================= )
 
-( Initial value of VGA
-  BIT     MEANING
-  7   -  Display Next Screen
-  6   -  Enable VGA
-  5   -  Cursor enable
-  4   -  Cursor blinks
-  3   -  Cursor mode
-  2   -  Red
-  1   -  Green
-  0   -  Blue )
-constant vgaInit       122 \ 0x007A
+variable pwd  0  ( Present Word Variable: Set at end of file )
+variable cp   0  ( Dictionary Pointer: Set at end of file )
+variable hld  0  ( Pointer into hold area for numeric output )
+variable base 10 ( Current output radix )
 
-constant vgaX          80
-constant vgaY          40
-constant vgaTextSize   3200
+( ======================== System Variables ================= )
 
-( Initial value of timer
-  BIT     MEANING
-  15   -  Enable Timer
-  14   -  Reset Timer Value immediately
-  13   -  Interrupt Enable
-  12-0 -  Value to compare against )
-constant timerInit     0x8032
+( ======================== Forth Kernel ===================== )
 
-variable cursorX 0  ( x component of cursor )
-variable cursorY 0  ( y component of cursor )
-variable cursorT 0  ( index into VGA text memory )
 
 : ! store drop ;
 : 256* 8 lshift ;
@@ -145,14 +114,25 @@ variable cursorT 0  ( index into VGA text memory )
 	or 0< r> and negate
 	r> swap ;
 
+( @todo Implement "sp!" and "next" )
 
 ( With the built in words defined in the assembler, and the words
 defined so far, all of the primitive words needed by eForth should
-be available. )
+be available. "doList" and "doLit" do not need to be implemented. )
+
+( ======================== Forth Kernel ===================== )
+
+( ======================== Word Set ========================= )
+
 
 : cell- 2- ;
 : cell+ 2+ ;
 : cells 2* ;
+: 2! ( d a -- ) tuck ! cell+ ! ;
+: 2@ ( a -- d ) dup cell+ @ swap @ ;
+: here cp @ ;
+: pad here 80 + ;
+: @execute @ ?dup if execute then ;
 : bl 32 ;
 : within over - >r - r> u< ; ( u lo hi -- t )
 : not -1 xor ;
@@ -165,14 +145,17 @@ be available. )
 : -rot swap >r swap r> ;
 : min  2dup < if drop else nip then ;
 : max  2dup > if drop else nip then ;
+: >char ( c -- c : convert character to '_' if not ASCII or is control char )
+  0x7f and dup 127 bl within if drop [char] _ then ;
 
 : um/mod ( ud u -- ur uq )
 	2dup u<
 	if negate  15
-	for >r dup um+ >r >r dup um+ r> + dup
-		r> r@ swap >r um+ r> or
-		if >r drop 1 + r> else drop then r>
-	next drop swap exit
+		for >r dup um+ >r >r dup um+ r> + dup
+			r> r@ swap >r um+ r> or
+			if >r drop 1 + r> else drop then r>
+		next 
+		drop swap exit
 	then drop 2drop  -1 dup ;
 
 : m/mod ( d n -- r q ) \ floored division
@@ -180,7 +163,7 @@ be available. )
 	if 
 		negate >r dnegate r>
 	then 
-		>r dup 0< if r@ + then r> um/mod r>
+	>r dup 0< if r@ + then r> um/mod r>
 	if swap negate swap then ;
 
 : /mod ( n n -- r q ) over 0< swap m/mod ;
@@ -201,6 +184,146 @@ be available. )
 : */mod ( n n n -- r q ) >r m* r> m/mod ;
 : */ ( n n n -- q ) */mod swap drop ;
 
+: aligned ( b -- a )
+	dup 0 2 um/mod drop dup
+	if 2 swap - then + ;
+
+: at-xy ( x y -- : set terminal cursor to x-y position )
+	256* or oVgaCursor ! ;
+
+: /string ( c-addr u1 u2 -- c-addr u : advance a string u2 characters )
+	over min rot over + -rot - ;
+
+: latest pwd @ ;
+
+: uart-write ( char -- bool : write out a character )
+	0x2000 or oUart ! 1 ; \ @todo Check that the write succeeded by looking at the TX FIFO
+
+: emit ( char -- : write out a char )
+	uart-write drop ;
+
+: cr 10 emit ;
+: space bl emit ;
+
+: type ( c-addr u -- : print a string )
+ 	dup 0= if 2drop exit then
+ 	begin 
+ 		swap dup c@ emit 1+ swap 1-
+ 		dup 0=
+ 	until 2drop ;
+
+: digit ( u -- c ) 9 over < 7 and + 48 + ;
+: extract ( n base -- n c ) 0 swap um/mod swap digit ;
+
+: <# ( -- ) pad hld ! ;
+
+: hold ( c -- ) hld @ 1 - dup hld ! c! ;
+
+: # ( u -- u ) base @ extract hold ;
+
+: #s ( u -- 0 ) begin # dup while repeat ;
+
+: sign ( n -- ) 0< if 45 hold then ;
+
+: #> ( w -- b u ) drop hld @ pad over - ;
+
+: hex ( -- ) 16 base ! ;
+: decimal ( -- ) 10 base ! ;
+
+: str   ( n -- b u : convert a signed integer to a numeric string )
+	dup >r                ( save a copy for sign )
+	abs                   ( use absolute of n )
+	<# #s                 ( convert all digits )        
+	r> sign               ( add sign from n )
+	#> ;                  ( return number string addr and length )
+
+: nchars ( +n c -- ) \ "chars" in eForth, this is an ANS FORTH conflict
+  swap 0 max for aft dup emit then next drop ;
+
+: spaces ( +n -- ) bl nchars ;
+
+: .r    ( n +n -- :display an integer in a field of n columns, right justified )
+	>r str                ( convert n to a number string )
+	r> over - spaces      ( print leading spaces )
+	type ;                ( print number in +n column format )
+
+: u.r   ( u +n -- : display an unsigned integer in n column, right justified )
+	>r                    ( save column number )
+	<# #s #> r>           ( convert unsigned number )
+	over - spaces         ( print leading spaces )
+	type ;                ( print number in +n columns )
+
+: u.    ( u -- : display an unsigned integer in free format )
+	<# #s #>              ( convert unsigned number )
+	space                 ( print one leading space )
+	type ;                ( print number )
+
+: .     ( w -- : display an integer in free format, preceeded by a space )
+	base @ 10 xor         ( if not in decimal mode)
+	if u. exit then       ( print unsigned number)
+	str space type ;      ( print signed number if decimal)
+
+: ?     ( a -- : display the contents in a memory cell )
+	@ . ;    ( very simple but useful command)
+
+( @todo Test cmove and the following words )
+
+: cmove ( b b u -- )
+	for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ;
+
+: fill ( b u c -- )
+	swap for swap aft 2dup c! 1+ then next 2drop ;
+
+: -trailing ( b u -- b u )
+	for aft bl over r@ + c@ <
+		if r> 1+ exit then then
+	next 0 ;
+
+: pack$ ( b u a -- a ) \ null fill
+	aligned  dup >r over
+	dup 0 2 um/mod drop
+	- over +  0 swap !  2dup c!  1 + swap cmove  r> ;
+
+: words
+	latest
+	begin
+		dup
+	while
+		dup cell+ count type space @
+	repeat drop cr ;
+
+
+( ======================== Word Set ========================= )
+
+( ======================== Miscellaneous ==================== )
+
+( Initial value of VGA
+  BIT     MEANING
+  7   -  Display Next Screen
+  6   -  Enable VGA
+  5   -  Cursor enable
+  4   -  Cursor blinks
+  3   -  Cursor mode
+  2   -  Red
+  1   -  Green
+  0   -  Blue )
+constant vgaInit       0x7A \ 0x007A
+
+constant vgaX          80
+constant vgaY          40
+constant vgaTextSize   3200
+
+( Initial value of timer
+  BIT     MEANING
+  15   -  Enable Timer
+  14   -  Reset Timer Value immediately
+  13   -  Interrupt Enable
+  12-0 -  Value to compare against )
+constant timerInit     0x8032
+
+variable cursorX 0  ( x component of cursor )
+variable cursorY 0  ( y component of cursor )
+variable cursorT 0  ( index into VGA text memory )
 
 ( If the VGA display was 64 characters by 16 lines of text 
 this cursor logic would be a lot simpler )
@@ -210,9 +333,6 @@ this cursor logic would be a lot simpler )
 
 : led ( n -- : display a number on the LED 8 display )
 	o8SegLED ! ;
-
-: uart-write ( char -- bool : write out a character )
-	0x2000 or oUart ! 1 ; \ @todo Check that the write succeeded by looking at the TX FIFO
 
 : key?
 	iUart @ 0x0100 and ;
@@ -224,39 +344,44 @@ variable uart-read-count 0
 	uart-read-count 1+!
 	uart-read-count @ led ;
 
-: emit ( char -- : write out a char )
-	uart-write drop ;
-
 : key ( -- char : read in a key, echoing to output )
 	uart-read dup emit ;
 
 : char
 	uart-read ;
 
-: cr 10 emit ;
-: space bl emit ;
+( ======================== Miscellaneous ==================== )
 
-constant bootstart 1024
-constant programsz 5120 ( bootstart + 4096 )
-variable readin    0
+( ======================== Starting Code ==================== )
 
-: boot
-	bootstart readin !
-	begin
-		key 8 lshift ( big endian )
-		key
-		or readin !
-		readin 1+!
-		readin @ programsz u>=
-	until
-	r> drop
-	branch bootstart ;
+\ This boot sequence code is untested, it should also add a checksum
+\ function such as a 16-bit Fletcher checksum (see
+\ https://en.wikipedia.org/wiki/Fletcher's_checksum ) for more
+\ information.
+\ 
+\ constant bootstart 4096
+\ constant programsz 8191 ( bootstart + 4095 )
+\ variable readin    0
+\ variable bootmsg1  "BOOT: Send 4095 chars"
+\ variable bootmsg2  "DONE"
+\ 
+\ : boot
+\ 	bootstart 2* readin !
+\	bootmsg1 count type cr  
+\ 	begin
+\ 		key 256* ( big endian )
+\ 		key
+\ 		or readin 2* !
+\ 		readin 1+!
+\ 		readin @ programsz u>=
+\ 	until
+\ 	r> drop
+\	bootmsg2 count type cr
+\ 	branch bootstart ;
 
-\ @todo This should also set the address of oVgaTxtAddr to
-\ "x * y", however this would require multiplication to
-\ to be implemented.
-: at-xy ( x y -- : set terminal cursor to x-y position )
-	256* or oVgaCursor ! ;
+\ : 40* dup 5 lshift swap 3 lshift + ;
+\ : 80* dup 6 lshift swap 4 lshift + ;
+
 
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
@@ -265,6 +390,8 @@ variable readin    0
 	\ 0x00FF oIrcMask !
 	\ 1   seti ;
 
+
+
 ( The start up code begins here, on initialization the assembler
 jumps to a special symbol "start".
 
@@ -272,36 +399,13 @@ jumps to a special symbol "start".
 adequate assembler directives )
 
 variable welcome "H2 Forth:"
-
-: /string ( c-addr u1 u2 -- c-addr u : advance a string u2 characters )
-	over min rot over + -rot - ;
-
-: type
- 	dup 0= if 2drop exit then
- 	begin 
- 		swap dup c@ emit 1+ swap 1-
- 		dup 0=
- 	until 2drop ;
-
-( @todo Add a special variable to the assembler, this should contain
-the previous word pointer, which will be set into a variable at
-the end of the assembly file )
-: latest 0x6d 2* ;
-
-: words
-	latest
-	begin
-		dup
-	while
-		dup cell+ count type space @
-	repeat drop cr ;
-
 start:
 	 init
 
 	\ boot
 
 	welcome count type cr  
+
 	words
 
 nextChar:
@@ -321,4 +425,6 @@ branch nextChar
 
 ( ======================== User Code ======================== )
 
+.set pwd $pwd
+.set cp  $pc
 
