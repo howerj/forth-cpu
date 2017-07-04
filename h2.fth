@@ -62,6 +62,21 @@ variable pwd  0  ( Present Word Variable: Set at end of file )
 variable cp   0  ( Dictionary Pointer: Set at end of file )
 variable hld  0  ( Pointer into hold area for numeric output )
 variable base 10 ( Current output radix )
+variable span 0  ( Hold character count received by expect   )
+variable #tib 0  ( Current count of terminal input buffer    )
+variable #tiba 0 ( ... and address )
+variable >in   0 ( Hold character pointer when parsing input )
+
+variable '?key   0 ( execution vector of ?key.  default to ?rx.)
+variable 'emit   0 ( execution vector of emit.  default to tx!)
+variable 'expect 0 ( execution vector of expect.  default to 'accept'.)
+variable 'tap    0 ( execution vector of tap.  defulat the ktap.)
+variable 'echo   0 ( execution vector of echo.  default to tx!.)
+variable 'prompt 0 ( execution vector of prompt.  default to '.ok'.)
+
+.set #tiba $pc
+.allocate 80
+
 
 ( ======================== System Variables ================= )
 
@@ -102,7 +117,12 @@ variable base 10 ( Current output radix )
 
 : !io ; ( Initialize I/O devices )
 : ?rx ( -- c 1 | 0 : read in a character of input from UART )
-	iUart @ 0x0100 and if 0xff and 1 else drop 0 then ;
+	iUart @ 0x0100 and 0= 
+	if
+		0x0400 oUart ! iUart @ 0xff and 1
+	else
+		0
+	then ;
 : tx! ( c -- : write a character to UART )
 	0x2000 or oUart ! ; ( @todo loop until TX FIFO is not full )
 
@@ -200,7 +220,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	0x2000 or oUart ! 1 ; \ @todo Check that the write succeeded by looking at the TX FIFO
 
 : emit ( char -- : write out a char )
-	uart-write drop ;
+	'emit @execute ;
 
 : cr 10 emit ;
 : space bl emit ;
@@ -284,6 +304,40 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	dup 0 2 um/mod drop
 	- over +  0 swap !  2dup c!  1 + swap cmove  r> ;
 
+: tib ( -- a : terminal input buffer )
+	#tib cell+ @ ;
+
+: ^h ( b b b -- b b b ) \ backspace
+  >r over r> swap over xor
+  if  8 'echo @execute
+     32 'echo @execute \ distructive
+      8 'echo @execute \ backspace
+  then ;
+
+: tap ( bot eot cur c -- bot eot cur )
+  dup 'echo @execute over c! 1 + ;
+
+: ktap ( bot eot cur c -- bot eot cur )
+  dup 13 xor
+  if 8 xor if bl tap else ^h then exit
+  then drop swap drop dup ;
+
+
+: key? '?key @execute ;
+: key begin key? until ;
+
+: accept ( b u -- b u )
+   over + over
+   begin 2dup xor
+   while  key  dup bl -  95 u<
+     if tap else 'tap @execute then
+   repeat drop  over - ;
+ 
+: expect ( b u -- ) 'expect @execute span ! drop ;
+
+: query ( -- )
+  tib 80 'expect @execute #tib !  drop 0 >in ! ;
+
 : words
 	latest
 	begin
@@ -334,18 +388,11 @@ this cursor logic would be a lot simpler )
 : led ( n -- : display a number on the LED 8 display )
 	o8SegLED ! ;
 
-: key?
-	iUart @ 0x0100 and ;
+\ : key?
+\	iUart @ 0x0100 and ;
 
 variable uart-read-count 0
 
-: uart-read  ( -- char : blocks until character read in )
-	begin key? 0= until 0x0400 oUart ! iUart @ 0xff and
-	uart-read-count 1+!
-	uart-read-count @ led ;
-
-: key ( -- char : read in a key, echoing to output )
-	uart-read dup emit ;
 
 : char
 	uart-read ;
@@ -390,8 +437,6 @@ variable uart-read-count 0
 	\ 0x00FF oIrcMask !
 	\ 1   seti ;
 
-
-
 ( The start up code begins here, on initialization the assembler
 jumps to a special symbol "start".
 
@@ -412,14 +457,16 @@ nextChar:
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches
-		key? 0=                \ Wait for UART character
+		key?                 \ Wait for UART character
 	until
-	key cursorT @ 0xE000 or !
-
-	x1+
+	dup emit cursorT @ 0xE000 or !
+	
 	cursorT1+
 
 	cursorX @ cursorY @ at-xy
+
+	uart-read-count 1+!
+	uart-read-count @ led
 
 branch nextChar
 
@@ -427,4 +474,11 @@ branch nextChar
 
 .set pwd $pwd
 .set cp  $pc
+
+.set '?key   ?rx    ( execution vector of ?key.  default to ?rx.)
+.set 'emit   tx!    ( execution vector of emit.  default to tx!)
+.set 'expect accept ( execution vector of expect.  default to 'accept'.)
+.set 'tap    ktap   ( execution vector of tap.  defulat the ktap.)
+.set 'echo   tx!    ( execution vector of echo.  default to tx!.)
+\ .set 'prompt 0    ( execution vector of prompt.  default to '.ok'.)
 
