@@ -394,9 +394,6 @@ this cursor logic would be a lot simpler )
 variable uart-read-count 0
 
 
-: char
-	uart-read ;
-
 ( ======================== Miscellaneous ==================== )
 
 ( ======================== Starting Code ==================== )
