@@ -695,16 +695,17 @@ typedef struct {
 	double y;
 } coordinate_t;
 
-double abs_diff(double a, double b)
+static double abs_diff(double a, double b)
 {
 	return fabsl(fabsl(a) - fabsl(b));
 }
 
-coordinate_t win2coord(int x, int y)
+static coordinate_t win2coord(int x, int y)
 {
 	coordinate_t c = { .0, .0 };
 	double xd = abs_diff(X_MAX, X_MIN);
 	double yd = abs_diff(Y_MAX, Y_MIN);
+	/**@bug does not work when resized! */
 	c.x = ((((double) x) / window_width)  * xd); //- xd/2.;
 	c.y = Y_MAX - ((((double) y) / window_height) * yd); //- yd/2.;
 	return c;
