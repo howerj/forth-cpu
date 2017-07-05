@@ -73,7 +73,6 @@ variable 'expect 0 ( execution vector of expect.  default to 'accept'.)
 variable 'tap    0 ( execution vector of tap.  defulat the ktap.)
 variable 'echo   0 ( execution vector of echo.  default to tx!.)
 variable 'prompt 0 ( execution vector of prompt.  default to '.ok'.)
-
 .set #tiba $pc
 .allocate 80
 

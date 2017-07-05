@@ -37,7 +37,7 @@ architecture structural of gen is
 begin
 	count: work.util.counter
 		generic map(
-			length => addr_length)
+			N => addr_length)
 		port map(
 			clk  => clk,
 			rst  => rst,

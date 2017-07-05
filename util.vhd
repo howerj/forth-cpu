@@ -11,6 +11,8 @@
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
 --| vice versa), pulse generator, small RAM model, population count
 --| priority encoder, types, and other generic functions and components.
+--| @todo The test benches should assert their own stop signals internally
+--| when they have finished on their clock sources.
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -18,13 +20,18 @@ use ieee.numeric_std.all;
 use std.textio.all;
 
 package util is
+	component function_tb is
+		generic(clock_frequency: positive);
+		port(stop: in std_logic);
+	end component;
+
 	component clock_source_tb is
 		generic(clock_frequency: positive; hold_rst: positive := 1);
 		port(
-			stop:            in  std_logic := '0';
+			stop:            in     std_logic := '0';
 			clk:             buffer std_logic;
-			clk_with_jitter: out std_logic := '0';
-			rst:             out std_logic := '0');
+			clk_with_jitter: out    std_logic := '0';
+			rst:             out    std_logic := '0');
 	end component;
 
 	component reg
@@ -40,11 +47,16 @@ package util is
 	component shift_register
 		generic(N: positive);
 		port(
-			clk: in  std_logic;
-			rst: in  std_logic;
-			we:  in  std_logic;
-			di:  in  std_logic;
-			do:  out std_logic);
+			clk:     in  std_logic;
+			rst:     in  std_logic;
+			we:      in  std_logic;
+			di:      in  std_logic;
+			do:      out std_logic;
+	
+			-- optional
+			load_we: in  std_logic := '0';
+			load_i:  in  std_logic_vector(N - 1 downto 0) := (others => '0');
+			load_o:  out std_logic_vector(N - 1 downto 0));
 	end component;
 
 	component shift_register_tb
@@ -104,14 +116,9 @@ package util is
 		port(stop: in std_logic);
 	end component;
 
-	component function_tb is
-		generic(clock_frequency: positive);
-		port(stop: in std_logic);
-	end component;
-
 	component fifo is
-		generic (data_width: positive := 8;
-			fifo_depth: positive  := 16);
+		generic (data_width: positive;
+			fifo_depth: positive);
 		port (
 			clk:   in  std_logic;
 			rst:   in  std_logic;
@@ -119,6 +126,8 @@ package util is
 			we:    in  std_logic;
 			re:    in  std_logic;
 			do:    out std_logic_vector(data_width - 1 downto 0);
+
+			-- optional
 			full:  out std_logic := '0';
 			empty: out std_logic := '1');
 	end component;
@@ -130,13 +139,17 @@ package util is
 
 	component counter is
 		generic(
-			length: positive);
+			N: positive);
 		port(
-			clk: in std_logic;
-			rst: in std_logic;
-			ce:  in std_logic;
-			cr:  in std_logic;
-			dout: out std_logic_vector(length - 1 downto 0));
+			clk:     in  std_logic;
+			rst:     in  std_logic;
+			ce:      in  std_logic;
+			cr:      in  std_logic;
+			dout:    out std_logic_vector(N - 1 downto 0);
+
+			-- optional
+			load_we: in  std_logic := '0';
+			load_i:  in  std_logic_vector(N - 1 downto 0) := (others => '0'));
 	end component;
 
 	component counter_tb is
@@ -160,7 +173,6 @@ package util is
 		generic(clock_frequency: positive);
 		port(stop: in std_logic);
 	end component;
-
 
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
@@ -414,37 +426,37 @@ begin
 
 	stimulus_process: process
 	begin
-		assert max(5, 4) = 5 severity failure;
-		assert work.util.min(5, 4) = 4 severity failure;
-		assert n_bits(1) = 1 severity failure;
-		assert n_bits(2) = 1 severity failure;
-		assert n_bits(7) = 3 severity failure;
-		assert n_bits(8) = 3 severity failure;
-		assert n_bits(9) = 4 severity failure;
-		assert reverse("1") = "1" severity failure;
-		assert reverse("0") = "0" severity failure;
-		assert reverse("10") = "01" severity failure;
-		assert reverse("11") = "11" severity failure;
-		assert reverse("0101") = "1010" severity failure;
-		assert invert("1") = "0" severity failure;
-		assert invert("0") = "1" severity failure;
-		assert invert("0101") = "1010" severity failure;
-		assert select_bit("01000","01") = '1' severity failure;
-		assert parity("0", true) = '0' severity failure;
-		assert parity("1", true) = '1' severity failure;
-		assert parity("11", true) = '0' severity failure;
-		assert parity("1010001", true) = '1' severity failure;
-		assert parity("0", false) = '1' severity failure;
-		assert parity("1", false) = '0' severity failure;
-		assert parity("11", false) = '1' severity failure;
-		assert parity("1010001", false) = '0' severity failure;
-		assert priority("01001", false) = 1 severity failure;
-		assert mux("1010", "0101", '0') = "1010" severity failure;
-		assert mux("1010", "0101", '1') = "0101" severity failure;
-		assert decode("00") = "0001" severity failure;
-		assert decode("01") = "0010" severity failure;
-		assert decode("10") = "0100" severity failure;
-		assert decode("11") = "1000" severity failure;
+		assert  max(5, 4)                 =  5       severity  failure;
+		assert  work.util.min(5, 4)       =  4       severity  failure;
+		assert  n_bits(1)                 =  1       severity  failure;
+		assert  n_bits(2)                 =  1       severity  failure;
+		assert  n_bits(7)                 =  3       severity  failure;
+		assert  n_bits(8)                 =  3       severity  failure;
+		assert  n_bits(9)                 =  4       severity  failure;
+		assert  reverse("1")              =  "1"     severity  failure;
+		assert  reverse("0")              =  "0"     severity  failure;
+		assert  reverse("10")             =  "01"    severity  failure;
+		assert  reverse("11")             =  "11"    severity  failure;
+		assert  reverse("0101")           =  "1010"  severity  failure;
+		assert  invert("1")               =  "0"     severity  failure;
+		assert  invert("0")               =  "1"     severity  failure;
+		assert  invert("0101")            =  "1010"  severity  failure;
+		assert  select_bit("01000", "01") =  '1'     severity  failure;
+		assert  parity("0", true)         =  '0'     severity  failure;
+		assert  parity("1", true)         =  '1'     severity  failure;
+		assert  parity("11", true)        =  '0'     severity  failure;
+		assert  parity("1010001", true)   =  '1'     severity  failure;
+		assert  parity("0", false)        =  '1'     severity  failure;
+		assert  parity("1", false)        =  '0'     severity  failure;
+		assert  parity("11", false)       =  '1'     severity  failure;
+		assert  parity("1010001", false)  =  '0'     severity  failure;
+		assert  priority("01001", false)  =  1       severity  failure;
+		assert  mux("1010", "0101", '0')  =  "1010"  severity  failure;
+		assert  mux("1010", "0101", '1')  =  "0101"  severity  failure;
+		assert  decode("00")              =  "0001"  severity  failure;
+		assert  decode("01")              =  "0010"  severity  failure;
+		assert  decode("10")              =  "0100"  severity  failure;
+		assert  decode("11")              =  "1000"  severity  failure;
 		-- n_bits(x: std_logic_vector) return natural;
 		-- mux(a, b : std_logic_vector) return std_logic;
 		wait;
@@ -509,18 +521,18 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity reg is
-	generic(N: positive := 8);
+	generic(N: positive);
 	port
 	(
 		clk: in  std_logic;
 		rst: in  std_logic;
 		we:  in  std_logic;
-		di:  in  std_logic_vector(N-1 downto 0);
-		do:  out std_logic_vector(N-1 downto 0));
+		di:  in  std_logic_vector(N - 1 downto 0);
+		do:  out std_logic_vector(N - 1 downto 0));
 end entity;
 
 architecture rtl of reg is
-	signal r_c, r_n : std_logic_vector(N-1 downto 0) := (others => '0');
+	signal r_c, r_n: std_logic_vector(N - 1 downto 0) := (others => '0');
 begin
 	do <= r_c;
 
@@ -549,23 +561,27 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
--- @todo Add optional parallel load and store
 -- https://stackoverflow.com/questions/36342960/optional-ports-in-vhdl
 entity shift_register is
 	generic(N: positive);
 	port
 	(
-		clk: in  std_logic;
-		rst: in  std_logic;
-		we:  in  std_logic;
-		di:  in  std_logic;
-		do:  out std_logic);
+		clk:     in  std_logic;
+		rst:     in  std_logic;
+		we:      in  std_logic;
+		di:      in  std_logic;
+		do:      out std_logic;
+
+		load_we: in  std_logic := '0';
+		load_i:  in  std_logic_vector(N - 1 downto 0) := (others => '0');
+		load_o:  out std_logic_vector(N - 1 downto 0));
 end entity;
 
 architecture rtl of shift_register is
-	signal r_c, r_n : std_logic_vector(N-1 downto 0) := (others => '0');
+	signal r_c, r_n : std_logic_vector(N - 1 downto 0) := (others => '0');
 begin
-	do <= r_c(0);
+	do     <= r_c(0);
+	load_o <= r_c;
 
 	process(rst, clk)
 	begin
@@ -576,11 +592,15 @@ begin
 		end if;
 	end process;
 
-	process(r_c, di, we)
+	process(r_c, di, we, load_i, load_we)
 	begin
-		r_n <= "0" & r_c(N-1 downto 1);
-		if we = '1' then
-			r_n(N-1) <= di;
+		if load_we = '1' then
+			r_n <= load_i;
+		else
+			r_n <= "0" & r_c(N - 1 downto 1);
+			if we = '1' then
+				r_n(N-1) <= di;
+			end if;
 		end if;
 	end process;
 end;
@@ -913,8 +933,8 @@ use ieee.numeric_std.all;
 
 entity fifo is
 	generic(
-		data_width: positive := 8;
-		fifo_depth: positive := 16);
+		data_width: positive;
+		fifo_depth: positive);
 	port(
 		clk:   in  std_logic;
 		rst:   in  std_logic;
@@ -1091,17 +1111,20 @@ use ieee.numeric_std.all;
 
 entity counter is
 	generic(
-		length: positive);
+		N: positive);
 	port(
-		clk:  in std_logic;
-		rst:  in std_logic;
-		ce:   in std_logic;
-		cr:   in std_logic;
-		dout: out std_logic_vector(length - 1 downto 0));
+		clk:     in  std_logic;
+		rst:     in  std_logic;
+		ce:      in  std_logic;
+		cr:      in  std_logic;
+		dout:    out std_logic_vector(N - 1 downto 0);
+
+		load_we: in  std_logic := '0';
+		load_i:  in  std_logic_vector(N - 1 downto 0) := (others => '0'));
 end entity;
 
 architecture rtl of counter is
-	signal c_c, c_n: unsigned(length - 1 downto 0) := (others => '0');
+	signal c_c, c_n: unsigned(N - 1 downto 0) := (others => '0');
 begin
 	dout <= std_logic_vector(c_c);
 
@@ -1114,14 +1137,17 @@ begin
 		end if;
 	end process;
 
-	process(c_c, cr, ce)
+	process(c_c, cr, ce, load_we, load_i)
 	begin
 		c_n <= c_c;
-
-		if cr = '1' then
-			c_n <= (others => '0');
-		elsif ce = '1' then
-			c_n <= c_c + 1;
+		if load_we = '1' then
+			c_n <= unsigned(load_i);
+		else
+			if cr = '1' then
+				c_n <= (others => '0');
+			elsif ce = '1' then
+				c_n <= c_c + 1;
+			end if;
 		end if;
 	end process;
 
@@ -1183,7 +1209,7 @@ begin
 
 	uut: entity work.counter
 		generic map(
-			length => length)
+			N => length)
 		port map(
 			clk   => clk,
 			rst   => rst,
