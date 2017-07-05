@@ -4,6 +4,7 @@
  * @license   MIT 
  *
  * @note This is a work in progress 
+ * @todo Draw irregular polygon, or alternatively, just draw rectangle
  */
 
 
@@ -20,23 +21,23 @@
 
 /* ====================================== Utility Functions ==================================== */
 
-#define PI  (3.1415926535897932384626433832795)
-#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
-#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#define PI          (3.1415926535897932384626433832795)
+#define MAX(X, Y)   ((X) > (Y) ? (X) : (Y))
+#define MIN(X, Y)   ((X) < (Y) ? (X) : (Y))
 #define FONT_HEIGHT (15)
 #define FONT_WIDTH  (9)
 #define ESC         (27)
 #define UNUSED(X)   ((void)(X))
+#define X_MAX       (100.0)
+#define X_MIN       (0.0)
+#define Y_MAX       (100.0)
+#define Y_MIN       (0.0)
 
 static double window_height               =  410.0;
 static double window_width                =  410.0;
 static double window_x_starting_position  =  60.0;
 static double window_y_starting_position  =  20.0;
-static double Xmax                        =  400.0;
-static double Xmin                        =  0.0;
-static double Ymax                        =  400.0;
-static double Ymin                        =  0.0;
-static double arena_tick_ms               =  15.0;
+static const double arena_tick_ms         =  15.0;
 static unsigned tick                      =  0;
 
 typedef enum {
@@ -104,7 +105,7 @@ double deg2rad(double deg)
 
 void set_color(color_t color)
 {
-	switch(color) {
+	switch(color) {      /* RED  GRN  BLU */
 	case WHITE:   glColor3f(1.0, 1.0, 1.0);   break;
 	case RED:     glColor3f(0.8, 0.0, 0.0);   break;
 	case YELLOW:  glColor3f(0.8, 0.8, 0.0);   break;
@@ -248,7 +249,7 @@ double shape_to_sides(shape_t shape)
 		[DECAGON]  = 5,
 		[CIRCLE]   = 24
 	};
-	if(shape > INVALID_SHAPE)
+	if(shape >= INVALID_SHAPE)
 		error("invalid shape '%d'", shape);
 	return sides[shape % INVALID_SHAPE];
 }
@@ -268,7 +269,7 @@ void draw_regular_polygon_line(double x, double y, double orientation, double ra
 /* see: https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_01
  *      https://stackoverflow.com/questions/538661/how-do-i-draw-text-with-glut-opengl-in-c
  *      https://stackoverflow.com/questions/20866508/using-glut-to-simply-print-text */
-static int draw_block(const char *msg, size_t len)
+static int draw_block(const uint8_t *msg, size_t len)
 {	
 	assert(msg);
 	for(size_t i = 0; i < len; i++)
@@ -279,7 +280,7 @@ static int draw_block(const char *msg, size_t len)
 static int draw_string(const char *msg)
 {	
 	assert(msg);
-	return draw_block(msg, strlen(msg));
+	return draw_block((uint8_t*)msg, strlen(msg));
 }
 
 int vdraw_text(color_t color, double x, double y, const char *fmt, va_list ap)
@@ -362,7 +363,7 @@ void fill_textbox(textbox_t *t, bool on, const char *fmt, ...)
 	r = vdraw_text(t->color_text, t->x, t->y - t->height, fmt, ap);
 	va_end(ap);
 	t->width = MAX(t->width, r); 
-	t->height += ((Ymax / window_height) * FONT_HEIGHT); /*correct?*/
+	t->height += ((Y_MAX / window_height) * FONT_HEIGHT); /*correct?*/
 }
 
 void draw_textbox(textbox_t *t)
@@ -372,6 +373,16 @@ void draw_textbox(textbox_t *t)
 		return;
 	/**@todo fix this */
 	draw_rectangle_line(t->x, t->y-t->height, t->width, t->height, 0.5, t->color_box);
+}
+
+bool detect_circle_circle_collision(
+		double ax, double ay, double aradius,
+		double bx, double by, double bradius)
+{
+	double dx = ax - bx;
+	double dy = ay - by;
+	double distance = hypot(dx, dy);
+	return (distance < (aradius + bradius));
 }
 
 /* ====================================== Utility Functions ==================================== */
@@ -388,7 +399,8 @@ typedef struct {
 
 void draw_led(led_t *l)
 {
-	UNUSED(l);
+	draw_regular_polygon_filled(l->x, l->y, l->angle + (PI/4.0), l->radius/2, SQUARE, l->on ? GREEN : BLACK);
+	draw_regular_polygon_filled(l->x, l->y, l->angle + (PI/4.0), l->radius,   SQUARE, WHITE);
 }
 
 typedef struct {
@@ -401,8 +413,8 @@ typedef struct {
 
 void draw_switch(switch_t *s)
 {
-	draw_regular_polygon_line(s->x, s->y, 0, s->radius, SQUARE,   0.5, BLUE);
-	draw_regular_polygon_line(s->x, s->y, 0, s->radius/2, SQUARE, 0.5, s->on ? WHITE : BLUE);
+	draw_regular_polygon_filled(s->x, s->y, s->angle + (PI/4.0), s->radius/2, SQUARE, s->on ? GREEN : RED);
+	draw_regular_polygon_filled(s->x, s->y, s->angle + (PI/4.0), s->radius,   SQUARE, BLUE);
 }
 
 typedef struct {
@@ -419,24 +431,72 @@ void draw_led_8_segment(led_8_segment_t *l)
 }
 
 #define VGA_MEMORY_SIZE (8192)
+#define VGA_WIDTH       (80)
+#define VGA_HEIGHT      (40)
+#define VGA_AREA        (VGA_WIDTH * VGA_HEIGHT)
+
+#define VGA_ENABLE_BIT        (6)
+#define VGA_CURSOR_ENABLE_BIT (5)
+#define VGA_CURSOR_BLINK_BIT  (4)
+#define VGA_CURSOR_MODE_BIT   (3)
+#define VGA_RED_BIT           (2)
+#define VGA_GREEN_BIT         (1)
+#define VGA_BLUE_BIT          (0)
+
+#define  VGA_ENABLE         (1  <<  VGA_ENABLE_BIT)
+#define  VGA_CURSOR_ENABLE  (1  <<  VGA_CURSOR_ENABLE_BIT)
+#define  VGA_CURSOR_BLINK   (1  <<  VGA_CURSOR_BLINK_BIT)
+#define  VGA_CURSOR_MODE    (1  <<  VGA_CURSOR_MODE_BIT)
+#define  VGA_RED            (1  <<  VGA_RED_BIT)
+#define  VGA_GREEN          (1  <<  VGA_GREEN_BIT)
+#define  VGA_BLUE           (1  <<  VGA_BLUE_BIT)
 
 typedef struct {
 	double x;
 	double y;
 	double angle;
-	double radius;
 
 	uint8_t cursor_x;
 	uint8_t cursor_y;
 
 	uint16_t control;
 
-	uint16_t m[VGA_MEMORY_SIZE];
+	/**@warning The actual VGA memory is 16-bit, only the lower 8-bits are used */
+	uint8_t m[VGA_MEMORY_SIZE];
 } vga_t;
+
+static void vga_map_color(uint8_t c)
+{
+	switch(c & 0x7) { /* RED  GRN  BLU */
+	case 0:    glColor3f(0.0, 0.0, 0.0); break;
+	case 1:    glColor3f(0.0, 0.0, 1.0); break;
+	case 2:    glColor3f(0.0, 1.0, 0.0); break;
+	case 3:    glColor3f(0.0, 1.0, 1.0); break;
+	case 4:    glColor3f(1.0, 0.0, 0.0); break;
+	case 5:    glColor3f(1.0, 0.0, 1.0); break;
+	case 6:    glColor3f(1.0, 1.0, 0.0); break;
+	case 7:    glColor3f(1.0, 1.0, 1.0); break;
+	}
+}
 
 void draw_vga(vga_t *v)
 {
-	UNUSED(v);
+	if(!(v->control & VGA_ENABLE))
+		return;
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	//set_color(GREEN); 
+	vga_map_color(v->control & 0x7);
+
+	double char_height = (Y_MAX / window_height) * FONT_HEIGHT;
+
+	for(size_t i = 0; i < VGA_HEIGHT; i++) {
+		glRasterPos2d(v->x, v->y - (((double)i) * char_height));
+		draw_block(v->m + (i*VGA_WIDTH), VGA_WIDTH);
+	}
+	glPopMatrix();
+
+	/* draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2), SQUARE, 0.5, WHITE); */
 }
 
 typedef struct {
@@ -454,20 +514,85 @@ typedef struct {
 
 void draw_dpad(dpad_t *d)
 {
+	draw_regular_polygon_filled(d->x + (d->radius*2.0), d->y,                   d->angle,            d->radius, TRIANGLE, d->right  ? GREEN : RED);
+	draw_regular_polygon_filled(d->x - (d->radius*2.0), d->y,                   d->angle + (PI/3.0), d->radius, TRIANGLE, d->left   ? GREEN : RED);
+	draw_regular_polygon_filled(d->x,                   d->y - (d->radius*2.0), d->angle - (PI/2.0), d->radius, TRIANGLE, d->down   ? GREEN : RED);
+	draw_regular_polygon_filled(d->x,                   d->y + (d->radius*2.0), d->angle + (PI/2.0), d->radius, TRIANGLE, d->up     ? GREEN : RED);
+	draw_regular_polygon_filled(d->x,                   d->y,                   d->angle,            d->radius, CIRCLE,   d->center ? GREEN : RED);
 
-	UNUSED(d);
+	draw_regular_polygon_line(d->x, d->y, d->angle, d->radius * 3.1, CIRCLE, 0.5, WHITE);
 }
 
 /* ====================================== Simulator Objects ==================================== */
 
 /* ====================================== Simulator Instances ================================== */
 
+#define SWITCHES_X       (10.0)
+#define SWITCHES_SPACING (0.6)
+#define SWITCHES_Y       (5.0)
+#define SWITCHES_ANGLE   (0.0)
+#define SWITCHES_RADIUS  (2.0)
+#define SWITCHES_COUNT   (8)
+
+static switch_t switches[SWITCHES_COUNT] = {
+	{ .x = SWITCHES_X * SWITCHES_SPACING * 1.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
+	{ .x = SWITCHES_X * SWITCHES_SPACING * 2.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
+	{ .x = SWITCHES_X * SWITCHES_SPACING * 3.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
+	{ .x = SWITCHES_X * SWITCHES_SPACING * 4.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
+
+	{ .x = SWITCHES_X * SWITCHES_SPACING * 5.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
+	{ .x = SWITCHES_X * SWITCHES_SPACING * 6.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
+	{ .x = SWITCHES_X * SWITCHES_SPACING * 7.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
+	{ .x = SWITCHES_X * SWITCHES_SPACING * 8.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
+};
+
+#define LEDS_X       (10.0)
+#define LEDS_SPACING (0.6)
+#define LEDS_Y       (10.0)
+#define LEDS_ANGLE   (0.0)
+#define LEDS_RADIUS  (2.0)
+#define LEDS_COUNT   (8)
+
+static led_t leds[LEDS_COUNT] = {
+	{ .x = LEDS_X * LEDS_SPACING * 1.0, .y = LEDS_Y, .angle = LEDS_ANGLE, .radius = LEDS_RADIUS, .on = false },
+	{ .x = LEDS_X * LEDS_SPACING * 2.0, .y = LEDS_Y, .angle = LEDS_ANGLE, .radius = LEDS_RADIUS, .on = false },
+	{ .x = LEDS_X * LEDS_SPACING * 3.0, .y = LEDS_Y, .angle = LEDS_ANGLE, .radius = LEDS_RADIUS, .on = false },
+	{ .x = LEDS_X * LEDS_SPACING * 4.0, .y = LEDS_Y, .angle = LEDS_ANGLE, .radius = LEDS_RADIUS, .on = false },
+
+	{ .x = LEDS_X * LEDS_SPACING * 5.0, .y = LEDS_Y, .angle = LEDS_ANGLE, .radius = LEDS_RADIUS, .on = false },
+	{ .x = LEDS_X * LEDS_SPACING * 6.0, .y = LEDS_Y, .angle = LEDS_ANGLE, .radius = LEDS_RADIUS, .on = false },
+	{ .x = LEDS_X * LEDS_SPACING * 7.0, .y = LEDS_Y, .angle = LEDS_ANGLE, .radius = LEDS_RADIUS, .on = false },
+	{ .x = LEDS_X * LEDS_SPACING * 8.0, .y = LEDS_Y, .angle = LEDS_ANGLE, .radius = LEDS_RADIUS, .on = false },
+};
+
+static dpad_t dpad = {
+	.x       =  X_MAX - 8.0,
+	.y       =  Y_MIN + 8.0,
+	.angle   =  0.0,
+	.radius  =  2.0,
+	.up      =  false,
+	.down    =  false,
+	.left    =  false,
+	.right   =  false,
+	.center  =  false,
+};
+
+static vga_t vga = {
+	.x     = X_MIN + 2.0,
+	.y     = Y_MAX - 6.0,
+	.angle = 0.0,
+
+	.cursor_x = 0,
+	.cursor_y = 0,
+
+	.control = (VGA_ENABLE | VGA_GREEN),
+
+	.m = { 0 }
+};
+
 /* ====================================== Simulator Instances ================================== */
 
 /* ====================================== Main Loop ============================================ */
-
-
-
 
 static double fps(void)
 {
@@ -485,7 +610,7 @@ static double fps(void)
 
 static void draw_debug_info(void)
 {
-	textbox_t t = { .x = Xmin + Xmax/40, .y = Ymax - Ymax/40, .draw_box = false, .color_text = WHITE };
+	textbox_t t = { .x = X_MIN + X_MAX/40, .y = Y_MAX - Y_MAX/40, .draw_box = false, .color_text = WHITE };
 
 	fill_textbox(&t, true, "tick:       %u", tick);
 	fill_textbox(&t, true, "fps:        %f", fps());
@@ -497,7 +622,6 @@ static void keyboard_handler(unsigned char key, int x, int y)
 {
 	UNUSED(x);
 	UNUSED(y);
-	key = tolower(key);
 	switch(key) {
 	case ESC:
 		exit(EXIT_SUCCESS);
@@ -511,17 +635,47 @@ static void keyboard_special_handler(int key, int x, int y)
 	UNUSED(x);
 	UNUSED(y);
 	switch(key) {
-	case GLUT_KEY_UP:
-		break;
-	case GLUT_KEY_LEFT:
-		break;
-	case GLUT_KEY_RIGHT:
-		break;
-	case GLUT_KEY_DOWN:
-		break;
+	case GLUT_KEY_UP:    dpad.up    = true; break;
+	case GLUT_KEY_LEFT:  dpad.left  = true; break;
+	case GLUT_KEY_RIGHT: dpad.right = true; break;
+	case GLUT_KEY_DOWN:  dpad.down  = true; break;
+	case GLUT_KEY_F1:    switches[0].on = !(switches[0].on); break;
+	case GLUT_KEY_F2:    switches[1].on = !(switches[1].on); break;
+	case GLUT_KEY_F3:    switches[2].on = !(switches[2].on); break;
+	case GLUT_KEY_F4:    switches[3].on = !(switches[3].on); break;
+	case GLUT_KEY_F5:    switches[4].on = !(switches[4].on); break;
+	case GLUT_KEY_F6:    switches[5].on = !(switches[5].on); break;
+	case GLUT_KEY_F7:    switches[6].on = !(switches[6].on); break;
+	case GLUT_KEY_F8:    switches[7].on = !(switches[7].on); break;
 	default:
 		break;
 	}
+}
+
+static void keyboard_special_up_handler(int key, int x, int y)
+{
+	UNUSED(x);
+	UNUSED(y);
+	switch(key) {
+	case GLUT_KEY_UP:    dpad.up    = false; break;
+	case GLUT_KEY_LEFT:  dpad.left  = false; break;
+	case GLUT_KEY_RIGHT: dpad.right = false; break;
+	case GLUT_KEY_DOWN:  dpad.down  = false; break;
+	default:
+		break;
+	}
+}
+
+typedef struct {
+	double x;
+	double y;
+} coordinate_t;
+
+static void mouse_handler(int button, int state, int x, int y)
+{
+	fprintf(stderr, "button: %d state: %d x: %d y: %d\n", button, state, x, y);
+	//coordinate_t c = convert_pixels_to_coordinates(x, y);
+	//fprintf(stderr, "x: %f y: %f\n", c.x, c.y);
 }
 
 static void resize_window(int w, int h)
@@ -536,20 +690,20 @@ static void resize_window(int w, int h)
 
 	w = (w == 0) ? 1 : w;
 	h = (h == 0) ? 1 : h;
-	if ((Xmax - Xmin) / w < (Ymax - Ymin) / h) {
-		scale = ((Ymax - Ymin) / h) / ((Xmax - Xmin) / w);
-		center = (Xmax + Xmin) / 2;
-		window_x_min = center - (center - Xmin) * scale;
-		window_x_max = center + (Xmax - center) * scale;
-		window_y_min = Ymin;
-		window_y_max = Ymax;
+	if ((X_MAX - X_MIN) / w < (Y_MAX - Y_MIN) / h) {
+		scale = ((Y_MAX - Y_MIN) / h) / ((X_MAX - X_MIN) / w);
+		center = (X_MAX + X_MIN) / 2;
+		window_x_min = center - (center - X_MIN) * scale;
+		window_x_max = center + (X_MAX - center) * scale;
+		window_y_min = Y_MIN;
+		window_y_max = Y_MAX;
 	} else {
-		scale = ((Xmax - Xmin) / w) / ((Ymax - Ymin) / h);
-		center = (Ymax + Ymin) / 2;
-		window_y_min = center - (center - Ymin) * scale;
-		window_y_max = center + (Ymax - center) * scale;
-		window_x_min = Xmin;
-		window_x_max = Xmax;
+		scale = ((X_MAX - X_MIN) / w) / ((Y_MAX - Y_MIN) / h);
+		center = (Y_MAX + Y_MIN) / 2;
+		window_y_min = center - (center - Y_MIN) * scale;
+		window_y_max = center + (Y_MAX - center) * scale;
+		window_x_min = X_MIN;
+		window_x_max = X_MAX;
 	}
 
 	glMatrixMode(GL_PROJECTION);
@@ -569,13 +723,23 @@ static void draw_scene(void)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	draw_regular_polygon_line(Xmax/2, Ymax/2, PI/4, sqrt(Ymax*Ymax/2), SQUARE, 0.5, WHITE);
+	draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2), SQUARE, 0.5, WHITE);
 
 	draw_debug_info();
 
 	if(next != tick) {
 		// update_scene(world);
+		next = tick;
 	}
+
+	for(size_t i = 0; i < SWITCHES_COUNT; i++)
+		draw_switch(&switches[i]);
+
+	for(size_t i = 0; i < LEDS_COUNT; i++)
+		draw_led(&leds[i]);
+
+	draw_dpad(&dpad);
+	draw_vga(&vga);
 
 	//fill_textbox(&t, arena_paused, "PAUSED: PRESS 'R' TO CONTINUE");
 	//fill_textbox(&t, arena_paused, "        PRESS 'S' TO SINGLE STEP");
@@ -598,6 +762,8 @@ static void initialize_rendering(char *arg_0)
 	glEnable(GL_DEPTH_TEST);
 	glutKeyboardFunc(keyboard_handler);
 	glutSpecialFunc(keyboard_special_handler);
+	glutSpecialUpFunc(keyboard_special_up_handler);
+	glutMouseFunc(mouse_handler);
 	glutReshapeFunc(resize_window);
 	glutDisplayFunc(draw_scene);
 	glutTimerFunc(arena_tick_ms, timer_callback, 0);
@@ -605,6 +771,8 @@ static void initialize_rendering(char *arg_0)
 
 int main(int argc, char **argv)
 {
+	for(int i = 0; i < VGA_MEMORY_SIZE / VGA_WIDTH; i++)
+		memset(vga.m + (i * VGA_WIDTH), 'a'+(i%26), VGA_MEMORY_SIZE / VGA_WIDTH);
 	initialize_rendering(argv[0]);
 	glutMainLoop();
 	return 0;
