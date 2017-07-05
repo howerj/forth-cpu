@@ -523,6 +523,30 @@ void draw_dpad(dpad_t *d)
 	draw_regular_polygon_line(d->x, d->y, d->angle, d->radius * 3.1, CIRCLE, 0.5, WHITE);
 }
 
+typedef enum {
+	DPAN_COL_NONE,
+	DPAN_COL_RIGHT,
+	DPAN_COL_LEFT,
+	DPAN_COL_DOWN,
+	DPAN_COL_UP,
+	DPAN_COL_CENTER
+} dpad_collision_e;
+
+dpad_collision_e dpad_collision(dpad_t *d, double x, double y, double radius)
+{
+	if(detect_circle_circle_collision(x, y, radius, d->x + (d->radius*2.0), d->y,                   d->radius))
+		return DPAN_COL_RIGHT;
+	if(detect_circle_circle_collision(x, y, radius, d->x - (d->radius*2.0), d->y,                   d->radius))
+		return DPAN_COL_LEFT;
+	if(detect_circle_circle_collision(x, y, radius, d->x,                   d->y + (d->radius*2.0), d->radius))
+		return DPAN_COL_UP;
+	if(detect_circle_circle_collision(x, y, radius, d->x,                   d->y - (d->radius*2.0), d->radius))
+		return DPAN_COL_DOWN;
+	if(detect_circle_circle_collision(x, y, radius, d->x,                   d->y,                   d->radius))
+		return DPAN_COL_CENTER;
+	return DPAN_COL_NONE;
+}
+
 /* ====================================== Simulator Objects ==================================== */
 
 /* ====================================== Simulator Instances ================================== */
@@ -671,11 +695,55 @@ typedef struct {
 	double y;
 } coordinate_t;
 
+double abs_diff(double a, double b)
+{
+	return fabsl(fabsl(a) - fabsl(b));
+}
+
+coordinate_t win2coord(int x, int y)
+{
+	coordinate_t c = { .0, .0 };
+	double xd = abs_diff(X_MAX, X_MIN);
+	double yd = abs_diff(Y_MAX, Y_MIN);
+	c.x = ((((double) x) / window_width)  * xd); //- xd/2.;
+	c.y = Y_MAX - ((((double) y) / window_height) * yd); //- yd/2.;
+	return c;
+}
+
+static bool push_button(int button, int state)
+{
+	return button == GLUT_LEFT_BUTTON && state == GLUT_DOWN;
+}
+
 static void mouse_handler(int button, int state, int x, int y)
 {
+	coordinate_t c = win2coord(x, y);
+	/*
 	fprintf(stderr, "button: %d state: %d x: %d y: %d\n", button, state, x, y);
-	//coordinate_t c = convert_pixels_to_coordinates(x, y);
-	//fprintf(stderr, "x: %f y: %f\n", c.x, c.y);
+	fprintf(stderr, "x: %f y: %f\n", c.x, c.y); */
+
+	for(size_t i = 0; i < SWITCHES_COUNT; i++) {
+		/*fprintf(stderr, "x: %f y: %f\n", switches[i].x, switches[i].y);*/
+		if(detect_circle_circle_collision(c.x, c.y, 0.1, switches[i].x, switches[i].y, switches[i].radius)) {
+			/*fprintf(stderr, "hit\n");*/
+			if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+				switches[i].on = true;
+			if(button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
+				switches[i].on = false;
+			return;
+		}
+	}
+
+	switch(dpad_collision(&dpad, c.x, c.y, 0.1)) {
+	case DPAN_COL_NONE:                                             break;
+	case DPAN_COL_RIGHT:  dpad.right  = push_button(button, state); break;
+	case DPAN_COL_LEFT:   dpad.left   = push_button(button, state); break;
+	case DPAN_COL_DOWN:   dpad.down   = push_button(button, state); break;
+	case DPAN_COL_UP:     dpad.up     = push_button(button, state); break;
+	case DPAN_COL_CENTER: dpad.center = push_button(button, state); break;
+	}
+
+
 }
 
 static void resize_window(int w, int h)
