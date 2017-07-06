@@ -4,7 +4,14 @@
  * @license   MIT 
  *
  * @note This is a work in progress 
- * @todo Draw irregular polygon, or alternatively, just draw rectangle
+ * @todo Add font scaling, see <https://stackoverflow.com/questions/29872095/drawing-large-text-with-glut>
+ * Functions to use:
+ * 	* glutStrokeHeight
+ * 	* glutstrokelength
+ * 	* glutStrokeCharacter
+ * 	* glScalef
+ * And font:
+ * 	GLUT_STROKE_ROMAN
  */
 
 
@@ -33,12 +40,17 @@
 #define Y_MAX       (100.0)
 #define Y_MIN       (0.0)
 
-static double window_height               =  410.0;
-static double window_width                =  410.0;
-static double window_x_starting_position  =  60.0;
-static double window_y_starting_position  =  20.0;
-static const double arena_tick_ms         =  15.0;
-static unsigned tick                      =  0;
+/**@todo Lock these variables */
+static double window_height               = 800.0;
+static double window_width                = 800.0;
+static double window_x_starting_position  = 60.0;
+static double window_y_starting_position  = 20.0;
+static double window_scale_x              = 1.0; 
+static double window_scale_y              = 1.0;
+static unsigned tick                      = 0;
+
+static const double arena_tick_ms         = 15.0;
+
 
 typedef enum {
 	WHITE,
@@ -399,8 +411,10 @@ typedef struct {
 
 void draw_led(led_t *l)
 {
-	draw_regular_polygon_filled(l->x, l->y, l->angle + (PI/4.0), l->radius/2, SQUARE, l->on ? GREEN : BLACK);
-	draw_regular_polygon_filled(l->x, l->y, l->angle + (PI/4.0), l->radius,   SQUARE, WHITE);
+	double msz = l->radius * 0.75;
+	double off = (l->radius - msz) / 2.0;
+	draw_rectangle_filled(l->x+off, l->y+off, msz, msz, l->on ? GREEN : RED);
+	draw_rectangle_filled(l->x, l->y, l->radius, l->radius, BLUE);
 }
 
 typedef struct {
@@ -413,21 +427,75 @@ typedef struct {
 
 void draw_switch(switch_t *s)
 {
-	draw_regular_polygon_filled(s->x, s->y, s->angle + (PI/4.0), s->radius/2, SQUARE, s->on ? GREEN : RED);
-	draw_regular_polygon_filled(s->x, s->y, s->angle + (PI/4.0), s->radius,   SQUARE, BLUE);
+	double msz = s->radius * 0.6;
+	double off = (s->radius - msz) / 2.0;
+	draw_rectangle_filled(s->x+off, s->on ? (s->y + s->radius) - off : s->y+off, msz, msz, s->on ? GREEN : RED);
+	draw_rectangle_filled(s->x+off, s->y + off, msz, msz*2., BLACK);
+	draw_rectangle_filled(s->x, s->y, s->radius, s->radius * 2, BLUE);
 }
+
+typedef enum {
+	LED_SEGMENT_A,
+	LED_SEGMENT_B,
+	LED_SEGMENT_C,
+	LED_SEGMENT_D,
+	LED_SEGMENT_E,
+	LED_SEGMENT_F,
+	LED_SEGMENT_G,
+	LED_SEGMENT_DP,
+} led_segment_e;
 
 typedef struct {
 	double x;
 	double y;
-	double angle;
-	double radius;
-	uint8_t segments;
+	/*double angle;*/
+	double width;
+	double height;
+	uint8_t segment;
 } led_8_segment_t;
+
+static uint8_t convert_to_segments(uint8_t segment) {
+	switch(segment & 0xf) {
+	case 0x0: return 0x3F;
+	case 0x1: return 0x06;
+	case 0x2: return 0x5B;
+	case 0x3: return 0x4F;
+	case 0x4: return 0x66;
+	case 0x5: return 0x6D;
+	case 0x6: return 0x7D;
+	case 0x7: return 0x07;
+	case 0x8: return 0x7F;
+	case 0x9: return 0x6F;
+	case 0xa: return 0x77;
+	case 0xb: return 0x7C;
+	case 0xc: return 0x39;
+	case 0xd: return 0x5E;
+	case 0xe: return 0x79;
+	case 0xf: return 0x71;
+	default:  return 0x00;
+	}
+}
+
+#define SEG_CLR(SG,BIT) (((SG) & (1 << BIT)) ? RED : BLACK)
 
 void draw_led_8_segment(led_8_segment_t *l)
 {
-	UNUSED(l);
+	uint8_t sgs = convert_to_segments(l->segment);
+
+	draw_rectangle_filled(l->x + l->width * 0.20, l->y + l->height * 0.45, l->width * 0.5, l->height * 0.1, SEG_CLR(sgs, LED_SEGMENT_G)); /* Center */
+	draw_rectangle_filled(l->x + l->width * 0.20, l->y + l->height * 0.1,  l->width * 0.5, l->height * 0.1, SEG_CLR(sgs, LED_SEGMENT_D)); /* Bottom */
+	draw_rectangle_filled(l->x + l->width * 0.20, l->y + l->height * 0.8,  l->width * 0.5, l->height * 0.1, SEG_CLR(sgs, LED_SEGMENT_A)); /* Top */
+
+	draw_rectangle_filled(l->x + l->width * 0.05, l->y + l->height * 0.15, l->width * 0.1, l->height * 0.3,  SEG_CLR(sgs, LED_SEGMENT_E)); /* Bottom Left */
+	draw_rectangle_filled(l->x + l->width * 0.75, l->y + l->height * 0.15, l->width * 0.1, l->height * 0.3,  SEG_CLR(sgs, LED_SEGMENT_C)); /* Bottom Right */
+
+	draw_rectangle_filled(l->x + l->width * 0.05, l->y + l->height * 0.50, l->width * 0.1, l->height * 0.3,  SEG_CLR(sgs, LED_SEGMENT_F)); /* Top Left */
+	draw_rectangle_filled(l->x + l->width * 0.75, l->y + l->height * 0.50, l->width * 0.1, l->height * 0.3,  SEG_CLR(sgs, LED_SEGMENT_B)); /* Top Right */
+
+	draw_regular_polygon_filled(l->x + l->width * 0.9, l->y + l->height * 0.07, 0.0, sqrt(l->width*l->height)*.06, CIRCLE, SEG_CLR(sgs, LED_SEGMENT_DP));
+
+	draw_rectangle_filled(l->x, l->y, l->width, l->height, WHITE);
+
 }
 
 #define VGA_MEMORY_SIZE (8192)
@@ -614,6 +682,20 @@ static vga_t vga = {
 	.m = { 0 }
 };
 
+#define SEGMENT_COUNT   (4)
+#define SEGMENT_SPACING (1.1)
+#define SEGMENT_X       (50)
+#define SEGMENT_Y       (3)
+#define SEGMENT_WIDTH   (6)
+#define SEGMENT_HEIGHT  (8)
+
+static led_8_segment_t segments[SEGMENT_COUNT] = {
+	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 1.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 12 },
+	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 2.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 13 },
+	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 3.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 14 },
+	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 4.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 15 },
+};
+
 /* ====================================== Simulator Instances ================================== */
 
 /* ====================================== Main Loop ============================================ */
@@ -700,14 +782,49 @@ static double abs_diff(double a, double b)
 	return fabsl(fabsl(a) - fabsl(b));
 }
 
-static coordinate_t win2coord(int x, int y)
+static void resize_window(int w, int h)
+{
+	double window_x_min, window_x_max, window_y_min, window_y_max;
+	double scale, center;
+	window_width  = w;
+	window_height = h;
+
+	glViewport(0, 0, w, h);
+
+	w = (w == 0) ? 1 : w;
+	h = (h == 0) ? 1 : h;
+	if ((X_MAX - X_MIN) / w < (Y_MAX - Y_MIN) / h) {
+		scale = ((Y_MAX - Y_MIN) / h) / ((X_MAX - X_MIN) / w);
+		center = (X_MAX + X_MIN) / 2;
+		window_x_min = center - (center - X_MIN) * scale;
+		window_x_max = center + (X_MAX - center) * scale;
+		window_scale_x = scale;
+		window_y_min = Y_MIN;
+		window_y_max = Y_MAX;
+	} else {
+		scale = ((X_MAX - X_MIN) / w) / ((Y_MAX - Y_MIN) / h);
+		center = (Y_MAX + Y_MIN) / 2;
+		window_y_min = center - (center - Y_MIN) * scale;
+		window_y_max = center + (Y_MAX - center) * scale;
+		window_scale_y = scale;
+		window_x_min = X_MIN;
+		window_x_max = X_MAX;
+	}
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(window_x_min, window_x_max, window_y_min, window_y_max, -1, 1);
+}
+
+static coordinate_t pixels_to_coordinates(int x, int y)
 {
 	coordinate_t c = { .0, .0 };
 	double xd = abs_diff(X_MAX, X_MIN);
 	double yd = abs_diff(Y_MAX, Y_MIN);
-	/**@bug does not work when resized! */
-	c.x = ((((double) x) / window_width)  * xd); //- xd/2.;
-	c.y = Y_MAX - ((((double) y) / window_height) * yd); //- yd/2.;
+	double xs = window_width  / window_scale_x;
+	double ys = window_height / window_scale_y;
+	c.x = Y_MIN + (xd * ((x - (window_width  - xs)/2.) / xs));
+	c.y = Y_MAX - (yd * ((y - (window_height - ys)/2.) / ys));
 	return c;
 }
 
@@ -718,9 +835,8 @@ static bool push_button(int button, int state)
 
 static void mouse_handler(int button, int state, int x, int y)
 {
-	coordinate_t c = win2coord(x, y);
-	/*
-	fprintf(stderr, "button: %d state: %d x: %d y: %d\n", button, state, x, y);
+	coordinate_t c = pixels_to_coordinates(x, y);
+	/*fprintf(stderr, "button: %d state: %d x: %d y: %d\n", button, state, x, y);
 	fprintf(stderr, "x: %f y: %f\n", c.x, c.y); */
 
 	for(size_t i = 0; i < SWITCHES_COUNT; i++) {
@@ -743,42 +859,9 @@ static void mouse_handler(int button, int state, int x, int y)
 	case DPAN_COL_UP:     dpad.up     = push_button(button, state); break;
 	case DPAN_COL_CENTER: dpad.center = push_button(button, state); break;
 	}
-
-
 }
 
-static void resize_window(int w, int h)
-{
-	double scale, center;
-	double window_x_min, window_x_max, window_y_min, window_y_max;
 
-	window_width  = w;
-	window_height = h;
-
-	glViewport(0, 0, w, h);
-
-	w = (w == 0) ? 1 : w;
-	h = (h == 0) ? 1 : h;
-	if ((X_MAX - X_MIN) / w < (Y_MAX - Y_MIN) / h) {
-		scale = ((Y_MAX - Y_MIN) / h) / ((X_MAX - X_MIN) / w);
-		center = (X_MAX + X_MIN) / 2;
-		window_x_min = center - (center - X_MIN) * scale;
-		window_x_max = center + (X_MAX - center) * scale;
-		window_y_min = Y_MIN;
-		window_y_max = Y_MAX;
-	} else {
-		scale = ((X_MAX - X_MIN) / w) / ((Y_MAX - Y_MIN) / h);
-		center = (Y_MAX + Y_MIN) / 2;
-		window_y_min = center - (center - Y_MIN) * scale;
-		window_y_max = center + (Y_MAX - center) * scale;
-		window_x_min = X_MIN;
-		window_x_max = X_MAX;
-	}
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(window_x_min, window_x_max, window_y_min, window_y_max, -1, 1);
-}
 
 static void timer_callback(int value)
 {
@@ -792,7 +875,7 @@ static void draw_scene(void)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2), SQUARE, 0.5, WHITE);
+	draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2)*0.99, SQUARE, 0.5, WHITE);
 
 	draw_debug_info();
 
@@ -807,12 +890,14 @@ static void draw_scene(void)
 	for(size_t i = 0; i < LEDS_COUNT; i++)
 		draw_led(&leds[i]);
 
+	for(size_t i = 0; i < LEDS_COUNT; i++)
+		draw_led_8_segment(&segments[i]);
+
 	draw_dpad(&dpad);
 	draw_vga(&vga);
 
 	//fill_textbox(&t, arena_paused, "PAUSED: PRESS 'R' TO CONTINUE");
 	//fill_textbox(&t, arena_paused, "        PRESS 'S' TO SINGLE STEP");
-
 	glFlush();
 	glutSwapBuffers();
 	glutPostRedisplay();

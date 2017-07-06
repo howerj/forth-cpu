@@ -13,6 +13,11 @@
 --| priority encoder, types, and other generic functions and components.
 --| @todo The test benches should assert their own stop signals internally
 --| when they have finished on their clock sources.
+--| @todo Add a small CPU as a component, see https://github.com/cpldcpu/MCPU
+--| and https://stackoverflow.com/questions/20955863/vhdl-microprocessor-microcontroller,
+--| and make a reimplementation of it. A very simple assembler could be written
+--| in VHDL - which would be quite a challenge - making it a self contained
+--| utility.
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
