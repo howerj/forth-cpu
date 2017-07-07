@@ -11,8 +11,6 @@
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
 --| vice versa), pulse generator, small RAM model, population count
 --| priority encoder, types, and other generic functions and components.
---| @todo The test benches should assert their own stop signals internally
---| when they have finished on their clock sources.
 --| @todo Add a small CPU as a component, see https://github.com/cpldcpu/MCPU
 --| and https://stackoverflow.com/questions/20955863/vhdl-microprocessor-microcontroller,
 --| and make a reimplementation of it. A very simple assembler could be written
@@ -66,10 +64,6 @@ package util is
 
 	component shift_register_tb
 		generic(clock_frequency: positive);
-		port(
-			clk:  in std_logic;
-			rst:  in std_logic;
-			stop: in std_logic);
 	end component;
 
 	component timer_us
@@ -82,7 +76,6 @@ package util is
 
 	component timer_us_tb
 		generic(clock_frequency: positive);
-		port(stop: in std_logic);
 	end component;
 
 	component edge is
@@ -95,7 +88,6 @@ package util is
 
 	component edge_tb is
 		generic(clock_frequency: positive);
-		port(stop: in std_logic);
 	end component;
 
 	-- @note half_adder test bench is folded in to full_adder_tb
@@ -118,7 +110,6 @@ package util is
 
 	component full_adder_tb is
 		generic(clock_frequency: positive);
-		port(stop: in std_logic);
 	end component;
 
 	component fifo is
@@ -139,7 +130,6 @@ package util is
 
 	component fifo_tb is
 		generic(clock_frequency: positive);
-		port(stop: in std_logic);
 	end component;
 
 	component counter is
@@ -159,7 +149,6 @@ package util is
 
 	component counter_tb is
 		generic(clock_frequency: positive);
-		port(stop: in std_logic);
 	end component;
 
 	component lfsr is
@@ -176,7 +165,6 @@ package util is
 
 	component lfsr_tb is
 		generic(clock_frequency: positive);
-		port(stop: in std_logic);
 	end component;
 
 	function max(a: natural; b: natural) return natural;
@@ -206,7 +194,7 @@ package util is
 	type configuration_items is array(integer range <>) of configuration_item;
 
 	function search_configuration_tb(find_me: configuration_name; ci: configuration_items) return integer;
-	procedure read_configuration_tb(file_name: string; ci: inout configuration_items);
+	procedure read_configuration_tb(file_name:  string; ci: inout configuration_items);
 	procedure write_configuration_tb(file_name: string; ci: configuration_items);
 
 end;
@@ -616,7 +604,6 @@ use ieee.numeric_std.all;
 
 entity shift_register_tb is
 	generic(clock_frequency: positive);
-	port(stop: in std_logic);
 end entity;
 
 architecture behav of shift_register_tb is
@@ -627,6 +614,7 @@ architecture behav of shift_register_tb is
 	signal do: std_logic := '0';
 
 	signal clk, rst: std_logic := '0';
+	signal stop: std_logic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -652,8 +640,7 @@ begin
 		assert do = '1' report "bit disappeared in shift register";
 		wait for clock_period * 1;
 		assert do = '0' report "extra bit set in shift register";
-
-		assert stop = '0' report "Test bench not run to completion";
+		stop <= '1';
 		wait;
 	end process;
 end;
@@ -714,13 +701,13 @@ use ieee.numeric_std.all;
 
 entity timer_us_tb is
 	generic(clock_frequency: positive);
-	port(stop: in std_logic);
 end;
 
 architecture behav of timer_us_tb is
 	constant clock_period: time := 1000 ms / clock_frequency;
-	signal co: std_logic := 'X';
-	signal clk, rst: std_logic := '0';
+	signal co: std_logic        := 'X';
+	signal clk, rst: std_logic  := '0';
+	signal stop: std_logic      := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -736,7 +723,7 @@ begin
 		assert co = '0' severity failure;
 		wait for clock_period;
 		assert co = '1' severity failure;
-		assert stop = '0' report "Test bench not run to completion";
+		stop <= '1';
 		wait;
 	end process;
 
@@ -780,7 +767,6 @@ use ieee.numeric_std.all;
 
 entity edge_tb is
 	generic(clock_frequency: positive);
-	port(stop: in std_logic);
 end;
 
 architecture behav of edge_tb is
@@ -789,6 +775,7 @@ architecture behav of edge_tb is
 	signal output: std_logic := 'X';
 
 	signal clk, rst: std_logic := '0';
+	signal stop: std_logic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -812,6 +799,7 @@ begin
 		assert output = '0' severity failure;
 
 		assert stop = '0' report "Test bench not run to completion";
+		stop <= '1';
 		wait;
 	end process;
 end architecture;
@@ -865,7 +853,6 @@ use ieee.std_logic_1164.all;
 
 entity full_adder_tb is
 	generic(clock_frequency: positive);
-	port(stop: in std_logic);
 end entity;
 
 architecture behav of full_adder_tb is
@@ -889,6 +876,7 @@ architecture behav of full_adder_tb is
 		6 => "01",  7 => "11");
 
 	signal clk, rst: std_logic := '0';
+	signal stop: std_logic     := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -913,7 +901,7 @@ begin
 			wait for clock_period;
 		end loop;
 
-		assert stop = '0' report "Test bench not run to completion";
+		stop <= '1';
 		wait;
 	end process;
 end architecture;
@@ -1027,7 +1015,6 @@ use ieee.numeric_std.all;
 
 entity fifo_tb is
 	generic(clock_frequency: positive);
-	port(stop: in std_logic);
 end entity;
 
 architecture behavior of fifo_tb is
@@ -1035,21 +1022,24 @@ architecture behavior of fifo_tb is
 	constant data_width: positive := 8;
 	constant fifo_depth: positive := 16;
 
-	--inputs
-	signal din: std_logic_vector(data_width - 1 downto 0) := (others => '0');
-	signal re:  std_logic := '0';
-	signal we:  std_logic := '0';
+	signal din:      std_logic_vector(data_width - 1 downto 0) := (others => '0');
+	signal re:       std_logic := '0';
+	signal we:       std_logic := '0';
 	
-	--outputs
-	signal do:    std_logic_vector(data_width - 1 downto 0) := (others => '0');
-	signal empty: std_logic := '0';
-	signal full:  std_logic  := '0';
+	signal do:       std_logic_vector(data_width - 1 downto 0) := (others => '0');
+	signal empty:    std_logic := '0';
+	signal full:     std_logic := '0';
 	
 	signal clk, rst: std_logic := '0';
+	signal stop_w:   std_logic := '0';
+	signal stop_r:   std_logic := '0';
+	signal stop:     std_logic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
 		port map(stop => stop, clk => clk, rst => rst);
+
+	stop <= '1' when stop_w = '1' and stop_r = '1' else '0';
 
 	uut: entity work.fifo
 		generic map(data_width => data_width, fifo_depth => fifo_depth)
@@ -1088,7 +1078,7 @@ begin
 			we <= '0';
 		end loop;
 		
-		assert stop = '0' report "Test bench not run to completion";
+		stop_w <= '1';
 		wait;
 	end process;
 	
@@ -1101,7 +1091,7 @@ begin
 		wait for clock_period * 256 * 2;
 		re <= '1';
 
-		assert stop = '0' report "Test bench not run to completion";
+		stop_r <= '1';
 		wait;
 	end process;
 end architecture;
@@ -1163,10 +1153,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity counter_tb is
-	generic(
-		clock_frequency: positive);
-	port(
-		stop: in std_logic);
+	generic(clock_frequency: positive);
 end entity;
 
 architecture behavior of counter_tb is
@@ -1207,6 +1194,7 @@ architecture behavior of counter_tb is
 		16 => "00");
 
 	signal clk, rst: std_logic := '0';
+	signal stop:     std_logic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -1236,7 +1224,7 @@ begin
 					" Expected: " & integer'image(to_integer(unsigned(result(i))))
 				severity failure;
 		end loop;
-		assert stop = '0' report "Test bench not run to completion";
+		stop <= '1';
 		wait;
 	end process;
 
@@ -1325,7 +1313,6 @@ use ieee.numeric_std.all;
 
 entity lfsr_tb is
 	generic(clock_frequency: positive);
-	port(stop: in std_logic);
 end entity;
 
 architecture behavior of lfsr_tb is
@@ -1334,6 +1321,7 @@ architecture behavior of lfsr_tb is
 	signal do, di: std_logic_vector(7 downto 0) := (others => '0');
 
 	signal clk, rst: std_logic := '0';
+	signal stop:     std_logic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -1350,10 +1338,11 @@ begin
 	stimulus_process: process
 	begin
 		wait for clock_period * 2;
-		we <= '1';
-		di <= "00000001";
+		we   <= '1';
+		di   <= "00000001";
 		wait for clock_period;
-		we <= '0';
+		we   <= '0';
+		stop <= '1';
 		wait;
 	end process;
 

@@ -65,6 +65,10 @@ variable base 10 ( Current output radix )
 variable span 0  ( Hold character count received by expect   )
 variable #tib 0  ( Current count of terminal input buffer    )
 variable #tiba 0 ( ... and address )
+.set #tiba $pc
+.allocate 80
+
+
 variable >in   0 ( Hold character pointer when parsing input )
 
 variable '?key   0 ( execution vector of ?key.  default to ?rx.)
@@ -73,13 +77,13 @@ variable 'expect 0 ( execution vector of expect.  default to 'accept'.)
 variable 'tap    0 ( execution vector of tap.  defulat the ktap.)
 variable 'echo   0 ( execution vector of echo.  default to tx!.)
 variable 'prompt 0 ( execution vector of prompt.  default to '.ok'.)
-.set #tiba $pc
-.allocate 80
-
 ( ======================== System Variables ================= )
 
 ( ======================== Forth Kernel ===================== )
 
+( Add the assembler words to the dictionary: certain built in words
+will need an in-line bit, as well as an immediate bit )
+.built-in
 
 : ! store drop ;
 : 256* 8 lshift ;
@@ -457,6 +461,7 @@ start:
 	words
 
 nextChar:
+	\ query #tib 2@ swap type branch nextChar
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches

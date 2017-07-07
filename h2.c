@@ -208,6 +208,7 @@ typedef enum {
  * to instructions, the exception is in the lexer, which accepts
  * a range of tokens in one clause of the grammar from the first
  * instruction to the last. This must be manually updated
+ * @todo Add inline bits to instructions
  * @note In the original J1 specification both r@ and r> both have
  * their T_TO_R bit set in their instruction description tables, this
  * appears to be incorrect */
@@ -377,7 +378,8 @@ static int indent(FILE *output, char c, unsigned i)
 static int string_to_long(int base, long *n, const char *s)
 {
 	char *end = NULL;
-	assert(base != 1);
+	assert(base >= 0); 
+	assert(base != 1); 
 	assert(base <= 36);
 	assert(n);
 	assert(s);
@@ -1710,6 +1712,7 @@ typedef enum {
 	LEX_BREAK,
 	LEX_MODE,
 	LEX_ALLOCATE,
+	LEX_BUILT_IN,
 
 	/* start of instructions */
 #define X(NAME, STRING, INSTRUCTION) LEX_ ## NAME,
@@ -1749,6 +1752,7 @@ static const char *keywords[] =
 	[LEX_BREAK]     =  ".break",
 	[LEX_MODE]      =  ".mode",
 	[LEX_ALLOCATE]  =  ".allocate",
+	[LEX_BUILT_IN]  =  ".built-in",
 
 	/* start of instructions */
 #define X(NAME, STRING, INSTRUCTION) [ LEX_ ## NAME ] = STRING,
@@ -2127,6 +2131,7 @@ again:
 	X(SYM_SET,                 "set")\
 	X(SYM_PC,                  "pc")\
 	X(SYM_BREAK,               "break")\
+	X(SYM_BUILT_IN,            "built-in")\
 	X(SYM_MODE,                "mode")\
 	X(SYM_ALLOCATE,            "allocate")\
 	X(SYM_CALL_DEFINITION,     "call-definition")
@@ -2496,6 +2501,9 @@ again:
 	} else if(accept(l, LEX_ALLOCATE)) {
 		r->o[i++] = allocate(l);
 		goto again;
+	} else if(accept(l, LEX_BUILT_IN)) {
+		r->o[i++] = defined_by_token(l, SYM_BUILT_IN);
+		goto again;
 	/**@warning This is a token range from the first instruction to the
 	 * last instruction */
 	} else if(accept_range(l, LEX_DUP, LEX_RDROP)) {
@@ -2542,6 +2550,7 @@ typedef enum {
 typedef struct {
 	bool in_definition;
 	bool start_defined;
+	bool built_in_words_defined;
 	uint16_t start;
 	uint16_t mode;
 	uint16_t pwd; /* previous word register */
@@ -2709,6 +2718,19 @@ static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t 
 
 	return 0;
 }
+
+typedef struct {
+	char *name;
+	uint16_t code;
+	/**@todo add immediate field, and fields to turn assembly on/off */
+} built_in_words_t;
+
+static built_in_words_t words[] = {
+#define X(NAME, STRING, INSTRUCTION) { .name = STRING, .code = INSTRUCTION },
+	X_MACRO_INSTRUCTIONS
+#undef X
+	{ .name = NULL, .code = 0 }
+};
 
 /**@todo implement built in words that can be assembled with a directive, these
  * built in words can then be called by the words in here. */
@@ -2935,6 +2957,24 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_BREAK:
 		break_point_add(&h->bp, h->pc);
 		break;
+	case SYM_BUILT_IN:
+		if(!(a->mode & MODE_COMPILE_WORD_HEADER))
+			break;
+
+		if(a->built_in_words_defined) 
+			assembly_error(e, "Built in words already defined!");
+
+		a->built_in_words_defined = true;
+
+		for(unsigned i = 0; words[i].name; i++) {
+			hole1 = hole(h);
+			fix(h, hole1, a->pwd);
+			a->pwd = hole1 << 1;
+			pack_string(h, words[i].name, e);
+			generate(h, words[i].code);
+			generate(h, CODE_EXIT); /**@todo smush this with the previous instruction if possible*/
+		}
+		break;
 	default:
 		fatal("Invalid or unknown type: %u", n->type);
 	}
@@ -2945,7 +2985,7 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	error_t e;
 	h2_t *h;
 	symbol_table_t *t = NULL;
-	assembler_t a = { false, false, 0, 0, 0 };
+	assembler_t a = { false, false, false, 0, 0, 0 };
 	assert(n);
 
 	t = symbols ? symbols : symbol_table_new();
