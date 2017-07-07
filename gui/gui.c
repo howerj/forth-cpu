@@ -923,6 +923,7 @@ static void initialize_rendering(char *arg_0)
 	glutTimerFunc(arena_tick_ms, timer_callback, 0);
 }
 
+/**@todo Read in h2.hex and text.bin */
 int main(int argc, char **argv)
 {
 	for(int i = 0; i < VGA_MEMORY_SIZE / VGA_WIDTH; i++)

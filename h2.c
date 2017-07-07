@@ -203,41 +203,50 @@ typedef enum {
 #define MK_RSTACK(DELTA) ((DELTA) << RSTACK_START)
 #define MK_CODE(CODE)    ((CODE)  << ALU_OP_START)
 
-/**@todo Make a table of instructions, instruction strings and lexer symbols 
- * @todo Implement more instructions: rdrop, up1, down1, ... */
+/**
+ * @warning This table keeps most things synchronized when it comes
+ * to instructions, the exception is in the lexer, which accepts
+ * a range of tokens in one clause of the grammar from the first
+ * instruction to the last. This must be manually updated
+ * @note In the original J1 specification both r@ and r> both have
+ * their T_TO_R bit set in their instruction description tables, this
+ * appears to be incorrect */
+#define X_MACRO_INSTRUCTIONS \
+	X(DUP,    "dup",    (OP_ALU_OP | MK_CODE(ALU_OP_T)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
+	X(OVER,   "over",   (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
+	X(INVERT, "invert", (OP_ALU_OP | MK_CODE(ALU_OP_T_INVERT)))\
+	X(ADD,    "+",      (OP_ALU_OP | MK_CODE(ALU_OP_T_PLUS_N)               | MK_DSTACK(DELTA_N1)))\
+	X(SWAP,   "swap",   (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N))\
+	X(NIP,    "nip",    (OP_ALU_OP | MK_CODE(ALU_OP_T)                      | MK_DSTACK(DELTA_N1)))\
+	X(DROP,   "drop",   (OP_ALU_OP | MK_CODE(ALU_OP_N)                      | MK_DSTACK(DELTA_N1)))\
+	X(EXIT,   "exit",   (OP_ALU_OP | MK_CODE(ALU_OP_T)        | R_TO_PC | MK_RSTACK(DELTA_N1)))\
+	X(TOR,    ">r",     (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_R  | MK_DSTACK(DELTA_N1) | MK_RSTACK(DELTA_1)))\
+	X(FROMR,  "r>",     (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1) | MK_RSTACK(DELTA_N1)))\
+	X(RAT,    "r@",     (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
+	X(LOAD,   "@",      (OP_ALU_OP | MK_CODE(ALU_OP_T_LOAD)))\
+	X(STORE,  "store",  (OP_ALU_OP | MK_CODE(ALU_OP_N)        | N_TO_ADDR_T | MK_DSTACK(DELTA_N1)))\
+	X(RSHIFT, "rshift", (OP_ALU_OP | MK_CODE(ALU_OP_N_RSHIFT_T)             | MK_DSTACK(DELTA_N1)))\
+	X(LSHIFT, "lshift", (OP_ALU_OP | MK_CODE(ALU_OP_N_LSHIFT_T)             | MK_DSTACK(DELTA_N1)))\
+	X(EQUAL,  "=",      (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_N)              | MK_DSTACK(DELTA_N1)))\
+	X(ULESS,  "u<",     (OP_ALU_OP | MK_CODE(ALU_OP_N_ULESS_T)              | MK_DSTACK(DELTA_N1)))\
+	X(LESS,   "<",      (OP_ALU_OP | MK_CODE(ALU_OP_N_LESS_T)               | MK_DSTACK(DELTA_N1)))\
+	X(AND,    "and",    (OP_ALU_OP | MK_CODE(ALU_OP_T_AND_N)                | MK_DSTACK(DELTA_N1)))\
+	X(XOR,    "xor",    (OP_ALU_OP | MK_CODE(ALU_OP_T_XOR_N)                | MK_DSTACK(DELTA_N1)))\
+	X(OR,     "or",     (OP_ALU_OP | MK_CODE(ALU_OP_T_OR_N)                 | MK_DSTACK(DELTA_N1)))\
+	X(DEPTH,  "depth",  (OP_ALU_OP | MK_CODE(ALU_OP_DEPTH)                  | MK_DSTACK(DELTA_1)))\
+	X(T_N1,   "1-",     (OP_ALU_OP | MK_CODE(ALU_OP_T_DECREMENT)))\
+	X(IEN,    "seti",   (OP_ALU_OP | MK_CODE(ALU_OP_ENABLE_INTERRUPTS)      | MK_DSTACK(DELTA_N1)))\
+	X(ISIEN,  "iset?",  (OP_ALU_OP | MK_CODE(ALU_OP_INTERRUPTS_ENABLED)     | MK_DSTACK(DELTA_1)))\
+	X(RDEPTH, "rdepth", (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)                 | MK_DSTACK(DELTA_1)))\
+	X(TE0,    "0=",     (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
+	X(UP1,    "up1",    (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_DSTACK(DELTA_1)))\
+	X(RDROP,  "rdrop",  (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_RSTACK(DELTA_N1)))
+
+
 typedef enum {
-	CODE_DUP    = (OP_ALU_OP | MK_CODE(ALU_OP_T)        | T_TO_N  | MK_DSTACK(DELTA_1)),
-	CODE_OVER   = (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N  | MK_DSTACK(DELTA_1)),
-	CODE_INVERT = (OP_ALU_OP | MK_CODE(ALU_OP_T_INVERT)),
-	CODE_ADD    = (OP_ALU_OP | MK_CODE(ALU_OP_T_PLUS_N)               | MK_DSTACK(DELTA_N1)),
-	CODE_SWAP   = (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N),
-	CODE_NIP    = (OP_ALU_OP | MK_CODE(ALU_OP_T)                      | MK_DSTACK(DELTA_N1)),
-	CODE_DROP   = (OP_ALU_OP | MK_CODE(ALU_OP_N)                      | MK_DSTACK(DELTA_N1)),
-	CODE_EXIT   = (OP_ALU_OP | MK_CODE(ALU_OP_T)        | R_TO_PC | MK_RSTACK(DELTA_N1)),
-	CODE_TOR    = (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_R  | MK_DSTACK(DELTA_N1) | MK_RSTACK(DELTA_1)),
-	/**@note In the original J1 specification both r@ and r> both have
-	 * their T_TO_R bit set in their instruction description tables, this
-	 * appears to be incorrect */
-	CODE_FROMR  = (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1) | MK_RSTACK(DELTA_N1)),
-	CODE_RAT    = (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)),
-	CODE_LOAD   = (OP_ALU_OP | MK_CODE(ALU_OP_T_LOAD)),
-	CODE_STORE  = (OP_ALU_OP | MK_CODE(ALU_OP_N)        | N_TO_ADDR_T | MK_DSTACK(DELTA_N1)),
-	CODE_RSHIFT = (OP_ALU_OP | MK_CODE(ALU_OP_N_RSHIFT_T)             | MK_DSTACK(DELTA_N1)),
-	CODE_LSHIFT = (OP_ALU_OP | MK_CODE(ALU_OP_N_LSHIFT_T)             | MK_DSTACK(DELTA_N1)),
-	CODE_EQUAL  = (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_N)              | MK_DSTACK(DELTA_N1)),
-	CODE_ULESS  = (OP_ALU_OP | MK_CODE(ALU_OP_N_ULESS_T)              | MK_DSTACK(DELTA_N1)),
-	CODE_LESS   = (OP_ALU_OP | MK_CODE(ALU_OP_N_LESS_T)               | MK_DSTACK(DELTA_N1)),
-	CODE_AND    = (OP_ALU_OP | MK_CODE(ALU_OP_T_AND_N)                | MK_DSTACK(DELTA_N1)),
-	CODE_XOR    = (OP_ALU_OP | MK_CODE(ALU_OP_T_XOR_N)                | MK_DSTACK(DELTA_N1)),
-	CODE_OR     = (OP_ALU_OP | MK_CODE(ALU_OP_T_OR_N)                 | MK_DSTACK(DELTA_N1)),
-	CODE_DEPTH  = (OP_ALU_OP | MK_CODE(ALU_OP_DEPTH)                  | MK_DSTACK(DELTA_1)),
-	CODE_T_N1   = (OP_ALU_OP | MK_CODE(ALU_OP_T_DECREMENT)),
-
-	CODE_IEN    = (OP_ALU_OP | MK_CODE(ALU_OP_ENABLE_INTERRUPTS)      | MK_DSTACK(DELTA_N1)),
-	CODE_ISIEN  = (OP_ALU_OP | MK_CODE(ALU_OP_INTERRUPTS_ENABLED)     | MK_DSTACK(DELTA_1)),
-	CODE_RDEPTH = (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)                 | MK_DSTACK(DELTA_1)),
-	CODE_TE0    = (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0))
-
+#define X(NAME, STRING, INSTRUCTION) CODE_ ## NAME = INSTRUCTION,
+	X_MACRO_INSTRUCTIONS
+#undef X
 } forth_word_codes_e;
 
 typedef struct {
@@ -518,7 +527,6 @@ static int wrap_getch(bool *debug_on)
 {
 	int ch = getch();
 	assert(debug_on);
-	/**@todo Exit to debugger if escape is hit */
 	if(ch == EOF) {
 		note("End Of Input - exiting", CHAR_ESCAPE);
 		exit(EXIT_SUCCESS);
@@ -699,33 +707,9 @@ fail:
 static const char *instruction_to_string(uint16_t i)
 {
 	switch(i) {
-	case CODE_DUP:    return "dup";
-	case CODE_OVER:   return "over";
-	case CODE_INVERT: return "invert";
-	case CODE_ADD:    return "+";
-	case CODE_SWAP:   return "swap";
-	case CODE_NIP:    return "nip";
-	case CODE_DROP:   return "drop";
-	case CODE_EXIT:   return "exit";
-	case CODE_TOR:    return ">r";
-	case CODE_FROMR:  return "r>";
-	case CODE_RAT:    return "r@";
-	case CODE_LOAD:   return "@";
-	case CODE_STORE:  return "store";
-	case CODE_RSHIFT: return "rshift";
-	case CODE_LSHIFT: return "lshift";
-	case CODE_EQUAL:  return "equal";
-	case CODE_ULESS:  return "u<";
-	case CODE_LESS:   return "<";
-	case CODE_AND:    return "and";
-	case CODE_XOR:    return "xor";
-	case CODE_OR:     return "or";
-	case CODE_DEPTH:  return "depth";
-	case CODE_T_N1:   return "1-";
-	case CODE_IEN:    return "seti";
-	case CODE_ISIEN:  return "iset?";
-	case CODE_RDEPTH: return "rdepth";
-	case CODE_TE0:    return "0=";
+#define X(NAME, STRING, INSTRUCTION) case CODE_ ## NAME : return STRING ;
+	X_MACRO_INSTRUCTIONS
+#undef X
 	default:          break;
 	}
 	return NULL;
@@ -1718,7 +1702,6 @@ typedef enum {
 	LEX_DEFINE,
 	LEX_ENDDEFINE,
 	LEX_CHAR,
-	LEX_COMPILE,
 	LEX_VARIABLE,
 
 	LEX_ISR,
@@ -1728,33 +1711,10 @@ typedef enum {
 	LEX_MODE,
 	LEX_ALLOCATE,
 
-	LEX_DUP,   /* start of instructions */
-	LEX_OVER,
-	LEX_INVERT,
-	LEX_ADD,
-	LEX_SWAP,
-	LEX_NIP,
-	LEX_DROP,
-	LEX_EXIT,
-	LEX_TOR,
-	LEX_FROMR,
-	LEX_RAT,
-	LEX_LOAD,
-	LEX_STORE,
-	LEX_RSHIFT,
-	LEX_LSHIFT,
-	LEX_EQUAL,
-	LEX_ULESS,
-	LEX_LESS,
-	LEX_AND,
-	LEX_XOR,
-	LEX_OR,
-	LEX_DEPTH,
-	LEX_T_N1,
-	LEX_IEN,
-	LEX_ISIEN,
-	LEX_RDEPTH,
-	LEX_TE0,
+	/* start of instructions */
+#define X(NAME, STRING, INSTRUCTION) LEX_ ## NAME,
+	X_MACRO_INSTRUCTIONS
+#undef X
 	/* end of named tokens and instructions */
 
 	LEX_ERROR, /* error token: this needs to be after the named tokens */
@@ -1782,7 +1742,6 @@ static const char *keywords[] =
 	[LEX_DEFINE]    =  ":",
 	[LEX_ENDDEFINE] =  ";",
 	[LEX_CHAR]      =  "[char]",
-	[LEX_COMPILE]   =  ",",
 	[LEX_VARIABLE]  =  "variable",
 	[LEX_ISR]       =  ".isr",
 	[LEX_SET]       =  ".set",
@@ -1790,33 +1749,13 @@ static const char *keywords[] =
 	[LEX_BREAK]     =  ".break",
 	[LEX_MODE]      =  ".mode",
 	[LEX_ALLOCATE]  =  ".allocate",
-	[LEX_DUP]       =  "dup",
-	[LEX_OVER]      =  "over",
-	[LEX_INVERT]    =  "invert",
-	[LEX_ADD]       =  "+",
-	[LEX_SWAP]      =  "swap",
-	[LEX_NIP]       =  "nip",
-	[LEX_DROP]      =  "drop",
-	[LEX_EXIT]      =  "exit",
-	[LEX_TOR]       =  ">r",
-	[LEX_FROMR]     =  "r>",
-	[LEX_RAT]       =  "r@",
-	[LEX_LOAD]      =  "@",
-	[LEX_STORE]     =  "store",
-	[LEX_RSHIFT]    =  "rshift",
-	[LEX_LSHIFT]    =  "lshift",
-	[LEX_EQUAL]     =  "=",
-	[LEX_ULESS]     =  "u<",
-	[LEX_LESS]      =  "<",
-	[LEX_AND]       =  "and",
-	[LEX_XOR]       =  "xor",
-	[LEX_OR]        =  "or",
-	[LEX_DEPTH]     =  "depth",
-	[LEX_T_N1]      =  "1-",
-	[LEX_IEN]       =  "seti",
-	[LEX_ISIEN]     =  "iset?",
-	[LEX_RDEPTH]    =  "rdepth",
-	[LEX_TE0]       =  "0=",
+
+	/* start of instructions */
+#define X(NAME, STRING, INSTRUCTION) [ LEX_ ## NAME ] = STRING,
+	X_MACRO_INSTRUCTIONS
+#undef X
+	/* end of named tokens and instructions */
+
 	[LEX_ERROR]     =  NULL,
 	NULL
 };
@@ -2164,7 +2103,7 @@ again:
  **/
 
 
-#define XMACRO_PARSE\
+#define X_MACRO_PARSE\
 	X(SYM_PROGRAM,             "program")\
 	X(SYM_STATEMENTS,          "statements")\
 	X(SYM_LABEL,               "label")\
@@ -2194,13 +2133,13 @@ again:
 
 typedef enum {
 #define X(ENUM, NAME) ENUM,
-	XMACRO_PARSE
+	X_MACRO_PARSE
 #undef X
 } parse_e;
 
 static const char *names[] = {
 #define X(ENUM, NAME) [ENUM] = NAME,
-	XMACRO_PARSE
+	X_MACRO_PARSE
 #undef X
 	NULL
 };
@@ -2557,7 +2496,9 @@ again:
 	} else if(accept(l, LEX_ALLOCATE)) {
 		r->o[i++] = allocate(l);
 		goto again;
-	} else if(accept_range(l, LEX_DUP, LEX_TE0)) {
+	/**@warning This is a token range from the first instruction to the
+	 * last instruction */
+	} else if(accept_range(l, LEX_DUP, LEX_RDROP)) {
 		r->o[i++] = defined_by_token(l, SYM_INSTRUCTION);
 		goto again;
 	}
@@ -2686,36 +2627,11 @@ static void generate_literal(h2_t *h, uint16_t number)
 
 static uint16_t lexer_to_alu_op(token_e t)
 {
-	assert(t >= LEX_DUP && t <= LEX_TE0);
+	assert(t >= LEX_DUP && t <= LEX_RDROP);
 	switch(t) {
-	case LEX_DUP:    return CODE_DUP;
-	case LEX_OVER:   return CODE_OVER;
-	case LEX_INVERT: return CODE_INVERT;
-	case LEX_ADD:    return CODE_ADD;
-	case LEX_SWAP:   return CODE_SWAP;
-	case LEX_NIP:    return CODE_NIP;
-	case LEX_DROP:   return CODE_DROP;
-	case LEX_EXIT:   return CODE_EXIT;
-	case LEX_TOR:    return CODE_TOR;
-	case LEX_FROMR:  return CODE_FROMR;
-	case LEX_RAT:    return CODE_RAT;
-	case LEX_LOAD:   return CODE_LOAD;
-	case LEX_STORE:  return CODE_STORE;
-	case LEX_RSHIFT: return CODE_RSHIFT;
-	case LEX_LSHIFT: return CODE_LSHIFT;
-	case LEX_EQUAL:  return CODE_EQUAL;
-	case LEX_ULESS:  return CODE_ULESS;
-	case LEX_LESS:   return CODE_LESS;
-	case LEX_AND:    return CODE_AND;
-	case LEX_XOR:    return CODE_XOR;
-	case LEX_OR:     return CODE_OR;
-	case LEX_DEPTH:  return CODE_DEPTH;
-	case LEX_T_N1:   return CODE_T_N1;
-	case LEX_IEN:    return CODE_IEN;
-	case LEX_ISIEN:  return CODE_ISIEN;
-	case LEX_RDEPTH: return CODE_RDEPTH;
-	case LEX_TE0:    return CODE_TE0;
-
+#define X(NAME, STRING, INSTRUCTION) case LEX_ ## NAME : return CODE_ ## NAME ;
+	X_MACRO_INSTRUCTIONS
+#undef X
 	default: fatal("invalid ALU operation: %u", t);
 	}
 	return 0;
@@ -2883,8 +2799,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate(h, CODE_TOR);
 		generate(h, OP_BRANCH | hole1);
 		fix(h, hole2, OP_0BRANCH | here(h));
-		generate(h, CODE_FROMR);
-		generate(h, CODE_DROP);
+		generate(h, CODE_RDROP);
 		break;
 	case SYM_FOR_AFT_THEN_NEXT:
 		/**@todo make a word "(next)" that implements the terminating
@@ -2902,8 +2817,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		assemble(h, a, n->o[2], t, e);
 		generate(h, OP_BRANCH | (hole1 + 1));
 		fix(h, hole2, OP_0BRANCH | (here(h)));
-		generate(h, CODE_FROMR);
-		generate(h, CODE_DROP);
+		generate(h, CODE_RDROP);
 		break;
 	case SYM_BEGIN_WHILE_REPEAT:
 		hole1 = here(h);

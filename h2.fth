@@ -76,7 +76,6 @@ variable 'prompt 0 ( execution vector of prompt.  default to '.ok'.)
 .set #tiba $pc
 .allocate 80
 
-
 ( ======================== System Variables ================= )
 
 ( ======================== Forth Kernel ===================== )
@@ -213,7 +212,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : /string ( c-addr u1 u2 -- c-addr u : advance a string u2 characters )
 	over min rot over + -rot - ;
 
-: latest pwd @ ;
+: last pwd @ ;
 
 : uart-write ( char -- bool : write out a character )
 	0x2000 or oUart ! 1 ; \ @todo Check that the write succeeded by looking at the TX FIFO
@@ -337,13 +336,21 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : query ( -- )
   tib 80 'expect @execute #tib !  drop 0 >in ! ;
 
+: allot cp +! ;
+
+: , here dup cell+ cp ! ;  
+
 : words
-	latest
+	last
 	begin
 		dup
 	while
 		dup cell+ count type space @
 	repeat drop cr ;
+
+: .base ( -- ) base @ decimal dup . base  ! ;
+
+: nuf? ( -- f ) key? dup if 2drop key 13 = then ;
 
 
 ( ======================== Word Set ========================= )
@@ -456,7 +463,7 @@ nextChar:
 		key?                 \ Wait for UART character
 	until
 	dup emit cursorT @ 0xE000 or !
-	
+
 	cursorT1+
 
 	cursorX @ cursorY @ at-xy
@@ -477,4 +484,3 @@ branch nextChar
 .set 'tap    ktap   ( execution vector of tap.  defulat the ktap.)
 .set 'echo   tx!    ( execution vector of echo.  default to tx!.)
 \ .set 'prompt 0    ( execution vector of prompt.  default to '.ok'.)
-
