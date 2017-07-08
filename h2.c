@@ -2601,8 +2601,6 @@ static built_in_words_t words[] = {
 	{ .name = NULL, .code = 0 }
 };
 
-/**@todo implement built in words that can be assembled with a directive, these
- * built in words can then be called by the words in here. */
 static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
 {
 	uint16_t hole1, hole2;
@@ -2761,7 +2759,11 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			assembly_error(e, "nested word definition is not allowed");
 		a->in_definition = true;
 		assemble(h, a, n->o[0], t, e);
-		generate(h, CODE_EXIT); /**@todo smush this with the previous instruction if possible*/
+		/**@todo smush this with the previous instruction if possible,
+		 * generating variables, word headers, jumps and calls could
+		 * update a fence variable which would prevent optimizations
+		 * from taking place */
+		generate(h, CODE_EXIT); 
 		a->in_definition = false;
 		break;
 	case SYM_CHAR: /* [char] A  */

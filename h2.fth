@@ -64,8 +64,8 @@ variable hld  0  ( Pointer into hold area for numeric output )
 variable base 10 ( Current output radix )
 variable span 0  ( Hold character count received by expect   )
 variable #tib 0  ( Current count of terminal input buffer    )
-variable #tiba 0 ( ... and address )
-.set #tiba $pc
+variable tib-buf 0 ( ... and address )
+.set tib-buf $pc
 .allocate 80
 
 variable >in   0 ( Hold character pointer when parsing input )
@@ -76,6 +76,7 @@ variable 'expect 0 ( execution vector of expect.  default to 'accept'.)
 variable 'tap    0 ( execution vector of tap.  defulat the ktap.)
 variable 'echo   0 ( execution vector of echo.  default to tx!.)
 variable 'prompt 0 ( execution vector of prompt.  default to '.ok'.)
+variable OK      "ok"
 ( ======================== System Variables ================= )
 
 ( ======================== Forth Kernel ===================== )
@@ -396,6 +397,9 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		1 /string dup 0= ( advance string and test for end )
 	until ;
 
+( @todo suppress ok prompt when in compiling mode ) 
+: .ok OK count type space ;
+
 ( ======================== Word Set ========================= )
 
 ( ======================== Miscellaneous ==================== )
@@ -531,4 +535,4 @@ branch nextChar
 .set 'expect accept ( execution vector of expect.  default to 'accept'.)
 .set 'tap    ktap   ( execution vector of tap.  defulat the ktap.)
 .set 'echo   tx!    ( execution vector of echo.  default to tx!.)
-\ .set 'prompt 0    ( execution vector of prompt.  default to '.ok'.)
+.set 'prompt .ok    ( execution vector of prompt.  default to '.ok'.)

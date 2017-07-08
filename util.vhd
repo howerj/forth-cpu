@@ -12,7 +12,9 @@
 --| vice versa), pulse generator, small RAM model, population count
 --| priority encoder, types, and other generic functions and components.
 --| @todo Some simple communications primitives could be added in here, such
---| as a SPI master.
+--| as a SPI master. Another one would be a pin control module that can
+--| be used to control physical pins on the FPGA with a pin direction register,
+--| an input and an output register.
 --| @todo Add a small CPU as a component, see https://github.com/cpldcpu/MCPU
 --| and https://stackoverflow.com/questions/20955863/vhdl-microprocessor-microcontroller,
 --| and make a reimplementation of it. A very simple assembler could be written

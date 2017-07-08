@@ -3,7 +3,9 @@
  * @copyright Richard James Howe (2017)
  * @license   MIT 
  *
- * @note This is a work in progress 
+ * @todo Print debugging information to the screen
+ * @todo Take keyboard input from a FIFO connected to the main window, which 
+ * will need the use of Mutexes
  * @todo Add font scaling, see <https://stackoverflow.com/questions/29872095/drawing-large-text-with-glut>
  * Functions to use:
  * 	* glutStrokeHeight
@@ -407,6 +409,99 @@ bool detect_circle_circle_collision(
 	return (distance < (aradius + bradius));
 }
 
+/* From: https://stackoverflow.com/questions/215557/how-do-i-implement-a-circular-list-ring-buffer-in-c */
+
+typedef uint8_t fifo_data_t;
+
+typedef struct {
+	size_t head;
+	size_t tail;
+	size_t size;
+	fifo_data_t *buffer;
+} fifo_t;
+
+fifo_t *fifo_new(size_t size)
+{
+	fifo_data_t *buffer = allocate_or_die(size * sizeof(buffer[0]));
+	fifo_t *fifo = allocate_or_die(sizeof(fifo_t));
+
+	fifo->buffer = buffer;
+	fifo->head = 0;
+	fifo->tail = 0;
+	fifo->size = size;
+
+	return fifo;
+}
+
+void fifo_free(fifo_t *fifo)
+{
+	if(!fifo)
+		return;
+	free(fifo->buffer);
+	free(fifo);
+}
+
+bool fifo_is_full(fifo_t * fifo)
+{
+	assert(fifo);
+	return (fifo->head == (fifo->size - 1) && fifo->tail == 0)
+	    || (fifo->head == (fifo->tail - 1));
+}
+
+bool fifo_is_empty(fifo_t * fifo)
+{
+	assert(fifo);
+	return fifo->head == fifo->tail;
+}
+
+size_t fifo_count(fifo_t * fifo)
+{
+	assert(fifo);
+	if (fifo_is_empty(fifo))
+		return 0;
+	else if (fifo_is_full(fifo))
+		return fifo->size;
+	else if (fifo->head < fifo->tail)
+		return (fifo->head) + (fifo->size - fifo->tail);
+	else
+		return fifo->head - fifo->tail;
+}
+
+size_t fifo_push(fifo_t * fifo, fifo_data_t data)
+{
+	assert(fifo);
+
+	if (fifo_is_full(fifo))
+		return 0;
+
+	fifo->buffer[fifo->head] = data;
+
+	fifo->head++;
+	if (fifo->head == fifo->size)
+		fifo->head = 0;
+
+	return 1;
+}
+
+size_t fifo_pop(fifo_t * fifo, fifo_data_t * data)
+{
+	assert(fifo);
+	assert(data);
+
+	if (fifo_is_empty(fifo))
+		return 0;
+
+	*data = fifo->buffer[fifo->tail];
+
+	fifo->tail++;
+	if (fifo->tail == fifo->size)
+		fifo->tail = 0;
+
+	return 1;
+}
+
+
+
 /* ====================================== Utility Functions ==================================== */
 
 /* ====================================== Simulator Objects ==================================== */
@@ -705,7 +800,6 @@ static led_8_segment_t segments[SEGMENT_COUNT] = {
 	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 3.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 0 },
 	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 4.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 0 },
 };
-
 
 static h2_t *h = NULL;
 static h2_io_t *h2_io = NULL;
