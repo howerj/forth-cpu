@@ -142,9 +142,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose);
 h2_soc_state_t *h2_soc_state_new(void);
 void h2_soc_state_free(h2_soc_state_t *soc);
+h2_io_t *h2_io_new(void);
 void h2_io_free(h2_io_t *io);
-
-
-
 
 #endif
