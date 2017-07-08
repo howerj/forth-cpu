@@ -573,6 +573,14 @@ used for running programs.
 The simulator will eventually include a debugger, similar in nature to
 [DEBUG.COM][] available in [DOS][].
 
+#### Graphical simulator
+
+A separate program can be compiled, however it is [Linux][] only for now and
+will need porting to other platforms. This simulates the [Nexys3][]
+peripherals that the SoC interfaces with, but provides a graphical environment.
+
+It requires [free glut][] and [pthreads][].
+
 ### Coding standards
 
 #### VHDL
@@ -593,6 +601,7 @@ and peripherals
 	- The H2 simulator needs all of its peripherals checking,
 	specifically the VGA memory.
 	- The TX FIFO Full signal is apparently not working.
+* Make a javascript based simulator for the H2.
 
 ## Forth
 
@@ -655,5 +664,7 @@ project.
 [Spartan 6]: https://www.xilinx.com/products/silicon-devices/fpga/spartan-6.html
 [FPGA]: https://en.wikipedia.org/wiki/Field-programmable_gate_array
 [ASCII]: https://en.wikipedia.org/wiki/ASCII
+[free glut]: http://freeglut.sourceforge.net/
+[pthreads]: https://en.wikipedia.org/wiki/POSIX_Threads
 
 <style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}</style>

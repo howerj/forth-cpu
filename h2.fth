@@ -68,7 +68,6 @@ variable #tiba 0 ( ... and address )
 .set #tiba $pc
 .allocate 80
 
-
 variable >in   0 ( Hold character pointer when parsing input )
 
 variable '?key   0 ( execution vector of ?key.  default to ?rx.)
@@ -159,6 +158,8 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : within over - >r - r> u< ; ( u lo hi -- t )
 : not -1 xor ;
 : dnegate not >r not 1 um+ r> + ; ( d -- d )
+: d= ( d d -- f )
+	>r swap r> = >r = r> = ;
 : abs dup 0< if negate then ;
 : count ( cs -- c-addr u )
 	dup 1+ swap c@ ;
@@ -324,7 +325,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
   if 8 xor if bl tap else ^h then exit
   then drop swap drop dup ;
 
-
 : key? '?key @execute ;
 : key begin key? until ;
 
@@ -356,6 +356,45 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : nuf? ( -- f ) key? dup if 2drop key 13 = then ;
 
+: ?exit if rdrop then ;
+
+: decimal? ( c -- f : is character a number? )
+	48 58 within ; ( '0' = 48, 58 = ':', or 9+1 )
+
+: lowercase? ( c -- f : is character lower case? )
+	[char] a [char] { within ; ( 'z' + 1 = '{' )
+
+: uppercase? ( C -- f : is character upper case? )
+	[char] A [char] [ within ; ( 'Z' + 1 = '[' )
+
+: >upper ( c -- C : convert char to uppercase iff lower case )
+	dup lowercase? if bl xor then ;
+
+: >lower ( C -- c : convert char to lowercase iff upper case )
+	dup uppercase? if bl xor then ;
+
+: numeric? ( char -- n|-1 : convert character in 0-9 a-z range to number )
+	dup lowercase? if 97 - 10 + exit then ( 97 = 'a' )
+	dup decimal?   if 48 -      exit then ( 48 = '0' )
+	drop -1 ;
+
+: number? ( char -- bool : is a character a number in the current base )
+	>lower numeric? base @ u< ;
+
+: >number ( n c-addr u -- n c-addr u : convert string )
+	begin
+		( get next character )
+		2dup >r >r drop c@ dup number? ( n char bool, R: c-addr u )
+		if   ( n char )
+			swap base @ * swap numeric? + ( accumulate number )
+		else ( n char )
+			drop
+			r> r> ( restore string )
+			exit
+		then
+		r> r> ( restore string )
+		1 /string dup 0= ( advance string and test for end )
+	until ;
 
 ( ======================== Word Set ========================= )
 
@@ -450,6 +489,9 @@ jumps to a special symbol "start".
 @todo This special case symbol should be removed by adding
 adequate assembler directives )
 
+\ : 2. swap . . ;
+
+
 variable welcome "H2 Forth:"
 start:
 	 init
@@ -461,7 +503,8 @@ start:
 	words
 
 nextChar:
-	\ query #tib 2@ swap type branch nextChar
+	\ query tib #tib @ 2dup 2. cr type cr branch nextChar
+	\ query 0 tib #tib @ >number . . . cr branch nextChar
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches

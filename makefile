@@ -12,6 +12,9 @@ NETLIST=top
 #TIME=time -p 
 TIME=
 
+GUI_LDFLAGS = -lglut -lGL -lm -lpthread
+CFLAGS      = -Wall -Wextra -O2 -g
+
 .PHONY: simulation viewer synthesis bitfile upload clean
 
 ## Remember to update the synthesis section as well
@@ -63,10 +66,10 @@ all:
 ## Virtual Machine and UART communications =================================
 
 uart: uart.c
-	${CC} -Wall -Wextra -g -std=gnu99 $^ -lpthread -o $@
+	${CC} ${CFLAGS} -std=gnu99 $^ -lpthread -o $@
 
 h2: h2.c
-	${CC} -Wall -Wextra -g -std=c99 $^ -o $@
+	${CC} ${CFLAGS} -std=c99 $^ -o $@
 
 disassemble: h2 h2.fth
 	./h2 -S h2.sym -a h2.fth > h2.hex
@@ -74,6 +77,18 @@ disassemble: h2 h2.fth
 
 run: h2 h2.fth
 	./h2 -T -v -R h2.fth
+
+sim.o: h2.c h2.h
+	${CC} ${CFLAGS} -std=c99 -DNO_MAIN  $< -c -o $@
+
+gui.o: gui.c
+	${CC} ${CFLAGS} -std=gnu99  $< -c -o $@
+
+gui: sim.o gui.o
+	${CC} $^ ${GUI_LDFLAGS} -o $@
+
+grun: gui h2.hex
+	./$^
 
 ## Simulation ==============================================================
 

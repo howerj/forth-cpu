@@ -9,11 +9,6 @@
  * for the device, and allow for simulating the device where there
  * is no tool chain for dealing with VHDL.
  *
- * @todo Turn this into a library, and into a literate program, and possibly
- * make a nice and shiny OpenGL version which simulates the VGA output, LEDs
- * and Switches. The OpenGL version could be implemented in parts, making
- * the GUI first, then integrating it with the H2 simulator once it is
- * turned into a library.
  * @todo make a peephole optimizer for the assembler and a super optimizer
  * utility.
  * @todo Turn the diagrams in this file into help strings which can
@@ -1362,8 +1357,6 @@ again:
 			else
 				fprintf(ds->output, "I/O unavailable\n");
 			break;
-		case EOF:
-			/* fall through */
 		case 'q':
 			fprintf(ds->output, "Quiting simulator\n");
 			return -1;
