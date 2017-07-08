@@ -4,8 +4,6 @@
  * @license   MIT 
  *
  * @todo Print debugging information to the screen
- * @todo Take keyboard input from a FIFO connected to the main window, which 
- * will need the use of Mutexes
  * @todo Add font scaling, see <https://stackoverflow.com/questions/29872095/drawing-large-text-with-glut>
  * Functions to use:
  * 	* glutStrokeHeight
@@ -14,9 +12,6 @@
  * 	* glScalef
  * And font:
  * 	GLUT_STROKE_ROMAN
- *
- * @todo Remove threading by taking input exclusively from GUI program, the
- * simulator could take up the remaining time not used for rendering.
  *
  * @todo Fix exiting from program, the threads should be terminated correctly
  * and the terminal set to back to how it is meant to be.
@@ -34,9 +29,6 @@
 #include <stdint.h>
 #include <GL/glut.h>
 #include <stdarg.h>
-/**@todo This is not portable, a wrapper should be made for it */
-#include <pthread.h> 
-#include <unistd.h>
 
 /* ====================================== Utility Functions ==================================== */
 
@@ -53,7 +45,6 @@
 #define Y_MIN       (0.0)
 #define RUN_FOR     (512)
 
-/**@todo Lock these variables */
 static double window_height               = 800.0;
 static double window_width                = 800.0;
 static double window_x_starting_position  = 60.0;
@@ -62,11 +53,6 @@ static double window_scale_x              = 1.0;
 static double window_scale_y              = 1.0;
 static volatile unsigned tick             = 0;
 static volatile bool     halt_simulation  = false;
-struct termios original_attributes;
-
-static pthread_t h2_thread;
-static pthread_mutex_t uart_rx_lock = PTHREAD_MUTEX_INITIALIZER;
-//static pthread_mutex_t uart_tx_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static const double arena_tick_ms         = 15.0;
 
@@ -807,92 +793,27 @@ static led_8_segment_t segments[SEGMENT_COUNT] = {
 
 static h2_t *h = NULL;
 static h2_io_t *h2_io = NULL;
-static fifo_t *uart_rx = NULL;
-static fifo_t *uart_tx = NULL;
+static fifo_t *uart_rx_fifo = NULL;
+static fifo_t *ps2_rx_fifo = NULL;
 
 /* ====================================== Simulator Instances ================================== */
 
 /* ====================================== H2 I/O Handling ====================================== */
 
-#define CHAR_BACKSPACE (8)    /* ASCII backspace */
-#define CHAR_ESCAPE    (27)   /* ASCII escape character value */
-#define CHAR_DELETE    (127)  /* ASCII delete */
-
-/**@todo move non-portable I/O stuff to external program that calls h2_run */
-#ifdef __unix__
-#include <unistd.h>
-#include <termios.h>
-static int getch(void)
-{
-	struct termios oldattr, newattr;
-	int ch;
-	tcgetattr(STDIN_FILENO, &oldattr);
-	newattr = oldattr;
-	newattr.c_iflag &= ~(ICRNL);
-	newattr.c_lflag &= ~(ICANON | ECHO);
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
-	ch = getchar();
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
-
-	return ch;
-}
-
-static int putch(int c)
-{
-	int res = putchar(c);
-	fflush(stdout);
-	return res;
-}
-#else
-#ifdef _WIN32
-
-extern int getch(void);
-extern int putch(int c);
-
-#else
-static int getch(void)
-{
-	return getchar();
-}
-
-static int putch(int c)
-{
-	return putchar(c);
-}
-#endif
-#endif /** __unix__ **/
-
-static int wrap_getch(bool *debug_on)
-{
-	assert(debug_on);
-	int ch;
-	if(halt_simulation)
-		return 0;
-	ch = getch();
-	if(ch == EOF || ch == CHAR_ESCAPE) {
-		halt_simulation = true;
-	}
-	*debug_on = false;
-	return ch == CHAR_DELETE ? CHAR_BACKSPACE : ch;
-}
-
 static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on)
 {
 	assert(soc);
 
+	if(debug_on)
+		*debug_on = false;
 	switch(addr) {
-	/**@todo handle all UART TX/RX bits correctly */
 	case iUart:        
 		{
 			uint16_t r = 0;
-			pthread_mutex_lock(&uart_rx_lock);
-				r |= fifo_is_empty(uart_rx) << UART_RX_FIFO_EMPTY_BIT;
-				r |= fifo_is_full(uart_rx)  << UART_RX_FIFO_FULL_BIT;
-				r |= soc->uart_getchar_register;
-				r |= UART_TX_FIFO_EMPTY;
-			pthread_mutex_unlock(&uart_rx_lock);
+			r |= fifo_is_empty(uart_rx_fifo) << UART_RX_FIFO_EMPTY_BIT;
+			r |= fifo_is_full(uart_rx_fifo)  << UART_RX_FIFO_FULL_BIT;
+			r |= soc->uart_getchar_register;
+			r |= UART_TX_FIFO_EMPTY;
 			return r;
 		}
 	case iSwitches:     soc->switches = 0;
@@ -912,6 +833,8 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 {
 	assert(soc);
 
+	if(debug_on)
+		*debug_on = false;
 	if(addr & 0x8000) {
 		soc->vga[addr & 0x1FFF] = value;
 		vga.m[addr & 0x1FFF] = value;
@@ -920,15 +843,15 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 
 	switch(addr) {
 	case oUart:
-			if(value & UART_TX_WE)
-				putch(0xFF & value);
+			if(value & UART_TX_WE) {
+				/**@todo send this output to the screen */
+				putchar(0xFF & value);
+				fflush(stdout);
+			}
 			if(value & UART_RX_RE) {
 				uint8_t c = 0;
-				pthread_mutex_lock(&uart_rx_lock);
-				//soc->uart_getchar_register = wrap_getch(debug_on);
-				fifo_pop(uart_rx, &c);
+				fifo_pop(uart_rx_fifo, &c);
 				soc->uart_getchar_register = c;
-				pthread_mutex_unlock(&uart_rx_lock);
 			}
 			break;
 	case oLeds:       soc->leds           = value; 
@@ -951,25 +874,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	}
 }
 
-static void *h2_task(void *x)
-{
-	static uint64_t next = 0;
-	UNUSED(x);
-
-	for(;!halt_simulation;) {
-		if(next != tick) {
-			if(h2_run(h, h2_io, stderr, RUN_FOR, NULL, false) < 0)
-				return NULL;
-			next = tick;
-		}
-		usleep(5000);
-	}
-
-	return NULL;
-}
-
 /* ====================================== H2 I/O Handling ====================================== */
-
 
 /* ====================================== Main Loop ============================================ */
 
@@ -1004,9 +909,7 @@ static void keyboard_handler(unsigned char key, int x, int y)
 	if(key == ESC) {
 		halt_simulation = true;
 	} else {
-		pthread_mutex_lock(&uart_rx_lock);
-		fifo_push(uart_rx, key);
-		pthread_mutex_unlock(&uart_rx_lock);
+		fifo_push(uart_rx_fifo, key);
 	}
 }
 
@@ -1145,7 +1048,6 @@ static void draw_scene(void)
 {
 	static uint64_t next = 0;
 	if(halt_simulation) {
-		tcsetattr(STDIN_FILENO, TCSANOW, &original_attributes);
 		exit(EXIT_SUCCESS);
 		//glutLeaveMainLoop();
 	}
@@ -1206,7 +1108,6 @@ int main(int argc, char **argv)
 {
 	FILE *hexfile = NULL;
 	int r = 0;
-	tcgetattr(STDIN_FILENO, &original_attributes);
 
 	if(argc != 2) {
 		fprintf(stderr, "usage %s h2.hex\n", argv[0]);
@@ -1225,8 +1126,7 @@ int main(int argc, char **argv)
 	h2_io->in  = h2_io_get_gui;
 	h2_io->out = h2_io_set_gui;
 
-	uart_rx = fifo_new(16);
-	uart_tx = fifo_new(16);
+	uart_rx_fifo = fifo_new(UART_FIFO_DEPTH);
 
 	for(int i = 0; i < VGA_MEMORY_SIZE / VGA_WIDTH; i++)
 		memset(vga.m + (i * VGA_WIDTH), ' '/*'a'+(i%26)*/, VGA_MEMORY_SIZE / VGA_WIDTH);

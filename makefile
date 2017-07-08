@@ -12,7 +12,7 @@ NETLIST=top
 #TIME=time -p 
 TIME=
 
-GUI_LDFLAGS = -lglut -lGL -lm -lpthread
+GUI_LDFLAGS = -lglut -lGL -lm 
 CFLAGS      = -Wall -Wextra -O2 -g
 
 .PHONY: simulation viewer synthesis bitfile upload clean

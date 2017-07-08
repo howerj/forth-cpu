@@ -60,6 +60,9 @@ typedef struct {
 #define TIMER_RESET                (1 << TIMER_RESET_BIT)
 #define TIMER_INTERRUPT_ENABLE     (1 << TIMER_INTERRUPT_ENABLE_BIT)
 
+#define UART_FIFO_DEPTH            (8)
+#define UART_BAUD_RATE             (115200)
+
 #define UART_RX_FIFO_EMPTY_BIT     (8)
 #define UART_RX_FIFO_FULL_BIT      (9)
 #define UART_RX_RE_BIT             (10)
