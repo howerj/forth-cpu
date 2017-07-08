@@ -12,10 +12,14 @@
  * 	* glScalef
  * And font:
  * 	GLUT_STROKE_ROMAN
+ *
+ * @todo Fix exiting from program, the threads should be terminated correctly
+ * and the terminal set to back to how it is meant to be.
  */
 
-
+#include "h2.h"
 #include <assert.h>
+#include <errno.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,6 +29,9 @@
 #include <stdint.h>
 #include <GL/glut.h>
 #include <stdarg.h>
+/**@todo This is not portable, a wrapper should be made for it */
+#include <pthread.h> 
+#include <unistd.h>
 
 /* ====================================== Utility Functions ==================================== */
 
@@ -47,10 +54,13 @@ static double window_x_starting_position  = 60.0;
 static double window_y_starting_position  = 20.0;
 static double window_scale_x              = 1.0; 
 static double window_scale_y              = 1.0;
-static unsigned tick                      = 0;
+static volatile unsigned tick             = 0;
+static volatile bool     halt_simulation  = false;
+struct termios original_attributes;
+
+static pthread_t h2_thread;
 
 static const double arena_tick_ms         = 15.0;
-
 
 typedef enum {
 	WHITE,
@@ -118,7 +128,7 @@ double deg2rad(double deg)
 void set_color(color_t color)
 {
 	switch(color) {      /* RED  GRN  BLU */
-	case WHITE:   glColor3f(1.0, 1.0, 1.0);   break;
+	case WHITE:   glColor3f(0.8, 0.8, 0.8);   break;
 	case RED:     glColor3f(0.8, 0.0, 0.0);   break;
 	case YELLOW:  glColor3f(0.8, 0.8, 0.0);   break;
 	case GREEN:   glColor3f(0.0, 0.8, 0.0);   break;
@@ -690,13 +700,158 @@ static vga_t vga = {
 #define SEGMENT_HEIGHT  (8)
 
 static led_8_segment_t segments[SEGMENT_COUNT] = {
-	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 1.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 12 },
-	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 2.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 13 },
-	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 3.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 14 },
-	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 4.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 15 },
+	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 1.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 0 },
+	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 2.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 0 },
+	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 3.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 0 },
+	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 4.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 0 },
 };
 
+
+static h2_t *h = NULL;
+static h2_io_t *h2_io = NULL;
+
 /* ====================================== Simulator Instances ================================== */
+
+/* ====================================== H2 I/O Handling ====================================== */
+
+#define CHAR_BACKSPACE (8)    /* ASCII backspace */
+#define CHAR_ESCAPE    (27)   /* ASCII escape character value */
+#define CHAR_DELETE    (127)  /* ASCII delete */
+
+/**@todo move non-portable I/O stuff to external program that calls h2_run */
+#ifdef __unix__
+#include <unistd.h>
+#include <termios.h>
+static int getch(void)
+{
+	struct termios oldattr, newattr;
+	int ch;
+	tcgetattr(STDIN_FILENO, &oldattr);
+	newattr = oldattr;
+	newattr.c_iflag &= ~(ICRNL);
+	newattr.c_lflag &= ~(ICANON | ECHO);
+
+	tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
+	ch = getchar();
+
+	tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
+
+	return ch;
+}
+
+static int putch(int c)
+{
+	int res = putchar(c);
+	fflush(stdout);
+	return res;
+}
+#else
+#ifdef _WIN32
+
+extern int getch(void);
+extern int putch(int c);
+
+#else
+static int getch(void)
+{
+	return getchar();
+}
+
+static int putch(int c)
+{
+	return putchar(c);
+}
+#endif
+#endif /** __unix__ **/
+
+static int wrap_getch(bool *debug_on)
+{
+	assert(debug_on);
+	int ch;
+	if(halt_simulation)
+		return 0;
+	ch = getch();
+	if(ch == EOF || ch == CHAR_ESCAPE) {
+		halt_simulation = true;
+	}
+	*debug_on = false;
+	return ch == CHAR_DELETE ? CHAR_BACKSPACE : ch;
+}
+
+static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on)
+{
+	assert(soc);
+
+	switch(addr) {
+	case iUart:         return UART_TX_FIFO_EMPTY | soc->uart_getchar_register; /** @bug This does not reflect accurate timing */
+	case iSwitches:     soc->switches = 0;
+			    for(size_t i = 0; i < SWITCHES_COUNT; i++)
+				    soc->switches |= switches[i].on << i;
+			    return soc->switches;
+	case iTimerCtrl:    return soc->timer_control;
+	case iTimerDin:     return soc->timer;
+	/** @bug reading from VGA memory is broken for the moment */
+	case iVgaTxtDout:   return 0; 
+	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
+	}
+	return 0;
+}
+
+static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on)
+{
+	assert(soc);
+
+	if(addr & 0x8000) {
+		soc->vga[addr & 0x1FFF] = value;
+		vga.m[addr & 0x1FFF] = value;
+		return;
+	}
+
+	switch(addr) {
+	case oUart:
+			if(value & UART_TX_WE)
+				putch(0xFF & value);
+			if(value & UART_RX_RE)
+				soc->uart_getchar_register = wrap_getch(debug_on);
+			break;
+	case oLeds:       soc->leds           = value; 
+			  for(size_t i = 0; i < LEDS_COUNT; i++)
+				  leds[i].on = value & (1 << i);
+			  break;
+	case oTimerCtrl:  soc->timer_control  = value; break;
+	case oVgaCtrl:    soc->vga_control    = value; 
+			  vga.control         = value;
+			  break;
+	case oVgaCursor:  soc->vga_cursor     = value;
+			  vga.cursor_x        = value & 0x7f;
+			  vga.cursor_y        = (value >> 8) & 0x3f;
+			  break;
+	case o8SegLED:    for(size_t i = 0; i < SEGMENT_COUNT; i++)
+				  segments[i].segment = (value >> ((SEGMENT_COUNT - i - 1) * 4)) & 0xf;
+			  
+			  soc->led_8_segments = value; break;
+	case oIrcMask:    soc->irc_mask       = value; break;
+	}
+}
+
+static void *h2_task(void *x)
+{
+	static uint64_t next = 0;
+
+	for(;!halt_simulation;) {
+		if(next != tick) {
+			if(h2_run(h, h2_io, stderr, 512, NULL, false) < 0)
+				return NULL;
+			next = tick;
+		}
+		usleep(5000);
+	}
+
+	return NULL;
+}
+
+/* ====================================== H2 I/O Handling ====================================== */
+
 
 /* ====================================== Main Loop ============================================ */
 
@@ -730,7 +885,7 @@ static void keyboard_handler(unsigned char key, int x, int y)
 	UNUSED(y);
 	switch(key) {
 	case ESC:
-		exit(EXIT_SUCCESS);
+		halt_simulation = true;
 	default:
 		break;
 	}
@@ -861,8 +1016,6 @@ static void mouse_handler(int button, int state, int x, int y)
 	}
 }
 
-
-
 static void timer_callback(int value)
 {
 	tick++;
@@ -872,6 +1025,11 @@ static void timer_callback(int value)
 static void draw_scene(void)
 {
 	static uint64_t next = 0;
+	if(halt_simulation) {
+		tcsetattr(STDIN_FILENO, TCSANOW, &original_attributes);
+		exit(EXIT_SUCCESS);
+		//glutLeaveMainLoop();
+	}
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -880,7 +1038,7 @@ static void draw_scene(void)
 	draw_debug_info();
 
 	if(next != tick) {
-		// update_scene(world);
+		//h2_run(h, h2_io, stderr, 512, NULL, false);
 		next = tick;
 	}
 
@@ -926,10 +1084,46 @@ static void initialize_rendering(char *arg_0)
 /**@todo Read in h2.hex and text.bin */
 int main(int argc, char **argv)
 {
+	FILE *hexfile = NULL;
+	int r = 0;
+	tcgetattr(STDIN_FILENO, &original_attributes);
+
+	if(argc != 2) {
+		fprintf(stderr, "usage %s h2.hex\n", argv[0]);
+		return -1;
+	}
+	hexfile = fopen_or_die(argv[1], "rb");
+
+	h = h2_new(START_ADDR);
+	r = h2_load(h, hexfile);
+	fclose(hexfile);
+	if(r < 0) {
+		fprintf(stderr, "h2 load failed\n");
+		goto fail;
+	}
+	h2_io = h2_io_new();
+	h2_io->in  = h2_io_get_gui;
+	h2_io->out = h2_io_set_gui;
+
+	errno = 0;
+	if(pthread_create(&h2_thread, NULL, h2_task, NULL)) {
+		fprintf(stderr, "failed to create thread: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
 	for(int i = 0; i < VGA_MEMORY_SIZE / VGA_WIDTH; i++)
-		memset(vga.m + (i * VGA_WIDTH), 'a'+(i%26), VGA_MEMORY_SIZE / VGA_WIDTH);
+		memset(vga.m + (i * VGA_WIDTH), ' '/*'a'+(i%26)*/, VGA_MEMORY_SIZE / VGA_WIDTH);
 	initialize_rendering(argv[0]);
 	glutMainLoop();
+
+	if(pthread_join(h2_thread, NULL)) {
+		fprintf(stderr, "Error joining thread\n");
+		return -1;
+	}
+
 	return 0;
+fail:
+	h2_free(h);
+	return -1;
 }
 
