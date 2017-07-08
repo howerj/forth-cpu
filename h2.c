@@ -228,6 +228,7 @@ typedef enum {
 	X(RDEPTH, "rdepth", (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)                 | MK_DSTACK(DELTA_1)))\
 	X(TE0,    "0=",     (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
 	X(UP1,    "up1",    (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_DSTACK(DELTA_1)))\
+	X(NOP,    "nop",    (OP_ALU_OP | MK_CODE(ALU_OP_T)))\
 	X(RDROP,  "rdrop",  (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_RSTACK(DELTA_N1)))
 
 

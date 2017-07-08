@@ -51,7 +51,24 @@ typedef struct {
 
 
 #define CLOCK_SPEED_HZ             (100000000ULL)
+
 #define VGA_BUFFER_LENGTH          (1 << 13)
+
+#define VGA_CTL_B_BIT              (0)
+#define VGA_CTL_G_BIT              (1)
+#define VGA_CTL_R_BIT              (2)
+#define VGA_CUR_MODE_BIT           (3)
+#define VGA_CUR_BLINK_BIT          (4)
+#define VGA_CUR_EN_BIT             (5)
+#define VGA_EN_BIT                 (6)
+
+#define VGA_CTL_B                  (1  <<  VGA_CTL_B_BIT)
+#define VGA_CTL_G                  (1  <<  VGA_CTL_G_BIT)
+#define VGA_CTL_R                  (1  <<  VGA_CTL_R_BIT)
+#define VGA_CUR_MODE               (1  <<  VGA_CUR_MODE_BIT)
+#define VGA_CUR_BLINK              (1  <<  VGA_CUR_BLINK_BIT)
+#define VGA_CUR_EN                 (1  <<  VGA_CUR_EN_BIT)
+#define VGA_EN                     (1  <<  VGA_EN_BIT)
 
 #define TIMER_ENABLE_BIT           (15)
 #define TIMER_RESET_BIT            (14)

@@ -45,6 +45,8 @@
 #define Y_MIN       (0.0)
 #define RUN_FOR     (512)
 
+/**@todo wrap these variables in a structure and pass them into as many
+ * functions as possible */
 static double window_height               = 800.0;
 static double window_width                = 800.0;
 static double window_x_starting_position  = 60.0;
@@ -55,6 +57,7 @@ static volatile unsigned tick             = 0;
 static volatile bool     halt_simulation  = false;
 
 static const double arena_tick_ms         = 15.0;
+static bool use_uart_input                = true;
 
 typedef enum {
 	WHITE,
@@ -598,22 +601,6 @@ void draw_led_8_segment(led_8_segment_t *l)
 #define VGA_HEIGHT      (40)
 #define VGA_AREA        (VGA_WIDTH * VGA_HEIGHT)
 
-#define VGA_ENABLE_BIT        (6)
-#define VGA_CURSOR_ENABLE_BIT (5)
-#define VGA_CURSOR_BLINK_BIT  (4)
-#define VGA_CURSOR_MODE_BIT   (3)
-#define VGA_RED_BIT           (2)
-#define VGA_GREEN_BIT         (1)
-#define VGA_BLUE_BIT          (0)
-
-#define  VGA_ENABLE         (1  <<  VGA_ENABLE_BIT)
-#define  VGA_CURSOR_ENABLE  (1  <<  VGA_CURSOR_ENABLE_BIT)
-#define  VGA_CURSOR_BLINK   (1  <<  VGA_CURSOR_BLINK_BIT)
-#define  VGA_CURSOR_MODE    (1  <<  VGA_CURSOR_MODE_BIT)
-#define  VGA_RED            (1  <<  VGA_RED_BIT)
-#define  VGA_GREEN          (1  <<  VGA_GREEN_BIT)
-#define  VGA_BLUE           (1  <<  VGA_BLUE_BIT)
-
 typedef struct {
 	double x;
 	double y;
@@ -623,6 +610,9 @@ typedef struct {
 	uint8_t cursor_y;
 
 	uint16_t control;
+
+	uint64_t blink_count;
+	bool blink_on;
 
 	/**@warning The actual VGA memory is 16-bit, only the lower 8-bits are used */
 	uint8_t m[VGA_MEMORY_SIZE];
@@ -644,7 +634,7 @@ static void vga_map_color(uint8_t c)
 
 void draw_vga(vga_t *v)
 {
-	if(!(v->control & VGA_ENABLE))
+	if(!(v->control & VGA_EN))
 		return;
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
@@ -652,11 +642,25 @@ void draw_vga(vga_t *v)
 	vga_map_color(v->control & 0x7);
 
 	double char_height = (Y_MAX / window_height) * FONT_HEIGHT;
+	double char_width  = (X_MAX / window_width)  * FONT_WIDTH;
 
 	for(size_t i = 0; i < VGA_HEIGHT; i++) {
 		glRasterPos2d(v->x, v->y - (((double)i) * char_height));
 		draw_block(v->m + (i*VGA_WIDTH), VGA_WIDTH);
 	}
+
+	if(v->control & VGA_CUR_EN) {
+		if((tick - v->blink_count) > 10) {
+			v->blink_on = !(v->blink_on);
+			v->blink_count = tick;
+		}
+		if(v->blink_on) {
+			char_height *= window_scale_y;
+			char_width  *= window_scale_x;
+			draw_rectangle_filled(v->x + (char_width * (v->cursor_x-1.0)), v->y - (char_height * v->cursor_y), char_width, char_height, WHITE);
+		}
+	}
+
 	glPopMatrix();
 
 	/* draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2), SQUARE, 0.5, WHITE); */
@@ -772,7 +776,10 @@ static vga_t vga = {
 	.cursor_x = 0,
 	.cursor_y = 0,
 
-	.control = (VGA_ENABLE | VGA_GREEN),
+	.control = 0,
+
+	.blink_count = 0,
+	.blink_on    = false,
 
 	.m = { 0 }
 };
@@ -824,7 +831,12 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 	case iTimerDin:     return soc->timer;
 	/** @bug reading from VGA memory is broken for the moment */
 	case iVgaTxtDout:   return 0; 
-	case iPs2:          return 0; //PS2_NEW_CHAR | wrap_getch(debug_on);
+	case iPs2:
+		{
+			uint8_t c = 0;
+			bool char_arrived = !fifo_pop(ps2_rx_fifo, &c);
+			return (char_arrived << PS2_NEW_CHAR_BIT) | c;
+		}	    
 	}
 	return 0;
 }
@@ -837,7 +849,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 		*debug_on = false;
 	if(addr & 0x8000) {
 		soc->vga[addr & 0x1FFF] = value;
-		vga.m[addr & 0x1FFF] = value;
+		vga.m[addr & 0x1FFF]    = value;
 		return;
 	}
 
@@ -895,9 +907,14 @@ static double fps(void)
 static void draw_debug_info(void)
 {
 	textbox_t t = { .x = X_MIN + X_MAX/40, .y = Y_MAX - Y_MAX/40, .draw_box = false, .color_text = WHITE };
+	fifo_t *f = use_uart_input ? uart_rx_fifo : ps2_rx_fifo;
+	const char *fifo_str = use_uart_input ? "UART" : "PS/2";
 
-	fill_textbox(&t, true, "tick:       %u", tick);
-	fill_textbox(&t, true, "fps:        %f", fps());
+	fill_textbox(&t, true, "tick:          %u", tick);
+	fill_textbox(&t, true, "fps:           %f", fps());
+	fill_textbox(&t, true, "%s fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
+	fill_textbox(&t, true, "%s fifo empty: %s", fifo_str, fifo_is_empty(f) ? "true" : "false");
+	fill_textbox(&t, true, "%s fifo count: %u", fifo_str, (unsigned)fifo_count(f));
 
 	draw_textbox(&t);
 }
@@ -909,7 +926,11 @@ static void keyboard_handler(unsigned char key, int x, int y)
 	if(key == ESC) {
 		halt_simulation = true;
 	} else {
-		fifo_push(uart_rx_fifo, key);
+		/**@todo print fifo states */
+		if(use_uart_input)
+			fifo_push(uart_rx_fifo, key);
+		else
+			fifo_push(ps2_rx_fifo, key);
 	}
 }
 
@@ -1016,6 +1037,7 @@ static void mouse_handler(int button, int state, int x, int y)
 	/*fprintf(stderr, "button: %d state: %d x: %d y: %d\n", button, state, x, y);
 	fprintf(stderr, "x: %f y: %f\n", c.x, c.y); */
 
+
 	for(size_t i = 0; i < SWITCHES_COUNT; i++) {
 		/*fprintf(stderr, "x: %f y: %f\n", switches[i].x, switches[i].y);*/
 		if(detect_circle_circle_collision(c.x, c.y, 0.1, switches[i].x, switches[i].y, switches[i].radius)) {
@@ -1028,6 +1050,8 @@ static void mouse_handler(int button, int state, int x, int y)
 		}
 	}
 
+	/**@bug push buttons need to be unset when the mouse click is released
+	 * regardless of where is happens on the screen */
 	switch(dpad_collision(&dpad, c.x, c.y, 0.1)) {
 	case DPAN_COL_NONE:                                             break;
 	case DPAN_COL_RIGHT:  dpad.right  = push_button(button, state); break;
@@ -1047,10 +1071,8 @@ static void timer_callback(int value)
 static void draw_scene(void)
 {
 	static uint64_t next = 0;
-	if(halt_simulation) {
+	if(halt_simulation)
 		exit(EXIT_SUCCESS);
-		//glutLeaveMainLoop();
-	}
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -1127,6 +1149,7 @@ int main(int argc, char **argv)
 	h2_io->out = h2_io_set_gui;
 
 	uart_rx_fifo = fifo_new(UART_FIFO_DEPTH);
+	ps2_rx_fifo  = fifo_new(1);
 
 	for(int i = 0; i < VGA_MEMORY_SIZE / VGA_WIDTH; i++)
 		memset(vga.m + (i * VGA_WIDTH), ' '/*'a'+(i%26)*/, VGA_MEMORY_SIZE / VGA_WIDTH);

@@ -68,7 +68,8 @@ variable tib-buf 0 ( ... and address )
 .set tib-buf $pc
 .allocate 80
 
-variable >in   0 ( Hold character pointer when parsing input )
+variable >in     0 ( Hold character pointer when parsing input )
+variable state   0 ( compiler state variable )
 
 variable '?key   0 ( execution vector of ?key.  default to ?rx.)
 variable 'emit   0 ( execution vector of emit.  default to tx!)
@@ -118,10 +119,10 @@ will need an in-line bit, as well as an immediate bit )
 	>r over xor r> and xor swap ! ;
 
 : !io ; ( Initialize I/O devices )
-: ?rx ( -- c 1 | 0 : read in a character of input from UART )
+: ?rx ( -- c -1 | 0 : read in a character of input from UART )
 	iUart @ 0x0100 and 0= 
 	if
-		0x0400 oUart ! iUart @ 0xff and 1
+		0x0400 oUart ! iUart @ 0xff and -1
 	else
 		0
 	then ;
@@ -155,6 +156,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : here cp @ ;
 : pad here 80 + ;
 : @execute @ ?dup if execute then ;
+: 3drop 2drop drop ;
 : bl 32 ;
 : within over - >r - r> u< ; ( u lo hi -- t )
 : not -1 xor ;
@@ -345,12 +347,44 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : , here dup cell+ cp ! ;  
 
-: words
+: =string ( a1 u2 a1 u2 -- f : string equality )
+	>r swap r> ( a1 a2 u1 u2 ) 
+	over <> if 3drop  0 exit then
+	dup  0= if 3drop -1 exit then
+	1-
+	for ( a1 a2 )
+		2dup c@ swap c@ <> if 2drop rdrop 0 exit then
+		1+ swap 1+ 
+	next 2drop -1 ;
+
+: nfa ( pwd -- nfa : move to name field address)
+	cell+ ;
+
+: cfa ( pwd -- cfa : move to code field address )
+	nfa dup
+	count nip + ;
+
+: 2rdrop
+	r> rdrop rdrop >r ;
+
+: find ( a u -- pwd -1 | 0 : find a word in the dictionary )
+	>r >r
 	last
 	begin
 		dup
 	while
-		dup cell+ count type space @
+		dup nfa count r> r> 2dup >r >r =string
+		if rdrop rdrop -1 exit then
+		@
+	repeat 
+	rdrop rdrop drop 0 exit ;
+
+: words ( -- : list all the words in the dictionary )
+	last
+	begin
+		dup
+	while
+		dup nfa count type space @
 	repeat drop cr ;
 
 : .base ( -- ) base @ decimal dup . base  ! ;
@@ -438,7 +472,10 @@ this cursor logic would be a lot simpler )
 : x1+ cursorX 1+! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
 : cursorT1+ cursorT 1+! cursorT @ vgaTextSize u>= if 0 cursorT ! then ;
 
-: led ( n -- : display a number on the LED 8 display )
+: vga!
+	0xE000 or ! ;
+
+: led! ( n -- : display a number on the LED 8 display )
 	o8SegLED ! ;
 
 \ : key?
@@ -483,7 +520,7 @@ variable uart-read-count 0
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
-	0xCAFE led ;
+	0xCAFE led! ;
 	\ 0x00FF oIrcMask !
 	\ 1   seti ;
 
@@ -495,33 +532,62 @@ adequate assembler directives )
 
 \ : 2. swap . . ;
 
-
 variable welcome "H2 Forth:"
+
+
+( 
+max count 65536
+
+1us / 10ns = 100
+
+1ms / 10ns = 100000
+
+)
+( This routine is written in assembler and depends
+on the clock frequency. It delays the correct number
+of instructions to delay one microsecond, plus some
+extra
+
+100 instructions equals one microsecond, and it
+takes the delay loop 4 instructions to execute,
+so 'n' is multiplied by one hundred and divided by 4.
+
+It takes 1 instruction to call us, 1 instruction to
+exit )
+: us ( n -- : wait for 'n' microseconds + 110ns )
+	dup  4 lshift + 
+	over 3 lshift + 
+	+               
+
+	begin dup while 1- repeat ;
+
+: ms ( n -- : wait for 'n' milliseconds )
+	for 890 us next ;
+
 start:
 	 init
 
 	\ boot
 
-	welcome count type cr  
-
-	words
+	welcome count type cr words
 
 nextChar:
 	\ query tib #tib @ 2dup 2. cr type cr branch nextChar
 	\ query 0 tib #tib @ >number . . . cr branch nextChar
+	\ query tib #tib @ find . cr branch nextChar
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches
 		key?                 \ Wait for UART character
 	until
-	dup emit cursorT @ 0xE000 or !
+	dup emit cursorT @ vga!
 
-	cursorT1+
+	cursorT1+ x1+
 
 	cursorX @ cursorY @ at-xy
 
 	uart-read-count 1+!
-	uart-read-count @ led
+	uart-read-count @ led!
 
 branch nextChar
 
@@ -530,9 +596,12 @@ branch nextChar
 .set pwd $pwd
 .set cp  $pc
 
-.set '?key   ?rx    ( execution vector of ?key.  default to ?rx.)
-.set 'emit   tx!    ( execution vector of emit.  default to tx!)
-.set 'expect accept ( execution vector of expect.  default to 'accept'.)
-.set 'tap    ktap   ( execution vector of tap.  defulat the ktap.)
-.set 'echo   tx!    ( execution vector of echo.  default to tx!.)
-.set 'prompt .ok    ( execution vector of prompt.  default to '.ok'.)
+.set '?key   ?rx    ( execution vector of ?key,   default to ?rx.)
+.set 'emit   tx!    ( execution vector of emit,   default to tx!)
+.set 'expect accept ( execution vector of expect, default to 'accept'.)
+.set 'tap    ktap   ( execution vector of tap,    default the ktap.)
+.set 'echo   tx!    ( execution vector of echo,   default to tx!.)
+.set 'prompt .ok    ( execution vector of prompt, default to '.ok'.)
+
+
+

@@ -68,7 +68,7 @@ all:
 uart: uart.c
 	${CC} ${CFLAGS} -std=gnu99 $^ -lpthread -o $@
 
-h2: h2.c
+h2: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 $^ -o $@
 
 disassemble: h2 h2.fth

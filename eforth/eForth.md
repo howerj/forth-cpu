@@ -244,7 +244,7 @@ visulization.
         NAMEE   EQU     UPP-8*CELLL     ;name dictionary
         CODEE   EQU     COLDD+US        ;code dictionary
 
-![eForth Memory Map](eForthMemoryMap.png)
+![eForth Memory Map](memory_map.png)
 
 ## eForth Kernel
 
