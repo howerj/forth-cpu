@@ -434,6 +434,12 @@ be available. "doList" and "doLit" do not need to be implemented. )
 ( @todo suppress ok prompt when in compiling mode ) 
 : .ok OK count type space ;
 
+: 40us ( n -- : wait for 'n'*40 microseconds + 30us )
+	begin dup while 1- repeat drop ;
+
+: ms ( n -- : wait for 'n' milliseconds )
+	for 24940 40us next ; 
+
 ( ======================== Word Set ========================= )
 
 ( ======================== Miscellaneous ==================== )
@@ -535,35 +541,6 @@ adequate assembler directives )
 variable welcome "H2 Forth:"
 
 
-( 
-max count 65536
-
-1us / 10ns = 100
-
-1ms / 10ns = 100000
-
-)
-( This routine is written in assembler and depends
-on the clock frequency. It delays the correct number
-of instructions to delay one microsecond, plus some
-extra
-
-100 instructions equals one microsecond, and it
-takes the delay loop 4 instructions to execute,
-so 'n' is multiplied by one hundred and divided by 4.
-
-It takes 1 instruction to call us, 1 instruction to
-exit )
-: us ( n -- : wait for 'n' microseconds + 110ns )
-	dup  4 lshift + 
-	over 3 lshift + 
-	+               
-
-	begin dup while 1- repeat ;
-
-: ms ( n -- : wait for 'n' milliseconds )
-	for 890 us next ;
-
 start:
 	 init
 
@@ -575,6 +552,8 @@ nextChar:
 	\ query tib #tib @ 2dup 2. cr type cr branch nextChar
 	\ query 0 tib #tib @ >number . . . cr branch nextChar
 	\ query tib #tib @ find . cr branch nextChar
+	\ 0 counter: 1000 ms 1+ dup led! branch counter
+
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches

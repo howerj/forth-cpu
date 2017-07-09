@@ -13,8 +13,8 @@
  * And font:
  * 	GLUT_STROKE_ROMAN
  *
- * @todo Fix exiting from program, the threads should be terminated correctly
- * and the terminal set to back to how it is meant to be.
+ * @todo Replace magic numbers like "0.5" with 1/200 of the absolute difference
+ * between x/y minimum and maximum. 
  */
 
 #include "h2.h"
@@ -45,8 +45,6 @@
 #define Y_MIN       (0.0)
 #define RUN_FOR     (512)
 
-/**@todo wrap these variables in a structure and pass them into as many
- * functions as possible */
 static double window_height               = 800.0;
 static double window_width                = 800.0;
 static double window_x_starting_position  = 60.0;
@@ -56,8 +54,8 @@ static double window_scale_y              = 1.0;
 static volatile unsigned tick             = 0;
 static volatile bool     halt_simulation  = false;
 
-static const double arena_tick_ms         = 15.0;
-static bool use_uart_input                = true;
+static unsigned arena_tick_ms              = 30; /**@todo This should be automatically adjusted based on frame rate */
+static bool use_uart_input                 = true;
 
 typedef enum {
 	WHITE,
@@ -98,6 +96,16 @@ typedef struct {
 typedef struct { /**@note it might be worth translating some functions to use points*/
 	double x, y;
 } point_t;
+
+static double seconds_to_ticks(double s)
+{
+	return s * (1000. / (double)arena_tick_ms);
+}
+
+static double ticks_to_seconds(double t)
+{
+	return t * (((double)arena_tick_ms)/1000.);
+}
 
 static void _error(const char *func, unsigned line, const char *fmt, ...)
 {
@@ -375,23 +383,27 @@ void fill_textbox(textbox_t *t, bool on, const char *fmt, ...)
 {
 	double r;
 	va_list ap;
+	double char_width  = (X_MAX / window_width) * FONT_WIDTH * window_scale_x;
 	assert(t && fmt);
 	if(!on)
 		return;
 	va_start(ap, fmt);
 	r = vdraw_text(t->color_text, t->x, t->y - t->height, fmt, ap);
+	r *= char_width;
+	r += 1;
 	va_end(ap);
 	t->width = MAX(t->width, r); 
-	t->height += ((Y_MAX / window_height) * FONT_HEIGHT); /*correct?*/
+	t->height += ((Y_MAX / window_height) * FONT_HEIGHT * window_scale_y); /*correct?*/
 }
 
 void draw_textbox(textbox_t *t)
 {
 	assert(t);
+	double char_height = (Y_MAX / window_height) * FONT_HEIGHT * window_scale_y;
 	if(!(t->draw_box))
 		return;
 	/**@todo fix this */
-	draw_rectangle_line(t->x, t->y-t->height, t->width, t->height, 0.5, t->color_box);
+	draw_rectangle_line(t->x - 0.5, t->y - t->height + char_height - 1, t->width, t->height + 1, 0.5, t->color_box);
 }
 
 bool detect_circle_circle_collision(
@@ -650,7 +662,8 @@ void draw_vga(vga_t *v)
 	}
 
 	if(v->control & VGA_CUR_EN) {
-		if((tick - v->blink_count) > 10) {
+		double now = tick - v->blink_count;
+		if(now > seconds_to_ticks(1.0)) {
 			v->blink_on = !(v->blink_on);
 			v->blink_count = tick;
 		}
@@ -906,11 +919,12 @@ static double fps(void)
 
 static void draw_debug_info(void)
 {
-	textbox_t t = { .x = X_MIN + X_MAX/40, .y = Y_MAX - Y_MAX/40, .draw_box = false, .color_text = WHITE };
+	textbox_t t = { .x = X_MIN + X_MAX/40, .y = Y_MAX - Y_MAX/40, .draw_box = true, .color_text = WHITE };
 	fifo_t *f = use_uart_input ? uart_rx_fifo : ps2_rx_fifo;
 	const char *fifo_str = use_uart_input ? "UART" : "PS/2";
 
 	fill_textbox(&t, true, "tick:          %u", tick);
+	fill_textbox(&t, true, "seconds:       %f", ticks_to_seconds(tick));
 	fill_textbox(&t, true, "fps:           %f", fps());
 	fill_textbox(&t, true, "%s fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
 	fill_textbox(&t, true, "%s fifo empty: %s", fifo_str, fifo_is_empty(f) ? "true" : "false");
@@ -1081,9 +1095,9 @@ static void draw_scene(void)
 	draw_debug_info();
 
 	if(next != tick) {
+		next = tick;
 		if(h2_run(h, h2_io, stderr, 512, NULL, false) < 0)
 			halt_simulation = true;
-		next = tick;
 	}
 
 	for(size_t i = 0; i < SWITCHES_COUNT; i++)
