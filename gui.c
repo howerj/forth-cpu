@@ -3,7 +3,7 @@
  * @copyright Richard James Howe (2017)
  * @license   MIT 
  *
- * @todo Print debugging information to the screen
+ * @todo Print debugging information for the H2 CPU to the screen
  * @todo Add font scaling, see <https://stackoverflow.com/questions/29872095/drawing-large-text-with-glut>
  * Functions to use:
  * 	* glutStrokeHeight
@@ -11,7 +11,7 @@
  * 	* glutStrokeCharacter
  * 	* glScalef
  * And font:
- * 	GLUT_STROKE_ROMAN
+ * 	GLUT_STROKE_MONO_ROMAN
  *
  * @todo Replace magic numbers like "0.5" with 1/200 of the absolute difference
  * between x/y minimum and maximum. 
@@ -293,6 +293,12 @@ void draw_regular_polygon_line(double x, double y, double orientation, double ra
 	_draw_regular_polygon(x, y, orientation, radius, sides, true, thickness, color);
 }
 
+static void draw_char(uint8_t c)
+{
+	c = c >= 32 && c <= 127 ? c : '?';
+	glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c);
+}
+
 /* see: https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_01
  *      https://stackoverflow.com/questions/538661/how-do-i-draw-text-with-glut-opengl-in-c
  *      https://stackoverflow.com/questions/20866508/using-glut-to-simply-print-text */
@@ -300,7 +306,7 @@ static int draw_block(const uint8_t *msg, size_t len)
 {	
 	assert(msg);
 	for(size_t i = 0; i < len; i++)
-		glutBitmapCharacter(GLUT_BITMAP_9_BY_15, msg[i]);	
+		draw_char(msg[i]);
 	return len;
 }
 
@@ -940,7 +946,6 @@ static void keyboard_handler(unsigned char key, int x, int y)
 	if(key == ESC) {
 		halt_simulation = true;
 	} else {
-		/**@todo print fifo states */
 		if(use_uart_input)
 			fifo_push(uart_rx_fifo, key);
 		else
@@ -1139,7 +1144,6 @@ static void initialize_rendering(char *arg_0)
 	glutTimerFunc(arena_tick_ms, timer_callback, 0);
 }
 
-/**@todo Read in h2.hex and text.bin */
 int main(int argc, char **argv)
 {
 	FILE *hexfile = NULL;

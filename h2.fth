@@ -434,11 +434,11 @@ be available. "doList" and "doLit" do not need to be implemented. )
 ( @todo suppress ok prompt when in compiling mode ) 
 : .ok OK count type space ;
 
-: 40us ( n -- : wait for 'n'*40 microseconds + 30us )
+: 40ns ( n -- : wait for 'n'*40 nanoseconds + 30us )
 	begin dup while 1- repeat drop ;
 
 : ms ( n -- : wait for 'n' milliseconds )
-	for 24940 40us next ; 
+	for 24940 40ns next ; 
 
 ( ======================== Word Set ========================= )
 
