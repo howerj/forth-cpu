@@ -23,7 +23,7 @@ program counter and the like )
 
 ( ======================== System Constants ================= )
 
-.mode 1 ( Turn word header compilation on )
+.mode 3 ( Turn word header compilation and optimization on)
 
 
 ( Outputs: 0x6000 - 0x7FFF )
