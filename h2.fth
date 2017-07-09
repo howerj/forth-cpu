@@ -126,8 +126,19 @@ will need an in-line bit, as well as an immediate bit )
 	else
 		0
 	then ;
+
+: 40ns ( n -- : wait for 'n'*40 nanoseconds + 30us )
+	begin dup while 1- repeat drop ;
+
+( @todo determine the correct value for this magic number by instruction
+counting )
+: ms ( n -- : wait for 'n' milliseconds )
+	for 24940 40ns next ; 
+
+( @todo loop until TX FIFO is not full, a bug in the VHDL prevents this from
+working )
 : tx! ( c -- : write a character to UART )
-	0x2000 or oUart ! ; ( @todo loop until TX FIFO is not full )
+	0x2000 or oUart ! 1 ms ; 
 
 : um+ ( w w -- w carry )
 	2dup + >r
@@ -433,12 +444,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 ( @todo suppress ok prompt when in compiling mode ) 
 : .ok OK count type space ;
-
-: 40ns ( n -- : wait for 'n'*40 nanoseconds + 30us )
-	begin dup while 1- repeat drop ;
-
-: ms ( n -- : wait for 'n' milliseconds )
-	for 24940 40ns next ; 
 
 ( ======================== Word Set ========================= )
 
