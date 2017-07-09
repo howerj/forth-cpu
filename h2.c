@@ -13,6 +13,7 @@
  * utility.
  * @todo Turn the diagrams in this file into help strings which can
  * be printed out
+ * @todo Use the FIFO routines to simulate the H2 SoC FIFOs
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
@@ -131,9 +132,9 @@ extern int _fileno(FILE *stream);
 
 #define IS_LITERAL(INST) (((INST) & 0x8000) == 0x8000)
 #define IS_BRANCH(INST)  (((INST) & 0xE000) == 0x0000)
-#define IS_0BRANCH(INST) (((INST) & 0x2000) == 0x2000)
-#define IS_CALL(INST)    (((INST) & 0x4000) == 0x4000)
-#define IS_ALU_OP(INST)  (((INST) & 0x6000) == 0x6000)
+#define IS_0BRANCH(INST) (((INST) & 0xE000) == 0x2000)
+#define IS_CALL(INST)    (((INST) & 0xE000) == 0x4000)
+#define IS_ALU_OP(INST)  (((INST) & 0xE000) == 0x6000)
 
 #define ALU_OP_LENGTH   (5u)
 #define ALU_OP_START    (8u)
@@ -443,6 +444,88 @@ int h2_save(h2_t *h, FILE *output, bool full)
 			return -1;
 		}
 	return 0;
+}
+
+/* From: https://stackoverflow.com/questions/215557/how-do-i-implement-a-circular-list-ring-buffer-in-c */
+
+fifo_t *fifo_new(size_t size)
+{
+	fifo_data_t *buffer = allocate_or_die(size * sizeof(buffer[0]));
+	fifo_t *fifo = allocate_or_die(sizeof(fifo_t));
+
+	fifo->buffer = buffer;
+	fifo->head = 0;
+	fifo->tail = 0;
+	fifo->size = size;
+
+	return fifo;
+}
+
+void fifo_free(fifo_t *fifo)
+{
+	if(!fifo)
+		return;
+	free(fifo->buffer);
+	free(fifo);
+}
+
+bool fifo_is_full(fifo_t * fifo)
+{
+	assert(fifo);
+	return (fifo->head == (fifo->size - 1) && fifo->tail == 0)
+	    || (fifo->head == (fifo->tail - 1));
+}
+
+bool fifo_is_empty(fifo_t * fifo)
+{
+	assert(fifo);
+	return fifo->head == fifo->tail;
+}
+
+size_t fifo_count(fifo_t * fifo)
+{
+	assert(fifo);
+	if (fifo_is_empty(fifo))
+		return 0;
+	else if (fifo_is_full(fifo))
+		return fifo->size;
+	else if (fifo->head < fifo->tail)
+		return (fifo->head) + (fifo->size - fifo->tail);
+	else
+		return fifo->head - fifo->tail;
+}
+
+size_t fifo_push(fifo_t * fifo, fifo_data_t data)
+{
+	assert(fifo);
+
+	if (fifo_is_full(fifo))
+		return 0;
+
+	fifo->buffer[fifo->head] = data;
+
+	fifo->head++;
+	if (fifo->head == fifo->size)
+		fifo->head = 0;
+
+	return 1;
+}
+
+size_t fifo_pop(fifo_t * fifo, fifo_data_t * data)
+{
+	assert(fifo);
+	assert(data);
+
+	if (fifo_is_empty(fifo))
+		return 0;
+
+	*data = fifo->buffer[fifo->tail];
+
+	fifo->tail++;
+	if (fifo->tail == fifo->size)
+		fifo->tail = 0;
+
+	return 1;
 }
 
 #define CHAR_BACKSPACE (8)    /* ASCII backspace */
@@ -876,8 +959,7 @@ void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debug_on)
 {
 	assert(soc);
-	if(log_level >= LOG_DEBUG)
-		fprintf(stderr, "IO read addr: %"PRIx16"\n", addr);
+	debug("IO read addr: %"PRIx16, addr);
 
 	switch(addr) {
 	case iUart:         return UART_TX_FIFO_EMPTY | soc->uart_getchar_register; /** @bug This does not reflect accurate timing */
@@ -896,8 +978,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on)
 {
 	assert(soc);
-	if(log_level >= LOG_DEBUG)
-		fprintf(stderr, "IO write addr/value: %"PRIx16"/%"PRIx16"\n", addr, value);
+	debug("IO write addr/value: %"PRIx16"/%"PRIx16, addr, value);
 
 	if(addr & 0x8000) {
 		soc->vga[addr & 0x1FFF] = value;
@@ -2413,8 +2494,9 @@ static node_t *parse(FILE *input)
 /********* CODE ***********/
 
 typedef enum {
-	MODE_NORMAL = 0,
-	MODE_COMPILE_WORD_HEADER = 1,
+	MODE_NORMAL              = 0 << 0,
+	MODE_COMPILE_WORD_HEADER = 1 << 0,
+	MODE_OPTIMIZATION_ON     = 1 << 1,
 } assembler_mode_e;
 
 typedef struct {
@@ -2424,13 +2506,40 @@ typedef struct {
 	uint16_t start;
 	uint16_t mode;
 	uint16_t pwd; /* previous word register */
+	uint16_t fence; /* mark a boundary before which optimization cannot take place */
 } assembler_t;
 
-static void generate(h2_t *h, uint16_t instruction)
+static void generate(h2_t *h, assembler_t *a, uint16_t instruction)
 {
 	assert(h);
-	if(log_level >= LOG_DEBUG)
-		fprintf(stderr, "%"PRIx16":\t%"PRIx16"\n", h->pc, instruction);
+	assert(a);
+	debug("%"PRIx16":\t%"PRIx16, h->pc, instruction);
+
+	/**@note This merges the previous instruction with CODE_EXIT if it is
+	 * possible to do so, it should eventually be turned into a table
+	 * driven peep hole optimizer. Various optimizations include
+	 * - Literal Literal Operation = Literal
+	 * - Replacing sequences (such as "r> drop" = "rdrop")
+	 * The pattern matching could mostly be done with a ternary
+	 * "1"/"0"/"Don't care" matches on sequences of instructions.
+	 *
+	 * A FIFO could be used to hold the instructions before checking  */
+	if(IS_CALL(instruction) || IS_LITERAL(instruction) || IS_0BRANCH(instruction) || IS_BRANCH(instruction))
+		a->fence = h->pc;
+
+	if(a->mode & MODE_OPTIMIZATION_ON) {
+		if(h->pc && ((h->pc - 1) > a->fence) && (instruction == CODE_EXIT)) {
+			uint16_t previous = h->core[h->pc - 1];
+			if(!(previous & R_TO_PC) && !(previous & MK_RSTACK(DELTA_N2))) {
+				debug("optimization pc(%04"PRIx16 ") [%04"PRIx16 " -> %04"PRIx16"]", h->pc, previous, previous|instruction);
+				previous |= instruction;
+				h->core[h->pc - 1] = previous;
+				a->fence = h->pc - 1;
+				return;
+			}
+		}
+	}
+
 	h->core[h->pc++] = instruction;
 }
 
@@ -2457,13 +2566,14 @@ static void fix(h2_t *h, uint16_t hole, uint16_t patch)
 
 #define assembly_error(ERROR, FMT, ...) do{ error(FMT, ##__VA_ARGS__); ethrow(e); }while(0)
 
-static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type, error_t *e)
+static void generate_jump(h2_t *h, assembler_t *a, symbol_table_t *t, token_t *tok, parse_e type, error_t *e)
 {
 	uint16_t or = 0;
 	uint16_t addr = 0;
 	symbol_t *s;
 	assert(h);
 	assert(t);
+	assert(a);
 
 	if(tok->type == LEX_IDENTIFIER) {
 		s = symbol_table_lookup(t, tok->p.id);
@@ -2490,17 +2600,17 @@ static void generate_jump(h2_t *h, symbol_table_t *t, token_t *tok, parse_e type
 	default:
 		fatal("invalid call type: %u", type);
 	}
-	generate(h, or | addr);
+	generate(h, a, or | addr);
 }
 
-static void generate_literal(h2_t *h, uint16_t number)
+static void generate_literal(h2_t *h, assembler_t *a, uint16_t number)
 {
 	if(number & OP_LITERAL) {
 		number = ~number;
-		generate(h, OP_LITERAL | number);
-		generate(h, CODE_INVERT);
+		generate(h, a, OP_LITERAL | number);
+		generate(h, a, CODE_INVERT);
 	} else {
-		generate(h, OP_LITERAL | number);
+		generate(h, a, OP_LITERAL | number);
 	}
 }
 
@@ -2536,7 +2646,7 @@ static uint16_t pack_16(const char lb, const char hb)
 	return (((uint16_t)hb) << 8) | (uint16_t)lb;
 }
 
-static uint16_t pack_string(h2_t *h, const char *s, error_t *e)
+static uint16_t pack_string(h2_t *h, assembler_t *a, const char *s, error_t *e)
 {
 	assert(h);
 	assert(s);
@@ -2550,6 +2660,7 @@ static uint16_t pack_string(h2_t *h, const char *s, error_t *e)
 		h->core[hole(h)] = pack_16(s[i], s[i+1]);
 	if(i < l)
 		h->core[hole(h)] = pack_16(s[i], 0);
+	a->fence = here(h);
 	return r;
 }
 
@@ -2636,12 +2747,13 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			assemble(h, a, n->o[i], t, e);
 		break;
 	case SYM_LABEL:
+		a->fence = here(h);
 		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h), e);
 		break;
 	case SYM_BRANCH:
 	case SYM_0BRANCH:
 	case SYM_CALL:
-		generate_jump(h, t, n->token, n->type, e);
+		generate_jump(h, a, t, n->token, n->type, e);
 		break;
 	case SYM_CONSTANT:
 		/**@todo optionally compile header */
@@ -2654,23 +2766,23 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			fix(h, hole1, n->o[0]->token->p.number);
 		} else {
 			assert(n->o[0]->token->type == LEX_STRING);
-			hole1 = pack_string(h, n->o[0]->token->p.id, e);
+			hole1 = pack_string(h, a, n->o[0]->token->p.id, e);
 		}
 		/**@note The lowest bit of the address for memory loads is
 		 * discarded. */
 		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e);
 		break;
 	case SYM_LITERAL:
-		generate_literal(h, n->token->p.number);
+		generate_literal(h, a, n->token->p.number);
 		break;
 	case SYM_INSTRUCTION:
-		generate(h, lexer_to_alu_op(n->token->type));
+		generate(h, a, lexer_to_alu_op(n->token->type));
 		break;
 	case SYM_BEGIN_AGAIN: /* fall through */
 	case SYM_BEGIN_UNTIL:
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
-		generate(h, (n->type == SYM_BEGIN_AGAIN ? OP_BRANCH : OP_0BRANCH) | hole1);
+		generate(h, a, (n->type == SYM_BEGIN_AGAIN ? OP_BRANCH : OP_0BRANCH) | hole1);
 		break;
 	
 	case SYM_FOR_NEXT:
@@ -2679,42 +2791,42 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	    be considered. Also of note is the fact that the for...next loop is nearly
 	    identical to the begin...while...repeat loop, just with inserted instructions
 	    to perform the task */
-		generate(h, CODE_TOR);
+		generate(h, a, CODE_TOR);
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
-		generate(h, CODE_RAT);
+		generate(h, a, CODE_RAT);
 		hole2 = hole(h);
-		generate(h, CODE_FROMR);
-		generate(h, CODE_T_N1);
-		generate(h, CODE_TOR);
-		generate(h, OP_BRANCH | hole1);
+		generate(h, a, CODE_FROMR);
+		generate(h, a, CODE_T_N1);
+		generate(h, a, CODE_TOR);
+		generate(h, a, OP_BRANCH | hole1);
 		fix(h, hole2, OP_0BRANCH | here(h));
-		generate(h, CODE_RDROP);
+		generate(h, a, CODE_RDROP);
 		break;
 	case SYM_FOR_AFT_THEN_NEXT:
 		/**@todo make a word "(next)" that implements the terminating
 		 * loop control */
-		generate(h, CODE_TOR);
+		generate(h, a, CODE_TOR);
 		assemble(h, a, n->o[0], t, e);
 		hole1 = hole(h);
-		generate(h, CODE_RAT);
-		generate(h, CODE_FROMR);
-		generate(h, CODE_T_N1);
-		generate(h, CODE_TOR);
+		generate(h, a, CODE_RAT);
+		generate(h, a, CODE_FROMR);
+		generate(h, a, CODE_T_N1);
+		generate(h, a, CODE_TOR);
 		hole2 = hole(h);
 		assemble(h, a, n->o[1], t, e);
 		fix(h, hole1, OP_BRANCH | (here(h)));
 		assemble(h, a, n->o[2], t, e);
-		generate(h, OP_BRANCH | (hole1 + 1));
+		generate(h, a, OP_BRANCH | (hole1 + 1));
 		fix(h, hole2, OP_0BRANCH | (here(h)));
-		generate(h, CODE_RDROP);
+		generate(h, a, CODE_RDROP);
 		break;
 	case SYM_BEGIN_WHILE_REPEAT:
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
 		hole2 = hole(h);
 		assemble(h, a, n->o[1], t, e);
-		generate(h, OP_BRANCH  | hole1);
+		generate(h, a, OP_BRANCH  | hole1);
 		fix(h, hole2, OP_0BRANCH | here(h));
 		break;
 	case SYM_IF1:
@@ -2735,9 +2847,9 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		if(!s)
 			assembly_error(e, "not a constant or a defined procedure: %s", n->token->p.id);
 		if(s->type == SYMBOL_TYPE_CALL) {
-			generate(h, OP_CALL | s->value);
+			generate(h, a, OP_CALL | s->value);
 		} else if(s->type == SYMBOL_TYPE_CONSTANT || s->type == SYMBOL_TYPE_VARIABLE) {
-			generate_literal(h, s->value);
+			generate_literal(h, a, s->value);
 		} else {
 			error("can only call or push literal: %s", s->id);
 			ethrow(e);
@@ -2752,23 +2864,19 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			hole1 = hole(h);
 			fix(h, hole1, a->pwd);
 			a->pwd = hole1 << 1;
-			pack_string(h, n->token->p.id, e);
+			pack_string(h, a, n->token->p.id, e);
 		}
-
+		a->fence = here(h);
 		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
 		if(a->in_definition)
 			assembly_error(e, "nested word definition is not allowed");
 		a->in_definition = true;
 		assemble(h, a, n->o[0], t, e);
-		/**@todo smush this with the previous instruction if possible,
-		 * generating variables, word headers, jumps and calls could
-		 * update a fence variable which would prevent optimizations
-		 * from taking place */
-		generate(h, CODE_EXIT); 
+		generate(h, a, CODE_EXIT); 
 		a->in_definition = false;
 		break;
 	case SYM_CHAR: /* [char] A  */
-		generate(h, OP_LITERAL | n->token->p.id[0]);
+		generate(h, a, OP_LITERAL | n->token->p.id[0]);
 		break;
 	case SYM_ISR:
 	{
@@ -2818,6 +2926,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	}
 	case SYM_PC:
 		h->pc = literal_or_symbol_lookup(n->token, t, e);
+		a->fence = h->pc;
 		break;
 	case SYM_MODE:
 		a->mode = n->token->p.number;
@@ -2825,6 +2934,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_ALLOCATE:
 		/**@todo Only allow constants or literal */
 		h->pc += literal_or_symbol_lookup(n->token, t, e);
+		a->fence = h->pc;
 		break;
 	case SYM_BREAK:
 		break_point_add(&h->bp, h->pc);
@@ -2842,9 +2952,9 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			hole1 = hole(h);
 			fix(h, hole1, a->pwd);
 			a->pwd = hole1 << 1;
-			pack_string(h, words[i].name, e);
-			generate(h, words[i].code);
-			generate(h, CODE_EXIT); /**@todo smush this with the previous instruction if possible*/
+			pack_string(h, a, words[i].name, e);
+			generate(h, a, words[i].code);
+			generate(h, a, CODE_EXIT); 
 		}
 		break;
 	default:
@@ -2857,11 +2967,12 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	error_t e;
 	h2_t *h;
 	symbol_table_t *t = NULL;
-	assembler_t a = { false, false, false, 0, 0, 0 };
+	assembler_t a = { false, false, false, 0, 0, 0, 0 };
 	assert(n);
 
 	t = symbols ? symbols : symbol_table_new();
 	h = h2_new(START_ADDR);
+	a.fence = h->pc;
 
 	e.jmp_buf_valid = 1;
 	if(setjmp(e.j)) {

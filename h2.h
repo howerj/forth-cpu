@@ -165,4 +165,21 @@ void h2_soc_state_free(h2_soc_state_t *soc);
 h2_io_t *h2_io_new(void);
 void h2_io_free(h2_io_t *io);
 
+typedef uint8_t fifo_data_t;
+
+typedef struct {
+	size_t head;
+	size_t tail;
+	size_t size;
+	fifo_data_t *buffer;
+} fifo_t;
+
+fifo_t *fifo_new(size_t size);
+void fifo_free(fifo_t *fifo);
+bool fifo_is_full(fifo_t * fifo);
+bool fifo_is_empty(fifo_t * fifo);
+size_t fifo_count(fifo_t * fifo);
+size_t fifo_push(fifo_t * fifo, fifo_data_t data);
+size_t fifo_pop(fifo_t * fifo, fifo_data_t * data);
+
 #endif
