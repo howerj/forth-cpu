@@ -145,10 +145,15 @@ begin
 
 			-- @note this should signal that data has been lost if
 			-- "tx_fifo_empty_internal" is '1'
+			-- @todo replace by modifying the UART so output a busy
+			-- signal when it is transmitting (or receiving a
+			-- character)
 			if tx_fifo_empty_internal = '0' and tx_fifo_full_internal = '0' then
 				tx_fifo_re <= '1';
 				wrote_n    <= '1';
 			elsif din_ack = '0' and wrote_c = '1' then
+			--elsif wrote_c = '1' then
+				-- assert din_ack = '1' on the next cycle?
 				din_stb    <= '1';
 				wrote_n    <= '0';
 			end if;
@@ -183,7 +188,7 @@ begin
 			empty => tx_fifo_empty_internal);
 
 	tx_fifo_empty <= tx_fifo_empty_internal;
-	tx_fifo_full  <= tx_fifo_empty_internal;
+	tx_fifo_full  <= tx_fifo_full_internal;
 
 	uart: work.uart_pkg.uart_core
 		generic map(
