@@ -71,12 +71,12 @@ variable tib-buf 0 ( ... and address )
 variable >in     0 ( Hold character pointer when parsing input )
 variable state   0 ( compiler state variable )
 
-variable '?key   0 ( execution vector of ?key.  default to ?rx.)
-variable 'emit   0 ( execution vector of emit.  default to tx!)
-variable 'expect 0 ( execution vector of expect.  default to 'accept'.)
-variable 'tap    0 ( execution vector of tap.  defulat the ktap.)
-variable 'echo   0 ( execution vector of echo.  default to tx!.)
-variable 'prompt 0 ( execution vector of prompt.  default to '.ok'.)
+variable '?key   0 ( execution vector of ?key,   default to ?rx.)
+variable 'emit   0 ( execution vector of emit,   default to tx!)
+variable 'expect 0 ( execution vector of expect, default to 'accept'.)
+variable 'tap    0 ( execution vector of tap,    default to ktap.)
+variable 'echo   0 ( execution vector of echo,   default to tx!.)
+variable 'prompt 0 ( execution vector of prompt, default to '.ok'.)
 variable OK      "ok"
 ( ======================== System Variables ================= )
 
@@ -138,7 +138,7 @@ counting )
 ( @todo loop until TX FIFO is not full, a bug in the VHDL prevents this from
 working )
 : tx! ( c -- : write a character to UART )
-	0x2000 or oUart ! 1 ms ; 
+	0x2000 or oUart ! ; \ 1 ms ; 
 
 : um+ ( w w -- w carry )
 	2dup + >r
@@ -327,7 +327,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : ^h ( b b b -- b b b ) \ backspace
   >r over r> swap over xor
   if  8 'echo @execute
-     32 'echo @execute \ distructive
+     32 'echo @execute \ destructive
       8 'echo @execute \ backspace
   then ;
 
@@ -483,17 +483,18 @@ this cursor logic would be a lot simpler )
 : x1+ cursorX 1+! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
 : cursorT1+ cursorT 1+! cursorT @ vgaTextSize u>= if 0 cursorT ! then ;
 
-: vga!
-	0xE000 or ! ;
+: vga! ( n a -- : write to VGA memory and adjust cursor position )
+	vgaTextSize mod dup 1+ vgaX /mod at-xy 0xE000 or ! ;
+
+: terminal ( n a -- a : act like a terminal )
+	swap
+	dup 13 = if drop vgaX / 1+ dup 0 swap at-xy vgaX * exit then
+	swap tuck vga! 1+ ;
 
 : led! ( n -- : display a number on the LED 8 display )
 	o8SegLED ! ;
 
-\ : key?
-\	iUart @ 0x0100 and ;
-
 variable uart-read-count 0
-
 
 ( ======================== Miscellaneous ==================== )
 
@@ -564,11 +565,11 @@ nextChar:
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches
 		key?                 \ Wait for UART character
 	until
-	dup emit cursorT @ vga!
+	dup emit cursorT @ terminal cursorT !
 
-	cursorT1+ x1+
+	\ cursorT1+ \ x1+
 
-	cursorX @ cursorY @ at-xy
+	\ cursorX @ cursorY @ at-xy
 
 	uart-read-count 1+!
 	uart-read-count @ led!

@@ -43,7 +43,7 @@
 #define X_MIN       (0.0)
 #define Y_MAX       (100.0)
 #define Y_MIN       (0.0)
-#define RUN_FOR     (512)
+#define RUN_FOR     (5000)
 
 static double window_height               = 800.0;
 static double window_width                = 800.0;
@@ -56,6 +56,8 @@ static volatile bool     halt_simulation  = false;
 
 static unsigned arena_tick_ms              = 30; /**@todo This should be automatically adjusted based on frame rate */
 static bool use_uart_input                 = true;
+static bool debug_extra                    = false;
+static uint64_t cycle_count                = 0;
 
 typedef enum {
 	WHITE,
@@ -152,7 +154,7 @@ void draw_line(double x, double y, double angle, double magnitude, double thickn
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glLoadIdentity();
-		glTranslated(x, y, 0);
+		glTranslatef(x, y, 0);
 		glRotated(rad2deg(angle), 0, 0, 1);
 		glLineWidth(thickness);
 		set_color(color);
@@ -179,7 +181,7 @@ static void _draw_arc(double x, double y, double angle, double magnitude, double
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glLoadIdentity();
-		glTranslated(x, y, 0.0);
+		glTranslatef(x, y, 0.0);
 		glRotated(rad2deg(angle), 0, 0, 1);
 		set_color(color);
 		if(lines) {
@@ -217,7 +219,7 @@ static void _draw_regular_polygon(
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glLoadIdentity();
-		glTranslated(x, y, 0.0);
+		glTranslatef(x, y, 0.0);
 		glRotated(rad2deg(orientation), 0, 0, 1);
 		set_color(color);
 		if(lines) {
@@ -325,7 +327,7 @@ int vdraw_text(color_t color, double x, double y, const char *fmt, va_list ap)
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	set_color(color); 
-	/*glTranslated(x, y, 0);*/
+	/*glTranslatef(x, y, 0);*/
 	glRasterPos2d(x, y);
 	while(*fmt) {
 		if('%' != (f = *fmt++)) {
@@ -784,7 +786,8 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	switch(addr) {
 	case oUart:
 			if(value & UART_TX_WE) {
-				/**@todo send this output to the screen */
+				/**@todo send this output to the screen and
+				 * also push to a FIFO */
 				putchar(0xFF & value);
 				fflush(stdout);
 			}
@@ -837,14 +840,19 @@ static void draw_debug_info(void)
 	textbox_t t = { .x = X_MIN + X_MAX/40, .y = Y_MAX - Y_MAX/40, .draw_box = true, .color_text = WHITE };
 	fifo_t *f = use_uart_input ? uart_rx_fifo : ps2_rx_fifo;
 	const char *fifo_str = use_uart_input ? "UART" : "PS/2";
+	char buf[256] = { 0 };
 
-	fill_textbox(&t, true, "tick:          %u", tick);
-	fill_textbox(&t, true, "seconds:       %f", ticks_to_seconds(tick));
-	fill_textbox(&t, true, "fps:           %f", fps());
-	fill_textbox(&t, true, "%s fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
-	fill_textbox(&t, true, "%s fifo empty: %s", fifo_str, fifo_is_empty(f) ? "true" : "false");
-	fill_textbox(&t, true, "%s fifo count: %u", fifo_str, (unsigned)fifo_count(f));
+	fill_textbox(&t, true, "tick:            %u", tick);
+	//fill_textbox(&t, true, "seconds:         %f", ticks_to_seconds(tick));
+	fill_textbox(&t, true, "fps:             %f", fps());
 
+	if(debug_extra) {
+		fill_textbox(&t, true, "%s fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
+		fill_textbox(&t, true, "%s fifo empty: %s", fifo_str, fifo_is_empty(f) ? "true" : "false");
+		fill_textbox(&t, true, "%s fifo count: %u", fifo_str, (unsigned)fifo_count(f));
+		sprintf(buf, "%09"PRId64, cycle_count);
+		fill_textbox(&t, true, "cycles:          %s", buf);
+	}
 	draw_textbox(&t);
 }
 
@@ -879,6 +887,8 @@ static void keyboard_special_handler(int key, int x, int y)
 	case GLUT_KEY_F6:    switches[5].on = !(switches[5].on); break;
 	case GLUT_KEY_F7:    switches[6].on = !(switches[6].on); break;
 	case GLUT_KEY_F8:    switches[7].on = !(switches[7].on); break;
+
+	case GLUT_KEY_F12:   debug_extra    = !debug_extra; break;
 	default:
 		break;
 	}
@@ -954,17 +964,11 @@ static coordinate_t pixels_to_coordinates(int x, int y)
 	return c;
 }
 
-static bool push_button(int button, int state)
-{
-	return button == GLUT_LEFT_BUTTON && state == GLUT_DOWN;
-}
-
 static void mouse_handler(int button, int state, int x, int y)
 {
 	coordinate_t c = pixels_to_coordinates(x, y);
 	/*fprintf(stderr, "button: %d state: %d x: %d y: %d\n", button, state, x, y);
 	fprintf(stderr, "x: %f y: %f\n", c.x, c.y); */
-
 
 	for(size_t i = 0; i < SWITCHES_COUNT; i++) {
 		/*fprintf(stderr, "x: %f y: %f\n", switches[i].x, switches[i].y);*/
@@ -978,15 +982,21 @@ static void mouse_handler(int button, int state, int x, int y)
 		}
 	}
 
-	/**@bug push buttons need to be unset when the mouse click is released
-	 * regardless of where is happens on the screen */
-	switch(dpad_collision(&dpad, c.x, c.y, 0.1)) {
-	case DPAN_COL_NONE:                                             break;
-	case DPAN_COL_RIGHT:  dpad.right  = push_button(button, state); break;
-	case DPAN_COL_LEFT:   dpad.left   = push_button(button, state); break;
-	case DPAN_COL_DOWN:   dpad.down   = push_button(button, state); break;
-	case DPAN_COL_UP:     dpad.up     = push_button(button, state); break;
-	case DPAN_COL_CENTER: dpad.center = push_button(button, state); break;
+	if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+		switch(dpad_collision(&dpad, c.x, c.y, 0.1)) {
+		case DPAN_COL_NONE:                       break;
+		case DPAN_COL_RIGHT:  dpad.right  = true; break;
+		case DPAN_COL_LEFT:   dpad.left   = true; break;
+		case DPAN_COL_DOWN:   dpad.down   = true; break;
+		case DPAN_COL_UP:     dpad.up     = true; break;
+		case DPAN_COL_CENTER: dpad.center = true; break;
+		}
+	} else if(button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
+		dpad.right  = false;
+		dpad.left   = false;
+		dpad.down   = false;
+		dpad.up     = false;
+		dpad.center = false;
 	}
 }
 
@@ -1008,10 +1018,12 @@ static void draw_scene(void)
 
 	draw_debug_info();
 
+	/**@todo use delta time instead */
 	if(next != tick) {
 		next = tick;
-		if(h2_run(h, h2_io, stderr, 512, NULL, false) < 0)
+		if(h2_run(h, h2_io, stderr, RUN_FOR, NULL, false) < 0)
 			halt_simulation = true;
+		cycle_count += RUN_FOR;
 	}
 
 	for(size_t i = 0; i < SWITCHES_COUNT; i++)
@@ -1053,6 +1065,7 @@ static void initialize_rendering(char *arg_0)
 	glutTimerFunc(arena_tick_ms, timer_callback, 0);
 }
 
+/**@todo Read in some configuration options */
 int main(int argc, char **argv)
 {
 	FILE *hexfile = NULL;

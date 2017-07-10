@@ -2970,6 +2970,7 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	assembler_t a = { false, false, false, 0, 0, 0, 0 };
 	assert(n);
 
+	/**@bug these variables might be clobbered by setjmp/longjmp */
 	t = symbols ? symbols : symbol_table_new();
 	h = h2_new(START_ADDR);
 	a.fence = h->pc;
