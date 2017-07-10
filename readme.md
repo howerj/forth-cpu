@@ -191,6 +191,7 @@ All ALU operations replace T:
 	|  17   | interrupts on? |  Are interrupts on?   |
 	|  18   |     rdepth     |  Depth of return stk  |
 	|  19   |      0=        |  T == 0?              |
+	|  20   |     CPU ID     |  CPU Identifier       |
 	*-------*----------------*-----------------------*
 
 ### Peripherals and registers

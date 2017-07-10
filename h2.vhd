@@ -26,8 +26,9 @@ use ieee.math_real.all; -- only needed for calculations relating to generics
 entity h2 is
 	generic(
 		-- Instruction width should be made to a generic option
+		cpu_id:                   std_logic_vector(15 downto 0) := X"CAFE";
 		interrupt_address_length: positive := 3;
-		start_address:            positive := 8;
+		start_address:            natural  := 0;
 		stack_size_log2:          positive := 5;
 		use_interrupts:           boolean  := true);
 	port(
@@ -221,7 +222,9 @@ begin
 		tos_n   <=  "0" & insn(14 downto 0);
 	else
 		-- @todo Experiment with these instructions to see if removing
-		-- some or rearranging them speeds things up
+		-- some or rearranging them speeds things up, the instructions
+		-- really should be rationalized to be in an order that makes
+		-- more sense.
 		case aluop is -- ALU operation, 12 downto 8
 		when "00000" => tos_n <= tos_c;
 		when "00001" => tos_n <= nos;
@@ -250,6 +253,7 @@ begin
 		when "10001" => tos_n    <= (others => int_en_c);
 		when "10010" => tos_n(rstkp_c'range) <= rstkp_c;
 		when "10011" => tos_n    <= (others => compare.zero);
+		when "10100" => tos_n    <= cpu_id;
 		when others  => tos_n <= tos_c;
 				report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
 		end case;

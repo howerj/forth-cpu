@@ -528,7 +528,7 @@ variable uart-read-count 0
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
-	0xCAFE led! ;
+	cpu-id led! ;
 	\ 0x00FF oIrcMask !
 	\ 1   seti ;
 
@@ -549,6 +549,8 @@ start:
 	\ boot
 
 	welcome count type cr words
+
+	.break
 
 nextChar:
 	\ query tib #tib @ 2dup 2. cr type cr branch nextChar

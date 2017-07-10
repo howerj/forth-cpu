@@ -9,9 +9,12 @@
 /**@note STK_SIZE is fixed to 32, but h2.vhd allows for the instantiation of
  * CPUs with different stack sizes (so long as they are a power of 2) */
 
-#define MAX_CORE      (8192u)
-#define STK_SIZE      (32u)
-#define START_ADDR    (8u)
+#define MAX_CORE             (8192u)
+#define STK_SIZE             (32u)
+#define START_ADDR           (8u)
+
+#define H2_CPU_ID_SIMULATION (0xDEADu)
+#define H2_CPU_ID_VHDL       (0xCAFEu)
 
 typedef struct {
 	size_t length;
@@ -110,7 +113,7 @@ typedef struct {
 
 	uint8_t uart_getchar_register;
 
-	uint8_t led_8_segments;
+	uint16_t led_8_segments;
 
 	uint8_t switches;
 

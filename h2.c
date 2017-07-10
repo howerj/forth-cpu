@@ -14,6 +14,8 @@
  * @todo Turn the diagrams in this file into help strings which can
  * be printed out
  * @todo Use the FIFO routines to simulate the H2 SoC FIFOs
+ * @todo Change start address to be the same as in "h2.vhd", which is
+ * now 0, this requires changes to the code generation.
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
@@ -93,6 +95,7 @@
  *	|  17   | interrupts on? |  Are interrupts on?   |
  *	|  18   |     rdepth     |  Depth of return stk  |
  *	|  19   |      0=        |  T == 0?              |
+ *	|  20   |     CPU ID     |  CPU Identifier       |
  *	*-------*----------------*-----------------------*
  *
  * More information about the original J1 CPU can be found at:
@@ -179,7 +182,8 @@ typedef enum {
 
 	ALU_OP_INTERRUPTS_ENABLED, /**< Are interrupts on?   */
 	ALU_OP_RDEPTH,             /**< R Stack Depth        */
-	ALU_OP_T_EQUAL_0           /**< T == 0               */
+	ALU_OP_T_EQUAL_0,          /**< T == 0               */
+	ALU_OP_CPU_ID              /**< CPU Identifier       */
 } alu_code_e;
 
 #define DELTA_0  (0)
@@ -210,7 +214,7 @@ typedef enum {
 	X(DROP,   "drop",   (OP_ALU_OP | MK_CODE(ALU_OP_N)                      | MK_DSTACK(DELTA_N1)))\
 	X(EXIT,   "exit",   (OP_ALU_OP | MK_CODE(ALU_OP_T)        | R_TO_PC | MK_RSTACK(DELTA_N1)))\
 	X(TOR,    ">r",     (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_R  | MK_DSTACK(DELTA_N1) | MK_RSTACK(DELTA_1)))\
-	X(FROMR,  "r>",     (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1) | MK_RSTACK(DELTA_N1)))\
+	X(FROMR,  "r>",     (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)  | MK_RSTACK(DELTA_N1)))\
 	X(RAT,    "r@",     (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
 	X(LOAD,   "@",      (OP_ALU_OP | MK_CODE(ALU_OP_T_LOAD)))\
 	X(STORE,  "store",  (OP_ALU_OP | MK_CODE(ALU_OP_N)        | N_TO_ADDR_T | MK_DSTACK(DELTA_N1)))\
@@ -230,6 +234,7 @@ typedef enum {
 	X(TE0,    "0=",     (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
 	X(UP1,    "up1",    (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_DSTACK(DELTA_1)))\
 	X(NOP,    "nop",    (OP_ALU_OP | MK_CODE(ALU_OP_T)))\
+	X(CPU_ID, "cpu-id", (OP_ALU_OP | MK_CODE(ALU_OP_CPU_ID))                | MK_DSTACK(DELTA_1))\
 	X(RDROP,  "rdrop",  (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_RSTACK(DELTA_N1)))
 
 
@@ -775,6 +780,7 @@ static const char *alu_op_to_string(uint16_t instruction)
 	case ALU_OP_INTERRUPTS_ENABLED: return "iset?";
 	case ALU_OP_RDEPTH:             return "rdepth";
 	case ALU_OP_T_EQUAL_0:          return "0=";
+	case ALU_OP_CPU_ID:             return "cpu-id";
 	default:                        return "unknown";
 	}
 }
@@ -1515,24 +1521,22 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 				npc = h->rstk[h->rp % STK_SIZE];
 
 			switch(ALU_OP(instruction)) {
-			case ALU_OP_T:           /* tos = tos; */ break;
-			case ALU_OP_N:           tos = nos; break;
-			case ALU_OP_T_PLUS_N:    tos += nos; break;
-			case ALU_OP_T_AND_N:     tos &= nos; break;
-			case ALU_OP_T_OR_N:      tos |= nos; break;
-			case ALU_OP_T_XOR_N:     tos ^= nos; break;
-			case ALU_OP_T_INVERT:    tos = ~tos; break;
+			case ALU_OP_T:        /* tos = tos; */ break;
+			case ALU_OP_N:           tos = nos;    break;
+			case ALU_OP_T_PLUS_N:    tos += nos;   break;
+			case ALU_OP_T_AND_N:     tos &= nos;   break;
+			case ALU_OP_T_OR_N:      tos |= nos;   break;
+			case ALU_OP_T_XOR_N:     tos ^= nos;   break;
+			case ALU_OP_T_INVERT:    tos = ~tos;   break;
 			case ALU_OP_T_EQUAL_N:   tos = -(tos == nos); break;
 			case ALU_OP_N_LESS_T:    tos = -((int16_t)nos < (int16_t)tos); break;
 			case ALU_OP_N_RSHIFT_T:  tos = nos >> tos; break;
 			case ALU_OP_T_DECREMENT: tos--; break;
 			case ALU_OP_R:           tos = h->rstk[h->rp % STK_SIZE]; break;
 			case ALU_OP_T_LOAD:
-
 				/* if(run_debugger)
 					if(h2_debugger(&ds, h, io, symbols, h->tos))
 						return 0; */
-
 				if(h->tos & 0x6000) {
 					if(io) {
 						tos = io->in(io->soc, h->tos, &turn_debug_on);
@@ -1549,13 +1553,14 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 					tos = h->core[(h->tos >> 1) % MAX_CORE];
 				}
 				break;
-			case ALU_OP_N_LSHIFT_T: tos = nos << tos; break;
-			case ALU_OP_DEPTH:      tos = h->sp; break;
-			case ALU_OP_N_ULESS_T:  tos = -(nos < tos); break;
-			case ALU_OP_ENABLE_INTERRUPTS: h->ie = tos & 1; break;
-			case ALU_OP_INTERRUPTS_ENABLED: tos = -h->ie; break;
-			case ALU_OP_RDEPTH:     tos = h->rp; break;
-			case ALU_OP_T_EQUAL_0:  tos = -(tos == 0); break;
+			case ALU_OP_N_LSHIFT_T: tos = nos << tos;           break;
+			case ALU_OP_DEPTH:      tos = h->sp;                break;
+			case ALU_OP_N_ULESS_T:  tos = -(nos < tos);         break;
+			case ALU_OP_ENABLE_INTERRUPTS: h->ie = tos & 1;     break;
+			case ALU_OP_INTERRUPTS_ENABLED: tos = -h->ie;       break;
+			case ALU_OP_RDEPTH:     tos = h->rp;                break;
+			case ALU_OP_T_EQUAL_0:  tos = -(tos == 0);          break;
+			case ALU_OP_CPU_ID:     tos = H2_CPU_ID_SIMULATION; break;
 			default:
 				warning("unknown ALU operation: %u", (unsigned)ALU_OP(instruction));
 			}
@@ -2523,7 +2528,10 @@ static void generate(h2_t *h, assembler_t *a, uint16_t instruction)
 	 * The pattern matching could mostly be done with a ternary
 	 * "1"/"0"/"Don't care" matches on sequences of instructions.
 	 *
-	 * A FIFO could be used to hold the instructions before checking  */
+	 * A FIFO could be used to hold the instructions before checking 
+	 *
+	 * @bug This optimization works in the simulator but not
+	 * in the hardware, the reason it unknown. */
 	if(IS_CALL(instruction) || IS_LITERAL(instruction) || IS_0BRANCH(instruction) || IS_BRANCH(instruction))
 		a->fence = h->pc;
 
