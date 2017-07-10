@@ -10,7 +10,8 @@
 --|
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
 --| vice versa), pulse generator, small RAM model, population count
---| priority encoder, types, and other generic functions and components.
+--| priority encoder, types, rising edge to level converter and vice versa, 
+--| and other generic functions and components.
 --| @todo Some simple communications primitives could be added in here, such
 --| as a SPI master. Another one would be a pin control module that can
 --| be used to control physical pins on the FPGA with a pin direction register,
