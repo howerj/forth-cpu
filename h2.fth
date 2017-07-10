@@ -138,7 +138,7 @@ counting )
 ( @todo loop until TX FIFO is not full, a bug in the VHDL prevents this from
 working )
 : tx! ( c -- : write a character to UART )
-	0x2000 or oUart ! ; \ 1 ms ; 
+	0x2000 or oUart ! 1 ms ; 
 
 : um+ ( w w -- w carry )
 	2dup + >r
@@ -473,23 +473,23 @@ constant vgaTextSize   3200
   12-0 -  Value to compare against )
 constant timerInit     0x8032
 
-variable cursorX 0  ( x component of cursor )
-variable cursorY 0  ( y component of cursor )
-variable cursorT 0  ( index into VGA text memory )
-
-( If the VGA display was 64 characters by 16 lines of text 
-this cursor logic would be a lot simpler )
-: y1+ cursorY 1+! cursorY @ vgaY u>= if 0 cursorY ! then ;
-: x1+ cursorX 1+! cursorX @ vgaX u>= if 0 cursorX ! y1+ then ;
-: cursorT1+ cursorT 1+! cursorT @ vgaTextSize u>= if 0 cursorT ! then ;
+variable cursor 0  ( index into VGA text memory )
 
 : vga! ( n a -- : write to VGA memory and adjust cursor position )
-	vgaTextSize mod dup 1+ vgaX /mod at-xy 0xE000 or ! ;
+	 0xE000 or ! ;
 
+: page
+	0 cursor !
+	0x1FFF for bl r@ vga! next ;
+	
+\ : 40* dup 5 lshift swap 3 lshift + ;
+\ : 80* dup 6 lshift swap 4 lshift + ;
+
+\ @todo Optimize and extend (handle tabs, back spaces, etcetera )
 : terminal ( n a -- a : act like a terminal )
 	swap
-	dup 13 = if drop vgaX / 1+ dup 0 swap at-xy vgaX * exit then
-	swap tuck vga! 1+ ;
+	dup dup 10 = swap 13 = or if drop vgaX / 1+ dup 0 swap at-xy vgaX * exit then
+	swap vgaTextSize mod tuck dup 1+ vgaX /mod at-xy vga! 1+ ;
 
 : led! ( n -- : display a number on the LED 8 display )
 	o8SegLED ! ;
@@ -525,10 +525,6 @@ variable uart-read-count 0
 \	bootmsg2 count type cr
 \ 	branch bootstart ;
 
-\ : 40* dup 5 lshift swap 3 lshift + ;
-\ : 80* dup 6 lshift swap 4 lshift + ;
-
-
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
@@ -560,16 +556,12 @@ nextChar:
 	\ query tib #tib @ find . cr branch nextChar
 	\ 0 counter: 1000 ms 1+ dup led! branch counter
 
-
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches
 		key?                 \ Wait for UART character
 	until
-	dup emit cursorT @ terminal cursorT !
-
-	\ cursorT1+ \ x1+
-
-	\ cursorX @ cursorY @ at-xy
+	dup emit cursor @ terminal 
+	dup cursor @ u< if drop page else cursor ! then
 
 	uart-read-count 1+!
 	uart-read-count @ led!
