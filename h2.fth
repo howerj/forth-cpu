@@ -548,7 +548,7 @@ start:
 
 	\ boot
 
-	welcome count type cr words
+	\ welcome count type cr words
 
 	.break
 

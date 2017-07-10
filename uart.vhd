@@ -59,17 +59,20 @@ package uart_pkg is
 	component uart_core is
 		generic (baud_rate: positive; clock_frequency: positive);
 		port (
-			clk:      in      std_logic;
-			rst:      in      std_logic;
-			din:      in      std_logic_vector(7 downto 0);
-			din_stb:  in      std_logic;
-			din_ack:  out     std_logic := '0';
+			clk:       in      std_logic;
+			rst:       in      std_logic;
+			din:       in      std_logic_vector(7 downto 0);
+			din_stb:   in      std_logic;
+			din_ack:   out     std_logic := '0';
+			din_busy:  out     std_logic;
 
-			dout:     out     std_logic_vector(7 downto 0);
-			dout_stb: out     std_logic;
-			dout_ack: in      std_logic;
-			tx:       out     std_logic;
-			rx:       in      std_logic);
+			dout:      out     std_logic_vector(7 downto 0);
+			dout_stb:  out     std_logic;
+			dout_ack:  in      std_logic;
+			dout_busy: out     std_logic;
+
+			tx:        out     std_logic;
+			rx:        in      std_logic);
 	end component;
 
 end package;
@@ -107,18 +110,22 @@ end entity;
 architecture behav of uart_top is
 	signal rx_sync, rx_uart, tx_uart: std_logic := '0';
 
-	signal din:      std_logic_vector(7 downto 0) := (others => '0');
-	signal din_stb:  std_logic := '0';
-	signal din_ack:  std_logic := '0';
-	signal dout:     std_logic_vector(7 downto 0) := (others => '0');
-	signal dout_stb: std_logic := '0';
-	signal dout_ack: std_logic := '0';
+	signal din:       std_logic_vector(7 downto 0) := (others => '0');
+	signal din_stb:   std_logic := '0';
+	signal din_ack:   std_logic := '0';
+	signal din_busy:  std_logic := '0';
+
+	signal dout:      std_logic_vector(7 downto 0) := (others => '0');
+	signal dout_stb:  std_logic := '0';
+	signal dout_ack:  std_logic := '0';
+	signal dout_busy: std_logic := '0';
 
 	signal tx_fifo_re:             std_logic := '0';
 	signal tx_fifo_empty_internal: std_logic := '1';
 	signal tx_fifo_full_internal:  std_logic := '0';
 
 	signal wrote_c, wrote_n: std_logic := '0';
+
 begin
 	uart_deglitch: process (clk, rst)
 	begin
@@ -132,7 +139,7 @@ begin
 		end if;
 	end process;
 
-	process(dout_stb, tx_fifo_empty_internal, tx_fifo_full_internal, din_ack, wrote_c)
+	process(dout_stb, tx_fifo_empty_internal, tx_fifo_full_internal, din_ack, wrote_c, din_busy)
 	begin
 			dout_ack    <= '0';
 			din_stb     <= '0';
@@ -148,7 +155,7 @@ begin
 			-- @todo replace by modifying the UART so output a busy
 			-- signal when it is transmitting (or receiving a
 			-- character)
-			if tx_fifo_empty_internal = '0' and tx_fifo_full_internal = '0' then
+			if tx_fifo_empty_internal = '0' and tx_fifo_full_internal = '0' and din_busy = '0' then
 				tx_fifo_re <= '1';
 				wrote_n    <= '1';
 			elsif din_ack = '0' and wrote_c = '1' then
@@ -200,9 +207,11 @@ begin
 			din      => din,
 			din_stb  => din_stb,
 			din_ack  => din_ack,
+			din_busy => din_busy,
 			dout     => dout,
 			dout_stb => dout_stb,
 			dout_ack => dout_ack,
+			dout_busy=> dout_busy,
 			rx       => rx_uart,
 			tx       => tx_uart);
 
@@ -219,16 +228,20 @@ use ieee.numeric_std.all;
 entity uart_core is
 	generic (baud_rate: positive; clock_frequency: positive);
 	port (
-	        clk:      in      std_logic;
-	        rst:      in      std_logic;
-	        din:      in      std_logic_vector(7 downto 0);
-	        din_stb:  in      std_logic;
-	        din_ack:  out     std_logic := '0';
-	        dout:     out     std_logic_vector(7 downto 0);
-	        dout_stb: out     std_logic;
-	        dout_ack: in      std_logic;
-	        tx:       out     std_logic;
-	        rx:       in      std_logic);
+	        clk:       in      std_logic;
+	        rst:       in      std_logic;
+	        din:       in      std_logic_vector(7 downto 0);
+	        din_stb:   in      std_logic;
+	        din_ack:   out     std_logic := '0';
+		din_busy:  out     std_logic;
+
+	        dout:      out     std_logic_vector(7 downto 0);
+	        dout_stb:  out     std_logic;
+	        dout_ack:  in      std_logic;
+		dout_busy: out     std_logic;
+
+	        tx:        out     std_logic;
+	        rx:        in      std_logic);
 end entity;
 
 architecture behav of uart_core is
@@ -285,6 +298,9 @@ begin
 	dout     <= uart_rx_data_block;
 	dout_stb <= uart_rx_data_out_stb;
 	tx       <= uart_tx_data;
+
+	din_busy  <= '0' when uart_tx_state = idle else '1';
+	dout_busy <= '0' when uart_rx_state = rx_get_start_bit or uart_rx_state = rx_send_block else '1';
 
 	-- the input clk is 100MHz, this needs to be divided down to the
 	-- rate dictated by the baud_rate. for example, if 115200 baud is selected
