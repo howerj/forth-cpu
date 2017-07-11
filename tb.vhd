@@ -59,13 +59,11 @@ architecture testing of tb is
 
 	-- Test bench configurable options --
 
-	signal wait_flag: std_logic :=  '0';
-	signal debug:     cpu_debug_interface;
+	signal stop:  std_logic :=  '0';
+	signal debug: cpu_debug_interface;
 
-	signal clk:          std_logic := '0';
-	signal jitter_clk:   std_logic := '0';
-	signal jitter_delay: time := 0 ns;
-	signal rst:          std_logic := '0';
+	signal clk:   std_logic := '0';
+	signal rst:   std_logic := '0';
 
 --	signal  cpu_wait: std_logic := '0'; -- CPU wait flag
 
@@ -133,7 +131,7 @@ begin
 		ps2_keyboard_data => ps2_keyboard_data,
 		ps2_keyboard_clk  => ps2_keyboard_clk);
 
-	uut_function: entity work.function_tb       generic map(clock_frequency => clock_frequency) port map(stop => wait_flag);
+	uut_function: entity work.function_tb       generic map(clock_frequency => clock_frequency) port map(stop => stop);
 	uut_shiftReg: entity work.shift_register_tb generic map(clock_frequency => clock_frequency);
 	uut_timer_us: entity work.timer_us_tb       generic map(clock_frequency => clock_frequency);
 	uut_edge:     entity work.edge_tb           generic map(clock_frequency => clock_frequency);
@@ -195,13 +193,8 @@ begin
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
-		variable seed1, seed2 : positive;
-		variable r : real;
 	begin
-		while wait_flag = '0' loop
-			uniform(seed1, seed2, r);
-			jitter_delay <= r * 1 ns;
-
+		while stop = '0' loop
 			clk <= '1';
 			wait for clk_period / 2;
 			clk <= '0';
@@ -209,8 +202,6 @@ begin
 		end loop;
 		wait;
 	end process;
-
-	jitter_clk <= transport clk after jitter_delay;
 
 	-- I/O settings go here.
 	stimulus_process: process
@@ -273,7 +264,7 @@ begin
 		assert o_vga.hsync = '1' report "HSYNC not active - H2 failed to initialize VGA module";
 		assert o_vga.vsync = '1' report "VSYNC not active - H2 failed to initialize VGA module";
 
-		wait_flag   <=  '1';
+		stop   <=  '1';
 		wait;
 	end process;
 
