@@ -53,7 +53,6 @@ constant isrKbdNew         5
 constant isrTimer          6
 constant isrBrnLeft        7
 
-
 ( ======================== System Constants ================= )
 
 ( ======================== System Variables ================= )
@@ -135,10 +134,9 @@ counting )
 : ms ( n -- : wait for 'n' milliseconds )
 	for 24940 40ns next ; 
 
-( @todo loop until TX FIFO is not full, a bug in the VHDL prevents this from
-working )
 : tx! ( c -- : write a character to UART )
-	0x2000 or oUart ! 1 ms ; 
+	begin iUart @ 0x0800 and until ( Wait until TX FIFO is not full )
+	0x2000 or oUart ! ;            ( Write character out )
 
 : um+ ( w w -- w carry )
 	2dup + >r
@@ -478,7 +476,7 @@ variable cursor 0  ( index into VGA text memory )
 : vga! ( n a -- : write to VGA memory and adjust cursor position )
 	 0xE000 or ! ;
 
-: page
+: page ( -- : clear VGA screen )
 	0 cursor !
 	0x1FFF for bl r@ vga! next ;
 	
@@ -548,7 +546,7 @@ start:
 
 	\ boot
 
-	\ welcome count type cr words
+	welcome count type cr words
 
 	.break
 
