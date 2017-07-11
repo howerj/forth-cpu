@@ -141,6 +141,7 @@ begin
 	uut_fifo:     entity work.fifo_tb           generic map(clock_frequency => clock_frequency);
 	uut_counter:  entity work.counter_tb        generic map(clock_frequency => clock_frequency);
 	uut_lfsr:     entity work.lfsr_tb           generic map(clock_frequency => clock_frequency);
+	uut_io_pins:  entity work.io_pins_tb        generic map(clock_frequency => clock_frequency);
 
 	-- @note a more advanced test bench would send out a string and expect
 	-- the same one back using a loopback circuit. For the moment this

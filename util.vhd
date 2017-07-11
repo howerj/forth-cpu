@@ -172,6 +172,25 @@ package util is
 		generic(clock_frequency: positive);
 	end component;
 
+	component io_pins is
+		generic(
+			N: positive);
+		port
+		(
+			clk:         in    std_logic;
+			rst:         in    std_logic;
+			control:     in    std_logic_vector(N - 1 downto 0);
+			control_we:  in    std_logic;
+			din:         in    std_logic_vector(N - 1 downto 0);
+			din_we:      in    std_logic;
+			dout:        out   std_logic_vector(N - 1 downto 0);
+			pins:        inout std_logic_vector(N - 1 downto 0));
+	end component;
+
+	component io_pins_tb is
+		generic(clock_frequency: positive);
+	end component;
+
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
 	function n_bits(x: natural) return natural;
@@ -918,7 +937,7 @@ end architecture;
 -- Originally from http://www.deathbylogic.com/2013/07/vhdl-standard-fifo/
 -- @copyright Public Domain
 -- @todo Add more comments about the FIFOs origin, add assertions test
--- synthesis.
+-- synthesis, make this more generic (with empty FIFO and FIFO count signals)
 --
 -- The code can be used freely and appears to be public domain, comment
 -- from author is: "You can use any code posted here freely, there is no copyright."
@@ -1354,3 +1373,104 @@ begin
 end architecture;
 
 ------------------------- Linear Feedback Shift Register ----------------------------
+
+------------------------- I/O Pin Controller ----------------------------------------
+-- @todo Test this in hardware
+--
+-- This is a simple I/O pin control module, there is a control register which
+-- sets whether the pins are to be read in (control = '0') or set to the value written to
+-- "din" (control = '1').
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity io_pins is
+	generic(
+		N: positive);
+	port
+	(
+		clk:         in    std_logic;
+		rst:         in    std_logic;
+		control:     in    std_logic_vector(N - 1 downto 0);
+		control_we:  in    std_logic;
+		din:         in    std_logic_vector(N - 1 downto 0);
+		din_we:      in    std_logic;
+		dout:        out   std_logic_vector(N - 1 downto 0);
+		pins:        inout std_logic_vector(N - 1 downto 0));
+end entity;
+
+architecture rtl of io_pins is
+	signal control_o: std_logic_vector(control'range) := (others => '0');
+	signal din_o:     std_logic_vector(din'range)     := (others => '0');
+begin
+
+	control_r: entity work.reg generic map(N => N) port map(clk => clk, rst => rst, di => control, we => control_we, do => control_o);
+	din_r:     entity work.reg generic map(N => N) port map(clk => clk, rst => rst, di => din,     we => din_we,     do => din_o);
+	
+	pins_i: for i in control_o'range generate
+		dout(i) <= pins(i)  when control_o(i) = '0' else '0'; 
+		pins(i) <= din_o(i) when control_o(i) = '1' else 'Z';
+	end generate;
+
+end architecture;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity io_pins_tb is
+	generic(clock_frequency: positive);
+end entity;
+
+architecture behavior of io_pins_tb is
+	constant clock_period: time := 1000 ms / clock_frequency;
+	constant N: positive := 8;
+
+	signal control: std_logic_vector(N - 1 downto 0) := (others => '0');
+	signal din:     std_logic_vector(N - 1 downto 0) := (others => '0');
+	signal dout:    std_logic_vector(N - 1 downto 0) := (others => '0');
+	signal pins:    std_logic_vector(N - 1 downto 0) := (others => 'L'); -- !
+
+	signal control_we: std_logic := '0';
+	signal din_we: std_logic     := '0';
+
+
+	signal clk, rst: std_logic := '0';
+	signal stop:     std_logic := '0';
+begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
+	uut: entity work.io_pins
+		generic map(N => N)
+		port map(
+			clk         =>  clk,
+			rst         =>  rst,
+			control     =>  control,
+			control_we  =>  control_we,
+			din         =>  din,
+			din_we      =>  din_we,
+			dout        =>  dout,
+			pins        =>  pins);
+
+	stimulus_process: process
+	begin
+		wait for clock_period * 2;
+		control    <= x"0f"; -- write lower pins
+		control_we <= '1';
+
+		wait for clock_period;
+		din        <= x"AA";
+		din_we     <= '1';
+
+		wait for clock_period * 2;
+		pins <= (others => 'H'); -- !
+		wait for clock_period * 2;
+		stop <= '1';
+		wait;
+	end process;
+
+end architecture;
+
