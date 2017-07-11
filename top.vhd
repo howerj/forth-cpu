@@ -146,6 +146,12 @@ architecture behav of top is
 	signal btnr_d: std_logic := '0';  -- button right
 
 	signal sw_d:   std_logic_vector(sw'range) := (others => '0');
+
+	-- LFSR
+--	constant lfsr_tap: std_logic_vector(14 downto 0) := "100000000001011";
+--	signal lfsr_o:     std_logic_vector(lfsr_tap'high + 1 downto lfsr_tap'low);
+--	signal lfsr_i:     std_logic_vector(lfsr_o'range);
+--	signal lfsr_i_we:  std_logic := '0';
 begin
 -------------------------------------------------------------------------------
 -- The Main components
@@ -254,6 +260,8 @@ begin
 		tx_fifo_full,
 		tx_fifo_empty,
 
+		-- lfsr_o, 
+
 		timer_control_o,
 		timer_counter_o)
 	begin
@@ -288,6 +296,8 @@ begin
 		vga_control.ctl  <= io_dout(vga_control.ctl'range);
 		leds_reg         <= io_dout;
 		tx_data          <= io_dout(tx_data'range);
+		-- lfsr_i           <= io_dout;
+		-- lfsr_i_we        <= '1';
 
 		-- @note a 32 bit ALU could be added as an I/O port for
 		-- multiplication and addition at least. This should speed
@@ -319,6 +329,8 @@ begin
 				io_din(6 downto 0) <= kbd_char_c;
 				io_din(8)          <= kbd_new_c;
 				kbd_new_n          <= '0';
+			-- when "110" =>
+			--	io_din             <= lfsr_o;
 
 			when others => io_din <= (others => '0');
 			end case;
@@ -346,7 +358,9 @@ begin
 				leds_reg_we <= '1';
 			when "110" => -- CPU Mask
 				cpu_irc_mask_we <= '1';
-			when "111" => 
+			-- when "111" => 
+			--	lfsr_i <= io_dout;
+			--	lfsr_i_we <= '1';
 			when others =>
 			end case;
 		end if;
@@ -551,6 +565,11 @@ begin
 
 	--- Switches ------------------------------------------------------
 
+	--- LFSR ----------------------------------------------------------
+
+	-- lfsr_0: entity work.lfsr generic map(tap => lfsr_tap) port map(clk => clk, rst => rst, ce => '1', di => lfsr_i, we => lfsr_i_we, do => lfsr_o);
+
+	--- LFSR ----------------------------------------------------------
 -------------------------------------------------------------------------------
 end architecture;
 

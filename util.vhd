@@ -157,7 +157,7 @@ package util is
 	end component;
 
 	component lfsr is
-		generic(tap: std_logic_vector);
+		generic(constant tap: std_logic_vector);
 		port
 		(
 			clk: in  std_logic;
@@ -1261,6 +1261,8 @@ end architecture;
 -- * https://sites.ualberta.ca/~delliott/ee552/studentAppNotes/1999f/Drivers_Ed/lfsr.html
 -- * https://en.wikipedia.org/wiki/Linear-feedback_shift_register
 --
+-- @bug This does not seem to synthesis correctly, perhaps due to the
+-- the way the XOR feedback is generated
 --
 -- Some optimal taps
 --
@@ -1282,7 +1284,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity lfsr is
-	generic(tap: std_logic_vector);
+	generic(constant tap: std_logic_vector);
 	port
 	(
 		clk: in  std_logic;
@@ -1307,7 +1309,7 @@ begin
 		end if;
 	end process;
 
-	process(r_c, di, we)
+	process(r_c, di, we, ce)
 	begin
 		if we = '1' then
 			r_n <= di;
