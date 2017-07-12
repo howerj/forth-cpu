@@ -38,7 +38,7 @@ end entity;
 architecture rtl of ucpu is
 	signal a_c,   a_n:   std_logic_vector(di'high + 1 downto di'low) := (others => '0'); -- accumulator
 	signal pc_c,  pc_n:  std_logic_vector(pc'range)                  := (others => '0');
-	signal fetch_c, fetch_n: boolean := true;
+	signal fetch_c, fetch_n: boolean := true; -- change this into something more meaningful
 begin
 	pc  <= pc_c;
 	do  <= a_c(do'range);
@@ -56,9 +56,8 @@ begin
 		end if;
 	end process;
 
-
 	process(op, di, a_c, pc_c, fetch_c)
-		variable alu: std_logic_vector(1 downto 0) := (others => '0');
+		variable alu: std_logic_vector(1 downto 0) := (others => '0'); -- turn into alias?
 	begin
 		alu   := op(op'high downto op'high - 1);
 		we    <= '0';
