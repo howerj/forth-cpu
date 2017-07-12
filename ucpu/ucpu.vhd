@@ -63,17 +63,17 @@ begin
 		we    <= '0';
 		a_n   <= a_c;
 		pc_n  <= pc_c;
-		re <= '0';
-		adr <= op(adr'range);
+		re    <= '0';
+		adr   <= op(adr'range);
 		if fetch_c then
-			fetch_n <= false;
-			re      <= not alu(1);
+			fetch_n <= false; -- Turn into fetch_n <= not alu(1) when store is moved
+			re      <= not alu(1); -- Fetch on ADD and NOR
 			pc_n    <= std_logic_vector(unsigned(pc_c) + 1);
 
-			if alu = "11" then
-				if a_c(a_c'high) = '0' then
-					a_n(a_n'high) <= '0';
-					pc_n          <= op(pc_n'range);
+			if alu = "11" then -- JCC
+				if a_c(a_c'high) = '0' then 
+					a_n(a_n'high) <= '0'; -- clear carry
+					pc_n          <= op(pc_n'range); 
 					fetch_n       <= true;
 				end if;
 			end if;
@@ -81,7 +81,7 @@ begin
 			fetch_n <= true;
 			if    alu = "00" then a_n <= std_logic_vector(unsigned('0' & a_c(di'range)) + unsigned('0' & di));
 			elsif alu = "01" then a_n <= a_c nor ('0' & di);
-			elsif alu = "10" then we <= '1';
+			elsif alu = "10" then we <= '1'; -- move to fetch, then ALU switch can be on lowest bit
 			else                  null;
 			end if;
 		end if;

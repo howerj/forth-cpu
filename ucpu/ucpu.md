@@ -14,4 +14,4 @@ An incredibly small CPU.
 * Move to "util.vhd"
 * Document fully
 * Make a simulator in C
-
+* Make a bit serial version?
