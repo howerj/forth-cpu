@@ -117,6 +117,8 @@ typedef struct {
 
 	uint8_t switches;
 
+	uint16_t lfsr;
+
 	bool wait;
 } h2_soc_state_t;
 
@@ -141,6 +143,7 @@ typedef enum {
 	iTimerDin     = 0x6003,
 	iVgaTxtDout   = 0x6004,
 	iPs2          = 0x6005,
+	iLfsr         = 0x6006,
 } h2_input_addr_t;
 
 typedef enum {
@@ -151,6 +154,7 @@ typedef enum {
 	oVgaCtrl      = 0x6004,
 	o8SegLED      = 0x6005,
 	oIrcMask      = 0x6006,
+	oLfsr         = 0x6007,
 } h2_output_addr_t;
 
 void *allocate_or_die(size_t length);

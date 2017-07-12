@@ -879,7 +879,12 @@ int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
  * the roughly the right number of cycles, but not to get exact cycle
  * accurate timing */
 
-static void memory_print(FILE *out, uint16_t start, uint16_t *p, uint16_t length)
+static char to_char(uint8_t c)
+{
+	return isprint(c) ? c : '.';
+}
+
+static void memory_print(FILE *out, uint16_t start, uint16_t *p, uint16_t length, bool chars)
 {
 	const uint16_t line_length = 16;
 	assert(out);
@@ -888,6 +893,11 @@ static void memory_print(FILE *out, uint16_t start, uint16_t *p, uint16_t length
 		fprintf(out, "%04"PRIx16 ": ", i + start);
 		for(uint16_t j = 0; j < line_length && j + i < length; j++)
 			fprintf(out, "%04"PRIx16 " ", p[j + i]);
+		fputc('\t', out);
+		if(chars) /* correct endianess? */
+			for(uint16_t j = 0; j < line_length && j + i < length; j++)
+				fprintf(out, "%c%c", to_char(p[j + i] >> 8), to_char(p[j + i]));
+
 		putc('\n', out);
 	}
 	putc('\n', out);
@@ -954,11 +964,12 @@ void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 	fprintf(out, "UART Input:    %02"PRIx8"\n",  soc->uart_getchar_register);
 	fprintf(out, "LED 7seg:      %c%c%c%c\n",    led0, led1, led2, led3);
 	fprintf(out, "Switches:      %02"PRIx8"\n",  soc->switches);
+	fprintf(out, "LFSR:          %04"PRIx16"\n", soc->lfsr);
 	fprintf(out, "Waiting:       %s\n",          soc->wait ? "true" : "false");
 	
 	if(verbose) {
 		fputs("VGA Memory:\n", out);
-		memory_print(out, 0, soc->vga, VGA_BUFFER_LENGTH);
+		memory_print(out, 0, soc->vga, VGA_BUFFER_LENGTH, true);
 	}
 }
 
@@ -975,6 +986,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	/** @bug reading from VGA memory is broken for the moment */
 	case iVgaTxtDout:   return 0; 
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
+	case iLfsr:         return soc->lfsr;
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 	}
@@ -1004,9 +1016,16 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	case oVgaCursor:  soc->vga_cursor     = value; break;
 	case o8SegLED:    soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
+	case oLfsr:       soc->lfsr           = value; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 	}
+}
+
+/**@todo check correctness */
+static uint16_t lfsr(uint16_t v)
+{
+	return (v >> 1) ^ (-(v & 1u) & 0x400b);
 }
 
 /**@todo allow for realistic timing of things like the UART, debounce time outs
@@ -1014,6 +1033,8 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 static void h2_io_update_default(h2_soc_state_t *soc)
 {
 	assert(soc);
+
+	soc->lfsr = lfsr(soc->lfsr);
 
 	if(soc->timer_control & TIMER_ENABLE) {
 		if(soc->timer_control & TIMER_RESET) {
@@ -1141,10 +1162,10 @@ static int number(char *s, uint16_t *o, size_t length);
 static void h2_print(FILE *out, h2_t *h)
 {
 	fputs("Return Stack:\n", out);
-	memory_print(out, 0, h->rstk, STK_SIZE);
+	memory_print(out, 0, h->rstk, STK_SIZE, false);
 	fputs("Variable Stack:\n", out);
 	fprintf(out, "tos:  %04"PRIx16"\n", h->tos);
-	memory_print(out, 1, h->dstk, STK_SIZE);
+	memory_print(out, 1, h->dstk, STK_SIZE, false);
 	
 	fprintf(out, "pc:   %04"PRIx16"\n", h->pc);
 	fprintf(out, "rp:   %04"PRIx16"\n", h->rp);
@@ -1338,7 +1359,7 @@ again:
 				}
 
 				if(io)
-					memory_print(ds->output, num1, io->soc->vga + (num1 & 0x1FFF), num2);
+					memory_print(ds->output, num1, io->soc->vga + (num1 & 0x1FFF), num2, true);
 				else
 					fprintf(ds->output, "I/O unavailable\n");
 			} else { /* RAM */
@@ -1346,7 +1367,7 @@ again:
 				if(((long)num1 + (long)num2) > MAX_CORE)
 					fprintf(ds->output, "overflow in RAM dump\n");
 				else
-					memory_print(ds->output, num1, h->core + num1, num2);
+					memory_print(ds->output, num1, h->core + num1, num2, true);
 
 			}
 			break;

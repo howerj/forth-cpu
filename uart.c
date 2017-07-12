@@ -46,7 +46,7 @@ static void *stdin_to_uart(void *x)
 		/** @bug Writing too fast causes problems! The H2 CPU
 		 * probably cannot process things fast enough. */
 		tcflush(fd,TCIOFLUSH);
-		usleep(100);
+		usleep(1000);
 
 	}
 	exit(EXIT_SUCCESS);
@@ -56,11 +56,12 @@ static void *stdin_to_uart(void *x)
 static void *uart_to_stdout(void *x)
 {
 	int fd = *(int*)x;
-	unsigned char c = 0;
+	unsigned char c[128] = {0};
+	int r = 0;
 
 	for(;;) {
-		if(1 == read(fd, &c, 1))
-			write(1, &c, 1);
+		if((r = read(fd, c, sizeof(c) - 1)) >=0)
+			write(1, c, r);
 	}
 	return NULL;
 }

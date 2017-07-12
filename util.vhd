@@ -1261,9 +1261,6 @@ end architecture;
 -- * https://sites.ualberta.ca/~delliott/ee552/studentAppNotes/1999f/Drivers_Ed/lfsr.html
 -- * https://en.wikipedia.org/wiki/Linear-feedback_shift_register
 --
--- @bug This does not seem to synthesis correctly, perhaps due to the
--- the way the XOR feedback is generated
---
 -- Some optimal taps
 --
 -- Taps start at the left most std_logic element of tap at '0' and proceed to
@@ -1327,10 +1324,7 @@ begin
 		else
 			r_n <= r_c;
 		end if;
-
 	end process;
-
-
 end architecture;
 
 library ieee;

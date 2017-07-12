@@ -230,6 +230,7 @@ disabled.
 	| iTimerDin   | 0x6003  | Current Timer Value             |
 	| iVgaTxtDout | 0x6004  | Contents of address oVgaTxtAddr |
 	| iPs2        | 0x6005  | PS2 Keyboard Register           |
+	| iLfsr       | 0x6006  | LFSR Seed                       |
 	*-------------*---------*---------------------------------*
 
 	*---------------------------------------------------------*
@@ -244,6 +245,7 @@ disabled.
 	| oVgaCtrl    | 0x6004  | VGA control registers           |
 	| o8SegLED    | 0x6005  | 4 x LED 8 Segment display 0     |
 	| oIrcMask    | 0x6006  | CPU Interrupt Mask              |
+	| oLfsr       | 0x6007  | LFSR Value                      |
 	| VGA Memory  | 0xE000  | VGA memory                      |
 	|             |    -    |                                 |
 	|             | 0xFFFF  |                                 |
@@ -398,6 +400,21 @@ enabled within it.
 
 	IMSK: Interrupt Mask
 
+#### oLfsr
+
+This register contains the interface the output of the Linear Feedback Shift
+Register ([LFSR][]). It needs an initial non-zero seed value before it will start 
+counting, which can be supplied with iLfsr. 
+
+	*-------------------------------------------------------------------------------*
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	*-------------------------------------------------------------------------------*
+	|                               LFSR                                            |
+	*-------------------------------------------------------------------------------*
+
+	LFSR: Current Linear Feedback Shift Register Value
+
+
 #### VGA Memory
 
 The VGA memory occupies the range 0xE000 to 0xFFFF, it can be written to (but
@@ -504,6 +521,20 @@ an [ASCII][] character is present in ACHR. Both PS2N and ACHR will be cleared.
 
 	PS2N: New character available on PS2 Keyboard
 	ACHR: ASCII Character
+
+#### iLfsr
+
+This register contains the interface to the input of the Linear Feedback Shift
+Register ([LFSR][]). It needs an initial non-zero seed value before it will start 
+counting, the LFSR can be used to generate pseudo random numbers.
+
+	*-------------------------------------------------------------------------------*
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	*-------------------------------------------------------------------------------*
+	|                               LFSR                                            |
+	*-------------------------------------------------------------------------------*
+
+	LFSR: Linear Feedback Shift Register Seed Value
 
 #### Interrupt Service Routines
 
@@ -667,5 +698,6 @@ project.
 [ASCII]: https://en.wikipedia.org/wiki/ASCII
 [free glut]: http://freeglut.sourceforge.net/
 [pthreads]: https://en.wikipedia.org/wiki/POSIX_Threads
+[LFSR]: https://en.wikipedia.org/wiki/Linear-feedback_shift_register
 
 <style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}</style>
