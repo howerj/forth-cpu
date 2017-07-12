@@ -34,6 +34,7 @@ constant oVgaCursor    0x6003
 constant oVgaCtrl      0x6004
 constant o8SegLED      0x6005
 constant oIrcMask      0x6006
+constant oLfsr         0x6007
 
 ( Inputs: 0x6000 - 0x7FFF )
 constant iUart         0x6000
@@ -42,6 +43,7 @@ constant iTimerCtrl    0x6002
 constant iTimerDin     0x6003
 constant iVgaTxtDout   0x6004
 constant iPs2          0x6005
+constant iLfsr         0x6006
 
 ( Interrupt service Routine: Memory locations )
 constant isrNone           0
@@ -440,6 +442,12 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		1 /string dup 0= ( advance string and test for end )
 	until ;
 
+: seed ( u -- : seed PRNG, requires non-zero value )
+	oLfsr ! ;
+
+: random ( -- u : get a pseudo random number )
+	iLfsr @ ;
+
 ( @todo suppress ok prompt when in compiling mode ) 
 : .ok OK count type space ;
 
@@ -526,7 +534,8 @@ variable uart-read-count 0
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
-	cpu-id led! ;
+	cpu-id led! 
+	1 seed ;
 	\ 0x00FF oIrcMask !
 	\ 1   seti ;
 
@@ -548,13 +557,16 @@ start:
 
 	welcome count type cr words
 
+
 	.break
 
 nextChar:
+	\ Test code
 	\ query tib #tib @ 2dup 2. cr type cr branch nextChar
 	\ query 0 tib #tib @ >number . . . cr branch nextChar
 	\ query tib #tib @ find . cr branch nextChar
 	\ 0 counter: 1000 ms 1+ dup led! branch counter
+	\ b: random . cr branch b
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches

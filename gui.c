@@ -850,7 +850,7 @@ static void draw_debug_info(void)
 		fill_textbox(&t, true, "%s fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
 		fill_textbox(&t, true, "%s fifo empty: %s", fifo_str, fifo_is_empty(f) ? "true" : "false");
 		fill_textbox(&t, true, "%s fifo count: %u", fifo_str, (unsigned)fifo_count(f));
-		sprintf(buf, "%09"PRId64, cycle_count);
+		sprintf(buf, "%08lu", (unsigned long)cycle_count);
 		fill_textbox(&t, true, "cycles:          %s", buf);
 	}
 	draw_textbox(&t);
