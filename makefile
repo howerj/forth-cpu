@@ -21,7 +21,6 @@ CFLAGS      = -Wall -Wextra -O2 -g
 SOURCES = \
 	util.vhd \
 	timer.vhd \
-	bram.vhd \
 	uart.vhd \
 	debounce.vhd \
 	kbd.vhd \
@@ -29,7 +28,6 @@ SOURCES = \
 	irqh.vhd \
 	h2.vhd \
 	cpu.vhd \
-	gen.vhd \
 	led.vhd 
 
 OBJECTS = ${SOURCES:.vhd=.o}
@@ -97,13 +95,12 @@ grun: gui h2.hex
 
 irqh.o: util.o
 led.o: util.o led.vhd
-gen.o: util.o gen.vhd
-vga.o: bram.o vga.vhd text.bin font.bin
+vga.o: util.o vga.vhd text.bin font.bin
 kbd.o: kbd.vhd debounce.o
-cpu.o: util.o h2.o irqh.o bram.o cpu.vhd h2.hex
+cpu.o: util.o h2.o irqh.o cpu.vhd h2.hex
 uart.o: util.o uart.vhd
 top.o: util.o timer.o cpu.o uart.o vga.o kbd.o led.o top.vhd 
-tb.o: top.o gen.o tb.vhd 
+tb.o: top.o tb.vhd 
 
 tb: ${OBJECTS} tb.o
 	ghdl -e tb
@@ -234,6 +231,6 @@ clean:
 	      top.unroutes top.xpi top_par.xrpt top.twx top.nlf design.bit top_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf h2 uart
+	@rm -vrf h2 uart gui
 	@rm -vf usage_statistics_webtalk.html
 	@rm -vf mem_h2.binary mem_h2.hexadecimal

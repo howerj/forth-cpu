@@ -29,7 +29,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity debounce is
-	generic(counter_size  :  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
+	generic(counter_size:  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
 	port(
 		clk:    in  std_logic;
 		button: in  std_logic;  --input signal to be debounced

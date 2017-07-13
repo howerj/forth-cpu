@@ -158,7 +158,7 @@ begin
 			dout_ack  =>  '0');
 
 	-- Example usage of wave form generator
-	uut_gen: entity work.gen
+	uut_gen: work.util.data_source
 		generic map(
 			addr_length  =>  13,
 			data_length  =>  16,

@@ -13,6 +13,7 @@
 --  STORE          10 ADDRESS  MEM[ADDRESS] = A
 --  JCC            11 ADDRESS  IF(CARRY) { PC = ADDRESS, CLEAR CARRY }
 --
+-- @todo Make a single port RAM version
 
 library ieee,work;
 use ieee.std_logic_1164.all;

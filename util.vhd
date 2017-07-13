@@ -9,13 +9,16 @@
 --| @email          howe.r.j.89@gmail.com
 --|
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
---| vice versa), pulse generator, small RAM model, population count
---| priority encoder, types, rising edge to level converter and vice versa, 
---| and other generic functions and components.
+--| vice versa), pulse generator, population count, priority encoder, types, 
+--| rising edge to level converter and vice versa, and other generic functions 
+--| and components.
 --| @todo Some simple communications primitives could be added in here, such
 --| as a SPI master. Another one would be a pin control module that can
 --| be used to control physical pins on the FPGA with a pin direction register,
 --| an input and an output register.
+--| @todo Add a CRC module, and a XXTEA (https://en.wikipedia.org/wiki/XXTEA),
+--| these should be customizable so a different number of rounds can be
+--| selected per clock cycle.
 --| @todo Add a small CPU as a component, see https://github.com/cpldcpu/MCPU
 --| and https://stackoverflow.com/questions/20955863/vhdl-microprocessor-microcontroller,
 --| and make a reimplementation of it. A very simple assembler could be written
@@ -191,6 +194,57 @@ package util is
 		generic(clock_frequency: positive);
 	end component;
 
+	component dual_port_block_ram is
+	generic(addr_length: positive  := 12;
+		data_length: positive  := 16;
+		file_name:   string   := "memory.bin";
+		file_type:   string   := "bin");
+	port(
+		-- port A of dual port RAM
+		a_clk:  in  std_logic;
+		a_dwe:  in  std_logic;
+		a_dre:  in  std_logic;
+		a_addr: in  std_logic_vector(addr_length - 1 downto 0);
+		a_din:  in  std_logic_vector(data_length - 1 downto 0);
+		a_dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0');
+		-- port B of dual port RAM
+		b_clk:  in  std_logic;
+		b_dwe:  in  std_logic;
+		b_dre:  in  std_logic;
+		b_addr: in  std_logic_vector(addr_length - 1 downto 0);
+		b_din:  in  std_logic_vector(data_length - 1 downto 0);
+		b_dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0'));
+	end component;
+
+	component single_port_block_ram is
+	generic(addr_length: positive := 12;
+		data_length: positive := 16;
+		file_name:   string   := "memory.bin";
+		file_type:   string   := "bin");
+	port(
+		clk:  in  std_logic;
+		dwe:  in  std_logic;
+		dre:  in  std_logic;
+		addr: in  std_logic_vector(addr_length - 1 downto 0);
+		din:  in  std_logic_vector(data_length - 1 downto 0);
+		dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0'));
+	end component;
+
+	component data_source is
+		generic(addr_length: positive := 12;
+			data_length: positive := 16;
+			file_name:   string   := "memory.bin";
+			file_type:   string   := "bin");
+		port(
+			clk:  in  std_logic;
+			rst:  in  std_logic;
+
+			ce:   in  std_logic;
+			cr:   in  std_logic;
+
+			dout: out std_logic_vector(data_length - 1 downto 0));
+	end component;
+
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
 	function n_bits(x: natural) return natural;
@@ -205,6 +259,7 @@ package util is
 	function mux(a: std_logic; b: std_logic; sel: std_logic) return std_logic;
 	function mux(a, b : std_logic_vector) return std_logic;
 	function decode(encoded: std_logic_vector) return std_logic_vector;
+	function hex_char_to_std_logic_vector(hc: character) return std_logic_vector;
 
 	--- Not synthesizable ---
 
@@ -351,6 +406,38 @@ package body util is
 		r(i) := '1';
 		return r;
 	end;
+
+	function hex_char_to_std_logic_vector(hc: character) return std_logic_vector is
+		variable slv: std_logic_vector(3 downto 0);
+	begin
+		case hc is
+		when '0' => slv := "0000";
+		when '1' => slv := "0001";
+		when '2' => slv := "0010";
+		when '3' => slv := "0011";
+		when '4' => slv := "0100";
+		when '5' => slv := "0101";
+		when '6' => slv := "0110";
+		when '7' => slv := "0111";
+		when '8' => slv := "1000";
+		when '9' => slv := "1001";
+		when 'A' => slv := "1010";
+		when 'a' => slv := "1010";
+		when 'B' => slv := "1011";
+		when 'b' => slv := "1011";
+		when 'C' => slv := "1100";
+		when 'c' => slv := "1100";
+		when 'D' => slv := "1101";
+		when 'd' => slv := "1101";
+		when 'E' => slv := "1110";
+		when 'e' => slv := "1110";
+		when 'F' => slv := "1111";
+		when 'f' => slv := "1111";
+		when others => slv := "XXXX";
+		end case;
+		assert (slv /= "XXXX") report " not a valid hex character: " & hc  severity failure;
+		return slv;
+	end hex_char_to_std_logic_vector;
 
 	--- Not synthesizable ---
 
@@ -1470,3 +1557,290 @@ begin
 
 end architecture;
 
+------------------------- I/O Pin Controller ----------------------------------------
+
+------------------------- Single and Dual Port Block RAM ----------------------------
+--|
+--| @warning The function initialize_ram has to be present in each architecture
+--| block ram that uses it (as far as I am aware) which means they could fall
+--| out of sync. This could be remedied with VHDL-2008.
+---------------------------------------------------------------------------------
+
+--- Dual Port Model ---
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use std.textio.all;
+use work.util.hex_char_to_std_logic_vector;
+
+entity dual_port_block_ram is
+
+	-- The dual port Block RAM module can be initialized from a file,
+	-- or initialized to all zeros. The model can be synthesized (with
+	-- Xilinx's ISE) into BRAM.
+	--	
+	-- Valid file_type options include:
+	--
+	-- "bin"  - A binary file (ASCII '0' and '1', one number per line)
+	-- "hex"  - A Hex file (ASCII '0-9' 'a-f', 'A-F', one number per line)
+	-- "nil"  - RAM contents will be defaulted to all zeros, no file will
+	--          be read from
+	--
+	-- The data length must be divisible by 4 if the "hex" option is
+	-- given.
+	--
+	-- These default values for addr_length and data_length have been
+	-- chosen so as to fill the block RAM available on a Spartan 6.
+	--
+	generic(addr_length: positive := 12;
+		data_length: positive := 16;
+		file_name:   string   := "memory.bin";
+		file_type:   string   := "bin");
+	port(
+		--| Port A of dual port RAM
+		a_clk:  in  std_logic;
+		a_dwe:  in  std_logic;
+		a_dre:  in  std_logic;
+		a_addr: in  std_logic_vector(addr_length - 1 downto 0);
+		a_din:  in  std_logic_vector(data_length - 1 downto 0);
+		a_dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0');
+		--| Port B of dual port RAM
+		b_clk:  in  std_logic;
+		b_dwe:  in  std_logic;
+		b_dre:  in  std_logic;
+		b_addr: in  std_logic_vector(addr_length - 1 downto 0);
+		b_din:  in  std_logic_vector(data_length - 1 downto 0);
+		b_dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0'));
+end entity;
+
+architecture behav of dual_port_block_ram is
+	constant ramSz: positive := 2 ** addr_length;
+
+	type ram_type is array ((ramSz - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
+
+
+	impure function initialize_ram(file_name, file_type: in string) return ram_type is
+		variable ram_data:   ram_type;
+		file     in_file:    text is in file_name;
+		variable input_line: line;
+		variable tmp:        bit_vector(data_length - 1 downto 0);
+		variable c:          character;
+		variable slv:        std_logic_vector(data_length - 1 downto 0);
+	begin
+		for i in 0 to ramSz - 1 loop
+			if file_type = "nil" then
+				ram_data(i):=(others => '0');
+			elsif not endfile(in_file) then
+				readline(in_file,input_line);
+				if file_type = "bin" then -- binary
+					read(input_line, tmp);
+					ram_data(i) := to_stdlogicvector(tmp);
+				elsif file_type = "hex" then -- hexadecimal
+					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
+					for j in 1 to (data_length/4) loop
+						c:= input_line((data_length/4) - j + 1);
+						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_logic_vector(c);
+					end loop;
+					ram_data(i) := slv;
+				else
+					report "Incorrect file type given: " & file_type severity failure;
+				end if;
+			else
+				ram_data(i) := (others => '0');
+			end if;
+		end loop;
+		return ram_data;
+	end function;
+
+	shared variable ram: ram_type := initialize_ram(file_name, file_type);
+
+begin
+	a_ram: process(a_clk)
+	begin
+		if rising_edge(a_clk) then
+			if a_dwe = '1' then
+				ram(to_integer(unsigned(a_addr))) := a_din;
+			end if;
+			if a_dre = '1' then
+				a_dout <= ram(to_integer(unsigned(a_addr)));
+			else
+				a_dout <= (others => '0');
+			end if;
+		end if;
+	end process;
+
+	b_ram: process(b_clk)
+	begin
+		if rising_edge(b_clk) then
+			if b_dwe = '1' then
+				ram(to_integer(unsigned(b_addr))) := b_din;
+			end if;
+			if b_dre = '1' then
+				b_dout <= ram(to_integer(unsigned(b_addr)));
+			else
+				b_dout <= (others => '0');
+			end if;
+		end if;
+	end process;
+end architecture;
+
+--- Single Port Model ---
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use std.textio.all;
+use work.util.hex_char_to_std_logic_vector;
+
+entity single_port_block_ram is
+
+	-- The dual port Block RAM module can be initialized from a file,
+	-- or initialized to all zeros. The model can be synthesized (with
+	-- Xilinx's ISE) into BRAM.
+	--	
+	-- Valid file_type options include:
+	--
+	-- "bin"  - A binary file (ASCII '0' and '1', one number per line)
+	-- "hex"  - A Hex file (ASCII '0-9' 'a-f', 'A-F', one number per line)
+	-- "nil"  - RAM contents will be defaulted to all zeros, no file will
+	--          be read from
+	--
+	-- The data length must be divisible by 4 if the "hex" option is
+	-- given.
+	--
+	-- These default values for addr_length and data_length have been
+	-- chosen so as to fill the block RAM available on a Spartan 6.
+	--
+	generic(addr_length: positive := 12;
+		data_length: positive := 16;
+		file_name:   string   := "memory.bin";
+		file_type:   string   := "bin");
+	port(
+		clk:  in  std_logic;
+		dwe:  in  std_logic;
+		dre:  in  std_logic;
+		addr: in  std_logic_vector(addr_length - 1 downto 0);
+		din:  in  std_logic_vector(data_length - 1 downto 0);
+		dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0'));
+end entity;
+
+architecture behav of single_port_block_ram is
+	constant ramSz: positive := 2 ** addr_length;
+
+	type ram_type is array ((ramSz - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
+
+
+	impure function initialize_ram(file_name, file_type: in string) return ram_type is
+		variable ram_data:   ram_type;
+		file     in_file:    text is in file_name;
+		variable input_line: line;
+		variable tmp:        bit_vector(data_length - 1 downto 0);
+		variable c:          character;
+		variable slv:        std_logic_vector(data_length - 1 downto 0);
+	begin
+		for i in 0 to ramSz - 1 loop
+			if file_type = "nil" then
+				ram_data(i):=(others => '0');
+			elsif not endfile(in_file) then
+				readline(in_file,input_line);
+				if file_type = "bin" then -- binary
+					read(input_line, tmp);
+					ram_data(i) := to_stdlogicvector(tmp);
+				elsif file_type = "hex" then -- hexadecimal
+					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
+					for j in 1 to (data_length/4) loop
+						c:= input_line((data_length/4) - j + 1);
+						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_logic_vector(c);
+					end loop;
+					ram_data(i) := slv;
+				else
+					report "Incorrect file type given: " & file_type severity failure;
+				end if;
+			else
+				ram_data(i) := (others => '0');
+			end if;
+		end loop;
+		return ram_data;
+	end function;
+
+	shared variable ram: ram_type := initialize_ram(file_name, file_type);
+
+begin
+	block_ram: process(clk)
+	begin
+		if rising_edge(clk) then
+			if dwe = '1' then
+				ram(to_integer(unsigned(addr))) := din;
+			end if;
+			if dre = '1' then
+				dout <= ram(to_integer(unsigned(addr)));
+			else
+				dout <= (others => '0');
+			end if;
+		end if;
+	end process;
+end architecture;
+
+------------------------- Single and Dual Port Block RAM ----------------------------
+
+------------------------- Data Source -----------------------------------------------
+--|
+--| This module spits out a bunch of data 
+--|
+--| @todo Create the inverse of this device - a logger that fills up a block
+--| RAM using a counter. Also, allow the user access to the memory, so they
+--| can fill it with whatever they want, and also set the clock rate of the
+--| data source.
+
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.single_port_block_ram;
+use work.util.counter;
+
+entity data_source is
+	generic(addr_length: positive := 12;
+		data_length: positive := 16;
+		file_name:   string   := "memory.bin";
+		file_type:   string   := "bin");
+	port(
+		clk:  in  std_logic;
+		rst:  in  std_logic;
+
+		ce:   in  std_logic;
+		cr:   in  std_logic;
+
+		dout: out std_logic_vector(data_length - 1 downto 0));
+end entity;
+
+architecture structural of data_source is
+	signal addr: std_logic_vector(addr_length - 1 downto 0);
+begin
+	count: work.util.counter
+		generic map(
+			N => addr_length)
+		port map(
+			clk  => clk,
+			rst  => rst,
+			ce   => ce,
+			cr   => cr,
+			dout => addr);
+
+	ram: work.util.single_port_block_ram
+		generic map(
+			addr_length => addr_length,
+			data_length => data_length,
+			file_name   => file_name,
+			file_type   => file_type)
+		port map(
+			clk  => clk,
+			addr => addr,
+			dwe  => '0',
+			dre  => '1',
+			din  => (others => '0'),
+			dout => dout);
+
+end architecture;
+
+------------------------- Data Source -----------------------------------------------
