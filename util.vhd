@@ -10,7 +10,8 @@
 --|
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
 --| vice versa), pulse generator, population count, priority encoder, types, 
---| rising edge to level converter and vice versa, and other generic functions 
+--| rising edge to level converter and vice versa, gray codes, Manchester
+--| encoder/decoder and other generic functions 
 --| and components.
 --| @todo Some simple communications primitives could be added in here, such
 --| as a SPI master. Another one would be a pin control module that can
@@ -1028,6 +1029,7 @@ end architecture;
 --
 -- The code can be used freely and appears to be public domain, comment
 -- from author is: "You can use any code posted here freely, there is no copyright."
+--
 -- @note The FIFO has been modified from the original to bring it in line with
 -- this projects coding standards.
 
@@ -1362,6 +1364,11 @@ end architecture;
 --      8           1,2,3,7    255
 --      16          1,2,4,15   65535
 --      32          1,5,6,31   4294967295
+--
+-- This component could be improved a lot, and it could also be used to
+-- calculate CRCs, which are basically the same computation. Its interface
+-- is not the best either, being a free running counter.
+--
 
 library ieee;
 use ieee.std_logic_1164.all;
