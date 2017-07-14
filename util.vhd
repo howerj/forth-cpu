@@ -20,6 +20,7 @@
 --| @todo Add a CRC module, and a XXTEA (https://en.wikipedia.org/wiki/XXTEA),
 --| these should be customizable so a different number of rounds can be
 --| selected per clock cycle.
+--| @todo Add a test bench that calls all the other test benches
 --| @todo Add a small CPU as a component, see https://github.com/cpldcpu/MCPU
 --| and https://stackoverflow.com/questions/20955863/vhdl-microprocessor-microcontroller,
 --| and make a reimplementation of it. A very simple assembler could be written
@@ -1693,6 +1694,8 @@ begin
 end architecture;
 
 --- Single Port Model ---
+-- @todo simplify this by using the dual port model and setting the B Ports
+-- inputs all to zero, also add a test bench
 
 library ieee;
 use ieee.std_logic_1164.all;
