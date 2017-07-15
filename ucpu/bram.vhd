@@ -137,7 +137,7 @@ architecture behav of dual_port_block_ram is
 	type ram_type is array ((ramSz - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
 
 
-	function initialize_ram(file_name, file_type: in string) return ram_type is
+	impure function initialize_ram(file_name, file_type: in string) return ram_type is
 		variable ram_data:   ram_type;
 		file     in_file:    text is in file_name;
 		variable input_line: line;

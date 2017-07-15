@@ -14,6 +14,12 @@
 --  JCC            11 ADDRESS  IF(CARRY) { PC = ADDRESS, CLEAR CARRY }
 --
 -- @todo Make a single port RAM version
+--
+-- It would be interesting to make a customizable CPU in which the
+-- instructions could be customized based upon what. Another interesting
+-- possibility is making a simple assembler purely in VHDL, which should
+-- be possible, but difficult.
+--
 
 library ieee,work;
 use ieee.std_logic_1164.all;
@@ -42,34 +48,35 @@ architecture rtl of ucpu is
 	signal alu:              std_logic_vector(1 downto 0)                := (others => '0');
 	signal state_c, state_n: std_logic                                   := '0'; 
 begin
-	pc  <= pc_c;
+	pc  <= pc_n;
 	do  <= a_c(do'range);
 	alu <= op(op'high downto op'high - 1);
+	adr <= op(adr'range);
+	we  <= '1' when alu = "10" else '0';
+	re  <= alu(1) nor state_c;
 
 	process(clk, rst)
 	begin
 		if rst = '1' then
-			pc_c    <= (others => '0');
 			a_c     <= (others => '0');
+			pc_c    <= (others => '0');
 			state_c <= '0';
 		elsif rising_edge(clk) then
+			a_c     <= a_n;
 			pc_c    <= pc_n;
 			state_c <= state_n;
-			a_c     <= a_n;
 		end if;
 	end process;
 
 	process(op, alu, di, a_c, pc_c, state_c)
+		variable pc_plus_one: std_logic_vector(pc_c'range);
 	begin
-		we    <= '0';
-		a_n   <= a_c;
-		pc_n  <= pc_c;
-		re    <= '0';
-		adr   <= op(adr'range);
+		pc_plus_one := std_logic_vector(unsigned(pc_c) + 1);
+		state_n <= not alu(1); 
+		a_n     <= a_c;
+		pc_n    <= pc_c;
 		if state_c = '0' then
-			state_n <= '1'; -- Turn into state_n <= not alu(1) when store is moved
-			re      <= not alu(1); -- state on ADD and NOR
-			pc_n    <= std_logic_vector(unsigned(pc_c) + 1);
+			if alu(1) = '1' then pc_n <= pc_plus_one; end if;
 
 			if alu = "11" then -- JCC
 				if a_c(a_c'high) = '0' then 
@@ -78,12 +85,11 @@ begin
 				end if;
 			end if;
 		else
+			pc_n    <= pc_plus_one;
 			state_n <= '0';
-			if    alu = "00" then a_n <= std_logic_vector(unsigned('0' & a_c(di'range)) + unsigned('0' & di));
-			elsif alu = "01" then a_n <= a_c nor ('0' & di);
-			elsif alu = "10" then we <= '1'; -- move to state, then ALU switch can be on lowest bit
-			else                  null;
-			end if;
+			assert alu(1) = '0' severity failure;
+			if alu(0) = '0' then a_n <= std_logic_vector(unsigned('0' & a_c(di'range)) + unsigned('0' & di)); end if;
+			if alu(0) = '1' then a_n <= a_c nor ('0' & di); end if;
 		end if;
 	end process;
 end architecture;
