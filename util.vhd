@@ -11,7 +11,8 @@
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
 --| vice versa), pulse generator, population count, priority encoder, types, 
 --| gray codes, Manchester encoder/decoder and other generic functions 
---| and components.
+--| and components. Configurable Logic Block primitives could also be
+--| provided.
 --| @todo Some simple communications primitives could be added in here, such
 --| as a SPI master. Another one would be a pin control module that can
 --| be used to control physical pins on the FPGA with a pin direction register,
@@ -1994,6 +1995,5 @@ begin
 	end process;
 
 end architecture;
-
 
 ------------------------- uCPU ------------------------------------------------------
