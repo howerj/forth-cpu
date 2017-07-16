@@ -3,16 +3,8 @@
  * @copyright Richard James Howe (2017)
  * @license   MIT 
  *
- * @todo Print debugging information for the H2 CPU to the screen
- * @todo Add font scaling, see <https://stackoverflow.com/questions/29872095/drawing-large-text-with-glut>
- * Functions to use:
- * 	* glutStrokeHeight
- * 	* glutstrokelength
- * 	* glutStrokeCharacter
- * 	* glScalef
- * And font:
- * 	GLUT_STROKE_MONO_ROMAN
- *
+ * @todo Print debugging information for the H2 CPU to the screen, and make a
+ * graphical debugger.
  * @todo Replace magic numbers like "0.5" with 1/200 of the absolute difference
  * between x/y minimum and maximum. 
  */
@@ -58,6 +50,9 @@ static unsigned arena_tick_ms              = 30; /**@todo This should be automat
 static bool use_uart_input                 = true;
 static bool debug_extra                    = false;
 static uint64_t cycle_count                = 0;
+static void *font_scaled                   = GLUT_STROKE_MONO_ROMAN;
+
+extern float glutStrokeHeight(void *);
 
 typedef enum {
 	WHITE,
@@ -88,6 +83,14 @@ typedef enum {
 
 typedef shape_e shape_t;
 
+
+typedef struct {
+	double x;
+	double y;
+} scale_t;
+
+
+
 typedef struct {
 	double x, y;
 	bool draw_box;
@@ -99,6 +102,8 @@ typedef struct { /**@note it might be worth translating some functions to use po
 	double x, y;
 } point_t;
 
+/**@bug not quite correct, arena_tick_ms is what we request, not want the arena
+ * tick actually is */
 static double seconds_to_ticks(double s)
 {
 	return s * (1000. / (double)arena_tick_ms);
@@ -316,6 +321,25 @@ static int draw_string(const char *msg)
 {	
 	assert(msg);
 	return draw_block((uint8_t*)msg, strlen(msg));
+}
+
+/**@todo Rewrite the other functions to use this one */
+static void draw_block_scaled(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, color_t color)
+{
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+		glLoadIdentity();
+		glTranslatef(x, y, 0.0);
+		glScaled(scale_x, scale_y, 1.0);
+		glRotated(rad2deg(orientation), 0, 0, 1);
+		set_color(color);
+		for(size_t i = 0; i < len; i++) {
+			uint8_t c = msg[i];
+			c = c >= 32 && c <= 127 ? c : '?';
+			glutStrokeCharacter(font_scaled, c);
+		}
+		glEnd();
+	glPopMatrix();
 }
 
 int vdraw_text(color_t color, double x, double y, const char *fmt, va_list ap)
@@ -547,18 +571,28 @@ typedef struct {
 	uint8_t m[VGA_MEMORY_SIZE];
 } vga_t;
 
-static void vga_map_color(uint8_t c)
+static color_t vga_map_color(uint8_t c)
 {
+	color_t r = WHITE;
 	switch(c & 0x7) { /* RED  GRN  BLU */
-	case 0:    glColor3f(0.0, 0.0, 0.0); break;
-	case 1:    glColor3f(0.0, 0.0, 1.0); break;
-	case 2:    glColor3f(0.0, 1.0, 0.0); break;
-	case 3:    glColor3f(0.0, 1.0, 1.0); break;
-	case 4:    glColor3f(1.0, 0.0, 0.0); break;
-	case 5:    glColor3f(1.0, 0.0, 1.0); break;
-	case 6:    glColor3f(1.0, 1.0, 0.0); break;
-	case 7:    glColor3f(1.0, 1.0, 1.0); break;
+	case 0: r = BLACK;   break;
+	case 1: r = BLUE;    break;
+	case 2: r = GREEN;   break;
+	case 3: r = CYAN;    break;
+	case 4: r = RED;     break;
+	case 5: r = MAGENTA; break;
+	case 6: r = YELLOW;  break;
+	case 7: r = WHITE;   break;
 	}
+	return r;
+}
+
+static scale_t font_attributes(void)
+{
+	scale_t scale = { 0., 0.};
+	scale.y = glutStrokeHeight(font_scaled);
+	scale.x = glutStrokeWidth(font_scaled, 'M');
+	return scale;
 }
 
 void draw_vga(vga_t *v)
@@ -568,15 +602,20 @@ void draw_vga(vga_t *v)
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	/**@todo Draw the cursor if enabled */
-	vga_map_color(v->control & 0x7);
+	color_t color = vga_map_color(v->control & 0x7);
 
-	double char_height = (Y_MAX / window_height) * FONT_HEIGHT;
-	double char_width  = (X_MAX / window_width)  * FONT_WIDTH;
+	static const double scale_x = 0.011;
+	static const double scale_y = 0.011;
 
-	for(size_t i = 0; i < VGA_HEIGHT; i++) {
-		glRasterPos2d(v->x, v->y - (((double)i) * char_height));
-		draw_block(v->m + (i*VGA_WIDTH), VGA_WIDTH);
-	}
+	scale_t scale = font_attributes();
+
+	double char_width = scale.x / X_MAX;
+       	double char_height = scale.y / Y_MAX;
+
+	for(size_t i = 0; i < VGA_HEIGHT; i++)
+		draw_block_scaled(v->x, v->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*VGA_WIDTH), VGA_WIDTH, color);
+
+	/* fudge factor = 1/((1/scale_x)/X_MAX) ??? */
 
 	if(v->control & VGA_CUR_EN) {
 		double now = tick - v->blink_count;
@@ -584,16 +623,13 @@ void draw_vga(vga_t *v)
 			v->blink_on = !(v->blink_on);
 			v->blink_count = tick;
 		}
-		if(v->blink_on) {
-			char_height *= window_scale_y;
-			char_width  *= window_scale_x;
-			draw_rectangle_filled(v->x + (char_width * (v->cursor_x-1.0)), v->y - (char_height * v->cursor_y), char_width, char_height, WHITE);
-		}
+		if(v->blink_on) /* fudge factor of 1.10? */
+			draw_rectangle_filled(v->x + (char_width * 1.10 * (v->cursor_x-1.0)) , v->y - (char_height * v->cursor_y), char_width, char_height, WHITE);
 	}
 
 	glPopMatrix();
 
-	/* draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2), SQUARE, 0.5, WHITE); */
+	draw_rectangle_line(v->x, v->y - (char_height * (VGA_HEIGHT-1.0)), char_width * VGA_WIDTH * 1.10, char_height * VGA_HEIGHT, 0.5, color);
 }
 
 typedef struct {
@@ -700,7 +736,7 @@ static dpad_t dpad = {
 
 static vga_t vga = {
 	.x     = X_MIN + 2.0,
-	.y     = Y_MAX - 6.0,
+	.y     = Y_MAX - 8.0,
 	.angle = 0.0,
 
 	.cursor_x = 0,

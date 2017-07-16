@@ -78,7 +78,6 @@ package vga_pkg is
 			crx => '0',
 			ctl => '0');
 
-
 	component vga_top is
 	port(
 		clk:         in  std_logic;
@@ -531,8 +530,6 @@ begin
 		signal slowclk: std_logic;
 		signal curpos:  std_logic;
 		signal yint:    std_logic;
-		signal crx_tmp: integer range 79 downto 0;
-		signal cry_tmp: integer range 39 downto 0;
 		signal crx:     integer range 79 downto 0;
 		signal cry:     integer range 39 downto 0;
 		signal counter: unsigned(22 downto 0);
@@ -549,7 +546,7 @@ begin
 		curpos <= '1' when scry = cry and scrx = crx else '0';
 		small  <= '1' when (chry > 8)                else '0';
 		curen2 <= (slowclk or (not cur_blink)) and cur_en;
-		yint   <= '1' when cur_mode = '0'                else small;
+		yint   <= '1' when cur_mode = '0'            else small;
 		y      <= (yint and curpos and curen2) xor losr_do;
 		
 	end block;
