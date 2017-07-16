@@ -11,13 +11,10 @@ For a grammar of the language look into the file "h2.c".
 Execution begins at a label called "start".
 
 TODO:
-* Function for displaying numbers on the display
-* VGA driver
 * Hex number printer
 * Bootloader
 * Minimal Forth interpreter 
-* Add built in words to the dictionary
-* Turn this into a literal file
+* Turn this into a literate file
 * Add assembler directives for setting starting position of
 program counter and the like )
 
@@ -376,6 +373,8 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	nfa dup
 	count nip + cell+ ;
 
+: 2. swap . . ;
+
 : 2rdrop
 	r> rdrop rdrop >r ;
 
@@ -406,12 +405,15 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	repeat 
 	rdrop rdrop drop 0 exit ;
 
+: .id ( pwd -- : print out a word )
+	nfa count type space ;
+
 : words ( -- : list all the words in the dictionary )
 	last address
 	begin
 		dup
 	while
-		dup nfa count type space @ address
+		dup .id @ address
 	repeat drop cr ;
 
 : .base ( -- ) base @ decimal dup . base  ! ;
@@ -485,7 +487,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	* Make a bootloader )
 
 
-: 2. swap . . ;
 
 : +leading ( b u -- b u : skip leading spaces )
 	dup 0= if exit then
@@ -503,21 +504,26 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 ( @todo fix this, it does not work correctly if the delimiter is not BL,
 leading should only be called on block, otherwise scan should be called )
-: parser ( b u c -- : )
-	over >r >r +leading 2dup 
-	r> scan nip over swap - swap r> swap - ;
- 
-: parse ( c -- b u ; <string> )
-  >r tib >in @ +  #tib @ >in @ -  r> parser >in +! ;
+: parser ( b u c -- b u delta : )
+	\ over >r >r +leading 2dup 
+	\ r> scan nip over swap - swap r> swap - ;
+	>r over >r +leading 2dup r> r> swap >r scan over r> - ;
 
-: .( 41 parse type ;
+: parse ( c -- b u ; <string> )
+  >r tib >in @ + #tib @ >in @ - r> parser dup >in +! ;
+
+: .( 41 parse type ; immediate
+: "(" 41 parse 2drop ; immediate 
+: "\" #tib @ >in ! ; immediate
 
 : word parse here pack$ ;
-
 : char bl parse drop c@ ;
 
 : empty? 
 	;
+
+\ : mswap ( a a -- : swap two memory locations )
+\	2dup >r @ swap ! r> @ swap ! ;
 
 : read
 	\ refill input buffer if empty
@@ -542,8 +548,7 @@ leading should only be called on block, otherwise scan should be called )
 		else
 			3drop \ error
 		then
-	then
-	;
+	then ;
 
 : compile
 	\ find
@@ -615,6 +620,10 @@ variable uart-read-count 0
 \ https://en.wikipedia.org/wiki/Fletcher's_checksum ) for more
 \ information.
 \ 
+\ @todo This bootloader needs testing, it could be improved by
+\ accepting a program length, start, and ASCII numbers instead
+\ of bytes.
+\ 
 \ constant bootstart 4096
 \ constant programsz 8191 ( bootstart + 4095 )
 \ variable readin    0
@@ -673,6 +682,10 @@ nextChar:
 	\ +leading 2dup 2. cr 
 	\ type branch nextChar
 	\ read command branch nextChar
+
+	\ query 
+	\ b: bl parse 2. cr >in @ . cr .break branch b
+	\ b: bl parse swap tib + swap type .break branch b
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches

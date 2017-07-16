@@ -124,8 +124,8 @@ architecture rtl of h2 is
 	signal rstk_data: std_logic_vector(15 downto 0) := (others => '0');
 
 begin
-	assert(stack_size > 4)   report "stack size too small: " & integer'image(stack_size) severity failure;
-	assert(stack_size < 128) report "stack size too large: " & integer'image(stack_size) severity failure;
+	assert stack_size > 4    report "stack size too small: " & integer'image(stack_size) severity failure;
+	assert stack_size < 128  report "stack size too large: " & integer'image(stack_size) severity failure;
 
 	-- instruction decoding is performed here
 	is_instr.alu     <=  '1' when insn(15 downto 13) = "011" else '0';

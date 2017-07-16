@@ -1487,7 +1487,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 {
 	bool turn_debug_on = false;
 	assert(h);
-	debug_state_t ds = { .input = stdin, .output = stderr, .step = run_debugger, .trace_on = run_debugger };
+	debug_state_t ds = { .input = stdin, .output = stderr, .step = run_debugger, .trace_on = false /*run_debugger*/ };
 
 	if(run_debugger)
 		fputs("Debugger running, type 'h' for a list of command\n", ds.output);
@@ -2056,7 +2056,7 @@ again:
  * Constant    := "constant" Identifier Literal
  * Variable    := "variable" Identifier ( Literal | String )
  * Instruction := "@" | "store" | "exit" | ...
- * Definition  := ":" Statement* ";" ( "hidden" | "immediate" | "inline")
+ * Definition  := ":" ( Identifier | String) Statement* ";" ( "hidden" | "immediate" | "inline")
  * If          := "if" Statement* [ "else" ] Statement* "then"
  * Begin       := "begin" Statement* ("until" | "again" | "while" Statement* "repeat")
  * For         := "for"   Statement* ("aft" Statement* "then" Statement* | "next")
@@ -2354,7 +2354,10 @@ static node_t *define(lexer_t *l)
 	node_t *r;
 	assert(l);
 	r = node_new(l, SYM_DEFINITION, 1);
-	expect(l, LEX_IDENTIFIER);
+	if(accept(l, LEX_IDENTIFIER))
+		;
+	else
+		expect(l, LEX_STRING);
 	use(l, r);
 	r->o[0] = statements(l);
 	expect(l, LEX_ENDDEFINE);
