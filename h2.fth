@@ -378,24 +378,39 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : 2rdrop
 	r> rdrop rdrop >r ;
 
+: address ( a -- a : mask off any bits not used for the address )
+	0x1FFF and ;
+
+: logical ( n -- f )
+	0= 0= ;
+
+: immediate? ( pwd -- f : is immediate? )
+	0x2000 and logical ;
+
+: hidden? ( pwd -- f : is hidden? )
+	0x4000 and logical ;
+
+: inline? ( pwd -- f : is inline? )
+	0x8000 and logical ;
+
 : find ( a u -- pwd -1 | 0 : find a word in the dictionary )
 	>r >r
-	last
+	last address
 	begin
 		dup
 	while
 		dup nfa count r> r> 2dup >r >r =string
 		if rdrop rdrop -1 exit then
-		@
+		@ address
 	repeat 
 	rdrop rdrop drop 0 exit ;
 
 : words ( -- : list all the words in the dictionary )
-	last
+	last address
 	begin
 		dup
 	while
-		dup nfa count type space @
+		dup nfa count type space @ address
 	repeat drop cr ;
 
 : .base ( -- ) base @ decimal dup . base  ! ;
@@ -442,6 +457,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		1 /string dup 0= ( advance string and test for end )
 	until ;
 
+( @todo replace with XORShift )
 : seed ( u -- : seed PRNG, requires non-zero value )
 	oLfsr ! ;
 
@@ -534,8 +550,8 @@ variable uart-read-count 0
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit oTimerCtrl ! \ Enable timer
-	cpu-id led! 
-	1 seed ;
+	cpu-id led!            \ Display CPU ID on 7-Segment Displays
+	1 seed ;               \ Set up PRNG seed
 	\ 0x00FF oIrcMask !
 	\ 1   seti ;
 
@@ -545,10 +561,50 @@ jumps to a special symbol "start".
 @todo This special case symbol should be removed by adding
 adequate assembler directives )
 
-\ : 2. swap . . ;
+( PLAN:
+
+	* Make a parse routine
+	* Compiler routine
+		- Inline
+		- Literals
+		- Compile calls
+	* Make interpreter loop
+	* Define ':', '[', ']', control structures, ...
+	* Make a bootloader )
+
+
+: 2. swap . . ;
+
+: +leading ( b u -- b u : skip leading spaces )
+	dup 0= if exit then
+	begin
+		over c@ bl - 0> if exit then
+		1 /string dup 0=
+	until ;
+
+: scan ( b u c -- b u : skip until 'c' )
+	>r dup 0= if rdrop exit then
+	begin
+		over c@ r@ = if rdrop exit then
+		1 /string dup 0=
+	until rdrop ;
+
+( @todo fix this, it does not work correctly if the delimiter is not BL,
+leading should only be called on block, otherwise scan should be called )
+: parser ( b u c -- : )
+	over >r >r +leading 2dup 
+	r> scan nip over swap - swap r> swap - ;
+ 
+: parse ( c -- b u ; <string> )
+  >r tib >in @ +  #tib @ >in @ -  r> parser >in +! ;
+
+: .( 41 parse type ;
+
+: word parse here pack$ ;
+
+: char bl parse drop c@ ;
 
 variable welcome "H2 Forth:"
-
 
 start:
 	 init
@@ -558,8 +614,6 @@ start:
 	welcome count type cr words
 
 
-	.break
-
 nextChar:
 	\ Test code
 	\ query tib #tib @ 2dup 2. cr type cr branch nextChar
@@ -567,6 +621,11 @@ nextChar:
 	\ query tib #tib @ find . cr branch nextChar
 	\ 0 counter: 1000 ms 1+ dup led! branch counter
 	\ b: random . cr branch b
+	\ query .( branch nextChar
+	\ query tib #tib @ 2dup 2. cr 
+	\ 2dup type cr
+	\ +leading 2dup 2. cr 
+	\ type branch nextChar
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches

@@ -1854,7 +1854,8 @@ end architecture;
 -- be possible, but difficult. A single port version would require another
 -- state to fetch the operand and another register, or more states.
 --
--- @todo Test in hardware
+-- @todo Test in hardware, document, make assembler, and a project that
+-- just contains an instantiation of this core.
 --
 
 library ieee,work;

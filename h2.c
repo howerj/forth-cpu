@@ -16,6 +16,11 @@
  * @todo Use the FIFO routines to simulate the H2 SoC FIFOs
  * @todo Change start address to be the same as in "h2.vhd", which is
  * now 0, this requires changes to the code generation.
+ * @todo Make a source level debugger, this would affect the code
+ * generation, but could be done by saving an array of nodes, each
+ * location referring matching up with a location in the core, also
+ * the disassembler could use the dictionary if it is present.
+ * 
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
@@ -1682,6 +1687,9 @@ typedef enum {
 	LEX_ENDDEFINE,
 	LEX_CHAR,
 	LEX_VARIABLE,
+	LEX_IMMEDIATE,
+	LEX_HIDDEN,
+	LEX_INLINE,
 
 	LEX_ISR,
 	LEX_SET,
@@ -1723,6 +1731,9 @@ static const char *keywords[] =
 	[LEX_ENDDEFINE] =  ";",
 	[LEX_CHAR]      =  "[char]",
 	[LEX_VARIABLE]  =  "variable",
+	[LEX_IMMEDIATE] =  "immediate",
+	[LEX_HIDDEN]    =  "hidden",
+	[LEX_INLINE]    =  "inline",
 	[LEX_ISR]       =  ".isr",
 	[LEX_SET]       =  ".set",
 	[LEX_PC]        =  ".pc",
@@ -1944,6 +1955,7 @@ again:
 	case EOF:
 		l->token->type = LEX_EOI;
 		return;
+		/**@todo fix '\' and '(', they should be keywords */
 	case '\\':
 		for(; '\n' != (ch = next_char(l));)
 			if(ch == EOF)
@@ -2044,7 +2056,7 @@ again:
  * Constant    := "constant" Identifier Literal
  * Variable    := "variable" Identifier ( Literal | String )
  * Instruction := "@" | "store" | "exit" | ...
- * Definition  := ":" Statement* ";"
+ * Definition  := ":" Statement* ";" ( "hidden" | "immediate" | "inline")
  * If          := "if" Statement* [ "else" ] Statement* "then"
  * Begin       := "begin" Statement* ("until" | "again" | "while" Statement* "repeat")
  * For         := "for"   Statement* ("aft" Statement* "then" Statement* | "next")
@@ -2129,6 +2141,7 @@ static const char *names[] = {
 typedef struct node_t  {
 	parse_e type;
 	size_t length;
+	uint16_t bits; /*general use bits*/
 	token_t *token, *value;
 	struct node_t *o[];
 } node_t;
@@ -2330,6 +2343,12 @@ static node_t *if1(lexer_t *l)
 	return r;
 }
 
+typedef enum {
+	DEFINE_IMMEDIATE = 1 << 0,
+	DEFINE_HIDDEN    = 1 << 1,
+	DEFINE_INLINE    = 1 << 2,
+} define_type_e;
+
 static node_t *define(lexer_t *l)
 {
 	node_t *r;
@@ -2339,6 +2358,26 @@ static node_t *define(lexer_t *l)
 	use(l, r);
 	r->o[0] = statements(l);
 	expect(l, LEX_ENDDEFINE);
+
+again:
+	if(accept(l, LEX_IMMEDIATE)) {
+		if(r->bits & DEFINE_IMMEDIATE)
+			syntax_error(l, "immediate bit already set on latest word definition");
+		r->bits |= DEFINE_IMMEDIATE;
+		goto again;
+	}
+	if(accept(l, LEX_HIDDEN)) {
+		if(r->bits & DEFINE_HIDDEN)
+			syntax_error(l, "hidden bit already set on latest word definition");
+		r->bits |= DEFINE_HIDDEN;
+		goto again;
+	}
+	if(accept(l, LEX_INLINE)) {
+		if(r->bits & DEFINE_INLINE)
+			syntax_error(l, "inline bit already set on latest word definition");
+		r->bits |= DEFINE_INLINE;
+		goto again;
+	}
 	return r;
 }
 
@@ -2889,9 +2928,11 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		/**@todo Add mode bits field to word header (for immediate and
 		 * hidden words: They could be added into the PWD field as
 		 * the highest bits are not a valid RAM address */
+		if(n->bits && !(a->mode & MODE_COMPILE_WORD_HEADER))
+			assembly_error(e, "cannot modify word bits (immediate/hidden/inline) if not in compile mode");
 		if(a->mode & MODE_COMPILE_WORD_HEADER) {
 			hole1 = hole(h);
-			fix(h, hole1, a->pwd);
+			fix(h, hole1, a->pwd | (n->bits << 13)); /* shift in word bits into PWD field */
 			a->pwd = hole1 << 1;
 			pack_string(h, a, n->token->p.id, e);
 		}
@@ -2962,7 +3003,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 	case SYM_ALLOCATE:
 		/**@todo Only allow constants or literal */
-		h->pc += literal_or_symbol_lookup(n->token, t, e);
+		h->pc += literal_or_symbol_lookup(n->token, t, e) >> 1;
 		a->fence = h->pc;
 		break;
 	case SYM_BREAK:
@@ -2979,7 +3020,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 
 		for(unsigned i = 0; words[i].name; i++) {
 			hole1 = hole(h);
-			fix(h, hole1, a->pwd);
+			fix(h, hole1, a->pwd | (DEFINE_INLINE << 13));
 			a->pwd = hole1 << 1;
 			pack_string(h, a, words[i].name, e);
 			generate(h, a, words[i].code);
