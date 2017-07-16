@@ -524,6 +524,7 @@ package body util is
 
 			report "Config Item: '" & ci(index).name & "' = " & integer'image(ci(index).value);
 		end loop;
+		file_close(in_file);
 	end procedure;
 
 	procedure write_configuration_tb(file_name: string; ci: configuration_items) is
@@ -1650,10 +1651,9 @@ entity dual_port_block_ram is
 end entity;
 
 architecture behav of dual_port_block_ram is
-	constant ramSz: positive := 2 ** addr_length;
+	constant ram_size: positive := 2 ** addr_length;
 
-	type ram_type is array ((ramSz - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
-
+	type ram_type is array ((ram_size - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
 
 	impure function initialize_ram(file_name, file_type: in string) return ram_type is
 		variable ram_data:   ram_type;
@@ -1663,7 +1663,7 @@ architecture behav of dual_port_block_ram is
 		variable c:          character;
 		variable slv:        std_logic_vector(data_length - 1 downto 0);
 	begin
-		for i in 0 to ramSz - 1 loop
+		for i in 0 to ram_size - 1 loop
 			if file_type = "nil" then
 				ram_data(i):=(others => '0');
 			elsif not endfile(in_file) then
@@ -1685,6 +1685,7 @@ architecture behav of dual_port_block_ram is
 				ram_data(i) := (others => '0');
 			end if;
 		end loop;
+		file_close(in_file);
 		return ram_data;
 	end function;
 

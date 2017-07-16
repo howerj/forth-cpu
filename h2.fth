@@ -158,7 +158,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 ( ======================== Word Set ========================= )
 
-
 : cell- 2- ;
 : cell+ 2+ ;
 : cells 2* ;
@@ -173,7 +172,9 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : not -1 xor ;
 : dnegate not >r not 1 um+ r> + ; ( d -- d )
 : d= ( d d -- f )
-	>r swap r> = >r = r> = ;
+	>r swap r> = >r = r> and ;
+: d<> ( d d -- f )
+	d= 0= ;
 : abs dup 0< if negate then ;
 : count ( cs -- c-addr u )
 	dup 1+ swap c@ ;
@@ -373,7 +374,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : cfa ( pwd -- cfa : move to code field address )
 	nfa dup
-	count nip + ;
+	count nip + cell+ ;
 
 : 2rdrop
 	r> rdrop rdrop >r ;
@@ -419,7 +420,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : ?exit if rdrop then ;
 
-: decimal? ( c -- f : is character a number? )
+: decimal? ( c -- f : is character a decimal number? )
 	48 58 within ; ( '0' = 48, 58 = ':', or 9+1 )
 
 : lowercase? ( c -- f : is character lower case? )
@@ -439,13 +440,13 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	dup decimal?   if 48 -      exit then ( 48 = '0' )
 	drop -1 ;
 
-: number? ( char -- bool : is a character a number in the current base )
+: digit? ( char -- bool : is a character a number in the current base )
 	>lower numeric? base @ u< ;
 
 : >number ( n c-addr u -- n c-addr u : convert string )
 	begin
 		( get next character )
-		2dup >r >r drop c@ dup number? ( n char bool, R: c-addr u )
+		2dup >r >r drop c@ dup digit? ( n char bool, R: c-addr u )
 		if   ( n char )
 			swap base @ * swap numeric? + ( accumulate number )
 		else ( n char )
@@ -457,6 +458,10 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		1 /string dup 0= ( advance string and test for end )
 	until ;
 
+: number? ( c-addr u -- n c-addr u f )
+	0 -rot 
+	>number dup 0= ;
+
 ( @todo replace with XORShift )
 : seed ( u -- : seed PRNG, requires non-zero value )
 	oLfsr ! ;
@@ -466,6 +471,89 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 ( @todo suppress ok prompt when in compiling mode ) 
 : .ok OK count type space ;
+
+
+( PLAN:
+
+	* Make a parse routine
+	* Compiler routine
+		- Inline
+		- Literals
+		- Compile calls
+	* Make interpreter loop
+	* Define ':', '[', ']', control structures, ...
+	* Make a bootloader )
+
+
+: 2. swap . . ;
+
+: +leading ( b u -- b u : skip leading spaces )
+	dup 0= if exit then
+	begin
+		over c@ bl - 0> if exit then
+		1 /string dup 0=
+	until ;
+
+: scan ( b u c -- b u : skip until 'c' )
+	>r dup 0= if rdrop exit then
+	begin
+		over c@ r@ = if rdrop exit then
+		1 /string dup 0=
+	until rdrop ;
+
+( @todo fix this, it does not work correctly if the delimiter is not BL,
+leading should only be called on block, otherwise scan should be called )
+: parser ( b u c -- : )
+	over >r >r +leading 2dup 
+	r> scan nip over swap - swap r> swap - ;
+ 
+: parse ( c -- b u ; <string> )
+  >r tib >in @ +  #tib @ >in @ -  r> parser >in +! ;
+
+: .( 41 parse type ;
+
+: word parse here pack$ ;
+
+: char bl parse drop c@ ;
+
+: empty? 
+	;
+
+: read
+	\ refill input buffer if empty
+	\ bl parse
+	\ empty? if query then
+	\ parse
+	query tib #tib @
+	cr
+	;
+
+: command
+	\ find
+	\ 	true: cfa execute
+	\	false: number?
+	\		true:  push
+	\		false: error
+	2dup find
+	if >r 2drop r> cfa 2/ execute 
+	else
+		number? if
+			2drop
+		else
+			3drop \ error
+		then
+	then
+	;
+
+: compile
+	\ find
+	\       true: inline?
+	\		true: inline word
+	\		false: compile
+	\	false: number?
+	\		true: compile literal
+	\		false: error
+	;
 
 ( ======================== Word Set ========================= )
 
@@ -561,48 +649,6 @@ jumps to a special symbol "start".
 @todo This special case symbol should be removed by adding
 adequate assembler directives )
 
-( PLAN:
-
-	* Make a parse routine
-	* Compiler routine
-		- Inline
-		- Literals
-		- Compile calls
-	* Make interpreter loop
-	* Define ':', '[', ']', control structures, ...
-	* Make a bootloader )
-
-
-: 2. swap . . ;
-
-: +leading ( b u -- b u : skip leading spaces )
-	dup 0= if exit then
-	begin
-		over c@ bl - 0> if exit then
-		1 /string dup 0=
-	until ;
-
-: scan ( b u c -- b u : skip until 'c' )
-	>r dup 0= if rdrop exit then
-	begin
-		over c@ r@ = if rdrop exit then
-		1 /string dup 0=
-	until rdrop ;
-
-( @todo fix this, it does not work correctly if the delimiter is not BL,
-leading should only be called on block, otherwise scan should be called )
-: parser ( b u c -- : )
-	over >r >r +leading 2dup 
-	r> scan nip over swap - swap r> swap - ;
- 
-: parse ( c -- b u ; <string> )
-  >r tib >in @ +  #tib @ >in @ -  r> parser >in +! ;
-
-: .( 41 parse type ;
-
-: word parse here pack$ ;
-
-: char bl parse drop c@ ;
 
 variable welcome "H2 Forth:"
 
@@ -626,6 +672,7 @@ nextChar:
 	\ 2dup type cr
 	\ +leading 2dup 2. cr 
 	\ type branch nextChar
+	\ read command branch nextChar
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches
