@@ -16,11 +16,12 @@ TODO:
 * Minimal Forth interpreter 
 * Turn this into a literate file
 * Add assembler directives for setting starting position of
-program counter and the like )
+program counter and the like
+* This will need to be optimized for size soon )
 
 ( ======================== System Constants ================= )
 
-.mode 1 ( Turn word header compilation and optimization on)
+.mode 1 ( Turn word header compilation and optimization off)
 
 
 ( Outputs: 0x6000 - 0x7FFF )
@@ -479,6 +480,27 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : random ( -- u : get a pseudo random number )
 	iLfsr @ ;
 
+: pick 
+	?dup if swap >r 1- pick r> swap exit then dup ;
+
+: _type ( b u -- )  
+	for 
+		aft count >char emit then 
+	next drop ;
+
+: dm+ ( a u -- a )
+	over 4 u.r space
+	for 
+		aft count 3 u.r then 
+	next ;
+
+: dump ( a u -- )
+	base @ >r hex 10 /
+	for 
+		cr 10 2dup dm+ -rot
+		2 spaces _type
+	next drop r> base ! ;
+
 ( @todo suppress ok prompt when in compiling mode ) 
 : .ok OK count type space ;
 
@@ -621,9 +643,6 @@ variable cursor 0  ( index into VGA text memory )
 : led! ( n -- : display a number on the LED 8 display )
 	o8SegLED ! ;
 
-: pick 
-	?dup if swap >r 1- pick r> swap exit then dup ;
-
 variable uart-read-count 0
 
 ( ======================== Miscellaneous ==================== )
@@ -683,23 +702,16 @@ start:
 
 	welcome count type cr words
 
-nextChar:
-	\ Test code
-	\ query tib #tib @ 2dup 2. cr type cr branch nextChar
-	\ query 0 tib #tib @ >number . . . cr branch nextChar
-	\ query tib #tib @ find . cr branch nextChar
-	\ 0 counter: 1000 ms 1+ dup led! branch counter
-	\ b: random . cr branch b
-	\ query .( branch nextChar
-	\ query tib #tib @ 2dup 2. cr 
-	\ 2dup type cr
-	\ +leading 2dup 2. cr 
-	\ type branch nextChar
-	\ read command branch nextChar
 
-	\ query 
-	\ b: bl parse 2dup 2. cr type cr .break branch b
-	\ b: bl parse swap tib + swap type .break branch b
+	here . cr
+
+	\ 0 0x1FF0 dump cr
+
+nextChar:
+
+	\ basic command loop
+	\ q: query b: bl parse dup 0= if 2drop branch q then command branch b
+
 
 	begin
 		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches

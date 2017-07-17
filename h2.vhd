@@ -15,6 +15,10 @@
 --|  * Turn this component into a package
 --|  * Turn this into a literate file, describing the CPU
 --|  * Set start address to zero, and change tool chain for this as well
+--|  * Fix conversion between T->R and R->T, there should be a character
+--|  to cell address conversion.
+--|  * Fix Address mapping, it should only take one bit to specify I/O
+--|  reads and writes in the address, not two.
 --|
 -------------------------------------------------------------------------------
 
