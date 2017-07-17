@@ -494,31 +494,35 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	* Define ':', '[', ']', control structures, ...
 	* Make a bootloader )
 
+: 0<= 0> 0= ;
+: 0>= 0< 0= ;
 
+( @todo cleanup skip and scan, they need simplifying )
 
-: +leading ( b u -- b u : skip leading spaces )
-	dup 0= if exit then
-	begin
-		over c@ bl - 0> if exit then
-		1 /string dup 0=
-	until ;
-
-: scan ( b u c -- b u : skip until 'c' )
+: skip ( b u c -- b u : skip until not 'c' )
 	>r dup 0= if rdrop exit then
 	begin
-		over c@ r@ = if rdrop exit then
+		over c@ r@ - r@ bl = if 0> else 0<> then if rdrop exit then
 		1 /string dup 0=
 	until rdrop ;
 
-( @todo fix this, it does not work correctly if the delimiter is not BL,
-leading should only be called on block, otherwise scan should be called )
+: scan ( b u c -- b u : scan until 'c' )
+	>r dup 0= if rdrop exit then
+	begin
+		over c@ r@ - r@ bl = if 0<= else 0= then if rdrop exit then
+		1 /string dup 0=
+	until rdrop ;
+
+( @todo store tmp on the return stack with stack magic )
+variable tmp 0
+
 : parser ( b u c -- b u delta : )
-	\ over >r >r +leading 2dup 
-	\ r> scan nip over swap - swap r> swap - ;
-	>r over >r +leading 2dup r> r> swap >r scan over r> - ;
+	tmp ! over >r 
+	tmp @ skip 2dup
+	tmp @ scan swap r> - >r - r> ;
 
 : parse ( c -- b u ; <string> )
-  >r tib >in @ + #tib @ >in @ - r> parser dup >in +! ;
+  >r tib >in @ + #tib @ >in @ - r> parser >in +! ;
 
 : .( 41 parse type ; immediate
 : "(" 41 parse 2drop ; immediate 
@@ -694,7 +698,7 @@ nextChar:
 	\ read command branch nextChar
 
 	\ query 
-	\ b: bl parse 2. cr >in @ . cr .break branch b
+	\ b: bl parse 2dup 2. cr type cr .break branch b
 	\ b: bl parse swap tib + swap type .break branch b
 
 	begin
