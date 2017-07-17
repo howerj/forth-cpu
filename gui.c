@@ -20,6 +20,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <GL/glut.h>
+#include <GL/freeglut_ext.h> /* for glutStrokeHeight */
 #include <stdarg.h>
 
 /* ====================================== Utility Functions ==================================== */
@@ -51,8 +52,6 @@ static bool use_uart_input                 = true;
 static bool debug_extra                    = false;
 static uint64_t cycle_count                = 0;
 static void *font_scaled                   = GLUT_STROKE_MONO_ROMAN;
-
-extern float glutStrokeHeight(void *);
 
 typedef enum {
 	WHITE,

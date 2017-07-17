@@ -445,7 +445,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : digit? ( char -- bool : is a character a number in the current base )
 	>lower numeric? base @ u< ;
 
-: >number ( n c-addr u -- n c-addr u : convert string )
+: do-number ( n c-addr u -- n c-addr u : convert string )
 	begin
 		( get next character )
 		2dup >r >r drop c@ dup digit? ( n char bool, R: c-addr u )
@@ -458,7 +458,15 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		then
 		r> r> ( restore string )
 		1 /string dup 0= ( advance string and test for end )
-	until ;
+	until ; hidden
+
+: >number ( n c-addr u -- n c-addr u : convert string )
+	base @ >r
+	over c@ 0x2D = if 1 /string -1 >r else 0 >r then ( -negative )
+	over c@ 0x24 = if 1 /string hex then ( $hex )
+	do-number
+	r> if rot negate -rot then
+	r> base ! ;
 
 : number? ( c-addr u -- n c-addr u f )
 	0 -rot 
@@ -609,6 +617,9 @@ variable cursor 0  ( index into VGA text memory )
 : led! ( n -- : display a number on the LED 8 display )
 	o8SegLED ! ;
 
+: pick 
+	?dup if swap >r 1- pick r> swap exit then dup ;
+
 variable uart-read-count 0
 
 ( ======================== Miscellaneous ==================== )
@@ -667,7 +678,6 @@ start:
 	\ boot
 
 	welcome count type cr words
-
 
 nextChar:
 	\ Test code

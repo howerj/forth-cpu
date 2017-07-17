@@ -2113,6 +2113,7 @@ again:
 	X(SYM_BEGIN_WHILE_REPEAT,  "begin...while...repeat")\
 	X(SYM_FOR_NEXT,            "for...next")\
 	X(SYM_FOR_AFT_THEN_NEXT,   "for...aft...then...next")\
+	X(SYM_FOR_WHILE_NEXT_THEN, "for...while...next...then")\
 	X(SYM_IF1,                 "if1")\
 	X(SYM_DEFINITION,          "definition")\
 	X(SYM_CHAR,                "[char]")\
@@ -2307,7 +2308,16 @@ static node_t *for_next(lexer_t *l)
 		r = node_grow(l, r);
 		expect(l, LEX_THEN);
 		r->o[2] = statements(l);
-	} 
+	} /*else if(accept(l, LEX_WHILE)) {
+		r->type = SYM_FOR_WHILE_NEXT_THEN;
+		r = node_grow(l, r);
+		r->o[1] = statements(l);
+		r = node_grow(l, r);
+		expect(l, LEX_NEXT);
+		r->o[2] = statements(l);
+		expect(l, LEX_THEN);
+		return r;
+	}*/
 	expect(l, LEX_NEXT);
 	return r;
 }
@@ -2892,6 +2902,10 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		fix(h, hole2, OP_0BRANCH | (here(h)));
 		generate(h, a, CODE_RDROP);
 		break;
+		/*
+	case SYM_FOR_WHILE_NEXT_THEN:
+		assembly_error(e, "FOR...WHILE...NEXT...THEN not implemented");
+		*/
 	case SYM_BEGIN_WHILE_REPEAT:
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
