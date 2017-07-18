@@ -21,11 +21,7 @@
 --| these should be customizable so a different number of rounds can be
 --| selected per clock cycle.
 --| @todo Add a test bench that calls all the other test benches
---| @todo Add a small CPU as a component, see https://github.com/cpldcpu/MCPU
---| and https://stackoverflow.com/questions/20955863/vhdl-microprocessor-microcontroller,
---| and make a reimplementation of it. A very simple assembler could be written
---| in VHDL - which would be quite a challenge - making it a self contained
---| utility.
+--| @todo Document each component extensively, with timing diagrams.
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -651,7 +647,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity reg is
-	generic(N: positive);
+	generic(
+		N: positive);
 	port
 	(
 		clk: in  std_logic;
@@ -1772,10 +1769,12 @@ end architecture;
 --|
 --| This module spits out a bunch of data 
 --|
---| @todo Create the inverse of this device - a logger that fills up a block
---| RAM using a counter. Also, allow the user access to the memory, so they
---| can fill it with whatever they want, and also set the clock rate of the
---| data source.
+--| @todo Create a single module that can be used to capture and replay data at
+--| a configurable rate. This could be used as a logger or as a waveform
+--| generator. Depending on the generics used this should synthesize to either
+--| logger, or a data source, or both. A pre-divider could also be supplied as
+--| generic options, to lower the clock rate.
+--|
 
 library ieee,work;
 use ieee.std_logic_1164.all;

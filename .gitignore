@@ -2,7 +2,6 @@
 *.a
 *.bgn
 *.bit
-*.sym
 *_bitgen.xwbt
 *.bld
 *.cmd_log
@@ -20,11 +19,13 @@ filter
 fth/doc/doxygen/*
 *.ghw
 *.gise
+gui
 h2
 h2.bin
 h2.hex
 h2_tb
-uart
+*.htm
+*.html
 iseconfig/
 *.ll
 *.log
@@ -56,6 +57,7 @@ _ngo/
 par_usage_statistics.html
 *_par.xrpt
 *.pcf
+*.pdf
 post/
 post/*
 *.prj
@@ -71,9 +73,11 @@ reports/*
 *_summary.xml
 *.swo
 *.swp
+*.sym
 *.syr
 tb
 test_bench
+text
 tmp/
 tmp/*
 top_level.bld
@@ -89,6 +93,7 @@ top_level_xst.xrpt
 *.twr
 *.twx
 *.txt
+uart
 *.unroutes
 usage_statistics_webtalk.html
 *_usage.xml
@@ -110,5 +115,3 @@ _xmsgs/*
 *.xst
 xst/
 *_xst.xrpt
-text
-gui

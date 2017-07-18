@@ -55,6 +55,13 @@ all:
 	@echo "make clean          - delete temporary files and cleanup directory"
 	@echo ""
 
+## Documentation ===========================================================
+
+%.pdf: %.md
+	pandoc -V geometry:margin=0.5in --toc $< -o $@
+
+%.htm: %.md
+	markdown < $^ > $@
 
 ## Assembler ===============================================================
 

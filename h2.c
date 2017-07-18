@@ -1196,7 +1196,7 @@ typedef struct
 
 /** @todo implement all these instructions and more from
  * http://thestarman.pcministry.com/asm/debug/debug.htm as
- * well as push/pop numbers, and call (not just jump) */
+ * well as run for x cycles, and call (not just jump) */
 static const debug_command_t debug_commands[] = {
 	{ .cmd = 'a', .argc = 1, .arg1 = DBG_CMD_NUMBER, .arg2 = DBG_CMD_NO_ARG, .description = "assemble               " },
 	{ .cmd = 'b', .argc = 1, .arg1 = DBG_CMD_EITHER, .arg2 = DBG_CMD_NO_ARG, .description = "set break point        " },
@@ -1215,8 +1215,11 @@ static const debug_command_t debug_commands[] = {
 	{ .cmd = 's', .argc = 0, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "step                   " },
 	{ .cmd = 't', .argc = 0, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "toggle tracing         " },
 	{ .cmd = 'u', .argc = 2, .arg1 = DBG_CMD_NUMBER, .arg2 = DBG_CMD_NUMBER, .description = "unassemble             " },
-	{ .cmd = 'w', .argc = 2, .arg1 = DBG_CMD_NUMBER, .arg2 = DBG_CMD_NUMBER, .description = "set value              " },
 	{ .cmd = 'y', .argc = 0, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "list symbols           " },
+	{ .cmd = 'P', .argc = 1, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "push value             " },
+	{ .cmd = 'D', .argc = 0, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "pop value              " },
+	{ .cmd = 'G', .argc = 1, .arg1 = DBG_CMD_EITHER, .arg2 = DBG_CMD_NO_ARG, .description = "call function/location " },
+	{ .cmd = '!', .argc = 2, .arg1 = DBG_CMD_NUMBER, .arg2 = DBG_CMD_NUMBER, .description = "set value              " },
 	{ .cmd = '.', .argc = 0, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "print H2 CPU state     " },
 	{ .cmd = -1,  .argc = 0, .arg1 = DBG_CMD_EITHER, .arg2 = DBG_CMD_NO_ARG, .description = NULL },
 };
@@ -1351,11 +1354,20 @@ again:
 		case '\r':
 		case '\n':
 			break;
-		case 'a':
-		case 'f':
+		case 'a': 
 			fprintf(ds->output, "command '%c' not implemented yet!\n", op[0]);
 			break;
-
+		case 'f':
+		{
+			FILE *o = fopen(arg1, "wb");
+			if(!o) {
+				fprintf(ds->output, "could not open file '%s 'for writing: %s", arg1, strerror(errno));
+				break;
+			}
+			h2_save(h, o, true);
+			fclose(o);
+			break;
+		}
 		case 'd':
 			if(num1 & 0x8000) { /* VGA memory */
 				if((long)(num1 & 0x1FFF) + (long)num2 > VGA_BUFFER_LENGTH) {
@@ -1398,17 +1410,32 @@ again:
 			}
 			h->pc = num1;
 			break;
+		case 'G':
+			if(!is_numeric1) {
+				if(debug_resolve_symbol(ds->output, arg1, symbols, &num1))
+					break;
+			}
+			rpush(h, h->pc);
+			h->pc = num1;
+			break;
 		case '.':
 			h2_print(ds->output, h);
 			break;
 
-		case 'w':
+		case '!':
 			if(num1 >= MAX_CORE) {
 				fprintf(ds->output, "invalid write\n");
 				break;
 			}
 			h->core[num1] = num2;
 			break;
+		case 'P':
+			dpush(h, num1);
+			break;
+		case 'D':
+			fprintf(ds->output, "popped: %04u\n", (unsigned)dpop(h));
+			break;
+
 		case 'r':
 			free(h->bp.points);
 			h->bp.points = NULL;
@@ -2043,7 +2070,7 @@ again:
  * Program     := Statement* EOF
  * Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
  *                | Identifier | Constant | Variable | Definition | If
- *                | Begin | Char | Set | Pc | Break | Mode | String
+ *                | Begin | Char | Set | Pc | Break | Mode | String | BuiltIn
  * Label       := Identifier ";"
  * Branch      := "branch"  ( Identifier | Literal )
  * 0Branch     := "0branch" ( Identifier | Literal )
@@ -2051,6 +2078,7 @@ again:
  * Set         := ".set"    ( Identifier | Literal ) ( Identifier | Literal )
  * Pc          := ".pc"     ( Identifier | Literal )
  * Break       := ".break"
+ * BuiltIn     := ".built-in"
  * Mode        := ".mode"      Literal
  * Allocate    := ".allocate" ( Identifier | Literal )
  * Constant    := "constant" Identifier Literal
@@ -2074,24 +2102,8 @@ again:
  * NB. Literals have higher priority than Identifiers, and comments are '\'
  * until a new line is encountered, or '(' until a ')' is encountered.
  *
- * The following looping constructs need to be implemented:
- *
- * Begin ... While ... Repeat
- * For   ... Next
- * For   ... Aft   ... Then ... Next
- * :     ... Immediate?
- *
  * The grammar allows for nested word definitions, however state is held in the
  * lexer to prevent this.
- *
- * Add words:
- *
- * 	_start    - set start routine
- * 	include   - include a file
- * 	[char]    - compile a character literal
- * 	:compile  - compile values into dictionary
- * 	begin...again
- * 	never...then
  *
  **/
 
