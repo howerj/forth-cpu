@@ -1039,7 +1039,6 @@ value should never be zero, use "positive" not "natural".
 * Try not to specify constants with fixed lengths where an expression using
 "others" can be used instead, for example:
 
-
 	constant N: positive := 4;
 	signal a: std_logic_vector(N - 1 downto 0) := (others => '1');
 
@@ -1135,7 +1134,9 @@ keep the data in sync and to initialize the enumeration and array of strings.
 
 ## To Do
 
-* Guide to reusing the VHDL in this project.
+* Guide to reusing the VHDL in this project, and component listing
+* Turn the [h2.fth][] into a literate program file, describing how to build up
+a Forth system like in "The Zen of eForth by C. H. Ting".
 * Make a bootloader/program loader
 * Make diagrams of the SoC layout, take GIFs and pictures of the simulators and
 the running board.
@@ -1143,6 +1144,8 @@ the running board.
 * Memory interface to Nexys 3 board on board memory
 * A [Wishbone interface][] could be implemented for the H2 core
 and peripherals
+* Add documentation for the [Nexys3][] board in case it is no longer available
+in the future?
 * Make a utility for generating text for the VGA screen.
 * Investigate:
 	- The H2 simulator needs all of its peripherals checking,
