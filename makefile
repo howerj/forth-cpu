@@ -5,17 +5,68 @@
 # @Copyright   Copyright 2013 Marc Eberhard, 2016 Richard Howe
 # @License     LGPL
 #
-# This file needs a lot of improving
+# This file needs a lot of improving, OS detection for the building
+# of C programs can be found at:
+#
+# https://stackoverflow.com/questions/714100/os-detecting-makefile
+# https://stackoverflow.com/questions/7876876/tell-if-make-is-running-on-windows-or-linux
+# https://stackoverflow.com/questions/9279765/how-to-detect-os-in-a-make-file
 #
 
 NETLIST=top
 #TIME=time -p 
 TIME=
 
-GUI_LDFLAGS = -lglut -lGL -lm 
-CFLAGS      = -Wall -Wextra -O2 -g
+OS_FLAGS =
+# From: https://stackoverflow.com/questions/714100/os-detecting-makefile
+#
+# ifeq ($(OS),Windows_NT)
+#     OS_FLAGS += -D WIN32
+#     ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
+#         OS_FLAGS += -D AMD64
+#     else
+#         ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
+#             OS_FLAGS += -D AMD64
+#         endif
+#         ifeq ($(PROCESSOR_ARCHITECTURE),x86)
+#             OS_FLAGS += -D IA32
+#         endif
+#     endif
+# else
+#     UNAME_S := $(shell uname -s)
+#     ifeq ($(UNAME_S),Linux)
+#         OS_FLAGS += -D LINUX
+#     endif
+#     ifeq ($(UNAME_S),Darwin)
+#         OS_FLAGS += -D OSX
+#     endif
+#     UNAME_P := $(shell uname -p)
+#     ifeq ($(UNAME_P),x86_64)
+#         OS_FLAGS += -D AMD64
+#     endif
+#     ifneq ($(filter %86,$(UNAME_P)),)
+#         OS_FLAGS += -D IA32
+#     endif
+#     ifneq ($(filter arm%,$(UNAME_P)),)
+#         OS_FLAGS += -D ARM
+#     endif
+# endif
+# 
+ifeq ($(OS),Windows_NT)
+GUI_LDFLAGS = -lfreeglut -lopengl32 -lm 
+DF=
+EXE=.exe
+#h2:   h2.exe
+#gui:  gui.exe
+#uart: uart.exe
 
-.PHONY: simulation viewer synthesis bitfile upload clean
+else # assume unixen
+GUI_LDFLAGS = -lglut -lGL -lm 
+DF=./
+EXE=
+endif
+
+.PHONY: simulation viewer synthesis bitfile upload clean run grun
 
 ## Remember to update the synthesis section as well
 SOURCES = \
@@ -65,23 +116,23 @@ all:
 
 ## Assembler ===============================================================
 
-%.hex: %.fth h2
-	./h2 -S h2.sym -a $< > $@
+%.hex: %.fth h2${EXE}
+	${DF}h2 -S h2.sym -a $< > $@
 
 ## Virtual Machine and UART communications =================================
 
-uart: uart.c
+uart${EXE}: uart.c
 	${CC} ${CFLAGS} -std=gnu99 $^ -lpthread -o $@
 
-h2: h2.c h2.h
+h2${EXE}: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 $^ -o $@
 
-disassemble: h2 h2.fth
-	./h2 -S h2.sym -a h2.fth > h2.hex
-	./h2 -L h2.sym h2.hex | awk '{printf "%04x %s\n", NR-1, $$0;}' | less -
+disassemble: h2${EXE} h2.fth
+	${DF}h2 -S h2.sym -a h2.fth > h2.hex
+	${DF}h2 -L h2.sym h2.hex | awk '{printf "%04x %s\n", NR-1, $$0;}' | less -
 
-run: h2 h2.fth
-	./h2 -T -v -R h2.fth
+run: h2${EXE} h2.fth
+	${DF}h2 -T -v -R h2.fth
 
 sim.o: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 -DNO_MAIN  $< -c -o $@
@@ -89,11 +140,11 @@ sim.o: h2.c h2.h
 gui.o: gui.c
 	${CC} ${CFLAGS} -std=gnu99  $< -c -o $@
 
-gui: sim.o gui.o
+gui${EXE}: sim.o gui.o
 	${CC} $^ ${GUI_LDFLAGS} -o $@
 
-grun: gui h2.hex
-	./$^
+grun: gui${EXE} h2.hex
+	${DF}$^
 
 ## Simulation ==============================================================
 
@@ -115,12 +166,13 @@ tb: ${OBJECTS} tb.o
 %.ghw: % %.cfg
 	ghdl -r $< --wave=$<.ghw
 
-simulation: tb.ghw h2
+simulation: tb.ghw h2${EXE}
 
 ## Simulation ==============================================================
 
+# gtkwave -S signals -f tb.ghw &> /dev/null&
 viewer: simulation
-	gtkwave -S signals -f tb.ghw &> /dev/null&
+	gtkwave -S signals -f tb.ghw 
 
 bitfile: design.bit
 
@@ -238,6 +290,7 @@ clean:
 	      top.unroutes top.xpi top_par.xrpt top.twx top.nlf design.bit top_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf h2 uart gui
+	@rm -vrf h2${EXE} uart${EXE} gui${EXE}
 	@rm -vf usage_statistics_webtalk.html
 	@rm -vf mem_h2.binary mem_h2.hexadecimal
+

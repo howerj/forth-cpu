@@ -3052,6 +3052,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			fix(h, hole1, a->pwd | (DEFINE_INLINE << 13));
 			a->pwd = hole1 << 1;
 			pack_string(h, a, words[i].name, e);
+			symbol_table_add(t, SYMBOL_TYPE_CALL, words[i].name, here(h), e);
 			generate(h, a, words[i].code);
 			generate(h, a, CODE_EXIT); 
 		}
@@ -3069,7 +3070,7 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	assembler_t a = { false, false, false, 0, 0, 0, 0 };
 	assert(n);
 
-	/**@bug these variables might be clobbered by setjmp/longjmp */
+	/**@bug these variables might be clobbered by setjmp/longjmp ('h' and 't')*/
 	t = symbols ? symbols : symbol_table_new();
 	h = h2_new(START_ADDR);
 	a.fence = h->pc;

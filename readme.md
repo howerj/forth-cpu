@@ -16,7 +16,7 @@ Email:
 
 * howe.r.j.89@gmail.com
 
-## Introduction
+# Introduction
 
 This project implements a small stack computer tailored to executing Forth
 based on the [J1][] CPU. The processor has been rewritten in [VHDL][] from
@@ -40,14 +40,14 @@ being inferred instead of explicitly instantiated, this should make the code
 fairly portable, although the interfaces to the [Nexys3][] board components are
 specific to the peripherals on that board.
 
-## License
+# License
 
 The licenses used by the project are mixed and are on a per file basis. For my
 code I use the [MIT][] license - so feel free to use it as you wish. The other
 licenses used are the [LGPL][], they are confined to single modules so could be
 removed if you have some aversion to [LGPL][] code.
 
-## Target Board
+# Target Board
 
 The only target board available at the moment is the [Nexys3][], this should
 change in the future as the board is currently at it's End Of Life. The next
@@ -55,7 +55,7 @@ boards I am looking to support are it's successor, the Nexys 4, and the myStorm
 BlackIce (<https://mystorm.uk/>). The myStorm board uses a completely open
 source toolchain for synthesis, place and route and bit file generation.
 
-## Build requirements
+# Build requirements
 
 The build has been tested under [Debian][] [Linux][], version 8.
 
@@ -77,7 +77,7 @@ registration. ISE needs to be on your path:
 	PATH=$PATH:/opt/Xilinx/14.7/ISE_DS/ISE/bin/lin64;
 	PATH=$PATH:/opt/Xilinx/14.7/ISE_DS/ISE/lib/lin64;
 
-## Building and Running
+# Building and Running
 
 To make the [C][] based toolchain:
 
@@ -108,7 +108,7 @@ simulator can be run with:
 Which requires [freeglut][] as well as a [C][] compiler.
 
 
-## Manual
+# Manual
 
 The H2 processor and associated peripherals are subject to change, so the code
 is the definitive source what instructions are available, the register map, and
@@ -554,7 +554,7 @@ counting, the LFSR can be used to generate pseudo random numbers.
 
 	LFSR: Linear Feedback Shift Register Seed Value
 
-#### Interrupt Service Routines
+### Interrupt Service Routines
 
 The following interrupt service routines are defined:
 
@@ -587,7 +587,7 @@ interrupt number to the highest.
 Interrupts are lost when an interrupt with the same number occurs that has not
 been processed.
 
-### Assembler, Disassembler, Simulator and Debugger
+# Assembler, Disassembler, Simulator and Debugger
 
 The Assembler, Disassembler and [C][] based simulator for the H2 is in a single
 program (see [h2.c][]). This simulator complements the [VHDL][] test bench
@@ -636,7 +636,7 @@ This program is released under the [MIT][] license, feel free to use it and
 modify it as you please. With minimal modification it should be able to
 assemble programs for the original [J1][] core.
 
-#### Assembler
+## Assembler
 
 The assembler is actually a compiler for a pseudo Forth like language with a
 fixed grammar. It is a much more restricted language than Forth and cannot be
@@ -699,7 +699,7 @@ The assembler the following directives:
 	.isr       Set ISR
 	.built-in  Assemble built words here
 
-The built in words, with the instruction encodings:
+The built in words, with their instruction encodings:
 
 	         +---------------------------------------------------------------+
 	         | F | E | D | C | B | A | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
@@ -787,7 +787,7 @@ Unlike in a normal Forth environment these control structures can be called
 from outside functions definitions. They must also matched up correctly,
 otherwise a syntax error will be raised.
 
-#### Disassembler
+## Disassembler
 
 The disassembler takes a text file containing the assembled program, which
 consists of 16-bit hexadecimal numbers. It then attempts to disassemble the
@@ -799,7 +799,11 @@ turns the instruction trace of the H2 from a series of numbers into the
 instructions and branch destinations that they represent. This makes debugging
 the VHDL much easier.
 
-#### Simulator
+![H2 Disassembly Results](info/forth-cpu-wave.png "Dissembled Instructions in GTKWave")
+
+The purple trace shows the disassembled instructions.
+
+## Simulator
 
 The simulator in C implements the H2 core and most of the SoC. The IO for the
 simulator is not cycle accurate (and most likely will never be), but can be
@@ -807,7 +811,7 @@ used for running and debugging programs with results that are very similar to
 how the hardware behaves. This is much faster than rebuilding the bit file used
 to flash the [FPGA][].
 
-#### Debugger
+## Debugger
 
 The simulator also includes a debugger, which is designed to be similar to the
 [DEBUG.COM][] program available in [DOS][]. The debugger can be used to
@@ -920,7 +924,7 @@ simulator is trying to read data via the simulated UART or PS/2 keyboard (the
 escape will still be passed onto the simulator, but it also activates debug
 mode).
 
-#### Graphical simulator
+## Graphical simulator
 
 A separate program can be compiled, tested under [Linux][] and [Windows][].
 This simulates the [Nexys3][] board peripherals that the SoC interfaces with, 
@@ -943,7 +947,7 @@ or from mouse clicks.
 The simulator, how it looks and behaves, may be changed in the future to
 improve it.
 
-![H2 GUI Simulator](gui.png "Running GUI H2 SoC Simulator")
+![H2 GUI Simulator](info/forth-cpu-gui.gif "Running GUI H2 SoC Simulator")
 
 Building can be done with
 
@@ -978,7 +982,7 @@ turn on with left clicks and off with right clicks. The D-Pads buttons turn on
 with a click on top of them and turn off with a key release anywhere on the
 screen.
 
-### VHDL Components
+# VHDL Components
 
 The VHDL components used in this system are designed to be reusable and
 portable across different toolchains and vendors. Hardware components, like block 
@@ -998,9 +1002,24 @@ VHDL-2008 standard.
 	|led.vhd |MIT       |Richard J Howe |LED 7-Segment + Dot Display Driver  |
 	+--------+----------+---------------+------------------------------------+
 
-### Coding standards
+# eForth on the H2
 
-#### VHDL
+The pseudo Forth like language used as an assembler is described above, the
+application that actually runs on the Forth core is in itself a Forth
+interpreter. This section describes the Forth interpreter that runs on H2 Core,
+it is contained within [h2.fth][].
+
+TODO:
+- Fully implement the Forth interpreter
+- Describe and show its operation on here
+
+# Coding standards
+
+There are several languages used throughout this project, all of which are
+radically different from each other and require their own set of coding
+standards and style guides.
+
+## VHDL
 
 Common signal names:
 
@@ -1113,26 +1132,76 @@ width register:
 	end; -- "end" or "end architecture"
 
 
-#### C
+## C
 
 There is quite a lot of [C][] code used within this project, used to make a
 tool chain for the H2 core and to simulate the system. It follows a fairly
 strict coding style.
 
 * Tabs are to be used instead of spaces, a tab width of 8 was used when coding
-the C, if this causes any code to go off screen then there is a problem with
-the code and not the tab length.
+  the C, if this causes any code to go off screen then there is a problem with
+  the code and not the tab length.
 * Generally the [K&R][] style is followed.
 * Line lengths should ideally be limited to 80 characters, but this is
-definitely not an enforced limit.
+  definitely not an enforced limit.
 * Where there are two or more data structures that must be kept in sync, with a
-one to one correspondence of elements, such as an enumeration and an array of
-strings that each enumeration maps onto, an [X-Macro][] should be used to
-keep the data in sync and to initialize the enumeration and array of strings.
+  one to one correspondence of elements, such as an enumeration and an array of
+  strings that each enumeration maps onto, an [X-Macro][] should be used to
+  keep the data in sync and to initialize the enumeration and array of strings.
+* Try to use only portable constructs and isolate the constructs that are not
+  portable.
 
-#### FORTH
+There is nothing too surprising about the [C][] code within here, so some of
+the exceptions should be dealt with.
 
-## To Do
+* Switch statements are formatted depending upon what the switch statement 'case'
+clauses look like, if they are a simple one liner such as an assignment or a
+mapping then the entire statement should occupy only a single line, for
+example:
+
+	static const char *alu_op_to_string(uint16_t instruction)
+	{
+		/* notice also that the 'case' clauses are inline with the
+		 * switch selector */
+		switch(ALU_OP(instruction)) {
+		case ALU_OP_T:                  return "T";
+		case ALU_OP_N:                  return "N";
+		case ALU_OP_T_PLUS_N:           return "T+N";
+		case ALU_OP_T_AND_N:            return "T&N";
+		case ALU_OP_T_OR_N:             return "T|N";
+		case ALU_OP_T_XOR_N:            return "T^N";
+		case ALU_OP_T_INVERT:           return "~T";
+		case ALU_OP_T_EQUAL_N:          return "N=T";
+		case ALU_OP_N_LESS_T:           return "T>N";
+		case ALU_OP_N_RSHIFT_T:         return "N>>T";
+		case ALU_OP_T_DECREMENT:        return "T-1";
+		case ALU_OP_R:                  return "R";
+		case ALU_OP_T_LOAD:             return "[T]";
+		case ALU_OP_N_LSHIFT_T:         return "N<<T";
+		case ALU_OP_DEPTH:              return "depth";
+		case ALU_OP_N_ULESS_T:          return "Tu>N";
+		case ALU_OP_ENABLE_INTERRUPTS:  return "seti";
+		case ALU_OP_INTERRUPTS_ENABLED: return "iset?";
+		case ALU_OP_RDEPTH:             return "rdepth";
+		case ALU_OP_T_EQUAL_0:          return "0=";
+		case ALU_OP_CPU_ID:             return "cpu-id";
+		default:                        return "unknown";
+		}
+	}
+
+* Unnecessary braces are avoided:
+
+	if(foo)
+		bar();
+	else
+		baz();
+
+* "goto" can be used - it can be misused, but using it does not instantly make
+  code inscrutable contrary to popular belief.
+
+## FORTH
+
+# To Do
 
 * Guide to reusing the VHDL in this project, and component listing
 * Turn the [h2.fth][] into a literate program file, describing how to build up
@@ -1145,13 +1214,9 @@ the running board.
 * A [Wishbone interface][] could be implemented for the H2 core
 and peripherals
 * Add documentation for the [Nexys3][] board in case it is no longer available
-in the future?
+in the future? Also port to different [FPGA][] boards.
 * Make a utility for generating text for the VGA screen.
-* Investigate:
-	- The H2 simulator needs all of its peripherals checking,
-	specifically the VGA memory.
-	- The TX FIFO Full signal is apparently not working.
-* Make a javascript based simulator for the H2.
+* Make a javascript based simulator for the H2, perhaps with [emscripten][]
 
 ## Forth
 
@@ -1160,7 +1225,7 @@ word set.
 * Most of the Forth code could be taken from my [libforth][]
 project.
 
-## Resources
+# Resources
 
 * <https://nanode0000.wordpress.com/2017/04/08/exploring-the-j1-instruction-set-and-architecture/>
 * <https://www.fpgarelated.com/showarticle/790.php>
@@ -1170,6 +1235,8 @@ project.
 * <https://github.com/samawati/j1eforth>
 * <https://github.com/jamesbowman/j1>
 
+[javascript]: https://www.javascript.com/
+[emscripten]: https://github.com/kripken/emscripten
 [DEBUG.COM]: https://en.wikipedia.org/wiki/Debug_%28command%29
 [DOS]: https://en.wikipedia.org/wiki/DOS
 [h2.c]: h2.c

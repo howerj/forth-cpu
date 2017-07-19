@@ -90,22 +90,21 @@ architecture testing of tb is
 	signal ps2_keyboard_clk:  std_logic := '0';
 
 	-- UART FIFO
-	signal uart_fifo_rx_data:         std_logic_vector(7 downto 0) := (others => '0');
-	signal uart_fifo_rx_fifo_empty:   std_logic := '0';
-	signal uart_fifo_rx_fifo_full:    std_logic := '0';
-	signal uart_fifo_rx_data_re:      std_logic := '0';
-	signal uart_fifo_tx_fifo_full:    std_logic := '0';
-	signal uart_fifo_tx_fifo_empty:   std_logic := '0';
-	signal uart_fifo_tx_data_we:      std_logic := '0';
-	signal uart_fifo_tx:              std_logic := '0';
-	signal uart_fifo_rx_fifo_not_empty:   std_logic := '0';
+	signal uart_fifo_rx_data:           std_logic_vector(7 downto 0) := (others => '0');
+	signal uart_fifo_rx_fifo_empty:     std_logic := '0';
+	signal uart_fifo_rx_fifo_full:      std_logic := '0';
+	signal uart_fifo_rx_data_re:        std_logic := '0';
+	signal uart_fifo_tx_fifo_full:      std_logic := '0';
+	signal uart_fifo_tx_fifo_empty:     std_logic := '0';
+	signal uart_fifo_tx_data_we:        std_logic := '0';
+	signal uart_fifo_tx:                std_logic := '0';
+	signal uart_fifo_rx_fifo_not_empty: std_logic := '0';
 
 	-- Wave form generator
 	signal gen_dout:     std_logic_vector(15 downto 0) := (others => '0');
 
 begin
 ---- Units under test ----------------------------------------------------------
-
 
 	uut: entity work.top
 	generic map(
@@ -139,8 +138,14 @@ begin
 	uut_fifo:     entity work.fifo_tb           generic map(clock_frequency => clock_frequency);
 	uut_counter:  entity work.counter_tb        generic map(clock_frequency => clock_frequency);
 	uut_lfsr:     entity work.lfsr_tb           generic map(clock_frequency => clock_frequency);
-	uut_io_pins:  entity work.io_pins_tb        generic map(clock_frequency => clock_frequency);
 	uut_ucpu:     entity work.ucpu_tb           generic map(clock_frequency => clock_frequency);
+
+	-- The "io_pins_tb" works correctly, however GHDL 0.29, compiled under
+	-- Windows, cannot fails to simulate this component correctly, and it
+	-- crashes. This does not affect the Linux build of GHDL. It has
+	-- something to do with 'Z' values for std_logic types.
+	--
+	--  uut_io_pins:  entity work.io_pins_tb      generic map(clock_frequency => clock_frequency);
 
 	-- @note a more advanced test bench would send out a string and expect
 	-- the same one back using a loopback circuit. For the moment this
@@ -269,6 +274,6 @@ begin
 		wait;
 	end process;
 
------- END ---------------------------------------------------------------------
 end architecture;
+------ END ---------------------------------------------------------------------
 

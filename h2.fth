@@ -156,6 +156,8 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 ( ======================== Word Set ========================= )
 
+: 0<= 0> 0= ;
+: 0>= 0< 0= ;
 : cell- 2- ;
 : cell+ 2+ ;
 : cells 2* ;
@@ -502,12 +504,12 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	next drop r> base ! ;
 
 ( @todo suppress ok prompt when in compiling mode ) 
-: .ok OK count type space ;
+: .ok space OK count type space cr ;
 
 
 ( PLAN:
 
-	* Make a parse routine
+	* Make a parse routine [ done ]
 	* Compiler routine
 		- Inline
 		- Literals
@@ -515,9 +517,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	* Make interpreter loop
 	* Define ':', '[', ']', control structures, ...
 	* Make a bootloader )
-
-: 0<= 0> 0= ;
-: 0>= 0< 0= ;
 
 ( @todo cleanup skip and scan, they need simplifying )
 
@@ -553,8 +552,8 @@ variable tmp 0
 : word parse here pack$ ;
 : char bl parse drop c@ ;
 
-: empty? 
-	;
+: .s ( -- ) cr depth for aft r@ pick . then next ( ."  <sp" ) ;
+: .free 0x1fff here - u. ;
 
 \ : mswap ( a a -- : swap two memory locations )
 \	2dup >r @ swap ! r> @ swap ! ;
@@ -565,9 +564,10 @@ variable tmp 0
 	\ empty? if query then
 	\ parse
 	query tib #tib @
-	cr
-	;
+	cr ;
 
+( @todo Modify this, it should accept a flag indicating whether this is a
+number or a PWD field, not found should be handled elsewhere in EVAL )
 : command
 	\ find
 	\ 	true: cfa execute
@@ -710,7 +710,7 @@ start:
 nextChar:
 
 	\ basic command loop
-	\ q: query b: bl parse dup 0= if 2drop branch q then command branch b
+	q: query .ok b: bl parse dup 0= if 2drop branch q then command branch b
 
 
 	begin
