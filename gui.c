@@ -4,7 +4,7 @@
  * @license   MIT 
  *
  * @todo Print debugging information for the H2 CPU to the screen, and make a
- * graphical debugger.
+ * graphical debugger (simulation can be paused, single step through, etcetera)
  * @todo Replace magic numbers like "0.5" with 1/200 of the absolute difference
  * between x/y minimum and maximum. 
  * @todo Find out why the UART output is so slow!
@@ -110,7 +110,7 @@ typedef struct {
 
 typedef struct {
 	double x, y;
-	bool draw_box;
+	bool draw_border;
 	color_t color_text, color_box;
 	double width, height;
 } textbox_t;
@@ -261,7 +261,7 @@ static void draw_regular_polygon_line(double x, double y, double orientation, do
 static void draw_char(uint8_t c)
 {
 	c = c >= 32 && c <= 127 ? c : '?';
-	glutBitmapCharacter(GLUT_BITMAP_9_BY_15, c);
+	glutStrokeCharacter(world.font_scaled, c);
 }
 
 /* see: https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_01
@@ -312,15 +312,17 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 	char f;
 	int r = 0;
 	assert(fmt);
+	static const double scale_x = 0.011;
+	static const double scale_y = 0.011;
 
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	set_color(color); 
-	/*glTranslatef(x, y, 0);*/
-	glRasterPos2d(x, y);
+	glTranslatef(x, y, 0);
+	glScaled(scale_x, scale_y, 1.0);
 	while(*fmt) {
 		if('%' != (f = *fmt++)) {
-			glutBitmapCharacter(GLUT_BITMAP_9_BY_15, f);
+			glutStrokeCharacter(world.font_scaled, f);
 			r++;
 			continue;
 		}
@@ -376,28 +378,37 @@ static int draw_text(color_t color, double x, double y, const char *fmt, ...)
 	return r;
 }
 
-static void fill_textbox(textbox_t *t, bool on, const char *fmt, ...)
+static scale_t font_attributes(void)
+{
+	scale_t scale = { 0., 0.};
+	scale.y = glutStrokeHeight(world.font_scaled);
+	scale.x = glutStrokeWidth(world.font_scaled, 'M');
+	return scale;
+}
+
+static void fill_textbox(textbox_t *t, const char *fmt, ...)
 {
 	double r;
 	va_list ap;
-	double char_width  = (X_MAX / world.window_width) * FONT_WIDTH * world.window_scale_x;
+
+	scale_t scale = font_attributes();
+	double char_width = scale.x / X_MAX;
+	double char_height = scale.y / Y_MAX;
 	assert(t && fmt);
-	if(!on)
-		return;
 	va_start(ap, fmt);
 	r = vdraw_text(t->color_text, t->x, t->y - t->height, fmt, ap);
-	r *= char_width;
+	r *= char_width * 1.11;
 	r += 1;
 	va_end(ap);
 	t->width = MAX(t->width, r); 
-	t->height += ((Y_MAX / world.window_height) * FONT_HEIGHT * world.window_scale_y); /*correct?*/
+	t->height += (char_height); /*correct?*/
 }
 
 static void draw_textbox(textbox_t *t)
 {
 	assert(t);
 	double char_height = (Y_MAX / world.window_height) * FONT_HEIGHT * world.window_scale_y;
-	if(!(t->draw_box))
+	if(!(t->draw_border))
 		return;
 	/**@todo fix this */
 	draw_rectangle_line(t->x - 0.5, t->y - t->height + char_height - 1, t->width, t->height + 1, 0.5, t->color_box);
@@ -549,14 +560,6 @@ static color_t vga_map_color(uint8_t c)
 	case 7: r = WHITE;   break;
 	}
 	return r;
-}
-
-static scale_t font_attributes(void)
-{
-	scale_t scale = { 0., 0.};
-	scale.y = glutStrokeHeight(world.font_scaled);
-	scale.x = glutStrokeWidth(world.font_scaled, 'M');
-	return scale;
 }
 
 static void draw_vga(const world_t *world, vga_t *v)
@@ -937,26 +940,49 @@ static double fps(void)
 
 static void draw_debug_info(const world_t *world)
 {
-	textbox_t t = { .x = X_MIN + X_MAX/40, .y = Y_MAX - Y_MAX/40, .draw_box = true, .color_text = WHITE };
+	textbox_t t = { .x = X_MIN + X_MAX/40, .y = Y_MAX - Y_MAX/40, .draw_border = true, .color_text = WHITE };
 	fifo_t *f = world->use_uart_input ? uart_rx_fifo : ps2_rx_fifo;
 	const char *fifo_str = world->use_uart_input ? "UART" : "PS/2";
 	char buf[256] = { 0 };
 
-	fill_textbox(&t, true, "tick:            %u", world->tick);
-	//fill_textbox(&t, true, "seconds:         %f", ticks_to_seconds(world->tick));
-	fill_textbox(&t, true, "fps:             %f", fps());
+	fill_textbox(&t, "tick:               %u", world->tick);
+	//fill_textbox(&t, "seconds:         %f", ticks_to_seconds(world->tick));
+		fill_textbox(&t, "fps:                %f", fps());
 
 	if(world->debug_extra) {
-		fill_textbox(&t, true, "%s RX fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
-		fill_textbox(&t, true, "%s RX fifo empty: %s", fifo_str, fifo_is_empty(f) ? "true" : "false");
-		fill_textbox(&t, true, "%s RX fifo count: %u", fifo_str, (unsigned)fifo_count(f));
-		fill_textbox(&t, true, "UART TX fifo full:  %s", fifo_is_full(uart_tx_fifo)  ? "true" : "false");
-		fill_textbox(&t, true, "UART TX fifo empty: %s", fifo_is_empty(uart_tx_fifo) ? "true" : "false");
-		fill_textbox(&t, true, "UART TX fifo count: %u", (unsigned)fifo_count(uart_tx_fifo));
+		fill_textbox(&t, "%s RX fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
+		fill_textbox(&t, "%s RX fifo empty: %s", fifo_str, fifo_is_empty(f) ? "true" : "false");
+		fill_textbox(&t, "%s RX fifo count: %u", fifo_str, (unsigned)fifo_count(f));
+		fill_textbox(&t, "UART TX fifo full:  %s", fifo_is_full(uart_tx_fifo)  ? "true" : "false");
+		fill_textbox(&t, "UART TX fifo empty: %s", fifo_is_empty(uart_tx_fifo) ? "true" : "false");
+		fill_textbox(&t, "UART TX fifo count: %u", (unsigned)fifo_count(uart_tx_fifo));
 
 		sprintf(buf, "%08lu", (unsigned long)(world->cycle_count));
-		fill_textbox(&t, true, "cycles:          %s", buf);
+		fill_textbox(&t, "cycles:          %s", buf);
 	}
+	draw_textbox(&t);
+}
+
+static void draw_debug_h2(h2_t *h, double x, double y)
+{
+	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE };
+
+	static unsigned rpm = 0; 
+	static unsigned spm = 0;
+
+	spm = MAX(spm, h->sp);
+	rpm = MAX(rpm, h->rp);
+
+	fill_textbox(&t, "tos:  %u\n", h->tos);
+	/**@todo Replace with memory dumping routine, and also allow a dump of
+	 * main memory to be shown with alternating screens */
+	fill_textbox(&t, "%u %u %u %u", h->dstk[0], h->dstk[1], h->dstk[2], h->dstk[3]);
+	fill_textbox(&t, "%u %u %u %u", h->dstk[1], h->dstk[2], h->dstk[3], h->dstk[4]);
+	fill_textbox(&t, "pc:   %u\n", h->pc);
+	fill_textbox(&t, "rp:   %u (max %u)\n", h->rp, rpm);
+	fill_textbox(&t, "dp:   %u (max %u)\n", h->sp, spm);
+	fill_textbox(&t, "ie:   %s\n", h->ie ? "true" : "false");
+
 	draw_textbox(&t);
 }
 
@@ -1129,6 +1155,10 @@ static void draw_scene(void)
 		world.cycle_count += RUN_FOR;
 	}
 	draw_debug_info(&world);
+	if(world.debug_extra)
+		draw_debug_h2(h, X_MAX/2, Y_MAX/2);
+	else
+		draw_vga(&world, &vga);
 
 	for(size_t i = 0; i < SWITCHES_COUNT; i++)
 		draw_switch(&switches[i]);
@@ -1139,9 +1169,7 @@ static void draw_scene(void)
 	for(size_t i = 0; i < LEDS_COUNT; i++)
 		draw_led_8_segment(&segments[i]);
 
-
 	draw_dpad(&dpad);
-	draw_vga(&world, &vga);
 	draw_terminal(&world, &terminal);
 
 	//fill_textbox(&t, arena_paused, "PAUSED: PRESS 'R' TO CONTINUE");

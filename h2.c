@@ -1236,7 +1236,6 @@ Hit 'Escape' when the simulation is and is reading from input to exit \n\
 into the back debugger.\n\n\
 Command list:\n\n";
 
-
 	static const char *arg_type[] = { 
 		[DBG_CMD_NO_ARG] = "             ",
 		[DBG_CMD_NUMBER] = "number       ",
