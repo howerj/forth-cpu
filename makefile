@@ -121,6 +121,8 @@ all:
 
 ## Virtual Machine and UART communications =================================
 
+CFLAGS=-Wall -Wextra
+
 uart${EXE}: uart.c
 	${CC} ${CFLAGS} -std=gnu99 $^ -lpthread -o $@
 
@@ -141,7 +143,7 @@ gui.o: gui.c
 	${CC} ${CFLAGS} -std=gnu99  $< -c -o $@
 
 gui${EXE}: sim.o gui.o
-	${CC} $^ ${GUI_LDFLAGS} -o $@
+	${CC} ${CFLAGS} $^ ${GUI_LDFLAGS} -o $@
 
 grun: gui${EXE} h2.hex
 	${DF}$^

@@ -111,11 +111,11 @@ will need an in-line bit, as well as an immediate bit )
 : 1+! 1 swap +! ;
 : ?dup dup if dup then ;
 : execute >r ;
-: c@ dup @ swap 1 and if 256/ else 0xff and then ;
+: c@ dup ( -2 and ) @ swap 1 and if 256/ else 0xff and then ;
 : c! 
 	swap 0xff and dup 256* or swap
-	tuck dup @ swap 1 and 0 = 0xff xor
-	>r over xor r> and xor swap ! ;
+	tuck dup ( - 2 and ) @ swap 1 and 0 = 0xff xor
+	>r over xor r> and xor swap ( - 2 and ) ! ;
 
 : !io ; ( Initialize I/O devices )
 : ?rx ( -- c -1 | 0 : read in a character of input from UART )
@@ -188,7 +188,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : um/mod ( ud u -- ur uq )
 	2dup u<
-	if negate  15
+	if negate 15
 		for >r dup um+ >r >r dup um+ r> + dup
 			r> r@ swap >r um+ r> or
 			if >r drop 1 + r> else drop then r>
@@ -471,9 +471,9 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	r> if rot negate -rot then
 	r> base ! ;
 
-: number? ( c-addr u -- n c-addr u f )
+: number? ( c-addr u -- n f )
 	0 -rot 
-	>number dup 0= ;
+	>number nip 0= ;
 
 ( @todo replace with XORShift )
 : seed ( u -- : seed PRNG, requires non-zero value )
@@ -558,13 +558,6 @@ variable tmp 0
 \ : mswap ( a a -- : swap two memory locations )
 \	2dup >r @ swap ! r> @ swap ! ;
 
-: read
-	\ refill input buffer if empty
-	\ bl parse
-	\ empty? if query then
-	\ parse
-	query tib #tib @
-	cr ;
 
 ( @todo Modify this, it should accept a flag indicating whether this is a
 number or a PWD field, not found should be handled elsewhere in EVAL )
@@ -577,11 +570,7 @@ number or a PWD field, not found should be handled elsewhere in EVAL )
 	2dup find
 	if >r 2drop r> cfa 2/ execute 
 	else
-		number? if
-			2drop
-		else
-			3drop \ error
-		then
+		number? 0= if drop then
 	then ;
 
 : compile

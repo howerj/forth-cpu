@@ -1603,6 +1603,10 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 					}
 				} else {
 					/**@note The lowest bit is not used in the address for memory reads */
+
+					/*if(h->tos & 1)
+						warning(stderr, "unaligned load %04x\n", (unsigned)(h->tos));*/
+
 					tos = h->core[(h->tos >> 1) % MAX_CORE];
 				}
 				break;
