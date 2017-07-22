@@ -671,6 +671,8 @@ variable cursor 0  ( index into VGA text memory )
 : vga! ( n a -- : write to VGA memory and adjust cursor position )
 	 0xE000 or ! ;
 
+( This should also emit the ANSI Terminal code for page as well,
+perhaps it could be a vectored word )
 : page ( -- : clear VGA screen )
 	0 cursor !
 	0x1FFF for bl r@ vga! next ;
@@ -688,14 +690,14 @@ variable cursor 0  ( index into VGA text memory )
 : timer!   oTimerCtrl ! ;
 : timer@   iTimerDin  @ ;
 
-: ?ps2 ( -- c f : like ?rx but for the PS/2 keyboard )
-	iPs2 @ dup 0xff and swap 0x0100 and 0<> ;
+: ?ps2 ( -- c -1 | 0 : like ?rx but for the PS/2 keyboard )
+	iPs2 @ dup 0xff and swap 0x0100 and if -1 else drop 0 then ;
 
 variable wrote-count     0
 variable read-count      0
 
-: input ( -- c f : )
-	?rx if -1 else ?ps2 then if read-count 1+! -1 then ;
+: input ( -- c -1 | 0 : )
+	?rx if -1 else ?ps2 then if read-count 1+! -1 else 0 then ;
 
 : output ( c -- )
 	dup tx! 
@@ -711,6 +713,7 @@ variable read-count      0
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit timer!       \ Enable timer
 	cpu-id segment!        \ Display CPU ID on 7-Segment Displays
+	page
 	1 seed ;               \ Set up PRNG seed
 	\ 0x00FF oIrcMask !
 	\ 1   seti ;
