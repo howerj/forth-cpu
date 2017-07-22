@@ -334,6 +334,9 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : tib ( -- a : terminal input buffer )
 	#tib cell+ @ ;
 
+( @bug The delete key does not seem to work for some reason, this needs
+figuring out, as it makes input much more difficult )
+
 : ^h ( b b b -- b b b ) \ backspace
   >r over r> swap over xor
   if  8 _echo @execute

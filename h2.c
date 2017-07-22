@@ -2641,7 +2641,7 @@ static void generate(h2_t *h, assembler_t *a, uint16_t instruction)
 		if(h->pc && ((h->pc - 1) > a->fence) && (instruction == CODE_EXIT)) {
 			uint16_t previous = h->core[h->pc - 1];
 			if(!(previous & R_TO_PC) && !(previous & MK_RSTACK(DELTA_N1))) {
-				note("optimization pc(%04"PRIx16 ") [%04"PRIx16 " -> %04"PRIx16"]", h->pc, previous, previous|instruction);
+				debug("optimization pc(%04"PRIx16 ") [%04"PRIx16 " -> %04"PRIx16"]", h->pc, previous, previous|instruction);
 				previous |= instruction;
 				h->core[h->pc - 1] = previous;
 				update_fence(a, h->pc - 1);
@@ -2821,6 +2821,9 @@ static built_in_words_t built_in_words[] = {
 #define X(NAME, STRING, INSTRUCTION) { .name = STRING, .len = 1, .inline_bit = true, .code = { INSTRUCTION } },
 	X_MACRO_INSTRUCTIONS
 #undef X
+	/**@note We might want to compile these words, even if we are not
+	 * compiling the other in-line-able, so the compiler can use them for
+	 * variable declaration and for...next loops */
 	/**@warning 1 lshift used, in the original j1.v it is not needed */
 	{ .name = "doVar", .inline_bit = false, .len = 3, .code = {CODE_FROMR, 0x8001, CODE_LSHIFT} },
 	{ .name = "r1-",   .inline_bit = false, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },

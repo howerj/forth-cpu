@@ -1065,7 +1065,12 @@ debugger for the microcontroller it is operating on.
 # A simple Forth block editor
 
 TODO:
-- Implement this section
+- Add an SPI master with Rx/Tx Fifos to the SoC, which can then be use
+communicate with the memory on the [Nexys3][], this can then be used in
+conjunction with a simple block editor for a full Forth experience.
+- Talk about implementing a simple block editor in a few words of Forth.
+
+<http://retroforth.org/pages/?PortsOfRetroEditor>
 
 # Coding standards
 
