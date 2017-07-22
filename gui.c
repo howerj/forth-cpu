@@ -886,7 +886,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 	case iPs2:
 		{
 			uint8_t c = 0;
-			bool char_arrived = !fifo_pop(ps2_rx_fifo, &c);
+			bool char_arrived = fifo_pop(ps2_rx_fifo, &c);
 			return (char_arrived << PS2_NEW_CHAR_BIT) | c;
 		}	    
 	}

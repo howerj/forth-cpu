@@ -32,8 +32,11 @@ output, vectored output to either the VGA or UART )
 will need an in-line bit, as well as an immediate bit )
 .built-in
 
-constant _exit         0x601c ( op code for exit )
-constant _invert       0x6600 ( op code for invert )
+constant =exit         0x601c ( op code for exit )
+constant =invert       0x6600 ( op code for invert ) 
+constant =bl           32
+constant =cr           13
+constant =lf           10
 
 ( Outputs: 0x6000 - 0x7FFF )
 constant oUart         0x6000
@@ -81,13 +84,16 @@ variable tib-buf 0 ( ... and address )
 variable >in     0 ( Hold character pointer when parsing input )
 variable state   0 ( compiler state variable )
 
-variable _?key   0 ( execution vector of ?key,   default to ?rx )
-variable _emit   0 ( execution vector of emit,   default to tx! )
-variable _expect 0 ( execution vector of expect, default to accept )
-variable _tap    0 ( execution vector of tap,    default to ktap )
-variable _echo   0 ( execution vector of echo,   default to tx! )
-variable _prompt 0 ( execution vector of prompt, default to .ok )
-variable _eval   0 ( execution vector of eval,   default to $interpret )
+( These variables are for vectored word execution, there are
+set at the end of the file )
+variable _?key    0   
+variable _emit    0  
+variable _expect  0 
+variable _tap     0 
+variable _echo    0 
+variable _prompt  0 
+variable _eval    0  
+variable _number? 0 
 variable OK      "ok"
 ( ======================== System Variables ================= )
 
@@ -176,7 +182,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : pad here 80 + ;
 : @execute @ ?dup if execute then ;
 : 3drop 2drop drop ;
-: bl 32 ;
+: bl =bl ;
 : within over - >r - r> u< ; ( u lo hi -- t )
 : not -1 xor ;
 : dnegate not >r not 1 um+ r> + ; ( d -- d )
@@ -249,7 +255,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : toggle ( a u -- : xor value at addr with u )
 	over @ xor swap ! ;
 
-: cr 10 emit ;
+: cr =cr emit =lf emit ;
 : space bl emit ;
 
 : type ( c-addr u -- : print a string )
@@ -433,6 +439,7 @@ figuring out, as it makes input much more difficult )
 	nfa count type space ;
 
 : words ( -- : list all the words in the dictionary )
+	space
 	last address
 	begin
 		dup
@@ -579,7 +586,7 @@ them vectored words )
 : literal ( n -- )
 	dup 0x8000 and 
 	if 
-		invert 0x8000 or , _invert , 
+		invert 0x8000 or , =invert , 
 	else 
 		0x8000 or , 
 	then ; immediate
@@ -597,7 +604,7 @@ them vectored words )
 			then 
 		then
 	else
-		number? 0= if literal ( else abort ) then
+		number? if literal ( else abort ) then
 	then ;
 
 : "immediate" last address dup @ 0x2000 or swap ! ;
@@ -619,7 +626,7 @@ them vectored words )
 : ":" here last address , pwd ! bl word count + cp ! ] ; 
 : "'" bl parse find if cfa else ( -1 throw ) 0 then ; immediate
 : compile call "'" 2/ 0x4000 or , ; immediate
-: ";" _exit , [ ; immediate
+: ";" =exit , [ ; immediate
 
 \ : x compile * compile . compile cr ;
 \ 4 5 x
@@ -671,7 +678,8 @@ variable cursor 0  ( index into VGA text memory )
 \ @todo Optimize and extend (handle tabs, back spaces, etcetera )
 : terminal ( n a -- a : act like a terminal )
 	swap
-	dup dup 10 = swap 13 = or if drop vgaX / 1+ dup 0 swap at-xy vgaX * exit then
+	dup =lf = if drop vgaX / 1+ dup 0 swap at-xy vgaX * exit then
+	dup =cr = if drop exit then
 	swap vgaTextSize mod tuck dup 1+ vgaX /mod at-xy vga! 1+ ;
 
 : segment! o8SegLED ! ; ( n -- : display a number on the LED 7/8 segment display )
@@ -680,7 +688,20 @@ variable cursor 0  ( index into VGA text memory )
 : timer!   oTimerCtrl ! ;
 : timer@   iTimerDin  @ ;
 
-variable uart-read-count 0
+: ?ps2 ( -- c f : like ?rx but for the PS/2 keyboard )
+	iPs2 @ dup 0xff and swap 0x0100 and 0<> ;
+
+variable wrote-count     0
+variable read-count      0
+
+: input ( -- c f : )
+	?rx if -1 else ?ps2 then if read-count 1+! -1 then ;
+
+: output ( c -- )
+	dup tx! 
+	cursor @ terminal 
+	dup cursor @ u< if drop page else cursor ! then 
+	wrote-count 1+! ;
 
 ( ======================== Miscellaneous ==================== )
 
@@ -713,29 +734,19 @@ nextChar:
 
 	\ basic command loop
 	quit
-
-	begin
-		iSwitches @ led!  \ Set LEDs to switches
-		key?                 \ Wait for UART character
-	until
-	dup emit cursor @ terminal 
-	dup cursor @ u< if drop page else cursor ! then
-
-	uart-read-count 1+!
-	uart-read-count @ segment!
-
-branch nextChar
+	branch start
 
 ( ======================== User Code ======================== )
 
 .set pwd $pwd
 .set cp  $pc
 
-.set _?key   ?rx        ( execution vector of ?key,   default to ?rx. )
-.set _emit   tx!        ( execution vector of emit,   default to tx! )
-.set _expect accept     ( execution vector of expect, default to 'accept'. )
-.set _tap    ktap       ( execution vector of tap,    default the ktap. )
-.set _echo   tx!        ( execution vector of echo,   default to tx!. )
-.set _prompt .ok        ( execution vector of prompt, default to '.ok'. )
-.set _eval   $interpret ( execution vector of eval,   default to $interpret )
+.set _?key    input      ( execution vector of ?key,   default to ?rx. )
+.set _emit    output     ( execution vector of emit,   default to tx! )
+.set _expect  accept     ( execution vector of expect, default to 'accept'. )
+.set _tap     ktap       ( execution vector of tap,    default the ktap. )
+.set _echo    output     ( execution vector of echo,   default to tx!. )
+.set _prompt  .ok        ( execution vector of prompt, default to '.ok'. )
+.set _eval    $interpret ( execution vector of eval,   default to $interpret )
+.set _number? number?    ( execution vector of number? default to number? )
 
