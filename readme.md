@@ -1013,11 +1013,65 @@ TODO:
 - Fully implement the Forth interpreter
 - Describe and show its operation on here
 
+# Using Forth as a bootloader
+
+A running Forth environment can be quite easily used as a bootloader with no
+further modification, a simple protocol for sending data and verification of it
+can be built using only Forth primitives - although it is not the most
+efficient use of bandwidth.
+
+The sender can interrogate the running Forth environment over the serial link
+to determine the amount of space left in memory, and then populate it with an
+assembled binary.
+
+The Forth words needed are:
+
+	+---------+-----------------------+
+	| Word    |                       |
+	+---------+-----------------------+
+	| .free   | show free space       |
+	| cp      | compile pointer       |
+	| pwd     | previous word pointer |
+	| @       | load                  |
+	| !       | store                 |
+	| cr      | print new line        |
+	| execute | execute               |
+	| decimal | set decimal output    |
+	| cells   | size of cell          |
+	| .       | print number          |
+	+---------+-----------------------+
+
+And of course numeric input, all of which are provided by this interpreter. The
+protocol is line oriented, the host with the program to transfer to the H2
+(called PC) sends a line of text and expects a reply from the H2 board (called
+H2), 
+
+	PC: decimal           ( set the H2 core to a known numeric output )
+	PC: .free cp @ . cr   ( query how much space is left, and where to put it )
+	H2: ADDR ADDR         ( H2 replies with both addresses )
+	PC: 1 cells . cr      ( PC queries size of cells )
+	H2: 2                 ( H2 responds, PC now knows to increment ADDR )
+	PC: NUM  ADDR !       ( PC write NUM to ADDR )
+	PC: ADDR @ . cr       ( optionally PC checks value )
+	H2: NUM               ( H2 responds with value stored at ADDR )
+	...                   ( PC and H2 do this as often as necessary )
+	PC: ADDR pwd !        ( PC optionally updates previous word register )
+	PC  ADDR cp  !        ( PC optionally updated compile poiinter )
+	PC: ADDR execute      ( Begin execution of word )
+
+The advantage of this "protocol" is that is human readable, and includes a
+debugger for the microcontroller it is operating on. 
+
+# A simple Forth block editor
+
+TODO:
+- Implement this section
+
 # Coding standards
 
 There are several languages used throughout this project, all of which are
 radically different from each other and require their own set of coding
-standards and style guides.
+standards and style guides. 
 
 ## VHDL
 

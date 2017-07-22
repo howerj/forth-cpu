@@ -17,12 +17,22 @@ TODO:
 * Turn this into a literate file
 * Add assembler directives for setting starting position of
 program counter and the like
-* This will need to be optimized for size soon )
+* This will need to be optimized for size soon
+* Vectored words should be used so input can be taken from
+UART, or the P2/2 keyboard. The same should happen with the
+output, vectored output to either the VGA or UART )
 
 ( ======================== System Constants ================= )
 
 .mode 1 ( Turn word header compilation and optimization off)
 
+.allocate 16
+( Add the assembler words to the dictionary: certain built in words
+will need an in-line bit, as well as an immediate bit )
+.built-in
+
+
+constant _exit         0x601c ( op code for exit )
 
 ( Outputs: 0x6000 - 0x7FFF )
 constant oUart         0x6000
@@ -81,18 +91,23 @@ variable OK      "ok"
 
 ( ======================== Forth Kernel ===================== )
 
-( Add the assembler words to the dictionary: certain built in words
-will need an in-line bit, as well as an immediate bit )
-.built-in
 
 : ! store drop ;
 : 256* 8 lshift ;
 : 256/ 8 rshift ;
 : sp@ depth ;
 : 1+ 1 + ;
+: negate invert 1+ ;
+: - negate + ;
 : 2+ 2 + ;
+: 2- 2 - ;
 : 2/ 1 rshift ;
 : 2* 1 lshift ;
+: cell- 2- ;
+: cell+ 2+ ;
+: cells 2* ;
+: ?dup dup if dup then ;
+\ : do-next r> r> ?dup if 1- >r @ >r exit then cell+ >r ;
 : >= < invert ;
 : >  swap < ;
 : u> swap u< ;
@@ -104,12 +119,8 @@ will need an in-line bit, as well as an immediate bit )
 : 2dup over over ;
 : 2drop drop drop ;
 : tuck swap over ;
-: negate invert 1+ ;
-: - negate + ;
-: 2- 2 - ;
 : +! tuck @ + swap ! ;
 : 1+! 1 swap +! ;
-: ?dup dup if dup then ;
 : execute >r ;
 : c@ dup ( -2 and ) @ swap 1 and if 256/ else 0xff and then ;
 : c! 
@@ -158,9 +169,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : 0<= 0> 0= ;
 : 0>= 0< 0= ;
-: cell- 2- ;
-: cell+ 2+ ;
-: cells 2* ;
 : 2! ( d a -- ) tuck ! cell+ ! ;
 : 2@ ( a -- d ) dup cell+ @ swap @ ;
 : here cp @ ;
@@ -233,9 +241,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	over min rot over + -rot - ;
 
 : last pwd @ ;
-
-: uart-write ( char -- bool : write out a character )
-	0x2000 or oUart ! 1 ; \ @todo Check that the write succeeded by looking at the TX FIFO
 
 : emit ( char -- : write out a char )
 	'emit @execute ;
@@ -328,7 +333,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : ^h ( b b b -- b b b ) \ backspace
   >r over r> swap over xor
   if  8 'echo @execute
-     32 'echo @execute \ destructive
+     bl 'echo @execute \ destructive
       8 'echo @execute \ backspace
   then ;
 
@@ -344,11 +349,13 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : key begin key? until ;
 
 : accept ( b u -- b u )
-   over + over
-   begin 2dup xor
-   while  key  dup bl -  95 u<
-     if tap else 'tap @execute then
-   repeat drop  over - ;
+	over + over
+	begin 
+		2dup xor
+	while  
+		key  dup bl -  95 u<
+		if tap else 'tap @execute then
+	repeat drop over - ;
  
 : expect ( b u -- ) 'expect @execute span ! drop ;
 
@@ -357,7 +364,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : allot cp +! ;
 
-: , here dup cell+ cp ! ;  
+: , here dup cell+ cp ! ! ;  
 
 : =string ( a1 u2 a1 u2 -- f : string equality )
 	>r swap r> ( a1 a2 u1 u2 ) 
@@ -553,11 +560,11 @@ variable tmp 0
 : char bl parse drop c@ ;
 
 : .s ( -- ) cr depth for aft r@ pick . then next ( ."  <sp" ) ;
-: .free 0x1fff here - u. ;
+: free 0x1fff here - ;
+: .free free u. ;
 
 \ : mswap ( a a -- : swap two memory locations )
 \	2dup >r @ swap ! r> @ swap ! ;
-
 
 ( @todo Modify this, it should accept a flag indicating whether this is a
 number or a PWD field, not found should be handled elsewhere in EVAL )
@@ -573,15 +580,17 @@ number or a PWD field, not found should be handled elsewhere in EVAL )
 		number? 0= if drop then
 	then ;
 
-: compile
-	\ find
-	\       true: inline?
-	\		true: inline word
-	\		false: compile
-	\	false: number?
-	\		true: compile literal
-	\		false: error
-	;
+: quit q: query .ok b: bl parse dup 0= if 2drop branch q then command branch b ;
+
+: ":" here last address , pwd ! bl word count + cp ! ; 
+: ' bl parse find if cfa else ( -1 throw ) 0 then ; immediate
+: compile ' 2/ 0x4000 or , ; immediate
+: ";" _exit , ; immediate
+
+\ : x compile * compile . compile cr ;
+\ 4 5 x
+
+
 
 ( ======================== Word Set ========================= )
 
@@ -609,7 +618,7 @@ constant vgaTextSize   3200
   14   -  Reset Timer Value immediately
   13   -  Interrupt Enable
   12-0 -  Value to compare against )
-constant timerInit     0x8032
+constant timerInit     0x9FFF
 
 variable cursor 0  ( index into VGA text memory )
 
@@ -620,17 +629,18 @@ variable cursor 0  ( index into VGA text memory )
 	0 cursor !
 	0x1FFF for bl r@ vga! next ;
 	
-\ : 40* dup 5 lshift swap 3 lshift + ;
-\ : 80* dup 6 lshift swap 4 lshift + ;
-
 \ @todo Optimize and extend (handle tabs, back spaces, etcetera )
 : terminal ( n a -- a : act like a terminal )
 	swap
 	dup dup 10 = swap 13 = or if drop vgaX / 1+ dup 0 swap at-xy vgaX * exit then
 	swap vgaTextSize mod tuck dup 1+ vgaX /mod at-xy vga! 1+ ;
 
-: led! ( n -- : display a number on the LED 8 display )
-	o8SegLED ! ;
+: segment! o8SegLED ! ; ( n -- : display a number on the LED 7/8 segment display )
+: led!     oLeds ! ; ( n -- : write to LED lights )
+: switches iSwitches  @ ;
+: timer!   oTimerCtrl ! ;
+: timer@   iTimerDin  @ ;
+
 
 variable uart-read-count 0
 
@@ -638,39 +648,10 @@ variable uart-read-count 0
 
 ( ======================== Starting Code ==================== )
 
-\ This boot sequence code is untested, it should also add a checksum
-\ function such as a 16-bit Fletcher checksum (see
-\ https://en.wikipedia.org/wiki/Fletcher's_checksum ) for more
-\ information.
-\ 
-\ @todo This bootloader needs testing, it could be improved by
-\ accepting a program length, start, and ASCII numbers instead
-\ of bytes.
-\ 
-\ constant bootstart 4096
-\ constant programsz 8191 ( bootstart + 4095 )
-\ variable readin    0
-\ variable bootmsg1  "BOOT: Send 4095 chars"
-\ variable bootmsg2  "DONE"
-\ 
-\ : boot
-\ 	bootstart 2* readin !
-\	bootmsg1 count type cr  
-\ 	begin
-\ 		key 256* ( big endian )
-\ 		key
-\ 		or readin 2* !
-\ 		readin 1+!
-\ 		readin @ programsz u>=
-\ 	until
-\ 	r> drop
-\	bootmsg2 count type cr
-\ 	branch bootstart ;
-
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
-	timerInit oTimerCtrl ! \ Enable timer
-	cpu-id led!            \ Display CPU ID on 7-Segment Displays
+	timerInit timer!       \ Enable timer
+	cpu-id segment!        \ Display CPU ID on 7-Segment Displays
 	1 seed ;               \ Set up PRNG seed
 	\ 0x00FF oIrcMask !
 	\ 1   seti ;
@@ -681,36 +662,32 @@ jumps to a special symbol "start".
 @todo This special case symbol should be removed by adding
 adequate assembler directives )
 
-
-variable welcome "H2 Forth:"
-
 start:
-	 init
+	init
 
-	\ boot
-
-	welcome count type cr words
-
-
+	.ok
 	here . cr
+	.free cr
+	\ words
+
+
 
 	\ 0 0x1FF0 dump cr
 
 nextChar:
 
 	\ basic command loop
-	q: query .ok b: bl parse dup 0= if 2drop branch q then command branch b
-
+	quit
 
 	begin
-		iSwitches @ 0xff and oLeds !  \ Set LEDs to switches
+		iSwitches @ led!  \ Set LEDs to switches
 		key?                 \ Wait for UART character
 	until
 	dup emit cursor @ terminal 
 	dup cursor @ u< if drop page else cursor ! then
 
 	uart-read-count 1+!
-	uart-read-count @ led!
+	uart-read-count @ segment!
 
 branch nextChar
 
@@ -727,4 +704,4 @@ branch nextChar
 .set 'prompt .ok    ( execution vector of prompt, default to '.ok'.)
 
 
-
+exit

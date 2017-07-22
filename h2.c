@@ -2128,7 +2128,6 @@ again:
 	X(SYM_BEGIN_WHILE_REPEAT,  "begin...while...repeat")\
 	X(SYM_FOR_NEXT,            "for...next")\
 	X(SYM_FOR_AFT_THEN_NEXT,   "for...aft...then...next")\
-	X(SYM_FOR_WHILE_NEXT_THEN, "for...while...next...then")\
 	X(SYM_IF1,                 "if1")\
 	X(SYM_DEFINITION,          "definition")\
 	X(SYM_CHAR,                "[char]")\
@@ -2323,16 +2322,7 @@ static node_t *for_next(lexer_t *l)
 		r = node_grow(l, r);
 		expect(l, LEX_THEN);
 		r->o[2] = statements(l);
-	} /*else if(accept(l, LEX_WHILE)) {
-		r->type = SYM_FOR_WHILE_NEXT_THEN;
-		r = node_grow(l, r);
-		r->o[1] = statements(l);
-		r = node_grow(l, r);
-		expect(l, LEX_NEXT);
-		r->o[2] = statements(l);
-		expect(l, LEX_THEN);
-		return r;
-	}*/
+	} 
 	expect(l, LEX_NEXT);
 	return r;
 }
@@ -2600,6 +2590,8 @@ typedef struct {
 	uint16_t mode;
 	uint16_t pwd; /* previous word register */
 	uint16_t fence; /* mark a boundary before which optimization cannot take place */
+	//symbol_t *do_next;
+	//symbol_t *do_var;
 } assembler_t;
 
 static void generate(h2_t *h, assembler_t *a, uint16_t instruction)
@@ -2798,15 +2790,19 @@ static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t 
 
 typedef struct {
 	char *name;
-	uint16_t code;
+	size_t len;
+	bool inline_bit;
+	uint16_t code[32];
 	/**@todo add immediate field, and fields to turn assembly on/off */
 } built_in_words_t;
 
-static built_in_words_t words[] = {
-#define X(NAME, STRING, INSTRUCTION) { .name = STRING, .code = INSTRUCTION },
+static built_in_words_t built_in_words[] = {
+#define X(NAME, STRING, INSTRUCTION) { .name = STRING, .len = 1, .inline_bit = true, .code = { INSTRUCTION } },
 	X_MACRO_INSTRUCTIONS
 #undef X
-	{ .name = NULL, .code = 0 }
+	/**@warning 1 lshift used, in the original j1.v it is not needed */
+	{ .name = "doVar", .inline_bit = false, .len = 0, .code = {CODE_FROMR, 0x8001, CODE_LSHIFT} },
+	{ .name = NULL, .inline_bit = false, .len = 0, .code = {0} }
 };
 
 static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
@@ -2857,6 +2853,17 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 	case SYM_VARIABLE:
 		/**@todo add dictionary header */
+		/*if(a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined) {
+			symbol_t *s = symbol_table_lookup(t, "doVar");
+			assert(s);
+			hole1 = hole(h);
+			fix(h, hole1, a->pwd); 
+			a->pwd = hole1 << 1;
+			pack_string(h, a, n->token->p.id, e);
+			generate(h, a, OP_LITERAL | s->value);
+		}
+		a->fence = here(h);*/
+
 		if(n->o[0]->token->type == LEX_LITERAL) {
 			hole1 = hole(h);
 			fix(h, hole1, n->o[0]->token->p.number);
@@ -2864,6 +2871,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			assert(n->o[0]->token->type == LEX_STRING);
 			hole1 = pack_string(h, a, n->o[0]->token->p.id, e);
 		}
+		a->fence = here(h);
 		/**@note The lowest bit of the address for memory loads is
 		 * discarded. */
 		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e);
@@ -2882,11 +2890,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 	
 	case SYM_FOR_NEXT:
-	/* The code for for...next loops can be reduced in size with by generating
-	    complex words that mess with the stack, this is an optimization that should
-	    be considered. Also of note is the fact that the for...next loop is nearly
-	    identical to the begin...while...repeat loop, just with inserted instructions
-	    to perform the task */
 		generate(h, a, CODE_TOR);
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
@@ -2900,15 +2903,21 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate(h, a, CODE_RDROP);
 		break;
 	case SYM_FOR_AFT_THEN_NEXT:
+		//a->do_next = a->do_next ? a->do_next : symbol_table_lookup(t, "do-next");
 		/**@todo make a word "(next)" that implements the terminating
 		 * loop control */
 		generate(h, a, CODE_TOR);
 		assemble(h, a, n->o[0], t, e);
 		hole1 = hole(h);
 		generate(h, a, CODE_RAT);
-		generate(h, a, CODE_FROMR);
-		generate(h, a, CODE_T_N1);
-		generate(h, a, CODE_TOR);
+
+		//if(a->do_next) {
+		//	generate(h, a, OP_CALL | a->do_next->value);
+		//} else {
+			generate(h, a, CODE_FROMR);
+			generate(h, a, CODE_T_N1);
+			generate(h, a, CODE_TOR);
+		//}
 		hole2 = hole(h);
 		assemble(h, a, n->o[1], t, e);
 		fix(h, hole1, OP_BRANCH | (here(h)));
@@ -2917,10 +2926,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		fix(h, hole2, OP_0BRANCH | (here(h)));
 		generate(h, a, CODE_RDROP);
 		break;
-		/*
-	case SYM_FOR_WHILE_NEXT_THEN:
-		assembly_error(e, "FOR...WHILE...NEXT...THEN not implemented");
-		*/
 	case SYM_BEGIN_WHILE_REPEAT:
 		hole1 = here(h);
 		assemble(h, a, n->o[0], t, e);
@@ -3050,13 +3055,17 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 
 		a->built_in_words_defined = true;
 
-		for(unsigned i = 0; words[i].name; i++) {
+		for(unsigned i = 0; built_in_words[i].name; i++) {
+			uint16_t pwd = a->pwd;
 			hole1 = hole(h);
-			fix(h, hole1, a->pwd | (DEFINE_INLINE << 13));
+			if(built_in_words[i].inline_bit)
+				pwd |= (DEFINE_INLINE << 13);
+			fix(h, hole1, pwd);
 			a->pwd = hole1 << 1;
-			pack_string(h, a, words[i].name, e);
-			symbol_table_add(t, SYMBOL_TYPE_CALL, words[i].name, here(h), e);
-			generate(h, a, words[i].code);
+			pack_string(h, a, built_in_words[i].name, e);
+			symbol_table_add(t, SYMBOL_TYPE_CALL, built_in_words[i].name, here(h), e);
+			for(size_t j = 0; j < built_in_words[i].len; j++)
+				generate(h, a, built_in_words[i].code[j]);
 			generate(h, a, CODE_EXIT); 
 		}
 		break;
@@ -3070,7 +3079,7 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	error_t e;
 	h2_t *h;
 	symbol_table_t *t = NULL;
-	assembler_t a = { false, false, false, 0, 0, 0, 0 };
+	assembler_t a = { false, false, false, 0, 0, 0, 0, /*NULL, NULL*/ };
 	assert(n);
 
 	/**@bug these variables might be clobbered by setjmp/longjmp ('h' and 't')*/

@@ -123,11 +123,13 @@ typedef struct { /**@note it might be worth translating some functions to use po
  * tick actually is */
 static double seconds_to_ticks(const world_t *world, double s)
 {
+	assert(world);
 	return s * (1000. / (double)world->arena_tick_ms);
 }
 
 static double ticks_to_seconds(const world_t *world, double t)
 {
+	assert(world);
 	return t * (((double)world->arena_tick_ms)/1000.);
 }
 
@@ -284,6 +286,7 @@ static int draw_string(const char *msg)
 /**@todo Rewrite the other functions to use this one */
 static int draw_block_scaled(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, color_t color)
 {
+	assert(msg);
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glLoadIdentity();
@@ -390,6 +393,8 @@ static void fill_textbox(textbox_t *t, const char *fmt, ...)
 {
 	double r;
 	va_list ap;
+	assert(t);
+	assert(fmt);
 
 	scale_t scale = font_attributes();
 	double char_width = scale.x / X_MAX;
@@ -407,7 +412,8 @@ static void fill_textbox(textbox_t *t, const char *fmt, ...)
 static void draw_textbox(textbox_t *t)
 {
 	assert(t);
-	double char_height = (Y_MAX / world.window_height) * FONT_HEIGHT * world.window_scale_y;
+	scale_t scale = font_attributes();
+	double char_height = scale.y / Y_MAX;
 	if(!(t->draw_border))
 		return;
 	/**@todo fix this */
@@ -438,6 +444,7 @@ typedef struct {
 
 static void draw_led(led_t *l)
 {
+	assert(l);
 	double msz = l->radius * 0.75;
 	double off = (l->radius - msz) / 2.0;
 	draw_rectangle_filled(l->x+off, l->y+off, msz, msz, l->on ? GREEN : RED);
@@ -454,6 +461,7 @@ typedef struct {
 
 static void draw_switch(switch_t *s)
 {
+	assert(s);
 	double msz = s->radius * 0.6;
 	double off = (s->radius - msz) / 2.0;
 	draw_rectangle_filled(s->x+off, s->on ? (s->y + s->radius) - off : s->y+off, msz, msz, s->on ? GREEN : RED);
@@ -507,6 +515,7 @@ static uint8_t convert_to_segments(uint8_t segment) {
 
 static void draw_led_8_segment(led_8_segment_t *l)
 {
+	assert(l);
 	uint8_t sgs = convert_to_segments(l->segment);
 
 	draw_rectangle_filled(l->x + l->width * 0.20, l->y + l->height * 0.45, l->width * 0.5, l->height * 0.1, SEG_CLR(sgs, LED_SEGMENT_G)); /* Center */
@@ -564,6 +573,8 @@ static color_t vga_map_color(uint8_t c)
 
 static void draw_vga(const world_t *world, vga_t *v)
 {
+	assert(world);
+	assert(v);
 	if(!(v->control & VGA_EN))
 		return;
 	glMatrixMode(GL_MODELVIEW);
@@ -664,6 +675,7 @@ typedef struct {
 
 void draw_terminal(const world_t *world, terminal_t *t)
 {
+	assert(world);
 	assert(t);
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
@@ -702,6 +714,8 @@ void draw_terminal(const world_t *world, terminal_t *t)
 
 void update_terminal(terminal_t *t, fifo_t *f)
 {
+	assert(t);
+	assert(f);
 	for(;!fifo_is_empty(f);) {
 		uint8_t c = 0;
 		bool r = fifo_pop(f, &c);
@@ -721,6 +735,7 @@ void update_terminal(terminal_t *t, fifo_t *f)
 					t->cursor--;
 				break;
 			default:
+				assert(t->cursor < TERMINAL_SIZE);
 				t->m[t->cursor] = c;
 				t->cursor++;
 			}
@@ -843,6 +858,9 @@ static fifo_t *ps2_rx_fifo = NULL;
 static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on)
 {
 	assert(soc);
+	assert(ps2_rx_fifo);
+	assert(uart_tx_fifo);
+	assert(uart_rx_fifo);
 
 	if(debug_on)
 		*debug_on = false;
@@ -878,6 +896,8 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on)
 {
 	assert(soc);
+	assert(uart_tx_fifo);
+	assert(uart_rx_fifo);
 
 	if(debug_on)
 		*debug_on = false;
@@ -941,13 +961,14 @@ static double fps(void)
 static void draw_debug_info(const world_t *world)
 {
 	textbox_t t = { .x = X_MIN + X_MAX/40, .y = Y_MAX - Y_MAX/40, .draw_border = true, .color_text = WHITE };
+	assert(world);
 	fifo_t *f = world->use_uart_input ? uart_rx_fifo : ps2_rx_fifo;
 	const char *fifo_str = world->use_uart_input ? "UART" : "PS/2";
 	char buf[256] = { 0 };
 
 	fill_textbox(&t, "tick:               %u", world->tick);
 	//fill_textbox(&t, "seconds:         %f", ticks_to_seconds(world->tick));
-		fill_textbox(&t, "fps:                %f", fps());
+	fill_textbox(&t, "fps:                %f", fps());
 
 	if(world->debug_extra) {
 		fill_textbox(&t, "%s RX fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
@@ -966,6 +987,7 @@ static void draw_debug_info(const world_t *world)
 static void draw_debug_h2(h2_t *h, double x, double y)
 {
 	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE };
+	assert(h);
 
 	static unsigned rpm = 0; 
 	static unsigned spm = 0;
@@ -990,6 +1012,8 @@ static void keyboard_handler(unsigned char key, int x, int y)
 {
 	UNUSED(x);
 	UNUSED(y);
+	assert(uart_tx_fifo);
+	assert(ps2_rx_fifo);
 	if(key == ESC) {
 		world.halt_simulation = true;
 	} else {
@@ -1084,6 +1108,7 @@ static void resize_window(int w, int h)
 
 static coordinate_t pixels_to_coordinates(const world_t *world, int x, int y)
 {
+	assert(world);
 	coordinate_t c = { .0, .0 };
 	double xd = abs_diff(X_MAX, X_MIN);
 	double yd = abs_diff(Y_MAX, Y_MIN);
@@ -1166,7 +1191,7 @@ static void draw_scene(void)
 	for(size_t i = 0; i < LEDS_COUNT; i++)
 		draw_led(&leds[i]);
 
-	for(size_t i = 0; i < LEDS_COUNT; i++)
+	for(size_t i = 0; i < SEGMENT_COUNT; i++)
 		draw_led_8_segment(&segments[i]);
 
 	draw_dpad(&dpad);
