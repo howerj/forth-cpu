@@ -1557,7 +1557,6 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 				(unsigned)h->tos,
 				(unsigned)h->rstk[h->rp % STK_SIZE]);
 
-
 		/* decode / execute */
 		if(IS_LITERAL(instruction)) {
 			dpush(h, literal);
@@ -1720,6 +1719,7 @@ typedef enum {
 	LEX_IMMEDIATE,
 	LEX_HIDDEN,
 	LEX_INLINE,
+	LEX_QUOTE,
 
 	LEX_ISR,
 	LEX_SET,
@@ -1764,6 +1764,7 @@ static const char *keywords[] =
 	[LEX_IMMEDIATE] =  "immediate",
 	[LEX_HIDDEN]    =  "hidden",
 	[LEX_INLINE]    =  "inline",
+	[LEX_QUOTE]     =  "'",
 	[LEX_ISR]       =  ".isr",
 	[LEX_SET]       =  ".set",
 	[LEX_PC]        =  ".pc",
@@ -2075,9 +2076,9 @@ again:
  *                | Identifier | Constant | Variable | Definition | If
  *                | Begin | Char | Set | Pc | Break | Mode | String | BuiltIn
  * Label       := Identifier ";"
- * Branch      := "branch"  ( Identifier | Literal )
- * 0Branch     := "0branch" ( Identifier | Literal )
- * Call        := "call"    ( Identifier | Literal )
+ * Branch      := "branch"  ( Identifier | Literal | String )
+ * 0Branch     := "0branch" ( Identifier | Literal | String )
+ * Call        := "call"    ( Identifier | Literal | String )
  * Set         := ".set"    ( Identifier | Literal ) ( Identifier | Literal )
  * Pc          := ".pc"     ( Identifier | Literal )
  * Break       := ".break"
@@ -2131,6 +2132,7 @@ again:
 	X(SYM_IF1,                 "if1")\
 	X(SYM_DEFINITION,          "definition")\
 	X(SYM_CHAR,                "[char]")\
+	X(SYM_QUOTE,               "'")\
 	X(SYM_ISR,                 "isr")\
 	X(SYM_SET,                 "set")\
 	X(SYM_PC,                  "pc")\
@@ -2302,7 +2304,7 @@ static node_t *jump(lexer_t *l, parse_e type)
 	node_t *r;
 	assert(l);
 	r = node_new(l, type, 0);
-	(void)(accept(l, LEX_LITERAL) || expect(l, LEX_IDENTIFIER));
+	(void)(accept(l, LEX_LITERAL) || accept(l, LEX_STRING) || expect(l, LEX_IDENTIFIER));
 	use(l, r);
 	return r;
 }
@@ -2470,6 +2472,17 @@ static node_t *allocate(lexer_t *l)
 	return r;
 }
 
+static node_t *quote(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_QUOTE, 0);
+	if(!accept(l, LEX_IDENTIFIER))
+		expect(l, LEX_STRING);
+	use(l, r);
+	return r;
+}
+
 static node_t *statements(lexer_t *l)
 {
 	node_t *r;
@@ -2513,6 +2526,9 @@ again:
 		goto again;
 	} else if(accept(l, LEX_FOR)) {
 		r->o[i++] = for_next(l);
+		goto again;
+	} else if(accept(l, LEX_QUOTE)) {
+		r->o[i++] = quote(l);
 		goto again;
 	} else if(accept(l, LEX_IDENTIFIER)) {
 		r->o[i++] = defined_by_token(l, SYM_CALL_DEFINITION);
@@ -2590,9 +2606,15 @@ typedef struct {
 	uint16_t mode;
 	uint16_t pwd; /* previous word register */
 	uint16_t fence; /* mark a boundary before which optimization cannot take place */
-	//symbol_t *do_next;
+	symbol_t *do_next;
 	//symbol_t *do_var;
 } assembler_t;
+
+static void update_fence(assembler_t *a, uint16_t pc)
+{
+	assert(a);
+	a->fence = MAX(a->fence, pc);
+}
 
 static void generate(h2_t *h, assembler_t *a, uint16_t instruction)
 {
@@ -2613,16 +2635,16 @@ static void generate(h2_t *h, assembler_t *a, uint16_t instruction)
 	 * @bug This optimization works in the simulator but not
 	 * in the hardware, the reason it unknown. */
 	if(IS_CALL(instruction) || IS_LITERAL(instruction) || IS_0BRANCH(instruction) || IS_BRANCH(instruction))
-		a->fence = h->pc;
+		update_fence(a, h->pc);
 
 	if(a->mode & MODE_OPTIMIZATION_ON) {
 		if(h->pc && ((h->pc - 1) > a->fence) && (instruction == CODE_EXIT)) {
 			uint16_t previous = h->core[h->pc - 1];
-			if(!(previous & R_TO_PC) && !(previous & MK_RSTACK(DELTA_N2))) {
-				debug("optimization pc(%04"PRIx16 ") [%04"PRIx16 " -> %04"PRIx16"]", h->pc, previous, previous|instruction);
+			if(!(previous & R_TO_PC) && !(previous & MK_RSTACK(DELTA_N1))) {
+				note("optimization pc(%04"PRIx16 ") [%04"PRIx16 " -> %04"PRIx16"]", h->pc, previous, previous|instruction);
 				previous |= instruction;
 				h->core[h->pc - 1] = previous;
-				a->fence = h->pc - 1;
+				update_fence(a, h->pc - 1);
 				return;
 			}
 		}
@@ -2631,17 +2653,19 @@ static void generate(h2_t *h, assembler_t *a, uint16_t instruction)
 	h->core[h->pc++] = instruction;
 }
 
-static uint16_t here(h2_t *h)
+static uint16_t here(h2_t *h, assembler_t *a)
 {
 	assert(h);
 	assert(h->pc < MAX_CORE);
+	update_fence(a, h->pc);
 	return h->pc;
 }
 
-static uint16_t hole(h2_t *h)
+static uint16_t hole(h2_t *h, assembler_t *a)
 {
 	assert(h);
 	assert(h->pc < MAX_CORE);
+	here(h, a);
 	return h->pc++;
 }
 
@@ -2663,7 +2687,7 @@ static void generate_jump(h2_t *h, assembler_t *a, symbol_table_t *t, token_t *t
 	assert(t);
 	assert(a);
 
-	if(tok->type == LEX_IDENTIFIER) {
+	if(tok->type == LEX_IDENTIFIER || tok->type == LEX_STRING) {
 		s = symbol_table_lookup(t, tok->p.id);
 		if(!s)
 			assembly_error(e, "undefined symbol: %s", tok->p.id);
@@ -2743,12 +2767,12 @@ static uint16_t pack_string(h2_t *h, assembler_t *a, const char *s, error_t *e)
 	uint16_t r = h->pc;
 	if(l > 255)
 		assembly_error(e, "string \"%s\" is too large (%zu > 255)", s, l);
-	h->core[hole(h)] = pack_16(l, s[0]);
+	h->core[hole(h, a)] = pack_16(l, s[0]);
 	for(i = 1; i < l; i += 2)
-		h->core[hole(h)] = pack_16(s[i], s[i+1]);
+		h->core[hole(h, a)] = pack_16(s[i], s[i+1]);
 	if(i < l)
-		h->core[hole(h)] = pack_16(s[i], 0);
-	a->fence = here(h);
+		h->core[hole(h, a)] = pack_16(s[i], 0);
+	here(h, a);
 	return r;
 }
 
@@ -2777,12 +2801,9 @@ static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t 
 		assembly_error(e, "'%s' is not a symbol", id);
 
 	switch(i) {
-	case SPECIAL_VARIABLE_PC:  
-		return h->pc << 1;
-	case SPECIAL_VARIABLE_PWD: 
-		return a->pwd;
-	default:
-		fatal("reached the unreachable: %zu", i);
+	case SPECIAL_VARIABLE_PC:   return h->pc << 1;
+	case SPECIAL_VARIABLE_PWD:  return a->pwd;
+	default: fatal("reached the unreachable: %zu", i);
 	}
 
 	return 0;
@@ -2801,9 +2822,23 @@ static built_in_words_t built_in_words[] = {
 	X_MACRO_INSTRUCTIONS
 #undef X
 	/**@warning 1 lshift used, in the original j1.v it is not needed */
-	{ .name = "doVar", .inline_bit = false, .len = 0, .code = {CODE_FROMR, 0x8001, CODE_LSHIFT} },
-	{ .name = NULL, .inline_bit = false, .len = 0, .code = {0} }
+	{ .name = "doVar", .inline_bit = false, .len = 3, .code = {CODE_FROMR, 0x8001, CODE_LSHIFT} },
+	{ .name = "r1-",   .inline_bit = false, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
+	{ .name = NULL,    .inline_bit = false, .len = 0, .code = {0} }
 };
+
+
+static void generate_loop_decrement(h2_t *h, assembler_t *a, symbol_table_t *t)
+{
+	a->do_next = a->do_next ? a->do_next : symbol_table_lookup(t, "r1-");
+	if(a->do_next && a->mode & MODE_OPTIMIZATION_ON) {
+		generate(h, a, OP_CALL | a->do_next->value);
+	} else {
+		generate(h, a, CODE_FROMR);
+		generate(h, a, CODE_T_N1);
+		generate(h, a, CODE_TOR);
+	}
+}
 
 static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
 {
@@ -2825,7 +2860,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		/**@todo Remove special cased start symbol and replace with
 		 * assembler directives */
 		symbol_t *s;
-		uint16_t start = hole(h);
+		uint16_t start = hole(h, a);
 		assemble(h, a, n->o[0], t, e);
 		if(!(s = symbol_table_lookup(t, start_symbol)))
 			assembly_error(e, "unable to locate start symbol: %s", start_symbol);
@@ -2839,8 +2874,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			assemble(h, a, n->o[i], t, e);
 		break;
 	case SYM_LABEL:
-		a->fence = here(h);
-		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h), e);
+		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h, a), e);
 		break;
 	case SYM_BRANCH:
 	case SYM_0BRANCH:
@@ -2856,26 +2890,34 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		/*if(a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined) {
 			symbol_t *s = symbol_table_lookup(t, "doVar");
 			assert(s);
-			hole1 = hole(h);
+			hole1 = hole(h, a);
 			fix(h, hole1, a->pwd); 
 			a->pwd = hole1 << 1;
 			pack_string(h, a, n->token->p.id, e);
 			generate(h, a, OP_LITERAL | s->value);
 		}
-		a->fence = here(h);*/
+		here(h, a); */
 
 		if(n->o[0]->token->type == LEX_LITERAL) {
-			hole1 = hole(h);
+			hole1 = hole(h, a);
 			fix(h, hole1, n->o[0]->token->p.number);
 		} else {
 			assert(n->o[0]->token->type == LEX_STRING);
 			hole1 = pack_string(h, a, n->o[0]->token->p.id, e);
 		}
-		a->fence = here(h);
+		
 		/**@note The lowest bit of the address for memory loads is
 		 * discarded. */
 		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e);
 		break;
+	case SYM_QUOTE:
+	{
+		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
+		if(!s || s->type != SYMBOL_TYPE_CALL)
+			assembly_error(e, "not a defined procedure: %s", n->token->p.id);
+		generate_literal(h, a, /*OP_CALL |*/ s->value);
+		break;
+	}
 	case SYM_LITERAL:
 		generate_literal(h, a, n->token->p.number);
 		break;
@@ -2884,66 +2926,54 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 	case SYM_BEGIN_AGAIN: /* fall through */
 	case SYM_BEGIN_UNTIL:
-		hole1 = here(h);
+		hole1 = here(h, a);
 		assemble(h, a, n->o[0], t, e);
 		generate(h, a, (n->type == SYM_BEGIN_AGAIN ? OP_BRANCH : OP_0BRANCH) | hole1);
 		break;
 	
 	case SYM_FOR_NEXT:
 		generate(h, a, CODE_TOR);
-		hole1 = here(h);
+		hole1 = here(h, a);
 		assemble(h, a, n->o[0], t, e);
 		generate(h, a, CODE_RAT);
-		hole2 = hole(h);
-		generate(h, a, CODE_FROMR);
-		generate(h, a, CODE_T_N1);
-		generate(h, a, CODE_TOR);
+		hole2 = hole(h, a);
+		generate_loop_decrement(h, a, t);
 		generate(h, a, OP_BRANCH | hole1);
-		fix(h, hole2, OP_0BRANCH | here(h));
+		fix(h, hole2, OP_0BRANCH | here(h, a));
 		generate(h, a, CODE_RDROP);
 		break;
 	case SYM_FOR_AFT_THEN_NEXT:
-		//a->do_next = a->do_next ? a->do_next : symbol_table_lookup(t, "do-next");
-		/**@todo make a word "(next)" that implements the terminating
-		 * loop control */
 		generate(h, a, CODE_TOR);
 		assemble(h, a, n->o[0], t, e);
-		hole1 = hole(h);
+		hole1 = hole(h, a);
 		generate(h, a, CODE_RAT);
-
-		//if(a->do_next) {
-		//	generate(h, a, OP_CALL | a->do_next->value);
-		//} else {
-			generate(h, a, CODE_FROMR);
-			generate(h, a, CODE_T_N1);
-			generate(h, a, CODE_TOR);
-		//}
-		hole2 = hole(h);
+		generate_loop_decrement(h, a, t);
+		hole2 = hole(h, a);
 		assemble(h, a, n->o[1], t, e);
-		fix(h, hole1, OP_BRANCH | (here(h)));
+		fix(h, hole1, OP_BRANCH | (here(h, a)));
 		assemble(h, a, n->o[2], t, e);
 		generate(h, a, OP_BRANCH | (hole1 + 1));
-		fix(h, hole2, OP_0BRANCH | (here(h)));
+		fix(h, hole2, OP_0BRANCH | (here(h, a)));
 		generate(h, a, CODE_RDROP);
 		break;
 	case SYM_BEGIN_WHILE_REPEAT:
-		hole1 = here(h);
+		hole1 = here(h, a);
 		assemble(h, a, n->o[0], t, e);
-		hole2 = hole(h);
+		hole2 = hole(h, a);
 		assemble(h, a, n->o[1], t, e);
 		generate(h, a, OP_BRANCH  | hole1);
-		fix(h, hole2, OP_0BRANCH | here(h));
+		fix(h, hole2, OP_0BRANCH | here(h, a));
 		break;
 	case SYM_IF1:
-		hole1 = hole(h);
+		hole1 = hole(h, a);
 		assemble(h, a, n->o[0], t, e);
 		if(n->o[1]) { /* if ... else .. then */
-			hole2 = hole(h);
+			hole2 = hole(h, a);
 			fix(h, hole1, OP_0BRANCH | (hole2 + 1));
 			assemble(h, a, n->o[1], t, e);
-			fix(h, hole2, OP_BRANCH  | here(h));
+			fix(h, hole2, OP_BRANCH  | here(h, a));
 		} else { /* if ... then */
-			fix(h, hole1, OP_0BRANCH | here(h));
+			fix(h, hole1, OP_0BRANCH | here(h, a));
 		}
 		break;
 	case SYM_CALL_DEFINITION:
@@ -2968,13 +2998,12 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		if(n->bits && !(a->mode & MODE_COMPILE_WORD_HEADER))
 			assembly_error(e, "cannot modify word bits (immediate/hidden/inline) if not in compile mode");
 		if(a->mode & MODE_COMPILE_WORD_HEADER) {
-			hole1 = hole(h);
+			hole1 = hole(h, a);
 			fix(h, hole1, a->pwd | (n->bits << 13)); /* shift in word bits into PWD field */
 			a->pwd = hole1 << 1;
 			pack_string(h, a, n->token->p.id, e);
 		}
-		a->fence = here(h);
-		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h), e);
+		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h, a), e);
 		if(a->in_definition)
 			assembly_error(e, "nested word definition is not allowed");
 		a->in_definition = true;
@@ -3033,7 +3062,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	}
 	case SYM_PC:
 		h->pc = literal_or_symbol_lookup(n->token, t, e);
-		a->fence = h->pc;
+		update_fence(a, h->pc);
 		break;
 	case SYM_MODE:
 		a->mode = n->token->p.number;
@@ -3041,10 +3070,11 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_ALLOCATE:
 		/**@todo Only allow constants or literal */
 		h->pc += literal_or_symbol_lookup(n->token, t, e) >> 1;
-		a->fence = h->pc;
+		update_fence(a, h->pc);
 		break;
 	case SYM_BREAK:
 		break_point_add(&h->bp, h->pc);
+		update_fence(a, h->pc);
 		break;
 	case SYM_BUILT_IN:
 		if(!(a->mode & MODE_COMPILE_WORD_HEADER))
@@ -3057,13 +3087,13 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 
 		for(unsigned i = 0; built_in_words[i].name; i++) {
 			uint16_t pwd = a->pwd;
-			hole1 = hole(h);
+			hole1 = hole(h, a);
 			if(built_in_words[i].inline_bit)
 				pwd |= (DEFINE_INLINE << 13);
 			fix(h, hole1, pwd);
 			a->pwd = hole1 << 1;
 			pack_string(h, a, built_in_words[i].name, e);
-			symbol_table_add(t, SYMBOL_TYPE_CALL, built_in_words[i].name, here(h), e);
+			symbol_table_add(t, SYMBOL_TYPE_CALL, built_in_words[i].name, here(h, a), e);
 			for(size_t j = 0; j < built_in_words[i].len; j++)
 				generate(h, a, built_in_words[i].code[j]);
 			generate(h, a, CODE_EXIT); 
@@ -3079,8 +3109,9 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	error_t e;
 	h2_t *h;
 	symbol_table_t *t = NULL;
-	assembler_t a = { false, false, false, 0, 0, 0, 0, /*NULL, NULL*/ };
+	assembler_t a;
 	assert(n);
+	memset(&a, 0, sizeof a);
 
 	/**@bug these variables might be clobbered by setjmp/longjmp ('h' and 't')*/
 	t = symbols ? symbols : symbol_table_new();

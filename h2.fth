@@ -12,7 +12,8 @@ Execution begins at a label called "start".
 
 TODO:
 * Hex number printer
-* Bootloader
+* Bootloader: A super simple one, preferably on that takes up less than 100
+words
 * Minimal Forth interpreter 
 * Turn this into a literate file
 * Add assembler directives for setting starting position of
@@ -31,8 +32,8 @@ output, vectored output to either the VGA or UART )
 will need an in-line bit, as well as an immediate bit )
 .built-in
 
-
 constant _exit         0x601c ( op code for exit )
+constant _invert       0x6600 ( op code for invert )
 
 ( Outputs: 0x6000 - 0x7FFF )
 constant oUart         0x6000
@@ -80,17 +81,17 @@ variable tib-buf 0 ( ... and address )
 variable >in     0 ( Hold character pointer when parsing input )
 variable state   0 ( compiler state variable )
 
-variable '?key   0 ( execution vector of ?key,   default to ?rx.)
-variable 'emit   0 ( execution vector of emit,   default to tx!)
-variable 'expect 0 ( execution vector of expect, default to 'accept'.)
-variable 'tap    0 ( execution vector of tap,    default to ktap.)
-variable 'echo   0 ( execution vector of echo,   default to tx!.)
-variable 'prompt 0 ( execution vector of prompt, default to '.ok'.)
+variable _?key   0 ( execution vector of ?key,   default to ?rx )
+variable _emit   0 ( execution vector of emit,   default to tx! )
+variable _expect 0 ( execution vector of expect, default to accept )
+variable _tap    0 ( execution vector of tap,    default to ktap )
+variable _echo   0 ( execution vector of echo,   default to tx! )
+variable _prompt 0 ( execution vector of prompt, default to .ok )
+variable _eval   0 ( execution vector of eval,   default to $interpret )
 variable OK      "ok"
 ( ======================== System Variables ================= )
 
 ( ======================== Forth Kernel ===================== )
-
 
 : ! store drop ;
 : 256* 8 lshift ;
@@ -243,7 +244,10 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : last pwd @ ;
 
 : emit ( char -- : write out a char )
-	'emit @execute ;
+	_emit @execute ;
+
+: toggle ( a u -- : xor value at addr with u )
+	over @ xor swap ! ;
 
 : cr 10 emit ;
 : space bl emit ;
@@ -332,20 +336,20 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : ^h ( b b b -- b b b ) \ backspace
   >r over r> swap over xor
-  if  8 'echo @execute
-     bl 'echo @execute \ destructive
-      8 'echo @execute \ backspace
+  if  8 _echo @execute
+     bl _echo @execute \ destructive
+      8 _echo @execute \ backspace
   then ;
 
 : tap ( bot eot cur c -- bot eot cur )
-  dup 'echo @execute over c! 1 + ;
+  dup _echo @execute over c! 1 + ;
 
 : ktap ( bot eot cur c -- bot eot cur )
   dup 13 xor
   if 8 xor if bl tap else ^h then exit
   then drop swap drop dup ;
 
-: key? '?key @execute ;
+: key? _?key @execute ;
 : key begin key? until ;
 
 : accept ( b u -- b u )
@@ -354,13 +358,13 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		2dup xor
 	while  
 		key  dup bl -  95 u<
-		if tap else 'tap @execute then
+		if tap else _tap @execute then
 	repeat drop over - ;
  
-: expect ( b u -- ) 'expect @execute span ! drop ;
+: expect ( b u -- ) _expect @execute span ! drop ;
 
 : query ( -- )
-  tib 80 'expect @execute #tib !  drop 0 >in ! ;
+  tib 80 _expect @execute #tib !  drop 0 >in ! ;
 
 : allot cp +! ;
 
@@ -376,8 +380,11 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		1+ swap 1+ 
 	next 2drop -1 ;
 
+: address ( a -- a : mask off any bits not used for the address )
+	0x1FFF and ;
+
 : nfa ( pwd -- nfa : move to name field address)
-	cell+ ;
+	address cell+ ;
 
 : cfa ( pwd -- cfa : move to code field address )
 	nfa dup
@@ -387,9 +394,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : 2rdrop
 	r> rdrop rdrop >r ;
-
-: address ( a -- a : mask off any bits not used for the address )
-	0x1FFF and ;
 
 : logical ( n -- f )
 	0= 0= ;
@@ -403,7 +407,8 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : inline? ( pwd -- f : is inline? )
 	0x8000 and logical ;
 
-: find ( a u -- pwd -1 | 0 : find a word in the dictionary )
+( @todo make this handle hidden words )
+: finder ( a u -- pwd -1 | 0 : find a word in the dictionary )
 	>r >r
 	last address
 	begin
@@ -414,6 +419,12 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		@ address
 	repeat 
 	rdrop rdrop drop 0 exit ;
+
+: find
+	finder
+	dup if
+		over @ hidden? if 2drop 0 then
+	then ;
 
 : .id ( pwd -- : print out a word )
 	nfa count type space ;
@@ -452,7 +463,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	dup decimal?   if 48 -      exit then ( 48 = '0' )
 	drop -1 ;
 
-: digit? ( char -- bool : is a character a number in the current base )
+: digit? ( char -- f : is a character a number in the current base )
 	>lower numeric? base @ u< ;
 
 : do-number ( n c-addr u -- n c-addr u : convert string )
@@ -510,21 +521,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		2 spaces _type
 	next drop r> base ! ;
 
-( @todo suppress ok prompt when in compiling mode ) 
-: .ok space OK count type space cr ;
-
-
-( PLAN:
-
-	* Make a parse routine [ done ]
-	* Compiler routine
-		- Inline
-		- Literals
-		- Compile calls
-	* Make interpreter loop
-	* Define ':', '[', ']', control structures, ...
-	* Make a bootloader )
-
 ( @todo cleanup skip and scan, they need simplifying )
 
 : skip ( b u c -- b u : skip until not 'c' )
@@ -566,30 +562,70 @@ variable tmp 0
 \ : mswap ( a a -- : swap two memory locations )
 \	2dup >r @ swap ! r> @ swap ! ;
 
-( @todo Modify this, it should accept a flag indicating whether this is a
-number or a PWD field, not found should be handled elsewhere in EVAL )
-: command
-	\ find
-	\ 	true: cfa execute
-	\	false: number?
-	\		true:  push
-	\		false: error
+( @todo Better factor $interpret and $compile, as well as making
+them vectored words )
+
+: $interpret ( a u -- )
 	2dup find
-	if >r 2drop r> cfa 2/ execute 
+	if 
+		nip nip cfa 2/ execute 
 	else
-		number? 0= if drop then
+		number? 0= if drop ( else abort ) then
 	then ;
 
-: quit q: query .ok b: bl parse dup 0= if 2drop branch q then command branch b ;
+: literal ( n -- )
+	dup 0x8000 and 
+	if 
+		invert 0x8000 or , _invert , 
+	else 
+		0x8000 or , 
+	then ; immediate
 
-: ":" here last address , pwd ! bl word count + cp ! ; 
-: ' bl parse find if cfa else ( -1 throw ) 0 then ; immediate
-: compile ' 2/ 0x4000 or , ; immediate
-: ";" _exit , ; immediate
+: $compile ( a u -- ) 
+	2dup find
+	if
+		nip nip dup @ immediate? if 
+			cfa 2/ execute
+		else 
+			dup @ inline? if
+				cfa @ ,
+			else
+				cfa 2/ 0x4000 or ,
+			then 
+		then
+	else
+		number? 0= if literal ( else abort ) then
+	then ;
+
+: "immediate" last address dup @ 0x2000 or swap ! ;
+: "hide"      last address dup @ 0x4000 or swap ! ;
+
+: [ ' $interpret _eval ! ; immediate
+: ] ' $compile   _eval ! ; 
+
+: token bl parse ;
+
+: .ok ' $interpret _eval @ = if space OK count type space cr then ;
+
+: eval 
+	begin token dup while _eval @execute repeat 2drop _prompt @execute ;
+
+\ : quit q: query .ok b: bl parse dup 0= if 2drop branch q then $interpret branch b ;
+: quit begin query eval again ;
+
+: ":" here last address , pwd ! bl word count + cp ! ] ; 
+: "'" bl parse find if cfa else ( -1 throw ) 0 then ; immediate
+: compile call "'" 2/ 0x4000 or , ; immediate
+: ";" _exit , [ ; immediate
 
 \ : x compile * compile . compile cr ;
 \ 4 5 x
 
+( @note a primitive bootloader should be made that:
+* prints out 
+
+Primitive 'evaluate' would use self modify code to write an instruction
+to a location and then execute it )
 
 
 ( ======================== Word Set ========================= )
@@ -641,7 +677,6 @@ variable cursor 0  ( index into VGA text memory )
 : timer!   oTimerCtrl ! ;
 : timer@   iTimerDin  @ ;
 
-
 variable uart-read-count 0
 
 ( ======================== Miscellaneous ==================== )
@@ -669,9 +704,6 @@ start:
 	here . cr
 	.free cr
 	\ words
-
-
-
 	\ 0 0x1FF0 dump cr
 
 nextChar:
@@ -696,12 +728,11 @@ branch nextChar
 .set pwd $pwd
 .set cp  $pc
 
-.set '?key   ?rx    ( execution vector of ?key,   default to ?rx.)
-.set 'emit   tx!    ( execution vector of emit,   default to tx!)
-.set 'expect accept ( execution vector of expect, default to 'accept'.)
-.set 'tap    ktap   ( execution vector of tap,    default the ktap.)
-.set 'echo   tx!    ( execution vector of echo,   default to tx!.)
-.set 'prompt .ok    ( execution vector of prompt, default to '.ok'.)
+.set _?key   ?rx        ( execution vector of ?key,   default to ?rx. )
+.set _emit   tx!        ( execution vector of emit,   default to tx! )
+.set _expect accept     ( execution vector of expect, default to 'accept'. )
+.set _tap    ktap       ( execution vector of tap,    default the ktap. )
+.set _echo   tx!        ( execution vector of echo,   default to tx!. )
+.set _prompt .ok        ( execution vector of prompt, default to '.ok'. )
+.set _eval   $interpret ( execution vector of eval,   default to $interpret )
 
-
-exit
