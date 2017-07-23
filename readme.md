@@ -1,20 +1,11 @@
 # Forth computing system
 
-Author:
-
-* Richard James Howe.
-
-Copyright:
-
-* Copyright 2013-2017 Richard James Howe.
-
-License:
-
-* MIT/LGPL
-
-Email:
-
-* howe.r.j.89@gmail.com
+| Project   | Forth SoC written in VHDL |
+| --------- | ------------------------- |
+| Author    | Richard James Howe        |
+| Copyright | 2013-2017 Richard Howe    |
+| License   | MIT/LGPL                  |
+| Email     | howe.r.j.89@gmail.com     |
 
 # Introduction
 
@@ -186,32 +177,30 @@ The instruction set is decoded in the following manner:
 
 All ALU operations replace T:
 
+| Value |   Operation    |     Description       |
+|-------|----------------|-----------------------|
+|   0   |       T        |  Top of Stack         |
+|   1   |       N        |  Copy T to N          |
+|   2   |     T + N      |  Addition             |
+|   3   |     T & N      |  Bitwise AND          |
+|   4   |     T or N     |  Bitwise OR           |
+|   5   |     T ^ N      |  Bitwise XOR          |
+|   6   |      ~T        |  Bitwise Inversion    |
+|   7   |     T = N      |  Equality test        |
+|   8   |     N < T      |  Signed comparison    |
+|   9   |     N >> T     |  Logical Right Shift  |
+|  10   |     T - 1      |  Decrement            |
+|  11   |       R        |  Top of return stack  |
+|  12   |      [T]       |  Load from address    |
+|  13   |     N << T     |  Logical Left Shift   |
+|  14   |     depth      |  Depth of stack       |
+|  15   |     N u< T     |  Unsigned comparison  |
+|  16   | set interrupts |  Enable interrupts    |
+|  17   | interrupts on? |  Are interrupts on?   |
+|  18   |     rdepth     |  Depth of return stk  |
+|  19   |      0=        |  T == 0?              |
+|  20   |     CPU ID     |  CPU Identifier       |
 
-	+-------+----------------+-----------------------+
-	| Value |   Operation    |     Description       |
-	+-------+----------------+-----------------------+
-	|   0   |       T        |  Top of Stack         |
-	|   1   |       N        |  Copy T to N          |
-	|   2   |     T + N      |  Addition             |
-	|   3   |     T & N      |  Bitwise AND          |
-	|   4   |     T | N      |  Bitwise OR           |
-	|   5   |     T ^ N      |  Bitwise XOR          |
-	|   6   |      ~T        |  Bitwise Inversion    |
-	|   7   |     T = N      |  Equality test        |
-	|   8   |     N < T      |  Signed comparison    |
-	|   9   |     N >> T     |  Logical Right Shift  |
-	|  10   |     T - 1      |  Decrement            |
-	|  11   |       R        |  Top of return stack  |
-	|  12   |      [T]       |  Load from address    |
-	|  13   |     N << T     |  Logical Left Shift   |
-	|  14   |     depth      |  Depth of stack       |
-	|  15   |     N u< T     |  Unsigned comparison  |
-	|  16   | set interrupts |  Enable interrupts    |
-	|  17   | interrupts on? |  Are interrupts on?   |
-	|  18   |     rdepth     |  Depth of return stk  |
-	|  19   |      0=        |  T == 0?              |
-	|  20   |     CPU ID     |  CPU Identifier       |
-	+-------+----------------+-----------------------+
 
 ### Peripherals and registers
 
@@ -238,37 +227,34 @@ from <https://eewiki.net/pages/viewpage.action?pageId=28279002>
 The SoC also features a limited set of interrupts that can be enabled or
 disabled.
 
-	+---------------------------------------------------------+
-	|                   Input Registers                       |
-	+-------------+---------+---------------------------------+
-	| Register    | Address | Description                     |
-	+-------------+---------+---------------------------------+
-	| iUart       | 0x6000  | UART register                   |
-	| iSwitches   | 0x6001  | Buttons and switches            |
-	| iTimerCtrl  | 0x6002  | Timer control Register          |
-	| iTimerDin   | 0x6003  | Current Timer Value             |
-	| iVgaTxtDout | 0x6004  | Contents of address oVgaTxtAddr |
-	| iPs2        | 0x6005  | PS2 Keyboard Register           |
-	| iLfsr       | 0x6006  | LFSR Seed                       |
-	+-------------+---------+---------------------------------+
+|                   Input Registers                       |
+|-------------|---------|---------------------------------|
+| Register    | Address | Description                     |
+| iUart       | 0x6000  | UART register                   |
+| iSwitches   | 0x6001  | Buttons and switches            |
+| iTimerCtrl  | 0x6002  | Timer control Register          |
+| iTimerDin   | 0x6003  | Current Timer Value             |
+| iVgaTxtDout | 0x6004  | Contents of address oVgaTxtAddr |
+| iPs2        | 0x6005  | PS2 Keyboard Register           |
+| iLfsr       | 0x6006  | LFSR Seed                       |
 
-	+---------------------------------------------------------+
-	|                   Output Registers                      |
-	+-------------+---------+---------------------------------+
-	| Register    | Address | Description                     |
-	+-------------+---------+---------------------------------+
-	| oUart       | 0x6000  | UART register                   |
-	| oLeds       | 0x6001  | LED outputs                     |
-	| oTimerCtrl  | 0x6002  | Timer control                   |
-	| oVgaCursor  | 0x6003  | VGA Cursor X/Y cursor position  |
-	| oVgaCtrl    | 0x6004  | VGA control registers           |
-	| o8SegLED    | 0x6005  | 4 x LED 8 Segment display 0     |
-	| oIrcMask    | 0x6006  | CPU Interrupt Mask              |
-	| oLfsr       | 0x6007  | LFSR Value                      |
-	| VGA Memory  | 0xE000  | VGA memory                      |
-	|             |    -    |                                 |
-	|             | 0xFFFF  |                                 |
-	+-------------+---------+---------------------------------+
+The output registers:
+
+|                   Output Registers                      |
+|-------------|---------|---------------------------------|
+| Register    | Address | Description                     |
+| oUart       | 0x6000  | UART register                   |
+| oLeds       | 0x6001  | LED outputs                     |
+| oTimerCtrl  | 0x6002  | Timer control                   |
+| oVgaCursor  | 0x6003  | VGA Cursor X/Y cursor position  |
+| oVgaCtrl    | 0x6004  | VGA control registers           |
+| o8SegLED    | 0x6005  | 4 x LED 8 Segment display 0     |
+| oIrcMask    | 0x6006  | CPU Interrupt Mask              |
+| oLfsr       | 0x6007  | LFSR Value                      |
+| VGA Memory  | 0xE000  | VGA Memory Start                |
+|             |    -    |                                 |
+|             | 0xFFFF  | VGA Memory End                  |
+
 
 The following description of the registers should be read in order and describe
 how the peripherals work as well.
@@ -290,11 +276,10 @@ The baud rate of the UART can be changed by rebuilding the VHDL project, bit
 length, parity bits and stop bits can only be changed with modifications to
 [uart.vhd][]
 
-	+-------------------------------------------------------------------------------+
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
-	|  X |  X |TXWE|  X |  X |RXRE|  X |  X |               TXDO                    |
-	+-------------------------------------------------------------------------------+
+|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
+| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7    6    5    4    3    2    1    0 |
+|  X |  X |TXWE|  X |  X |RXRE|  X |  X |               TXDO                    |
+
 
 	TXWE: UART RT Write Enable
 	RXRE: UART RX Read Enable
@@ -307,11 +292,9 @@ On the [Nexys3][] board there is a bank of LEDs that are situated next to the
 switches, these LEDs can be turned on (1) or off (0) by writing to LEDO. Each
 LED here corresponds to the switch it is next to.
 
-	+-------------------------------------------------------------------------------+
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
-	|  X |  X |  X |  X |  X |  X |  X |  X |              LEDO                     |
-	+-------------------------------------------------------------------------------+
+|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
+| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7    6    5    4    3    2    1    0 |
+|  X |  X |  X |  X |  X |  X |  X |  X |              LEDO                     |
 
 	LEDO: LED Output
 
@@ -547,11 +530,11 @@ This register contains the interface to the input of the Linear Feedback Shift
 Register ([LFSR][]). It needs an initial non-zero seed value before it will start
 counting, the LFSR can be used to generate pseudo random numbers.
 
-	+-------------------------------------------------------------------------------+
+	|-------------------------------------------------------------------------------|
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
+	|-------------------------------------------------------------------------------|
 	|                               LFSR                                            |
-	+-------------------------------------------------------------------------------+
+	|-------------------------------------------------------------------------------|
 
 	LFSR: Linear Feedback Shift Register Seed Value
 
@@ -559,18 +542,17 @@ counting, the LFSR can be used to generate pseudo random numbers.
 
 The following interrupt service routines are defined:
 
-	+-------------------+--------+-----------------------------+
-	|       Name        | Number |         Description         |
-	+-------------------+--------+-----------------------------+
-	| isrNone           |   0    | Not used                    |
-	| isrRxFifoNotEmpty |   1    | UART RX FIFO Is Not Empty   |
-	| isrRxFifoFull     |   2    | UART RX FIFI Is Full        |
-	| isrTxFifoNotEmpty |   3    | UART TX FIFO Is Not Empty   |
-	| isrTxFifoFull     |   4    | UART TX FIFO Is Full        |
-	| isrKbdNew         |   5    | New PS/2 Keyboard Character |
-	| isrTimer          |   6    | Timer Counter               |
-	| isrBrnLeft        |   7    | Left D-Pad button pressed   |
-	+-------------------+--------+-----------------------------+
+|       Name        | Number |         Description         |
+|-------------------|--------|-----------------------------|
+| isrNone           |   0    | Not used                    |
+| isrRxFifoNotEmpty |   1    | UART RX FIFO Is Not Empty   |
+| isrRxFifoFull     |   2    | UART RX FIFI Is Full        |
+| isrTxFifoNotEmpty |   3    | UART TX FIFO Is Not Empty   |
+| isrTxFifoFull     |   4    | UART TX FIFO Is Full        |
+| isrKbdNew         |   5    | New PS/2 Keyboard Character |
+| isrTimer          |   6    | Timer Counter               |
+| isrBrnLeft        |   7    | Left D-Pad button pressed   |
+
 
 When an interrupt occurs, and interrupts are enabled within the processor, then
 a call to the location in memory is performed - the location is the same as the
@@ -703,43 +685,42 @@ The assembler the following directives:
 
 The built in words, with their instruction encodings:
 
-	         +---------------------------------------------------------------+
-	         | F | E | D | C | B | A | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
-	         +---------------------------------------------------------------+
-	         | 0 | 1 | 1 |   ALU OPERATION   |T2N|T2R|N2A|R2P| RSTACK| DSTACK|
-	+--------+---+---+---+-------------------+---+---+---+---+-------+-------+
-	| dup    | 0 | 1 | 1 |       T           | X |   |   |   |       |  +1   |
-	| over   | 0 | 1 | 1 |       N           | X |   |   |   |       |  +1   |
-	| invert | 0 | 1 | 1 |       ~ T         |   |   |   |   |       |       |
-	| +      | 0 | 1 | 1 |       T + N       |   |   |   |   |       |  -1   |
-	| swap   | 0 | 1 | 1 |       N           | X |   |   |   |       |       |
-	| nip    | 0 | 1 | 1 |       T           |   |   |   |   |       |  -1   |
-	| drop   | 0 | 1 | 1 |       N           |   |   |   |   |       |  -1   |
-	| exit   | 0 | 1 | 1 |       T           |   |   |   | X |   -1  |       |
-	| >r     | 0 | 1 | 1 |       N           |   | X |   |   |   +1  |  -1   |
-	| r>     | 0 | 1 | 1 |       R           | X |   |   |   |   -1  |  +1   |
-	| r@     | 0 | 1 | 1 |       R           | X |   |   |   |       |  +1   |
-	| @      | 0 | 1 | 1 |       [T]         |   |   |   |   |       |       |
-	| store  | 0 | 1 | 1 |       N           |   |   | X |   |       |  -1   |
-	| rshift | 0 | 1 | 1 |       N >> T      |   |   |   |   |       |  -1   |
-	| lshift | 0 | 1 | 1 |       N << T      |   |   |   |   |       |  -1   |
-	| =      | 0 | 1 | 1 |       N = T       |   |   |   |   |       |  -1   |
-	| u<     | 0 | 1 | 1 |       N u< T      |   |   |   |   |       |  -1   |
-	| <      | 0 | 1 | 1 |       N < T       |   |   |   |   |       |  -1   |
-	| and    | 0 | 1 | 1 |       T & N       |   |   |   |   |       |  -1   |
-	| xor    | 0 | 1 | 1 |       T ^ N       |   |   |   |   |       |  -1   |
-	| or     | 0 | 1 | 1 |       T | N       |   |   |   |   |       |  -1   |
-	| depth  | 0 | 1 | 1 |       depth       |   |   |   |   |       |  +1   |
-	| 1-     | 0 | 1 | 1 |       T - 1       |   |   |   |   |       |       |
-	| seti   | 0 | 1 | 1 |   set interrupts  |   |   |   |   |       |  -1   |
-	| iset?  | 0 | 1 | 1 |   interrupts on?  |   |   |   |   |       |  +1   |
-	| rdepth | 0 | 1 | 1 |      rdepth       |   |   |   |   |       |  +1   |
-	| 0=     | 0 | 1 | 1 |        0=         |   |   |   |   |       |       |
-	| up1    | 0 | 1 | 1 |        T          |   |   |   |   |       |  +1   |
-	| nop    | 0 | 1 | 1 |        T          |   |   |   |   |       |       |
-	| cpu-id | 0 | 1 | 1 |      CPU ID       |   |   |   |   |       |  +1   |
-	| rdrop  | 0 | 1 | 1 |        T          |   |   |   |   |  -1   |       |
-	+--------+---+---+---+-------------------+---+---+---+---+-------+-------+
+<!-- | XXXX   | F | E | D | C | B | A | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | -->
+
+| Word   | 0 | 1 | 1 |   ALU OPERATION   |T2N|T2R|N2A|R2P| RSTACK| DSTACK|
+|--------|---|---|---|-------------------|---|---|---|---|-------|-------|
+| dup    | 0 | 1 | 1 |       T           | X |   |   |   |       |  +1   |
+| over   | 0 | 1 | 1 |       N           | X |   |   |   |       |  +1   |
+| invert | 0 | 1 | 1 |       ~ T         |   |   |   |   |       |       |
+| +      | 0 | 1 | 1 |       T + N       |   |   |   |   |       |  -1   |
+| swap   | 0 | 1 | 1 |       N           | X |   |   |   |       |       |
+| nip    | 0 | 1 | 1 |       T           |   |   |   |   |       |  -1   |
+| drop   | 0 | 1 | 1 |       N           |   |   |   |   |       |  -1   |
+| exit   | 0 | 1 | 1 |       T           |   |   |   | X |   -1  |       |
+| &gt;r  | 0 | 1 | 1 |       N           |   | X |   |   |   +1  |  -1   |
+| r&gt;  | 0 | 1 | 1 |       R           | X |   |   |   |   -1  |  +1   |
+| r@     | 0 | 1 | 1 |       R           | X |   |   |   |       |  +1   |
+| @      | 0 | 1 | 1 |       [T]         |   |   |   |   |       |       |
+| store  | 0 | 1 | 1 |       N           |   |   | X |   |       |  -1   |
+| rshift | 0 | 1 | 1 |       N >> T      |   |   |   |   |       |  -1   |
+| lshift | 0 | 1 | 1 |       N << T      |   |   |   |   |       |  -1   |
+| =      | 0 | 1 | 1 |       N = T       |   |   |   |   |       |  -1   |
+| u<     | 0 | 1 | 1 |       N u< T      |   |   |   |   |       |  -1   |
+| <      | 0 | 1 | 1 |       N < T       |   |   |   |   |       |  -1   |
+| and    | 0 | 1 | 1 |       T & N       |   |   |   |   |       |  -1   |
+| xor    | 0 | 1 | 1 |       T ^ N       |   |   |   |   |       |  -1   |
+| or     | 0 | 1 | 1 |       T or N      |   |   |   |   |       |  -1   |
+| depth  | 0 | 1 | 1 |       depth       |   |   |   |   |       |  +1   |
+| 1-     | 0 | 1 | 1 |       T - 1       |   |   |   |   |       |       |
+| seti   | 0 | 1 | 1 |   set interrupts  |   |   |   |   |       |  -1   |
+| iset?  | 0 | 1 | 1 |   interrupts on?  |   |   |   |   |       |  +1   |
+| rdepth | 0 | 1 | 1 |      rdepth       |   |   |   |   |       |  +1   |
+| 0=     | 0 | 1 | 1 |        0=         |   |   |   |   |       |       |
+| up1    | 0 | 1 | 1 |        T          |   |   |   |   |       |  +1   |
+| nop    | 0 | 1 | 1 |        T          |   |   |   |   |       |       |
+| cpu-id | 0 | 1 | 1 |      CPU ID       |   |   |   |   |       |  +1   |
+| rdrop  | 0 | 1 | 1 |        T          |   |   |   |   |  -1   |       |
+
 
 The language used in the assembler is Forth like, the best example of how to
 use it is in the file "h2.fth", which contains a working Forth interpreter and
@@ -949,7 +930,7 @@ or from mouse clicks.
 The simulator, how it looks and behaves, may be changed in the future to
 improve it.
 
-![H2 GUI Simulator](info/forth-cpu-gui.gif "Running GUI H2 SoC Simulator")
+<!-- ![H2 GUI Simulator](info/forth-cpu-gui.gif "Running GUI H2 SoC Simulator") -->
 
 Building can be done with
 
@@ -995,16 +976,15 @@ to be as generic as possible, with most having selectable widths. This would be
 taken to the extreme, but unfortunately many vendors still do not support the
 VHDL-2008 standard.
 
-	+--------+----------+---------------+------------------------------------+
-	| File   | License  | Author        | Description                        |
-	+--------+----------+---------------+------------------------------------+
-	|util.vhd|MIT       |Richard J Howe |A collection of generic components  |
-	|h2.vhd  |MIT       |Richard J Howe |H2 Forth CPU Core                   |
-	|vga.vhd |LGPL 3.0  |Javier V García|Text Mode VGA 80x40 Display         |
-	|uart.vhd|Apache 2.0|Peter A Bennett|UART, modified from orignal         |
-	|kbd.vhd |???       |Scott Larson   |PS/2 Keyboard                       |
-	|led.vhd |MIT       |Richard J Howe |LED 7-Segment + Dot Display Driver  |
-	+--------+----------+---------------+------------------------------------+
+| File     | License    | Author          | Description                         |
+| -------- | ---------- | --------------- | ----------------------------------- |
+| util.vhd | MIT        | Richard J Howe  | A collection of generic components  |
+| h2.vhd   | MIT        | Richard J Howe  | H2 Forth CPU Core                   |
+| vga.vhd  | LGPL 3.0   | Javier V García | Text Mode VGA 80x40 Display         |
+| uart.vhd | Apache 2.0 | Peter A Bennett | UART, modified from orignal         |
+| kbd.vhd  | ???        | Scott Larson    | PS/2 Keyboard                       |
+| led.vhd  | MIT        | Richard J Howe  | LED 7-Segment + Dot Display Driver  |
+
 
 # eForth on the H2
 
@@ -1375,6 +1355,9 @@ https://www.w3.org/Style/Examples/007/center.en.html
 https://css-tricks.com/centering-css-complete-guide/
 -->
 
-<style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}
+<style type="text/css">
+body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}
+h1,h2,h3{line-height:1.2}
 table {width: 100%; border-collapse: collapse;}
-table, th, td{border: 1px solid black;}</style>
+table, th, td{border: 1px solid black;}
+code { color: #091992; } </style>
