@@ -576,7 +576,7 @@ variable tmp 0
 : char =bl parse drop c@ ;
 
 : .s ( -- ) cr sp@ for aft r@ pick . then next ( ."  <sp" ) ;
-: free 0x1fff here - ;
+: free 0x2000 here - ;
 : .free free u. ;
 
 \ : mswap ( a a -- : swap two memory locations )
@@ -752,13 +752,7 @@ adequate assembler directives )
 start:
 	init
 
-	.ok
-	here . cr
-	.free cr
-	\ words
-	\ 0 0x1FF0 dump cr
-
-nextChar:
+	here . .free .ok
 
 	\ basic command loop
 	quit

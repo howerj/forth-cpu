@@ -39,9 +39,6 @@
 #define Y_MIN       (0.0)
 #define RUN_FOR     (5000)
 
-/**@todo these should be wrapped up in a struct and passed into functions via
- * pointer instead of being just here */
-
 typedef struct {
 	double window_height;
 	double window_width;
@@ -283,7 +280,6 @@ static int draw_string(const char *msg)
 	return draw_block((uint8_t*)msg, strlen(msg));
 }
 
-/**@todo Rewrite the other functions to use this one */
 static int draw_block_scaled(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, color_t color)
 {
 	assert(msg);
@@ -416,7 +412,6 @@ static void draw_textbox(textbox_t *t)
 	double char_height = scale.y / Y_MAX;
 	if(!(t->draw_border))
 		return;
-	/**@todo fix this */
 	draw_rectangle_line(t->x - 0.5, t->y - t->height + char_height - 1, t->width, t->height + 1, 0.5, t->color_box);
 }
 
@@ -579,7 +574,6 @@ static void draw_vga(const world_t *world, vga_t *v)
 		return;
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
-	/**@todo Draw the cursor if enabled */
 	color_t color = vga_map_color(v->control & 0x7);
 
 	static const double scale_x = 0.011;
@@ -1167,7 +1161,6 @@ static void draw_scene(void)
 
 	draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2)*0.99, SQUARE, 0.5, WHITE);
 
-	/**@todo use delta time instead */
 	if(next != world.tick) {
 		next = world.tick;
 		update_terminal(&terminal, uart_tx_fifo);
@@ -1240,13 +1233,13 @@ int main(int argc, char **argv)
 		fprintf(stderr, "h2 load failed\n");
 		goto fail;
 	}
-	h2_io = h2_io_new();
+	h2_io      = h2_io_new();
 	h2_io->in  = h2_io_get_gui;
 	h2_io->out = h2_io_set_gui;
 
 	uart_rx_fifo = fifo_new(UART_FIFO_DEPTH);
 	uart_tx_fifo = fifo_new(UART_FIFO_DEPTH);
-	ps2_rx_fifo  = fifo_new(8 /* should be 1 */);
+	ps2_rx_fifo  = fifo_new(8 /* should be 1 - but this does not work */);
 
 	for(int i = 0; i < VGA_MEMORY_SIZE / VGA_WIDTH; i++)
 		memset(vga.m + (i * VGA_WIDTH), ' '/*'a'+(i%26)*/, VGA_MEMORY_SIZE / VGA_WIDTH);

@@ -205,7 +205,6 @@ typedef enum {
  * to instructions, the exception is in the lexer, which accepts
  * a range of tokens in one clause of the grammar from the first
  * instruction to the last. This must be manually updated
- * @todo Add inline bits to instructions
  * @note In the original J1 specification both r@ and r> both have
  * their T_TO_R bit set in their instruction description tables, this
  * appears to be incorrect */
@@ -542,7 +541,6 @@ size_t fifo_pop(fifo_t * fifo, fifo_data_t * data)
 #define CHAR_ESCAPE    (27)   /* ASCII escape character value */
 #define CHAR_DELETE    (127)  /* ASCII delete */
 
-/**@todo move non-portable I/O stuff to external program that calls h2_run */
 #ifdef __unix__
 #include <unistd.h>
 #include <termios.h>
@@ -845,7 +843,6 @@ static int disassembler_instruction(uint16_t instruction, FILE *output, symbol_t
 	return r < 0 ? -1 : 0;
 }
 
-/**@todo The disassembler should decompile word headers */
 int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	assert(input);
@@ -1033,8 +1030,6 @@ static uint16_t lfsr(uint16_t v)
 	return (v >> 1) ^ (-(v & 1u) & 0x400b);
 }
 
-/**@todo allow for realistic timing of things like the UART, debounce time outs
- * and other events */
 static void h2_io_update_default(h2_soc_state_t *soc)
 {
 	assert(soc);
@@ -1194,9 +1189,6 @@ typedef struct
 	char *description;
 } debug_command_t;
 
-/** @todo implement all these instructions and more from
- * http://thestarman.pcministry.com/asm/debug/debug.htm as
- * well as run for x cycles, and call (not just jump) */
 static const debug_command_t debug_commands[] = {
 	{ .cmd = 'a', .argc = 1, .arg1 = DBG_CMD_NUMBER, .arg2 = DBG_CMD_NO_ARG, .description = "assemble               " },
 	{ .cmd = 'b', .argc = 1, .arg1 = DBG_CMD_EITHER, .arg2 = DBG_CMD_NO_ARG, .description = "set break point        " },
@@ -1224,7 +1216,6 @@ static const debug_command_t debug_commands[] = {
 	{ .cmd = -1,  .argc = 0, .arg1 = DBG_CMD_EITHER, .arg2 = DBG_CMD_NO_ARG, .description = NULL },
 };
 
-/**@todo install signal handler for CTRL+C that exits to the debugger */
 static void debug_command_print_help(FILE *out, const debug_command_t *dc)
 {
 	assert(out);
@@ -1446,7 +1437,6 @@ again:
 				break;
 			}
 			for(uint16_t i = num1; i < num2; i++) {
-				/**@todo reverse lookup on all labels */
 				fprintf(ds->output, "%04"PRIx16 ":\t", i);
 				disassembler_instruction(h->core[i], ds->output, symbols);
 				fputc('\n', ds->output);
@@ -2068,8 +2058,7 @@ again:
 
 /********* PARSER *********/
 
-/** @todo Each statement here could be turned into a string and printed out
- * when an error occurs, or all of them printed out as a help message.
+/**
  *
  * Grammar:
  *
@@ -2816,7 +2805,6 @@ typedef struct {
 	size_t len;
 	bool inline_bit;
 	uint16_t code[32];
-	/**@todo add immediate field, and fields to turn assembly on/off */
 } built_in_words_t;
 
 static built_in_words_t built_in_words[] = {
@@ -2997,9 +2985,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 	}
 	case SYM_DEFINITION:
-		/**@todo Add mode bits field to word header (for immediate and
-		 * hidden words: They could be added into the PWD field as
-		 * the highest bits are not a valid RAM address */
 		if(n->bits && !(a->mode & MODE_COMPILE_WORD_HEADER))
 			assembly_error(e, "cannot modify word bits (immediate/hidden/inline) if not in compile mode");
 		if(a->mode & MODE_COMPILE_WORD_HEADER) {
