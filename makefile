@@ -19,39 +19,6 @@ TIME=
 
 OS_FLAGS =
 # From: https://stackoverflow.com/questions/714100/os-detecting-makefile
-#
-# ifeq ($(OS),Windows_NT)
-#     OS_FLAGS += -D WIN32
-#     ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
-#         OS_FLAGS += -D AMD64
-#     else
-#         ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
-#             OS_FLAGS += -D AMD64
-#         endif
-#         ifeq ($(PROCESSOR_ARCHITECTURE),x86)
-#             OS_FLAGS += -D IA32
-#         endif
-#     endif
-# else
-#     UNAME_S := $(shell uname -s)
-#     ifeq ($(UNAME_S),Linux)
-#         OS_FLAGS += -D LINUX
-#     endif
-#     ifeq ($(UNAME_S),Darwin)
-#         OS_FLAGS += -D OSX
-#     endif
-#     UNAME_P := $(shell uname -p)
-#     ifeq ($(UNAME_P),x86_64)
-#         OS_FLAGS += -D AMD64
-#     endif
-#     ifneq ($(filter %86,$(UNAME_P)),)
-#         OS_FLAGS += -D IA32
-#     endif
-#     ifneq ($(filter arm%,$(UNAME_P)),)
-#         OS_FLAGS += -D ARM
-#     endif
-# endif
-# 
 ifeq ($(OS),Windows_NT)
 GUI_LDFLAGS = -lfreeglut -lopengl32 -lm 
 DF=
@@ -112,7 +79,7 @@ all:
 	pandoc -V geometry:margin=0.5in --toc $< -o $@
 
 %.htm: %.md
-	markdown < $^ > $@
+	pandoc --toc --self-contained $^ -o $@
 
 ## Assembler ===============================================================
 

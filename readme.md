@@ -81,7 +81,8 @@ registration. ISE needs to be on your path:
 
 To make the [C][] based toolchain:
 
-	make h2
+	make h2      (on Linux)
+	make h2.exe  (on Windows)
 
 To make a bit file that can be flashed to the target board:
 
@@ -596,7 +597,8 @@ program (see [h2.c][]). This simulator complements the [VHDL][] test bench
 To build it a [C][] compiler is needed, the build target "h2" will build the
 executable:
 
-	make h2
+	make h2     (on Linux)
+	make h2.exe (on Windows)
 
 And it can be run on the source file [h2.fth][] with the make target:
 
@@ -951,7 +953,8 @@ improve it.
 
 Building can be done with
 
-	make gui
+	make gui     (on Linux)
+	make gui.exe (on Windows)
 
 And running:
 
@@ -959,7 +962,8 @@ And running:
 
 Or:
 
-	./gui h2.hex
+	./gui   h2.hex (on Linux)
+	gui.exe h2.hex (on Windows)
 
 The [Linux][] build should work when the development package for [free glut][]
 is installed on your system, the [Windows][] build may require changes to the
@@ -1026,20 +1030,20 @@ assembled binary.
 
 The Forth words needed are:
 
-	+---------+-----------------------+
-	| Word    |                       |
-	+---------+-----------------------+
-	| .free   | show free space       |
-	| cp      | compile pointer       |
-	| pwd     | previous word pointer |
-	| @       | load                  |
-	| !       | store                 |
-	| cr      | print new line        |
-	| execute | execute               |
-	| decimal | set decimal output    |
-	| cells   | size of cell          |
-	| .       | print number          |
-	+---------+-----------------------+
+
+| Word    | Description           |
+| ------- | --------------------- |
+| .free   | show free space       |
+| cp      | compile pointer       |
+| pwd     | previous word pointer |
+| @       | load                  |
+| !       | store                 |
+| cr      | print new line        |
+| execute | execute               |
+| decimal | set decimal output    |
+| cells   | size of cell          |
+| .       | print number          |
+
 
 And of course numeric input, all of which are provided by this interpreter. The
 protocol is line oriented, the host with the program to transfer to the H2
@@ -1117,6 +1121,8 @@ value should never be zero, use "positive" not "natural".
 * Try not to specify constants with fixed lengths where an expression using
 "others" can be used instead, for example:
 
+<!-- -->
+
 	constant N: positive := 4;
 	signal a: std_logic_vector(N - 1 downto 0) := (others => '1');
 
@@ -1131,6 +1137,8 @@ Instead of:
 
 The style rules are as follows:
 
+* All words, including keywords, are to be in lower case. An underscore
+will separate words in names.
 * Tabs are to be used to indent text, a tab spacing of 8 has been used when
 making the VHDL code
 * Do not repeat the name of a entity, component, function or architecture,
@@ -1149,9 +1157,14 @@ justified, and there should be very few warnings in the entire project if any.
 synthesis tools can handle impure VHDL functions that can read the initial data
 (for a ROM or block RAM as an example) from textual files.
 
+<!-- -->
+
 An example of the formatting guidelines, this describes a simple arbitrary
 width register:
 
+	-- Lots of comments about what the unit does should go
+	-- here. Describe the waveforms, states and use ASCII
+	-- art where possible.
 	library ieee;
 	use ieee.std_logic_1164.all;
 	use ieee.numeric_std.all;    -- numeric_std not std_logic_arith
@@ -1210,6 +1223,8 @@ strict coding style.
 * Try to use only portable constructs and isolate the constructs that are not
   portable.
 
+<!-- -->
+
 There is nothing too surprising about the [C][] code within here, so some of
 the exceptions should be dealt with.
 
@@ -1217,6 +1232,8 @@ the exceptions should be dealt with.
 clauses look like, if they are a simple one liner such as an assignment or a
 mapping then the entire statement should occupy only a single line, for
 example:
+
+<!-- -->
 
 	static const char *alu_op_to_string(uint16_t instruction)
 	{
@@ -1250,6 +1267,8 @@ example:
 
 * Unnecessary braces are avoided:
 
+<!-- -->
+
 	if(foo)
 		bar();
 	else
@@ -1265,17 +1284,16 @@ example:
 * Guide to reusing the VHDL in this project, and component listing
 * Turn the [h2.fth][] into a literate program file, describing how to build up
 a Forth system like in "The Zen of eForth by C. H. Ting".
-* Make a bootloader/program loader
+* Make a bootloader/program loader as a single, simple program
 * Make diagrams of the SoC layout, take GIFs and pictures of the simulators and
 the running board.
-* Implement Forth interpreter on device
 * Memory interface to Nexys 3 board on board memory
-* A [Wishbone interface][] could be implemented for the H2 core
-and peripherals
 * Add documentation for the [Nexys3][] board in case it is no longer available
 in the future? Also port to different [FPGA][] boards.
 * Make a utility for generating text for the VGA screen.
 * Make a javascript based simulator for the H2, perhaps with [emscripten][]
+* Convert tables in this document to markdown tables as supported
+by [pandoc][].
 
 ## Forth
 
@@ -1346,5 +1364,17 @@ project.
 [K&R]: https://en.wikipedia.org/wiki/Indent_style#K.26R
 [X-Macro]: https://en.wikipedia.org/wiki/X_Macro
 [Windows]: https://en.wikipedia.org/wiki/Windows_7
+[pandoc]: https://pandoc.org
 
-<style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}</style>
+
+<!--
+
+https://www.w3schools.com/css/css_table.asp
+http://adis.ca/entry/2011/pretty-code-block-in-css/
+https://www.w3.org/Style/Examples/007/center.en.html
+https://css-tricks.com/centering-css-complete-guide/
+-->
+
+<style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}
+table {width: 100%; border-collapse: collapse;}
+table, th, td{border: 1px solid black;}</style>

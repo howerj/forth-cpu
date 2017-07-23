@@ -330,8 +330,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : ?     ( a -- : display the contents in a memory cell )
 	@ . ;    ( very simple but useful command)
 
-( @todo Test cmove and the following words )
-
 : cmove ( b b u -- )
 	for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ;
 
@@ -424,7 +422,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : inline? ( pwd -- f : is inline? )
 	0x8000 and logical ;
 
-( @todo make this handle hidden words )
 : finder ( a u -- pwd -1 | 0 : find a word in the dictionary )
 	>r >r
 	last address
@@ -541,8 +538,6 @@ constant dump-length 16
 		2 spaces _type
 	next drop r> base ! ;
 
-( @todo cleanup skip and scan, they need simplifying )
-
 variable _test 0
 
 : lookfor ( b u c -- b u : skip until _test succeeds )
@@ -550,7 +545,7 @@ variable _test 0
 	begin
 		over c@ r@ - r@ =bl = _test @execute if rdrop exit then
 		1 /string dup 0=
-	until rdrop ;
+	until rdrop ; hidden
 
 skipTest: if 0> else 0<> then exit
 scanTest: if 0<= else 0= then exit
@@ -718,6 +713,7 @@ variable read-count      0
 
 : output ( c -- )
 	dup tx!
+	( drop exit \ @note The rest of this word is responsible for the large return stack usage )
 	cursor @ terminal
 	dup cursor @ u< if drop page else cursor ! then
 	wrote-count 1+! ;
