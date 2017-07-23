@@ -54,9 +54,13 @@ all:
 	@echo ""
 	@echo "Simulation:"
 	@echo ""
-	@echo "make simulation     - simulate design"
+	@echo "make simulation     - simulate VHDL design"
 	@echo "make viewer         - start waveform viewer for simulation results"
-	@echo "make h2             - make experimental C simulator"
+	@echo "make documentation  - build the PDF and HTML documentation"
+	@echo "make h2${EXE}             - build C based CLI emulator for the VHDL SoC"
+	@echo "make gui${EXE}            - build C based GUI emulator for the Nexys3 board"
+	@echo "make run            - run the C CLI emulator on h2.fth"
+	@echo "make grun           - run the GUI emulator on h2.hex"
 	@echo ""
 	@echo "Synthesis:"
 	@echo ""
@@ -74,6 +78,8 @@ all:
 	@echo ""
 
 ## Documentation ===========================================================
+
+documentation: readme.pdf readme.htm
 
 %.pdf: %.md
 	pandoc -V geometry:margin=0.5in --toc $< -o $@

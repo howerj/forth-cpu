@@ -61,6 +61,7 @@ You will require:
 * Digilent Adept2 runtime and Digilent Adept2 utilities available at
   <http://store.digilentinc.com/digilent-adept-2-download-only/>
 * [freeglut][] (for the GUI simulator only)
+* [pandoc][] for building the documentation
 
 [Xilinx ISE][] can (or could be) downloaded for free, but requires
 registration. ISE needs to be on your path:
@@ -276,10 +277,11 @@ The baud rate of the UART can be changed by rebuilding the VHDL project, bit
 length, parity bits and stop bits can only be changed with modifications to
 [uart.vhd][]
 
-|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
-| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7    6    5    4    3    2    1    0 |
-|  X |  X |TXWE|  X |  X |RXRE|  X |  X |               TXDO                    |
-
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|  X |  X |TXWE|  X |  X |RXRE|  X |  X |               TXDO                    |
+	+-------------------------------------------------------------------------------+
 
 	TXWE: UART RT Write Enable
 	RXRE: UART RX Read Enable
@@ -292,9 +294,11 @@ On the [Nexys3][] board there is a bank of LEDs that are situated next to the
 switches, these LEDs can be turned on (1) or off (0) by writing to LEDO. Each
 LED here corresponds to the switch it is next to.
 
-|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
-| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7    6    5    4    3    2    1    0 |
-|  X |  X |  X |  X |  X |  X |  X |  X |              LEDO                     |
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|  X |  X |  X |  X |  X |  X |  X |  X |              LEDO                     |
+	+-------------------------------------------------------------------------------+
 
 	LEDO: LED Output
 
@@ -570,7 +574,7 @@ interrupt number to the highest.
 Interrupts are lost when an interrupt with the same number occurs that has not
 been processed.
 
-# Assembler, Disassembler, Simulator and Debugger
+# The Toolchain
 
 The Assembler, Disassembler and [C][] based simulator for the H2 is in a single
 program (see [h2.c][]). This simulator complements the [VHDL][] test bench
@@ -685,7 +689,6 @@ The assembler the following directives:
 
 The built in words, with their instruction encodings:
 
-<!-- | XXXX   | F | E | D | C | B | A | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | -->
 
 | Word   | 0 | 1 | 1 |   ALU OPERATION   |T2N|T2R|N2A|R2P| RSTACK| DSTACK|
 |--------|---|---|---|-------------------|---|---|---|---|-------|-------|
@@ -930,7 +933,10 @@ or from mouse clicks.
 The simulator, how it looks and behaves, may be changed in the future to
 improve it.
 
-<!-- ![H2 GUI Simulator](info/forth-cpu-gui.gif "Running GUI H2 SoC Simulator") -->
+<!-- This GIF does not work for the PDF generation obviously
+![H2 GUI Simulator](info/forth-cpu-gui.gif "Running GUI H2 SoC Simulator")
+-->
+![H2 GUI Simulator](info/forth-cpu-gui.png "Running GUI H2 SoC Simulator")
 
 Building can be done with
 
@@ -957,6 +963,7 @@ The current key map is:
 	Left       Activate Left D-Pad Button, Release turns off
 	Right      Activate Right D-Pad Button, Release turns off
 	F1 - F8    Toggle Switch On/Off, F1 is left most, F8 Right Most
+	F11        Toggle UART/PS2 Keyboard Input
 	F12        Toggle Debugging Information
 	Escape     Quit simulator
 
@@ -981,7 +988,7 @@ VHDL-2008 standard.
 | util.vhd | MIT        | Richard J Howe  | A collection of generic components  |
 | h2.vhd   | MIT        | Richard J Howe  | H2 Forth CPU Core                   |
 | vga.vhd  | LGPL 3.0   | Javier V García | Text Mode VGA 80x40 Display         |
-| uart.vhd | Apache 2.0 | Peter A Bennett | UART, modified from orignal         |
+| uart.vhd | Apache 2.0 | Peter A Bennett | UART, modified from original        |
 | kbd.vhd  | ???        | Scott Larson    | PS/2 Keyboard                       |
 | led.vhd  | MIT        | Richard J Howe  | LED 7-Segment + Dot Display Driver  |
 
@@ -995,7 +1002,8 @@ it is contained within [h2.fth][].
 
 TODO:
 - Fully implement the Forth interpreter
-- Describe and show its operation on here
+- Describe and show its operation on here including memory layout, list of
+  words, word layout, ...
 
 # Using Forth as a bootloader
 
@@ -1259,6 +1267,79 @@ example:
 
 ## FORTH
 
+The Forth in [h2.fth][] used to build an actual Forth system for the target
+core is not a proper Forth, but a compiler for a Forth like language, this
+idiosyncratic language has its own way of doing things. The workings of the
+language will not be described in this section, only the coding standards and
+style guide.
+
+Either type of comment can be used, although "( )" comments are preferred,
+single line words should be short at only a few words, multi line words
+should be indented properly
+
+	: 1+ 1 + ;
+	: negate invert 1+ ;
+	: dnegate not >r not 1 um+ r> + ; ( d -- d )
+
+Tabs should be used for indentation and a stack comment present for long or
+complex words.
+
+	: ?rx ( -- c -1 | 0 : read in a character of input from UART )
+		iUart @ 0x0100 and 0= ( the value to test goes on one line )
+		if                    ( the 'if' on another line )
+			0x0400 oUart ! iUart @ 0xff and -1
+		else
+			0
+		then ; ( ';' is part of the final statement )
+
+	\ This word is too long for the stack comment and to be on a
+	\ single line
+	: parse ( c -- b u ; <string> )
+		>r tib >in @ + #tib @ >in @ - r> parser >in +! ;
+
+Space is seriously limited on the target device at only 8192 cells (16KiB), so
+words kept as short as possible, and programs highly factored. Speed is not so
+much of an issue as the board and core runs at 100MHz.
+
+Stack comments describe what values and Forth word takes and returns, it is
+good practice to make words that accept and return a fixed number of parameters
+but in certain circumstances it is advantages to return a variable number of
+arguments. The comments also describe the type of the arguments word accepts,
+the Forth kernel will do no checking on the data it gets however.
+
+Stack comments should be added with the following scheme:
+
+| Comment        | Meaning                             |
+|----------------|-------------------------------------|
+| a              | cell address                        |
+| n              | signed number                       |
+| u              | unsigned number                     |
+| b              | string address                      |
+| c              | single character                    |
+| d              | double width number (2 Cells)       |
+| f              | boolean flag (-1 = true, 0 = false) |
+| cfa            | code field address of a word        |
+| nfa            | name field address of a word        |
+| pwd            | previous word address of a word     |
+| &lt;string&gt; | a parsing word                      |
+
+Stack comments have the following format:
+
+	  Variable Stack Effects  Return stack Effects     Parsing    Description
+	( arguments -- returns;   R: arguments -- returns; <parses> : comment     )
+
+Examples of words and their stack comments:
+
+	dup   ( n -- n n : duplicate a number )
+	>r    ( n -- ; R: -- n : move a number to the return stack )
+	r>    ( -- n ; R: n -- : move a number from the return stack )
+	parse ( c -- b u; <string> : parse a word delimted by 'c' )
+	over  ( n1 n2 -- n1 n2 n1 : duplicate next on stack over top )
+
+Words can have their arguments numbered to make it clearer what the effects
+are.
+
+
 # To Do
 
 * Guide to reusing the VHDL in this project, and component listing
@@ -1274,6 +1355,8 @@ in the future? Also port to different [FPGA][] boards.
 * Make a javascript based simulator for the H2, perhaps with [emscripten][]
 * Convert tables in this document to markdown tables as supported
 by [pandoc][].
+* Move this file to "h2.md" and make a simpler "readme.md" with a short
+description and flashy GIFs
 
 ## Forth
 
@@ -1355,9 +1438,4 @@ https://www.w3.org/Style/Examples/007/center.en.html
 https://css-tricks.com/centering-css-complete-guide/
 -->
 
-<style type="text/css">
-body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}
-h1,h2,h3{line-height:1.2}
-table {width: 100%; border-collapse: collapse;}
-table, th, td{border: 1px solid black;}
-code { color: #091992; } </style>
+<style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}table {width: 100%; border-collapse: collapse;}table, th, td{border: 1px solid black;}code { color: #091992; } </style>

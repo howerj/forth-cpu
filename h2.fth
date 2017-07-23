@@ -202,7 +202,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	>r swap r> = >r = r> and ;
 \ : d<> d= 0= ; ( d d -- f )
 : abs dup 0< if negate then ;
-: count ( cs -- c-addr u )
+: count ( cs -- b u )
 	dup 1+ swap c@ ;
 	\ dup c@ swap 1+ swap ;
 : rot >r swap r> swap ;
@@ -255,7 +255,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : at-xy ( x y -- : set terminal cursor to x-y position )
 	256* or oVgaCursor ! ;
 
-: /string ( c-addr u1 u2 -- c-addr u : advance a string u2 characters )
+: /string ( b u1 u2 -- b u : advance a string u2 characters )
 	over min rot over + -rot - ;
 
 : last pwd @ ;
@@ -269,7 +269,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : cr =cr emit =lf emit ;
 : space =bl emit ;
 
-: type ( c-addr u -- : print a string )
+: type ( b u -- : print a string )
  	dup 0= if 2drop exit then
  	begin
  		swap dup c@ emit 1+ swap 1-
@@ -350,6 +350,9 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	#tib cell+ @ ;
 
 : echo _echo @execute ;
+
+( @todo ^h and ktap should optionally emit a delete key, and the terminal word
+should handle it as well )
 
 : ^h ( bot eot cur c -- bot eot cur )
 	>r over r@ < dup
@@ -481,10 +484,10 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : digit? ( char -- f : is a character a number in the current base )
 	>lower numeric? base @ u< ;
 
-: do-number ( n c-addr u -- n c-addr u : convert string )
+: do-number ( n b u -- n b u : convert string )
 	begin
 		( get next character )
-		2dup >r >r drop c@ dup digit? ( n char bool, R: c-addr u )
+		2dup >r >r drop c@ dup digit? ( n char bool, R: b u )
 		if   ( n char )
 			swap base @ * swap numeric? + ( accumulate number )
 		else ( n char )
@@ -496,7 +499,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		1 /string dup 0= ( advance string and test for end )
 	until ; hidden
 
-: >number ( n c-addr u -- n c-addr u : convert string )
+: >number ( n b u -- n b u : convert string )
 	base @ >r
 	over c@ 0x2D = if 1 /string -1 >r else 0 >r then ( -negative )
 	over c@ 0x24 = if 1 /string hex then ( $hex )
@@ -504,7 +507,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	r> if rot negate -rot then
 	r> base ! ;
 
-: number? ( c-addr u -- n f )
+: number? ( b u -- n f )
 	0 -rot
 	>number nip 0= ;
 
@@ -561,7 +564,7 @@ variable tmp 0
 	tmp @ scan swap r> - >r - r> ;
 
 : parse ( c -- b u ; <string> )
-  >r tib >in @ + #tib @ >in @ - r> parser >in +! ;
+	>r tib >in @ + #tib @ >in @ - r> parser >in +! ;
 
 : .( 41 parse type ; immediate
 : "(" 41 parse 2drop ; immediate
@@ -682,13 +685,14 @@ variable cursor 0  ( index into VGA text memory )
 : vga! ( n a -- : write to VGA memory and adjust cursor position )
 	 0xE000 or ! ;
 
-( This should also emit the ANSI Terminal code for page as well,
+( This should also emit the ANSI Terminal codes for paging as well,
 perhaps it could be a vectored word )
 : page ( -- : clear VGA screen )
 	0 cursor !
 	0x1FFF for =bl r@ vga! next ;
 
-\ @todo Optimize and extend (handle tabs, back spaces, etcetera )
+\ @todo Optimize and extend handle tabs, back spaces, delete, and
+\ even perhaps ANSI Terminal codes
 : terminal ( n a -- a : act like a terminal )
 	swap
 	dup =lf = if drop vgaX / 1+ dup 0 swap at-xy vgaX * exit then
