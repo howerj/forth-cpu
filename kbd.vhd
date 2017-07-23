@@ -107,7 +107,7 @@ begin
 	if rising_edge(clk) then
 		prev_ps2_code_new <= ps2_code_new; -- keep track of previous ps2_code_new values to determine low-to-high transitions
 		case state is
-	
+
 			-- ready state: wait for a new PS2 code to be received
 			when ready =>
 				if(prev_ps2_code_new = '0' AND ps2_code_new = '1') then -- new PS2 code received
@@ -116,7 +116,7 @@ begin
 				else                                                    -- no new PS2 code received yet
 					state <= ready;                                 -- remain in ready state
 				end if;
-	
+
 			-- new_code state: determine what to do with the new PS2 code
 			when new_code =>
 				if(ps2_code = x"F0") then    -- code indicates that next command is break
@@ -134,7 +134,7 @@ begin
 			when translate =>
 					break <= '0';    -- reset break flag
 					e0_code <= '0';  -- reset multi-code command flag
-	
+
 					-- handle codes for control, shift, and caps lock
 					case ps2_code is
 						when x"58" =>                   -- caps lock code
@@ -153,7 +153,7 @@ begin
 							shift_r <= NOT break;   -- update right shift flag
 						when others => null;
 					end case;
-	
+
 					-- translate control codes (these do not depend on shift or caps lock)
 					if(control_l = '1' OR control_r = '1') then
 						case ps2_code is
@@ -193,7 +193,7 @@ begin
 							when others => null;
 						end case;
 					else -- if control keys are not pressed
-	
+
 						-- translate characters that do not depend on shift, or caps lock
 						case ps2_code is
 							when x"29" => ascii <= x"20"; -- space
@@ -207,7 +207,7 @@ begin
 								end if;
 							when others => null;
 						end case;
-	
+
 						-- translate letters (these depend on both shift and caps lock)
 						if((shift_r = '0' AND shift_l = '0' AND caps_lock = '0') OR
 							((shift_r = '1' OR shift_l = '1') AND caps_lock = '1')) then  -- letter is lowercase
@@ -271,7 +271,7 @@ begin
 								when others => null;
 							end case;
 						end if;
-	
+
 						-- translate numbers and symbols (these depend on shift but not caps lock)
 						if(shift_l = '1' OR shift_r = '1') then  -- key's secondary character is desired
 							case ps2_code is
@@ -324,15 +324,15 @@ begin
 								when others => null;
 							end case;
 						end if;
-	
+
 					end if;
-	
+
 				if(break = '0') then  -- the code is a make
 					state <= output;      -- proceed to output state
 				else                  -- code is a break
 					state <= ready;       -- return to ready state to await next PS2 code
 				end if;
-	
+
 			-- output state: verify the code is valid and output the ASCII value
 			when output =>
 				if(ascii(7) = '0') then            -- the PS2 code has an ASCII output
@@ -398,7 +398,7 @@ architecture rtl of ps2_kbd_core is
 	signal ps2_word: std_logic_vector(10 downto 0);       -- stores the ps2 data word
 	signal parity_error: std_logic;                       -- validate parity, start, and stop bits
 	signal count_idle: integer range 0 to clock_frequency/18000; --counter to determine PS/2 is idle
-	
+
 	-- declare debounce component for debouncing ps2 input signals
 	component debounce is
 	generic(counter_size : integer); -- debounce period (in seconds) = 2^counter_size/(clk freq in hz)
@@ -434,7 +434,7 @@ begin
 			ps2_word <= ps2_data_int & ps2_word(10 downto 1); -- shift in ps2 data bit
 		end if;
 	end process;
-	
+
 	-- verify that parity, start, and stop bits are all correct
 	parity_error <= not (not ps2_word(0) and ps2_word(10) and (ps2_word(9) xor ps2_word(8) xor
 	    ps2_word(7) xor ps2_word(6) xor ps2_word(5) xor ps2_word(4) xor ps2_word(3) xor
@@ -458,5 +458,5 @@ begin
 			end if;
 		end if;
 	end process;
-	
+
 end;

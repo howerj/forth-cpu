@@ -243,7 +243,7 @@ begin
 
 		din_n  <= din_c;
 		addr_n <= addr_c;
-		
+
 		if i_vga_control_we.crx = '1' then control_n.crx <= i_vga_control.crx; end if;
 		if i_vga_control_we.cry = '1' then control_n.cry <= i_vga_control.cry; end if;
 		if i_vga_control_we.ctl = '1' then control_n.ctl <= i_vga_control.ctl; end if;
@@ -313,7 +313,7 @@ begin
 		addr => font_addr,
 		din  => (others => '0'),
 		dout => font_dout);
-	
+
 end architecture;
 
 ----- VGA Top Level Component -------------------------------------------------
@@ -354,7 +354,7 @@ architecture rtl of vga_core is
 	signal B_int:     std_logic := '0';
 	signal hsync_int: std_logic := '1';
 	signal vsync_int: std_logic := '1';
-	
+
 	signal blank: std_logic := '0';
 	signal hctr:  integer range 793 downto 0 := 0;
 	signal vctr:  integer range 524 downto 0 := 0;
@@ -364,7 +364,7 @@ architecture rtl of vga_core is
 	signal scrx:  integer range 79 downto 0 := 0;  -- chr col   < 80 (7 bits)
 	signal chry:  integer range 11 downto 0 := 0;  -- chr high  < 12 (4 bits)
 	signal chrx:  integer range 7  downto 0 := 0;  -- chr width < 08 (3 bits)
-	
+
 	signal losr_ce: std_logic := '0';
 	signal losr_ld: std_logic := '0';
 	signal losr_do: std_logic := '0';
@@ -468,7 +468,7 @@ begin
 		signal rom_tmp: integer range 3071 downto 0;
 
 	begin
-	
+
 		u_hctr: work.vga_pkg.ctrm generic map (M => 794) port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
 		u_vctr: work.vga_pkg.ctrm generic map (M => 525) port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
 
@@ -522,7 +522,7 @@ begin
 
 	hsync <= hsync_int and vga_en;
 	vsync <= vsync_int and vga_en;
-	
+
 	-- Hardware Cursor
 	hw_cursor: block
 		signal small:   std_logic;
@@ -548,9 +548,9 @@ begin
 		curen2 <= (slowclk or (not cur_blink)) and cur_en;
 		yint   <= '1' when cur_mode = '0'            else small;
 		y      <= (yint and curpos and curen2) xor losr_do;
-		
+
 	end block;
-	
+
 end;
 ----- VGA Core ----------------------------------------------------------------
 

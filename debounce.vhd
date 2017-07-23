@@ -43,7 +43,7 @@ architecture rtl of debounce is
 begin
 
 	counter_set <= flipflops(0) xor flipflops(1);   --determine when to start/reset counter
-	
+
 	process(clk)
 	begin
 		if rising_edge(clk) then

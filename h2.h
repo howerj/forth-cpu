@@ -32,6 +32,8 @@ typedef struct {
 	bool     ie;  /**< interrupt enable */
 
 	break_point_t bp;
+	uint16_t rpm; /**< maximum value of rp ever encountered */
+	uint16_t spm; /**< maximum value of sp ever encountered */
 } h2_t; /**< state of the H2 CPU */
 
 typedef enum {

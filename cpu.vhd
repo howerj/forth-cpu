@@ -94,7 +94,7 @@ begin
 
 		irq_o  => h2_irq,
 		addr_o => h2_irq_addr,
-	
+
 		mask    => cpu_irc_mask,
 		mask_we => cpu_irc_mask_we);
 
@@ -124,7 +124,7 @@ begin
 		din       =>  din,
 		dout      =>  dout,
 		daddr     =>  daddr);
-		
+
 	mem_h2_0: entity work.dual_port_block_ram
 	generic map(
 		addr_length   => addr_length,

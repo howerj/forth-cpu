@@ -1,12 +1,12 @@
 /**@file      h2.c
  * @brief     Simulate the H2 SoC peripherals visually
  * @copyright Richard James Howe (2017)
- * @license   MIT 
+ * @license   MIT
  *
  * @todo Print debugging information for the H2 CPU to the screen, and make a
  * graphical debugger (simulation can be paused, single step through, etcetera)
  * @todo Replace magic numbers like "0.5" with 1/200 of the absolute difference
- * between x/y minimum and maximum. 
+ * between x/y minimum and maximum.
  * @todo Find out why the UART output is so slow!
  */
 
@@ -63,7 +63,7 @@ static world_t world = {
 	.window_width                = 800.0,
 	.window_x_starting_position  = 60.0,
 	.window_y_starting_position  = 20.0,
-	.window_scale_x              = 1.0, 
+	.window_scale_x              = 1.0,
 	.window_scale_y              = 1.0,
 	.tick                        = 0,
 	.halt_simulation             = false,
@@ -175,10 +175,10 @@ static void set_color(color_t color)
 
 /* see: https://www.opengl.org/discussion_boards/showthread.php/160784-Drawing-Circles-in-OpenGL */
 static void _draw_regular_polygon(
-		double x, double y, 
-		double orientation, 
-		double radius, double sides, 
-		bool lines, double thickness, 
+		double x, double y,
+		double orientation,
+		double radius, double sides,
+		bool lines, double thickness,
 		color_t color)
 {
 	glMatrixMode(GL_MODELVIEW);
@@ -222,17 +222,17 @@ static void _draw_rectangle(double x, double y, double width, double height, boo
 
 static void draw_rectangle_filled(double x, double y, double width, double height, color_t color)
 {
-	return _draw_rectangle(x, y, width, height, false, 0, color); 
+	return _draw_rectangle(x, y, width, height, false, 0, color);
 }
 
 static void draw_rectangle_line(double x, double y, double width, double height, double thickness, color_t color)
 {
-	return _draw_rectangle(x, y, width, height, true, thickness, color); 
+	return _draw_rectangle(x, y, width, height, true, thickness, color);
 }
 
 static double shape_to_sides(shape_t shape)
 {
-	static const double sides[] = 
+	static const double sides[] =
 	{
 		[TRIANGLE] = 1.5,
 		[SQUARE]   = 2,
@@ -270,7 +270,7 @@ static void draw_char(uint8_t c)
  *      https://stackoverflow.com/questions/538661/how-do-i-draw-text-with-glut-opengl-in-c
  *      https://stackoverflow.com/questions/20866508/using-glut-to-simply-print-text */
 static int draw_block(const uint8_t *msg, size_t len)
-{	
+{
 	assert(msg);
 	for(size_t i = 0; i < len; i++)
 		draw_char(msg[i]);
@@ -278,7 +278,7 @@ static int draw_block(const uint8_t *msg, size_t len)
 }
 
 static int draw_string(const char *msg)
-{	
+{
 	assert(msg);
 	return draw_block((uint8_t*)msg, strlen(msg));
 }
@@ -320,7 +320,7 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
-	set_color(color); 
+	set_color(color);
 	glTranslatef(x, y, 0);
 	glScaled(scale_x, scale_y, 1.0);
 	while(*fmt) {
@@ -330,7 +330,7 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 			continue;
 		}
 		switch(f = *fmt++) {
-		case 'c': 
+		case 'c':
 		{
 			char x[2] = {0, 0};
 			x[0] = va_arg(ap, int);
@@ -405,7 +405,7 @@ static void fill_textbox(textbox_t *t, const char *fmt, ...)
 	r *= char_width * 1.11;
 	r += 1;
 	va_end(ap);
-	t->width = MAX(t->width, r); 
+	t->width = MAX(t->width, r);
 	t->height += (char_height); /*correct?*/
 }
 
@@ -689,7 +689,7 @@ void draw_terminal(const world_t *world, terminal_t *t)
        	double char_height = scale.y / Y_MAX;
 	size_t cursor_x = t->cursor % TERMINAL_WIDTH;
 	size_t cursor_y = t->cursor / TERMINAL_WIDTH;
-	char *source = world->use_uart_input ? "UART" : "PS/2";
+	char *source = world->use_uart_input ? "UART RX / TX" : "PS/2 KBD RX / UART TX";
 
 	for(size_t i = 0; i < TERMINAL_HEIGHT; i++)
 		draw_block_scaled(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, t->m + (i*TERMINAL_WIDTH), TERMINAL_WIDTH, color);
@@ -700,7 +700,7 @@ void draw_terminal(const world_t *world, terminal_t *t)
 	if(now > seconds_to_ticks(world, 1.0)) {
 		t->blink_on = !(t->blink_on);
 		t->blink_count = world->tick;
-	
+
 	}
 
 	/**@note the cursor is deliberately in a different position compared to draw_vga(), due to how the VGA cursor behaves in hardware */
@@ -721,10 +721,10 @@ void update_terminal(terminal_t *t, fifo_t *f)
 		bool r = fifo_pop(f, &c);
 		if(r) {
 			switch(c) {
-			case '\t': 
+			case '\t':
 				t->cursor += 8;
 				break;
-			case '\n': 
+			case '\n':
 				t->cursor += TERMINAL_WIDTH;
 				t->cursor = (t->cursor / TERMINAL_WIDTH) * TERMINAL_WIDTH;
 				break;
@@ -764,7 +764,6 @@ static switch_t switches[SWITCHES_COUNT] = {
 	{ .x = SWITCHES_X * SWITCHES_SPACING * 2.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
 	{ .x = SWITCHES_X * SWITCHES_SPACING * 3.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
 	{ .x = SWITCHES_X * SWITCHES_SPACING * 4.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
-
 	{ .x = SWITCHES_X * SWITCHES_SPACING * 5.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
 	{ .x = SWITCHES_X * SWITCHES_SPACING * 6.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
 	{ .x = SWITCHES_X * SWITCHES_SPACING * 7.0, .y = SWITCHES_Y, .angle = SWITCHES_ANGLE, .radius = SWITCHES_RADIUS, .on = false },
@@ -865,7 +864,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 	if(debug_on)
 		*debug_on = false;
 	switch(addr) {
-	case iUart:        
+	case iUart:
 		{
 			uint16_t r = 0;
 			r |= fifo_is_empty(uart_tx_fifo) << UART_TX_FIFO_EMPTY_BIT;
@@ -882,7 +881,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
 	/** @bug reading from VGA memory is broken for the moment */
-	case iVgaTxtDout:   return 0; 
+	case iVgaTxtDout:   return 0;
 	case iPs2:
 		{
 			uint8_t c = 0;
@@ -921,12 +920,12 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 				soc->uart_getchar_register = c;
 			}
 			break;
-	case oLeds:       soc->leds           = value; 
+	case oLeds:       soc->leds           = value;
 			  for(size_t i = 0; i < LEDS_COUNT; i++)
 				  leds[i].on = value & (1 << i);
 			  break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
-	case oVgaCtrl:    soc->vga_control    = value; 
+	case oVgaCtrl:    soc->vga_control    = value;
 			  vga.control         = value;
 			  break;
 	case oVgaCursor:  soc->vga_cursor     = value;
@@ -935,7 +934,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 			  break;
 	case o8SegLED:    for(size_t i = 0; i < SEGMENT_COUNT; i++)
 				  segments[i].segment = (value >> ((SEGMENT_COUNT - i - 1) * 4)) & 0xf;
-			  
+
 			  soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
@@ -991,20 +990,14 @@ static void draw_debug_h2(h2_t *h, double x, double y)
 	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE };
 	assert(h);
 
-	static unsigned rpm = 0; 
-	static unsigned spm = 0;
-
-	spm = MAX(spm, h->sp);
-	rpm = MAX(rpm, h->rp);
-
 	fill_textbox(&t, "tos:  %u\n", h->tos);
 	/**@todo Replace with memory dumping routine, and also allow a dump of
 	 * main memory to be shown with alternating screens */
 	fill_textbox(&t, "%u %u %u %u", h->dstk[0], h->dstk[1], h->dstk[2], h->dstk[3]);
 	fill_textbox(&t, "%u %u %u %u", h->dstk[1], h->dstk[2], h->dstk[3], h->dstk[4]);
 	fill_textbox(&t, "pc:   %u\n", h->pc);
-	fill_textbox(&t, "rp:   %u (max %u)\n", h->rp, rpm);
-	fill_textbox(&t, "dp:   %u (max %u)\n", h->sp, spm);
+	fill_textbox(&t, "rp:   %u (max %u)\n", h->rp, h->rpm);
+	fill_textbox(&t, "dp:   %u (max %u)\n", h->sp, h->spm);
 	fill_textbox(&t, "ie:   %s\n", h->ie ? "true" : "false");
 
 	draw_textbox(&t);
@@ -1044,7 +1037,8 @@ static void keyboard_special_handler(int key, int x, int y)
 	case GLUT_KEY_F7:    switches[6].on = !(switches[6].on); break;
 	case GLUT_KEY_F8:    switches[7].on = !(switches[7].on); break;
 
-	case GLUT_KEY_F12:   world.debug_extra    = !(world.debug_extra); break;
+	case GLUT_KEY_F11:   world.use_uart_input = !(world.use_uart_input); break;
+	case GLUT_KEY_F12:   world.debug_extra    = !(world.debug_extra);    break;
 	default:
 		break;
 	}
@@ -1216,7 +1210,7 @@ static void initialize_rendering(char *arg_0)
 	glutInitWindowPosition(world.window_x_starting_position, world.window_y_starting_position);
 	glutInitWindowSize(world.window_width, world.window_height);
 	glutCreateWindow("H2 Simulator (GUI)");
-	glShadeModel(GL_FLAT);   
+	glShadeModel(GL_FLAT);
 	glEnable(GL_DEPTH_TEST);
 	glutKeyboardFunc(keyboard_handler);
 	glutSpecialFunc(keyboard_special_handler);
@@ -1252,7 +1246,7 @@ int main(int argc, char **argv)
 
 	uart_rx_fifo = fifo_new(UART_FIFO_DEPTH);
 	uart_tx_fifo = fifo_new(UART_FIFO_DEPTH);
-	ps2_rx_fifo  = fifo_new(1);
+	ps2_rx_fifo  = fifo_new(8 /* should be 1 */);
 
 	for(int i = 0; i < VGA_MEMORY_SIZE / VGA_WIDTH; i++)
 		memset(vga.m + (i * VGA_WIDTH), ' '/*'a'+(i%26)*/, VGA_MEMORY_SIZE / VGA_WIDTH);

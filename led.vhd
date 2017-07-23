@@ -10,7 +10,7 @@
 --|
 --| @note To make this module more generic a direct addressing mode could
 --| be added which would allow the user to write to each segment directly
---| instead of it being translated with either the "hex_to_8segment" or 
+--| instead of it being translated with either the "hex_to_8segment" or
 --| "bcd_to_8segment" functions. This could be selected with a control
 --| register, along with which function is used (the functions are currently
 --| selected at compile time with generics).

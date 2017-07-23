@@ -1,7 +1,7 @@
 /**@file uart.c
  * @brief This is a program for transferring data via the UART to the target
  * board, it is currently Linux only (not tested on other Unixen). It sends
- * a byte via a UART (115200 baud, 8 bits, 1 stop bit). 
+ * a byte via a UART (115200 baud, 8 bits, 1 stop bit).
  *
  * @author Richard James Howe
  * @copyright Richard James Howe (c) 2017

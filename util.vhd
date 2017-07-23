@@ -9,8 +9,8 @@
 --| @email          howe.r.j.89@gmail.com
 --|
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
---| vice versa), pulse generator, population count, priority encoder, types, 
---| gray codes, Manchester encoder/decoder and other generic functions 
+--| vice versa), pulse generator, population count, priority encoder, types,
+--| gray codes, Manchester encoder/decoder and other generic functions
 --| and components. Configurable Logic Block primitives could also be
 --| provided.
 --| @todo Some simple communications primitives could be added in here, such
@@ -61,7 +61,7 @@ package util is
 			we:      in  std_logic;
 			di:      in  std_logic;
 			do:      out std_logic;
-	
+
 			-- optional
 			load_we: in  std_logic := '0';
 			load_i:  in  std_logic_vector(N - 1 downto 0) := (others => '0');
@@ -262,7 +262,7 @@ package util is
 
 	component ucpu_tb is
 		generic(
-			clock_frequency: positive; 
+			clock_frequency: positive;
 			file_name: string := "ucpu.bin");
 	end component;
 
@@ -1080,18 +1080,18 @@ begin
 	fifo_proc: process (clk, rst)
 		type fifo_memory is array (0 to fifo_depth - 1) of std_logic_vector (data_width - 1 downto 0);
 		variable memory: fifo_memory;
-		
+
 		variable head: natural range 0 to fifo_depth - 1;
 		variable tail: natural range 0 to fifo_depth - 1;
-		
+
 		variable looped: boolean;
 	begin
 		if rst = '1' then
 			head := 0;
 			tail := 0;
-			
+
 			looped := false;
-			
+
 			full  <= '0';
 			empty <= '1';
 			do    <= (others => '0');
@@ -1101,7 +1101,7 @@ begin
 				if looped = true or head /= tail then
 					-- update data output
 					do <= memory(tail);
-					
+
 					-- update tail pointer as needed
 					if tail = fifo_depth - 1 then
 						tail   := 0;
@@ -1111,23 +1111,23 @@ begin
 					end if;
 				end if;
 			end if;
-			
+
 			if we = '1' then
 				if looped = false or head /= tail then
 					-- write data to memory
 					memory(head) := din;
-					
+
 					-- increment head pointer as needed
 					if head = fifo_depth - 1 then
 						head := 0;
-						
+
 						looped := true;
 					else
 						head := head + 1;
 					end if;
 				end if;
 			end if;
-			
+
 			-- update empty and full flags
 			if head = tail then
 				if looped then
@@ -1159,11 +1159,11 @@ architecture behavior of fifo_tb is
 	signal din:      std_logic_vector(data_width - 1 downto 0) := (others => '0');
 	signal re:       std_logic := '0';
 	signal we:       std_logic := '0';
-	
+
 	signal do:       std_logic_vector(data_width - 1 downto 0) := (others => '0');
 	signal empty:    std_logic := '0';
 	signal full:     std_logic := '0';
-	
+
 	signal clk, rst: std_logic := '0';
 	signal stop_w:   std_logic := '0';
 	signal stop_r:   std_logic := '0';
@@ -1186,10 +1186,10 @@ begin
 			do    => do,
 			full  => full,
 			empty => empty);
-	
+
 	write_process: process
 		variable counter: unsigned (data_width - 1 downto 0) := (others => '0');
-	begin		
+	begin
 		wait for clock_period * 20;
 
 		for i in 1 to 32 loop
@@ -1200,9 +1200,9 @@ begin
 			wait for clock_period * 1;
 			we <= '0';
 		end loop;
-		
+
 		wait for clock_period * 20;
-		
+
 		for i in 1 to 32 loop
 			counter := counter + 1;
 			din <= std_logic_vector(counter);
@@ -1211,11 +1211,11 @@ begin
 			wait for clock_period * 1;
 			we <= '0';
 		end loop;
-		
+
 		stop_w <= '1';
 		wait;
 	end process;
-	
+
 	read_process: process
 	begin
 		wait for clock_period * 60;
@@ -1464,10 +1464,10 @@ begin
 
 	uut: entity work.lfsr
 		generic map(tap => "0111001")
-		port map(clk => clk, 
-			 rst => rst, 
-			 we => we, 
-			 di => di, 
+		port map(clk => clk,
+			 rst => rst,
+			 we => we,
+			 di => di,
 			 do => do);
 
 	stimulus_process: process
@@ -1518,9 +1518,9 @@ begin
 
 	control_r: entity work.reg generic map(N => N) port map(clk => clk, rst => rst, di => control, we => control_we, do => control_o);
 	din_r:     entity work.reg generic map(N => N) port map(clk => clk, rst => rst, di => din,     we => din_we,     do => din_o);
-	
+
 	pins_i: for i in control_o'range generate
-		dout(i) <= pins(i)  when control_o(i) = '0' else '0'; 
+		dout(i) <= pins(i)  when control_o(i) = '0' else '0';
 		pins(i) <= din_o(i) when control_o(i) = '1' else 'Z';
 	end generate;
 
@@ -1607,7 +1607,7 @@ entity dual_port_block_ram is
 	-- The dual port Block RAM module can be initialized from a file,
 	-- or initialized to all zeros. The model can be synthesized (with
 	-- Xilinx's ISE) into BRAM.
-	--	
+	--
 	-- Valid file_type options include:
 	--
 	-- "bin"  - A binary file (ASCII '0' and '1', one number per line)
@@ -1616,7 +1616,7 @@ entity dual_port_block_ram is
 	--          be read from
 	--
 	-- @todo Change interface so it uses enumerations to specify the file
-	-- type, also hexadecimals also currently do not cope with converting to 
+	-- type, also hexadecimals also currently do not cope with converting to
 	-- vectors that are not multiples of 4 in length, this should be fixed.
 	-- @todo Read in actual binary data files, see: https://stackoverflow.com/questions/14173652
 	--
@@ -1755,7 +1755,7 @@ begin
 			a_dre  => dre,
 			a_din  => din,
 			a_dout => dout,
-		
+
 			b_clk  => '0',
 			b_addr => (others => '0'),
 			b_dwe  => '0',
@@ -1767,7 +1767,7 @@ end architecture;
 
 ------------------------- Data Source -----------------------------------------------
 --|
---| This module spits out a bunch of data 
+--| This module spits out a bunch of data
 --|
 --| @todo Create a single module that can be used to capture and replay data at
 --| a configurable rate. This could be used as a logger or as a waveform
@@ -1834,7 +1834,7 @@ end architecture;
 ------------------------- Data Source -----------------------------------------------
 
 ------------------------- uCPU ------------------------------------------------------
--- @brief An incredible simple microcontroller 
+-- @brief An incredible simple microcontroller
 -- @license MIT
 -- @author Richard James Howe
 -- @copyright Richard James Howe (2017)
@@ -1843,7 +1843,7 @@ end architecture;
 -- https://stackoverflow.com/questions/20955863/vhdl-microprocessor-microcontroller
 --
 --  INSTRUCTION    CYCLES 87 6543210 OPERATION
---  ADD WITH CARRY   2    00 ADDRESS A = A   + MEM[ADDRESS] 
+--  ADD WITH CARRY   2    00 ADDRESS A = A   + MEM[ADDRESS]
 --  NOR              2    01 ADDRESS A = A NOR MEM[ADDRESS]
 --  STORE            1    10 ADDRESS MEM[ADDRESS] = A
 --  JCC              1    11 ADDRESS IF(CARRY) { PC = ADDRESS, CLEAR CARRY }
@@ -1891,7 +1891,7 @@ begin
 	state_n     <= alu(1) nor state_c;           -- FETCH not taken or FETCH done
 	pc_n        <= unsigned(op(pc_n'range)) when (alu = "11"    and a_c(a_c'high) = '0') else -- Jump when carry set
 			pc_c                    when (state_c = '0' and alu(1) = '0')        else -- FETCH
-			pc_c + 1; -- EXECUTE 
+			pc_c + 1; -- EXECUTE
 
 	process(clk, rst)
 	begin
@@ -1927,7 +1927,7 @@ use ieee.math_real.all;
 
 entity ucpu_tb is
 	generic(
-		clock_frequency: positive; 
+		clock_frequency: positive;
 		file_name: string := "ucpu.bin");
 end entity;
 

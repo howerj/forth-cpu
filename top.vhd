@@ -91,7 +91,7 @@ architecture behav of top is
 
 	-- Basic IO register
 	---- LEDs/Switches
-	
+
 	signal ld_c, ld_n: std_logic_vector(7 downto 0):=  (others => '0');
 
 	---- VGA
@@ -173,7 +173,7 @@ begin
 		rx_fifo_not_empty <= not rx_fifo_empty;
 		tx_fifo_not_empty <= not rx_fifo_empty;
 
-		cpu_irc(0) <= '0'; 
+		cpu_irc(0) <= '0';
 		cpu_irc(1) <= rx_fifo_not_empty;
 		cpu_irc(2) <= rx_fifo_full;
 		cpu_irc(3) <= tx_fifo_not_empty;
@@ -260,7 +260,7 @@ begin
 		tx_fifo_full,
 		tx_fifo_empty,
 
-		lfsr_o, 
+		lfsr_o,
 
 		timer_control_o,
 		timer_counter_o)
@@ -358,7 +358,7 @@ begin
 				leds_reg_we <= '1';
 			when "110" => -- CPU Mask
 				cpu_irc_mask_we <= '1';
-			when "111" => 
+			when "111" =>
 				lfsr_i <= io_dout;
 				lfsr_i_we <= '1';
 			when others =>
@@ -428,14 +428,14 @@ begin
 
 	-- @todo The interface for reading from the VGA needs sorting
 	-- it is currently unusable
-	vga: block 
+	vga: block
 		signal vga_din_we_d: std_logic := '0';
 		signal vga_we_ram:   std_logic := '0';
 		signal vga_addr_we:  std_logic := '0';
 		signal vga_din_we:   std_logic := '0';
 		signal vga_addr:     std_logic_vector(12 downto 0) := (others => '0');
 		signal vga_din:      std_logic_vector(15 downto 0) := (others => '0');
-	begin 
+	begin
 		-- vga_din_we   <= '1' when io_wr = '1' and io_re = '0' and io_daddr(15) = '1' else '0';
 		vga_din_we   <= '1' when io_wr = '1' and io_daddr(15) = '1' else '0';
 		vga_addr_we  <= vga_din_we;
@@ -570,38 +570,38 @@ begin
 	lfsr_0: entity work.lfsr generic map(tap => lfsr_tap) port map(clk => clk, rst => rst, ce => '1', di => lfsr_i, we => lfsr_i_we, do => lfsr_o);
 
 	--- LFSR ----------------------------------------------------------
-    
+
 	--- uCPU ----------------------------------------------------------
 --      -- uCPU test code
 -- 	ucpu_block: block
 -- 		constant data_length: positive := 8;
 -- 		constant addr_length: positive := data_length - 2;
 -- 		constant file_name: string := "ucpu.bin";
--- 
+--
 -- 		signal a_addr: std_logic_vector(addr_length - 1 downto 0) := (others => '0');
 -- 		signal a_dout: std_logic_vector(data_length - 1 downto 0) := (others => '0');
--- 
+--
 -- 		signal b_dwe:  std_logic := '0';
 -- 		signal b_dre:  std_logic := '0';
 -- 		signal b_addr: std_logic_vector(addr_length - 1 downto 0) := (others => '0');
 -- 		signal b_din:  std_logic_vector(data_length - 1 downto 0) := (others => '0');
 -- 		signal b_dout: std_logic_vector(data_length - 1 downto 0) := (others => '0');
 -- 	begin
--- 		gpt0_nq <= b_din(0) when b_addr = "111111" else '0'; 
--- 
+-- 		gpt0_nq <= b_din(0) when b_addr = "111111" else '0';
+--
 -- 		ucpu_0: entity work.ucpu
 -- 		generic map(width => data_length)
 -- 		port map(
--- 			clk => clk, 
+-- 			clk => clk,
 -- 			rst => rst,
--- 			pc  => a_addr, 
+-- 			pc  => a_addr,
 -- 			op => a_dout,
 -- 			re  => b_dre,
 -- 			adr => b_addr,
 -- 			do => b_din,
 -- 			di => b_dout,
 -- 			we => b_dwe);
--- 			
+--
 -- 		ucpu_ram_0: entity work.dual_port_block_ram
 -- 		generic map(
 -- 			addr_length => addr_length,
@@ -615,16 +615,16 @@ begin
 -- 			a_addr  =>  a_addr,
 -- 			a_din   =>  (others => '0'),
 -- 			a_dout  =>  a_dout,
--- 
+--
 -- 			b_clk   =>  clk,
 -- 			b_dwe   =>  b_dwe,
 -- 			b_dre   =>  b_dre,
 -- 			b_addr  =>  b_addr,
 -- 			b_din   =>  b_din,
 -- 			b_dout  =>  b_dout);
--- 
+--
 -- 	end block;
- 
+
 	--- uCPU ----------------------------------------------------------
 
 -------------------------------------------------------------------------------

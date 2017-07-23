@@ -20,7 +20,7 @@
  * generation, but could be done by saving an array of nodes, each
  * location referring matching up with a location in the core, also
  * the disassembler could use the dictionary if it is present.
- * 
+ *
  *
  * @note Given a sufficiently developed H2 application, it should be possible
  * to feed the same inputs into h2_run and except the same outputs as the
@@ -231,11 +231,11 @@ typedef enum {
 	X(AND,    "and",    (OP_ALU_OP | MK_CODE(ALU_OP_T_AND_N)                | MK_DSTACK(DELTA_N1)))\
 	X(XOR,    "xor",    (OP_ALU_OP | MK_CODE(ALU_OP_T_XOR_N)                | MK_DSTACK(DELTA_N1)))\
 	X(OR,     "or",     (OP_ALU_OP | MK_CODE(ALU_OP_T_OR_N)                 | MK_DSTACK(DELTA_N1)))\
-	X(DEPTH,  "depth",  (OP_ALU_OP | MK_CODE(ALU_OP_DEPTH)                  | MK_DSTACK(DELTA_1)))\
+	X(DEPTH,  "sp@",    (OP_ALU_OP | MK_CODE(ALU_OP_DEPTH)                  | MK_DSTACK(DELTA_1)))\
 	X(T_N1,   "1-",     (OP_ALU_OP | MK_CODE(ALU_OP_T_DECREMENT)))\
 	X(IEN,    "seti",   (OP_ALU_OP | MK_CODE(ALU_OP_ENABLE_INTERRUPTS)      | MK_DSTACK(DELTA_N1)))\
 	X(ISIEN,  "iset?",  (OP_ALU_OP | MK_CODE(ALU_OP_INTERRUPTS_ENABLED)     | MK_DSTACK(DELTA_1)))\
-	X(RDEPTH, "rdepth", (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)                 | MK_DSTACK(DELTA_1)))\
+	X(RDEPTH, "rp@",    (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)                 | MK_DSTACK(DELTA_1)))\
 	X(TE0,    "0=",     (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
 	X(UP1,    "up1",    (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_DSTACK(DELTA_1)))\
 	X(NOP,    "nop",    (OP_ALU_OP | MK_CODE(ALU_OP_T)))\
@@ -359,8 +359,8 @@ static int indent(FILE *output, char c, unsigned i)
 static int string_to_long(int base, long *n, const char *s)
 {
 	char *end = NULL;
-	assert(base >= 0); 
-	assert(base != 1); 
+	assert(base >= 0);
+	assert(base != 1);
 	assert(base <= 36);
 	assert(n);
 	assert(s);
@@ -424,7 +424,7 @@ int h2_load(h2_t *h, FILE *hexfile)
 	assert(hexfile);
 	char line[80] = {0}; /*more than enough!*/
 	size_t i = 0;
-	
+
 	for(;fgets(line, sizeof(line), hexfile); i++) {
 		int r;
 		if(i >= MAX_CORE) {
@@ -971,7 +971,7 @@ void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 	fprintf(out, "Switches:      %02"PRIx8"\n",  soc->switches);
 	fprintf(out, "LFSR:          %04"PRIx16"\n", soc->lfsr);
 	fprintf(out, "Waiting:       %s\n",          soc->wait ? "true" : "false");
-	
+
 	if(verbose) {
 		fputs("VGA Memory:\n", out);
 		memory_print(out, 0, soc->vga, VGA_BUFFER_LENGTH, true);
@@ -989,7 +989,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
 	/** @bug reading from VGA memory is broken for the moment */
-	case iVgaTxtDout:   return 0; 
+	case iVgaTxtDout:   return 0;
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
 	default:
@@ -1050,7 +1050,7 @@ static void h2_io_update_default(h2_soc_state_t *soc)
 			if((soc->timer > (soc->timer_control & 0x1FFF))) {
 				/**@todo generate interrupt*/
 				soc->timer = 0;
-			}	
+			}
 		}
 	}
 }
@@ -1171,10 +1171,10 @@ static void h2_print(FILE *out, h2_t *h)
 	fputs("Variable Stack:\n", out);
 	fprintf(out, "tos:  %04"PRIx16"\n", h->tos);
 	memory_print(out, 1, h->dstk, STK_SIZE, false);
-	
+
 	fprintf(out, "pc:   %04"PRIx16"\n", h->pc);
-	fprintf(out, "rp:   %04"PRIx16"\n", h->rp);
-	fprintf(out, "dp:   %04"PRIx16"\n", h->sp);
+	fprintf(out, "rp:   %04"PRIx16" (max %04"PRIx16")\n", h->rp, h->rpm);
+	fprintf(out, "dp:   %04"PRIx16" (max %04"PRIx16")\n", h->sp, h->spm);
 	fprintf(out, "ie:   %s\n", h->ie ? "true" : "false");
 }
 
@@ -1185,7 +1185,7 @@ typedef enum {
 	DBG_CMD_EITHER,
 } debug_command_type_e;
 
-typedef struct 
+typedef struct
 {
 	int cmd;
 	int argc;
@@ -1236,7 +1236,7 @@ Hit 'Escape' when the simulation is and is reading from input to exit \n\
 into the back debugger.\n\n\
 Command list:\n\n";
 
-	static const char *arg_type[] = { 
+	static const char *arg_type[] = {
 		[DBG_CMD_NO_ARG] = "             ",
 		[DBG_CMD_NUMBER] = "number       ",
 		[DBG_CMD_STRING] = "string       ",
@@ -1310,7 +1310,7 @@ static int h2_debugger(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *
 	breaks = break_point_find(&h->bp, point);
 	if(breaks)
 		fprintf(ds->output, "\n === BREAK(0x%04"PRIx16") ===\n", h->pc);
-	
+
 	if(ds->step || breaks) {
 		char line[256];
 		char op[256], arg1[256], arg2[256];
@@ -1319,7 +1319,7 @@ static int h2_debugger(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *
 		uint16_t num1, num2;
 
 		ds->step = true;
-	
+
 again:
 		memset(line, 0, sizeof(line));
 		memset(op,   0, sizeof(op));
@@ -1346,14 +1346,14 @@ again:
 
 		if(debug_command_check(ds->output, debug_commands, op[0], argc-1, is_numeric1, is_numeric2) < 0)
 			goto again;
-		
+
 		switch(op[0]) {
 		case ' ':
 		case '\t':
 		case '\r':
 		case '\n':
 			break;
-		case 'a': 
+		case 'a':
 			fprintf(ds->output, "command '%c' not implemented yet!\n", op[0]);
 			break;
 		case 'f':
@@ -1394,7 +1394,7 @@ again:
 			}
 			log_level = num1;
 			break;
-		case 'b': 
+		case 'b':
 			if(!is_numeric1) {
 				if(debug_resolve_symbol(ds->output, arg1, symbols, &num1))
 					break;
@@ -1402,7 +1402,7 @@ again:
 			break_point_add(&h->bp, num1);
 			break;
 
-		case 'g': 
+		case 'g':
 			if(!is_numeric1) {
 				if(debug_resolve_symbol(ds->output, arg1, symbols, &num1))
 					break;
@@ -1469,7 +1469,7 @@ again:
 			}
 			fprintf(ds->output, "read: %"PRIx16"\n", io->in(io->soc, num1, NULL));
 			break;
-		
+
 		case 'k':
 			break_point_print(ds->output, &h->bp);
 			break;
@@ -1677,6 +1677,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			error("invalid instruction: %"PRId16, instruction);
 		}
 
+		h->rpm = MAX(h->rpm, h->rp);
+		h->spm = MAX(h->spm, h->sp);
 	}
 	return 0;
 }
@@ -2324,7 +2326,7 @@ static node_t *for_next(lexer_t *l)
 		r = node_grow(l, r);
 		expect(l, LEX_THEN);
 		r->o[2] = statements(l);
-	} 
+	}
 	expect(l, LEX_NEXT);
 	return r;
 }
@@ -2630,7 +2632,7 @@ static void generate(h2_t *h, assembler_t *a, uint16_t instruction)
 	 * The pattern matching could mostly be done with a ternary
 	 * "1"/"0"/"Don't care" matches on sequences of instructions.
 	 *
-	 * A FIFO could be used to hold the instructions before checking 
+	 * A FIFO could be used to hold the instructions before checking
 	 *
 	 * @bug This optimization works in the simulator but not
 	 * in the hardware, the reason it unknown. */
@@ -2794,7 +2796,7 @@ static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t 
 	assert(id);
 	assert(a);
 
-	for(i = 0; special[i]; i++) 
+	for(i = 0; special[i]; i++)
 		if(!strcmp(id, special[i]))
 			break;
 	if(!special[i])
@@ -2825,7 +2827,7 @@ static built_in_words_t built_in_words[] = {
 	 * compiling the other in-line-able, so the compiler can use them for
 	 * variable declaration and for...next loops */
 	/**@warning 1 lshift used, in the original j1.v it is not needed */
-	{ .name = "doVar", .inline_bit = false, .len = 3, .code = {CODE_FROMR, 0x8001, CODE_LSHIFT} },
+	{ .name = "doVar", .inline_bit = false, .len = 1, .code = {CODE_FROMR} },
 	{ .name = "r1-",   .inline_bit = false, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
 	{ .name = NULL,    .inline_bit = false, .len = 0, .code = {0} }
 };
@@ -2894,7 +2896,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			symbol_t *s = symbol_table_lookup(t, "doVar");
 			assert(s);
 			hole1 = hole(h, a);
-			fix(h, hole1, a->pwd); 
+			fix(h, hole1, a->pwd);
 			a->pwd = hole1 << 1;
 			pack_string(h, a, n->token->p.id, e);
 			generate(h, a, OP_LITERAL | s->value);
@@ -2908,7 +2910,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			assert(n->o[0]->token->type == LEX_STRING);
 			hole1 = pack_string(h, a, n->o[0]->token->p.id, e);
 		}
-		
+
 		/**@note The lowest bit of the address for memory loads is
 		 * discarded. */
 		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e);
@@ -2933,7 +2935,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		assemble(h, a, n->o[0], t, e);
 		generate(h, a, (n->type == SYM_BEGIN_AGAIN ? OP_BRANCH : OP_0BRANCH) | hole1);
 		break;
-	
+
 	case SYM_FOR_NEXT:
 		generate(h, a, CODE_TOR);
 		hole1 = here(h, a);
@@ -3011,7 +3013,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			assembly_error(e, "nested word definition is not allowed");
 		a->in_definition = true;
 		assemble(h, a, n->o[0], t, e);
-		generate(h, a, CODE_EXIT); 
+		generate(h, a, CODE_EXIT);
 		a->in_definition = false;
 		break;
 	case SYM_CHAR: /* [char] A  */
@@ -3045,14 +3047,14 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		uint16_t location, value;
 		symbol_t *l = NULL;
 		location = literal_or_symbol_lookup(n->token, t, e);
-		
+
 		/**@note Special variables should probably handled in a better
 		 * way */
 		if(n->value->type == LEX_LITERAL) {
 			value = n->value->p.number;
 		} else {
 			l = symbol_table_lookup(t, n->value->p.id);
-			if(l) { 
+			if(l) {
 				value = l->value;
 				/*if(l->type == SYMBOL_TYPE_CALL || l->type == SYMBOL_TYPE_LABEL)
 					value <<= 1;*/
@@ -3085,9 +3087,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		if(!(a->mode & MODE_COMPILE_WORD_HEADER))
 			break;
 
-		if(a->built_in_words_defined) 
+		if(a->built_in_words_defined)
 			assembly_error(e, "Built in words already defined!");
-
 		a->built_in_words_defined = true;
 
 		for(unsigned i = 0; built_in_words[i].name; i++) {
@@ -3101,7 +3102,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			symbol_table_add(t, SYMBOL_TYPE_CALL, built_in_words[i].name, here(h, a), e);
 			for(size_t j = 0; j < built_in_words[i].len; j++)
 				generate(h, a, built_in_words[i].code[j]);
-			generate(h, a, CODE_EXIT); 
+			generate(h, a, CODE_EXIT);
 		}
 		break;
 	default:
@@ -3298,7 +3299,7 @@ int h2_main(int argc, char **argv)
 	cmd.steps = DEFAULT_STEPS;
 
 #ifdef _WIN32
-	/* Windows Only: Put the used standard streams into binary mode. 
+	/* Windows Only: Put the used standard streams into binary mode.
 	 * Text mode sucks. */
 	_setmode(_fileno(stdin),  _O_BINARY);
 	_setmode(_fileno(stdout), _O_BINARY);

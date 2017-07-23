@@ -14,22 +14,26 @@ TODO:
 * Hex number printer
 * Bootloader: A super simple one, preferably on that takes up less than 100
 words
-* Minimal Forth interpreter 
 * Turn this into a literate file
-* Add assembler directives for setting starting position of
-program counter and the like
-* This will need to be optimized for size soon
-* Vectored words should be used so input can be taken from
-UART, or the P2/2 keyboard. The same should happen with the
-output, vectored output to either the VGA or UART 
+* This will need to be optimized for size soon, a mechanism for conditional
+compilation would help, or simply commenting out code that is not needed
+* The maximum value for the return stack depth is 24, out of a possible 32 this
+is quite high, this is not during general running though, but is still higher
+than desired.
+* Make a special version of exit, which does exactly the same as exit but with
+a different op-code value. This special version could be compiled in by ';', so
+the decompiler knows when a word ends.
+* A way to mark words in this file as run time only should be made, this could
+cause confusion otherwise
 
 Forth To Do:
 * Strings, Throw/Catch, abort, vocabularies, see, create/does, constant,
 variable, make/doer, ...
-* Optimization and size reduction
-
-
-)
+* Word for printing out the state of the interpreter would help, if a
+word specifically for printing out variables is produced this would help
+* "-1" is a commonly used constant, however it takes up two instructions,
+it is worth turning this into a word which pushes -1 onto the stack, however
+the maximum number of items on the stack is already too high )
 
 ( ======================== System Constants ================= )
 
@@ -41,7 +45,7 @@ will need an in-line bit, as well as an immediate bit )
 .built-in
 
 constant =exit         0x601c ( op code for exit )
-constant =invert       0x6600 ( op code for invert ) 
+constant =invert       0x6600 ( op code for invert )
 constant =bl           32     ( blank, or space )
 constant =cr           13     ( carriage return )
 constant =lf           10     ( line feed )
@@ -95,14 +99,14 @@ variable state   0 ( compiler state variable )
 
 ( These variables are for vectored word execution, there are
 set at the end of the file )
-variable _?key    0   
-variable _emit    0  
-variable _expect  0 
-variable _tap     0 
-variable _echo    0 
-variable _prompt  0 
-variable _eval    0  
-variable _number? 0 
+variable _?key    0
+variable _emit    0
+variable _expect  0
+variable _tap     0
+variable _echo    0
+variable _prompt  0
+variable _eval    0
+variable _number? 0
 variable OK      "ok"
 ( ======================== System Variables ================= )
 
@@ -111,23 +115,22 @@ variable OK      "ok"
 : ! store drop ;
 : 256* 8 lshift ;
 : 256/ 8 rshift ;
-: sp@ depth ;
 : 1+ 1 + ;
 : negate invert 1+ ;
 : - negate + ;
-: 2+ 2 + ;
-: 2- 2 - ;
+\ : 2+ 2 + ;
+\ : 2- 2 - ;
 : 2/ 1 rshift ;
-: 2* 1 lshift ;
-: cell- 2- ;
-: cell+ 2+ ;
-: cells 2* ;
+\ : 2* 1 lshift ;
+: cell- 2 - ;
+: cell+ 2 + ;
+: cells 1 lshift ;
 : ?dup dup if dup then ;
 \ : do-next r> r> ?dup if 1- >r @ >r exit then cell+ >r ;
 : >= < invert ;
 : >  swap < ;
 : u> swap u< ;
-: u>= u< invert ;
+\ : u>= u< invert ;
 : <> = invert ;
 : 0<> 0= invert ;
 : 0>  0 > ;
@@ -139,14 +142,14 @@ variable OK      "ok"
 : 1+! 1 swap +! ;
 : execute >r ;
 : c@ dup ( -2 and ) @ swap 1 and if 256/ else 0xff and then ;
-: c! 
+: c!
 	swap 0xff and dup 256* or swap
 	tuck dup ( - 2 and ) @ swap 1 and 0 = 0xff xor
 	>r over xor r> and xor swap ( - 2 and ) ! ;
 
 : !io ; ( Initialize I/O devices )
 : ?rx ( -- c -1 | 0 : read in a character of input from UART )
-	iUart @ 0x0100 and 0= 
+	iUart @ 0x0100 and 0=
 	if
 		0x0400 oUart ! iUart @ 0xff and -1
 	else
@@ -159,7 +162,7 @@ variable OK      "ok"
 ( @todo determine the correct value for this magic number by instruction
 counting )
 : ms ( n -- : wait for 'n' milliseconds )
-	for 24940 40ns next ; 
+	for 24940 40ns next ;
 
 : tx! ( c -- : write a character to UART )
 	begin iUart @ 0x0800 and until ( Wait until TX FIFO is not full )
@@ -197,8 +200,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : dnegate not >r not 1 um+ r> + ; ( d -- d )
 : d= ( d d -- f )
 	>r swap r> = >r = r> and ;
-: d<> ( d d -- f )
-	d= 0= ;
+\ : d<> d= 0= ; ( d d -- f )
 : abs dup 0< if negate then ;
 : count ( cs -- c-addr u )
 	dup 1+ swap c@ ;
@@ -216,15 +218,15 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		for >r dup um+ >r >r dup um+ r> + dup
 			r> r@ swap >r um+ r> or
 			if >r drop 1 + r> else drop then r>
-		next 
+		next
 		drop swap exit
 	then drop 2drop  -1 dup ;
 
 : m/mod ( d n -- r q ) \ floored division
 	dup 0< dup >r
-	if 
+	if
 		negate >r dnegate r>
-	then 
+	then
 	>r dup 0< if r@ + then r> um/mod r>
 	if swap negate swap then ;
 
@@ -269,7 +271,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : type ( c-addr u -- : print a string )
  	dup 0= if 2drop exit then
- 	begin 
+ 	begin
  		swap dup c@ emit 1+ swap 1-
  		dup 0=
  	until 2drop ;
@@ -295,7 +297,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : str   ( n -- b u : convert a signed integer to a numeric string )
 	dup >r                ( save a copy for sign )
 	abs                   ( use absolute of n )
-	<# #s                 ( convert all digits )        
+	<# #s                 ( convert all digits )
 	r> sign               ( add sign from n )
 	#> ;                  ( return number string addr and length )
 
@@ -352,9 +354,9 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : echo _echo @execute ;
 
 : ^h ( bot eot cur c -- bot eot cur )
-	>r over r@ < dup 
+	>r over r@ < dup
 	if
-		=bs dup echo =bl echo echo 
+		=bs dup echo =bl echo echo
 	then r> + ;
 
 : tap ( bot eot cur c -- bot eot cur )
@@ -370,13 +372,13 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : accept ( b u -- b u )
 	over + over
-	begin 
+	begin
 		2dup xor
-	while  
+	while
 		key  dup =bl -  95 u<
 		if tap else _tap @execute then
 	repeat drop over - ;
- 
+
 : expect ( b u -- ) _expect @execute span ! drop ;
 
 : query ( -- )
@@ -384,16 +386,16 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : allot cp +! ;
 
-: , here dup cell+ cp ! ! ;  
+: , here dup cell+ cp ! ! ;
 
 : =string ( a1 u2 a1 u2 -- f : string equality )
-	>r swap r> ( a1 a2 u1 u2 ) 
+	>r swap r> ( a1 a2 u1 u2 )
 	over <> if 3drop  0 exit then
 	dup  0= if 3drop -1 exit then
 	1-
 	for ( a1 a2 )
 		2dup c@ swap c@ <> if 2drop rdrop 0 exit then
-		1+ swap 1+ 
+		1+ swap 1+
 	next 2drop -1 ;
 
 : address ( a -- a : mask off any bits not used for the address )
@@ -408,8 +410,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : 2. swap . . ;
 
-: 2rdrop
-	r> rdrop rdrop >r ;
+\ : 2rdrop r> rdrop rdrop >r ;
 
 : logical ( n -- f )
 	0= 0= ;
@@ -433,7 +434,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		dup nfa count r> r> 2dup >r >r =string
 		if rdrop rdrop -1 exit then
 		@ address
-	repeat 
+	repeat
 	rdrop rdrop drop 0 exit ;
 
 : find
@@ -454,11 +455,11 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		dup @ hidden? 0= if dup .id then @ address
 	repeat drop cr ;
 
-: .base ( -- ) base @ decimal dup . base  ! ;
+\ : .base ( -- ) base @ decimal dup . base  ! ;
 
 : nuf? ( -- f ) key? dup if 2drop key =cr = then ;
 
-: ?exit if rdrop then ;
+\ : ?exit if rdrop then ;
 
 : decimal? ( c -- f : is character a decimal number? )
 	48 58 within ; ( '0' = 48, 58 = ':', or 9+1 )
@@ -507,7 +508,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	r> base ! ;
 
 : number? ( c-addr u -- n f )
-	0 -rot 
+	0 -rot
 	>number nip 0= ;
 
 ( @todo replace with XORShift )
@@ -517,64 +518,50 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : random ( -- u : get a pseudo random number )
 	iLfsr @ ;
 
-: pick 
+: pick
 	?dup if swap >r 1- pick r> swap exit then dup ;
 
-: _type ( b u -- )  
-	for 
-		aft count >char emit then 
+: _type ( b u -- )
+	for
+		aft count >char emit then
 	next drop ;
 
 : dm+ ( a u -- a )
 	over 5 u.r space
-	for 
-		aft count 3 u.r then 
+	for
+		aft count 3 u.r then
 	next ;
 
 constant dump-length 16
 
 : dump ( a u -- )
 	base @ >r hex dump-length /
-	for 
+	for
 		cr dump-length 2dup dm+ -rot
 		2 spaces _type
 	next drop r> base ! ;
 
 ( @todo cleanup skip and scan, they need simplifying )
 
-\ variable _test 0
-\ 
-\ : lookfor
-\ 	>r dup 0= if rdrop exit then
-\ 	begin
-\ 		over c@ r@ - r@ =bl = _test @execute if rdrop exit then
-\ 		1 /string dup 0=
-\ 	until rdrop ;
-\ 
-\ skipTest: if 0> else 0<> then exit
-\ scanTest: if 0<= else 0= then exit
-\ : skip ' skipTest _test ! lookfor ;
-\ : scan ' scanTest _test ! lookfor ;
- 
-: skip ( b u c -- b u : skip until not 'c' )
+variable _test 0
+
+: lookfor ( b u c -- b u : skip until _test succeeds )
 	>r dup 0= if rdrop exit then
 	begin
-		over c@ r@ - r@ =bl =  if 0> else 0<> then if rdrop exit then
+		over c@ r@ - r@ =bl = _test @execute if rdrop exit then
 		1 /string dup 0=
 	until rdrop ;
- 
-: scan ( b u c -- b u : scan until 'c' )
-	>r dup 0= if rdrop exit then
-	begin
-		over c@ r@ - r@ =bl = if 0<= else 0= then if rdrop exit then
-		1 /string dup 0=
-	until rdrop ;
- 
+
+skipTest: if 0> else 0<> then exit
+scanTest: if 0<= else 0= then exit
+: skip ' skipTest _test ! lookfor ;
+: scan ' scanTest _test ! lookfor ;
+
 ( @todo store tmp on the return stack with stack magic )
 variable tmp 0
 
 : parser ( b u c -- b u delta : )
-	tmp ! over >r 
+	tmp ! over >r
 	tmp @ skip 2dup
 	tmp @ scan swap r> - >r - r> ;
 
@@ -582,13 +569,13 @@ variable tmp 0
   >r tib >in @ + #tib @ >in @ - r> parser >in +! ;
 
 : .( 41 parse type ; immediate
-: "(" 41 parse 2drop ; immediate 
+: "(" 41 parse 2drop ; immediate
 : "\" #tib @ >in ! ; immediate
 
 : word parse here pack$ ;
 : char =bl parse drop c@ ;
 
-: .s ( -- ) cr depth for aft r@ pick . then next ( ."  <sp" ) ;
+: .s ( -- ) cr sp@ for aft r@ pick . then next ( ."  <sp" ) ;
 : free 0x1fff here - ;
 : .free free u. ;
 
@@ -600,31 +587,31 @@ them vectored words )
 
 : $interpret ( a u -- )
 	2dup find
-	if 
-		nip nip cfa 2/ execute 
+	if
+		nip nip cfa 2/ execute
 	else
 		number? 0= if drop ( else abort ) then
 	then ;
 
 : literal ( n -- )
-	dup 0x8000 and 
-	if 
-		invert 0x8000 or , =invert , 
-	else 
-		0x8000 or , 
+	dup 0x8000 and
+	if
+		invert 0x8000 or , =invert ,
+	else
+		0x8000 or ,
 	then ; immediate
 
-: $compile ( a u -- ) 
+: $compile ( a u -- )
 	2dup find
 	if
-		nip nip dup @ immediate? if 
+		nip nip dup @ immediate? if
 			cfa 2/ execute
-		else 
-			dup @ inline? if
+		else
+			dup @ inline? if ( could improve this by copy all data until exit is found )
 				cfa @ ,
 			else
 				cfa 2/ 0x4000 or , ( turn into a call )
-			then 
+			then
 		then
 	else
 		number? if literal ( else abort ) then
@@ -634,35 +621,38 @@ them vectored words )
 \ : "hide"      last address 0x4000 toggle ; ( make a parsing version )
 
 : [ ' $interpret _eval ! ; immediate
-: ] ' $compile   _eval ! ; 
+: ] ' $compile   _eval ! ;
 
 : token =bl parse ;
 
-: .ok ' $interpret _eval @ = if space OK count type space cr then ;
+: .ok ' $interpret _eval @ = if space OK count type space then cr ;
 
-: eval 
+: eval
 	begin token dup while _eval @execute repeat 2drop _prompt @execute ;
 
 : quit begin query eval again ;
 
-: ":" here last address , pwd ! =bl word count + cp ! ] ; 
+: ":" here last address , pwd ! =bl word count + aligned cp ! ] ;
 : "'" =bl parse find if cfa else ( -1 throw ) 0 then ; immediate
 : ";" =exit , [ ; immediate
 
-: "?branch" 2/ 0x2000 or , ; 
-: "branch" 2/ ( 0x0000 or ) , ; 
+: "?branch" 2/ 0x2000 or , ;
+: "branch" 2/ ( 0x0000 or ) , ;
 : "begin" here ; immediate
 : "until" call "?branch" ; immediate
 : "again" call "branch" ; immediate
 : "if" here 0 call "?branch" ; immediate
-: "then" here 2/ over @ or swap ! ; immediate 
+: "then" here 2/ over @ or swap ! ; immediate
 : "while" call "if" ; immediate
 : "repeat" swap call "again" call "then" ; immediate
 : recurse last cfa 2/ 0x4000 or , ; immediate
 : tail last cfa call "branch" ; immediate
 
-\ : create call ":" ' doVar , [ ;
-\ : "variable" create 0 , ;
+( create should use doVar, but that does not seem to work )
+\ : doVariable r> 1 lshift ;
+\ : create call ":" ' doVariable , [ ;
+: create call ":"  here 2 cells + literal =exit , [ ;
+: "variable" create 0 , ;
 
 ( ======================== Word Set ========================= )
 
@@ -702,7 +692,7 @@ perhaps it could be a vectored word )
 : page ( -- : clear VGA screen )
 	0 cursor !
 	0x1FFF for =bl r@ vga! next ;
-	
+
 \ @todo Optimize and extend (handle tabs, back spaces, etcetera )
 : terminal ( n a -- a : act like a terminal )
 	swap
@@ -727,10 +717,18 @@ variable read-count      0
 	?rx if -1 else ?ps2 then if read-count 1+! -1 else 0 then ;
 
 : output ( c -- )
-	dup tx! 
-	cursor @ terminal 
-	dup cursor @ u< if drop page else cursor ! then 
+	dup tx!
+	cursor @ terminal
+	dup cursor @ u< if drop page else cursor ! then
 	wrote-count 1+! ;
+
+( This routine must be written in assembly; begin...while...repeat compiles to
+simple branches
+
+@bug This doesn't work - yet! )
+\ : rp!
+\	begin dup rp@ = 0= while rdrop .break repeat drop .break ;
+
 
 ( ======================== Miscellaneous ==================== )
 
@@ -779,4 +777,5 @@ nextChar:
 .set _prompt  .ok        ( execution vector of prompt, default to '.ok'. )
 .set _eval    $interpret ( execution vector of eval,   default to $interpret )
 .set _number? number?    ( execution vector of number? default to number? )
+
 

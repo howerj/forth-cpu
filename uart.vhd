@@ -245,7 +245,7 @@ entity uart_core is
 end entity;
 
 architecture behav of uart_core is
-	
+
 	constant uart_tx_count_max: positive := 7;
 	constant uart_rx_count_max: positive := 7;
 	----------------------------------------------------------------------------
@@ -267,9 +267,9 @@ architecture behav of uart_core is
 				send_start_bit,
 				transmit_data,
 				send_stop_bit);
-	
+
 	signal  uart_tx_state: uart_tx_states := idle;
-	
+
 	signal  uart_tx_data_block:  std_logic_vector(7 downto 0) := (others => '0');
 	signal  uart_tx_data:        std_logic := '1';
 	signal  uart_tx_count:       integer range 0 to uart_tx_count_max := 0;
@@ -282,7 +282,7 @@ architecture behav of uart_core is
 	                            rx_get_data,
 	                            rx_get_stop_bit,
 	                            rx_send_block);
-	
+
 	signal  uart_rx_state:        uart_rx_states := rx_get_start_bit;
 	signal  uart_rx_bit:          std_logic := '1'; -- @note should the be 0 or 1?
 	signal  uart_rx_data_block:   std_logic_vector(7 downto 0) := (others => '0');

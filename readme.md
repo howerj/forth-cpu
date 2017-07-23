@@ -21,7 +21,7 @@ Email:
 This project implements a small stack computer tailored to executing Forth
 based on the [J1][] CPU. The processor has been rewritten in [VHDL][] from
 [Verilog][], and extended slightly. The project is a work in progress and is
-needs a lot of work before become usable. 
+needs a lot of work before become usable.
 
 The goals of the project are as follows:
 
@@ -33,10 +33,10 @@ The goals of the project are as follows:
 The H2 processor, like the [J1][], is a stack based processor that executes an
 instruction set especially suited for [FORTH][].
 
-The current target is the [Nexys3][] board, with a [Xilinx][] Spartan-6 XC6LX16-CS324 
-[FPGA][], new boards will be targeted in the future as this board is reaching it's 
-end of life. The [VHDL][] is written in a generic way, with hardware components 
-being inferred instead of explicitly instantiated, this should make the code 
+The current target is the [Nexys3][] board, with a [Xilinx][] Spartan-6 XC6LX16-CS324
+[FPGA][], new boards will be targeted in the future as this board is reaching it's
+end of life. The [VHDL][] is written in a generic way, with hardware components
+being inferred instead of explicitly instantiated, this should make the code
 fairly portable, although the interfaces to the [Nexys3][] board components are
 specific to the peripherals on that board.
 
@@ -143,7 +143,7 @@ The CPU has the following state within it:
 Loads and stores into the block RAM that holds the H2 program discard the
 lowest bit, every other memory operation uses the lower bit (such as jumps
 and loads and stores to Input/Output peripherals). This is so applications can
-use the lowest bit for character operations when accessing the program RAM. 
+use the lowest bit for character operations when accessing the program RAM.
 
 The instruction set is decoded in the following manner:
 
@@ -226,7 +226,7 @@ interface with devices on the [Nexys3][] board:
 
 * [VGA][] output device, text mode only, 80 by 40 characters from
   <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>
-* Timer 
+* Timer
 * [UART][] (Rx/Tx) with a [FIFO][]
 from <https://github.com/pabennett/uart>
 * [PS/2][] Keyboard
@@ -276,7 +276,7 @@ how the peripherals work as well.
 
 A UART with a fixed baud rate and format (115200, 8 bits, 1 stop bit) is
 present on the SoC. The UART has a FIFO of depth 8 on both the RX and TX
-channels. The control of the UART is split across oUart and iUart. 
+channels. The control of the UART is split across oUart and iUart.
 
 To write a value to the UART assert TXWE along with putting the data in TXDO.
 The FIFO state can be analyzed by looking at the iUart register.
@@ -383,7 +383,7 @@ bit changes the cursors shape.
 On the [Nexys3][] board there is a bank of 7 segment displays, with a dot
 (8-segment really), which can be used for numeric output. The LED segments
 cannot be directly addressed. Instead the value stored in L8SD is mapped
-to a hexadecimal display value (or a BCD value, but this requires regeneration 
+to a hexadecimal display value (or a BCD value, but this requires regeneration
 of the SoC and modification of a generic in the VHDL).
 
 The value '0' corresponds to a zero displayed on the LED segment, '15' to an
@@ -421,8 +421,8 @@ enabled within it.
 #### oLfsr
 
 This register contains the interface the output of the Linear Feedback Shift
-Register ([LFSR][]). It needs an initial non-zero seed value before it will start 
-counting, which can be supplied with iLfsr. 
+Register ([LFSR][]). It needs an initial non-zero seed value before it will start
+counting, which can be supplied with iLfsr.
 
 	+-------------------------------------------------------------------------------+
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -438,7 +438,7 @@ counting, which can be supplied with iLfsr.
 The VGA memory occupies the range 0xE000 to 0xFFFF, it can be written to (but
 not read from) like normal memory, except like all I/O registers the lowest bit
 is used for addressing, whereas in normal memory it is not. The lowest byte is
-display on the screen out of the 16-bit value. 
+display on the screen out of the 16-bit value.
 
 The value stored is treated as a [ISO 8859-1 (Latin-1)][] character (which is
 an extended [ASCII][] character set.
@@ -467,7 +467,7 @@ iSwitches contains input lines from multiple sources. The RX bit corresponds to
 the UART input line, it is the raw input without any processing. The buttons
 (BUP, BDWN, BLFT, BRGH, and BCNT) correspond to a [D-Pad][] on the [Nexys3][]
 board. The switches (TSWI) are the ones mentioned in oLeds, each have an LED
-next to them. 
+next to them.
 
 The switches and the buttons are already debounced in hardware so they do not
 have to be further processed once read in from these registers.
@@ -503,7 +503,7 @@ This register contains the contents stored in oTimerCtrl.
 
 #### iTimerDin
 
-This register contains the current value of the timers counter. 
+This register contains the current value of the timers counter.
 
 	+-------------------------------------------------------------------------------+
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
@@ -543,7 +543,7 @@ an [ASCII][] character is present in ACHR. Both PS2N and ACHR will be cleared.
 #### iLfsr
 
 This register contains the interface to the input of the Linear Feedback Shift
-Register ([LFSR][]). It needs an initial non-zero seed value before it will start 
+Register ([LFSR][]). It needs an initial non-zero seed value before it will start
 counting, the LFSR can be used to generate pseudo random numbers.
 
 	+-------------------------------------------------------------------------------+
@@ -640,10 +640,10 @@ assemble programs for the original [J1][] core.
 
 The assembler is actually a compiler for a pseudo Forth like language with a
 fixed grammar. It is a much more restricted language than Forth and cannot be
-extended within itself like Forth can. 
+extended within itself like Forth can.
 
 The main program can be found in [h2.fth][], which is still currently in
-testing. 
+testing.
 
 The assembler/compiler reads in a text file containing a program and produces a
 hex file which can be read in by the simulator, disassembler, the VHDL test
@@ -692,7 +692,7 @@ lexer to prevent this.
 
 The assembler the following directives:
 
-	.pc        Set the program counter 
+	.pc        Set the program counter
 	.allocate  Increment the program counter
 	.set       Set location in memory
 	.mode      Change compiler mode
@@ -776,7 +776,7 @@ The following control structures are available:
 	T if     A    then                     If T != 0 execute A
 	  begin  A T  until                    Execute T until T != 0
 	  begin  A    again                    Inifinite loop, execute A
-	  begin  A T  while   B repeat         Execute A, if T = 0 exit loop, else execute B 
+	  begin  A T  while   B repeat         Execute A, if T = 0 exit loop, else execute B
 	T for    A    next                     Execute loop T times (stores
 	                                       loop parameter on the return stack)
 	T for    A    aft     B then C next    Execute loop T times, skip B on first loop
@@ -794,7 +794,7 @@ consists of 16-bit hexadecimal numbers. It then attempts to disassemble the
 instructions. It can also be fed a symbols file which can be generated by the
 assembler and attempt to find the locations jumps and calls point to.
 
-The disassembler is used by a [tcl][] script called by [GTKwave][], it 
+The disassembler is used by a [tcl][] script called by [GTKwave][], it
 turns the instruction trace of the H2 from a series of numbers into the
 instructions and branch destinations that they represent. This makes debugging
 the VHDL much easier.
@@ -820,7 +820,7 @@ sections of memory to the screen. It can also be used to set breakpoints,
 single step and run through the code until a breakpoint is hit.
 
 To run the debugger either a hex file or a source file must be given:
-	
+
 	# -T turns debugging mode on
 	./h2 -T -r file.hex  # Run simulator
 	./h2 -T -R file.fth  # Assemble and run some code
@@ -833,7 +833,7 @@ is executed. A prompt should appear and the command line should look like this:
 
 	$ ./h2 -T -R h2.fth
 	Debugger running, type 'h' for a list of command
-	debug> 
+	debug>
 
 Break points can be set either symbolically or by program location, the 'b'
 command is used to set breakpoints:
@@ -841,7 +841,7 @@ command is used to set breakpoints:
 Numbers can be entered in octal (prefix the number with '0'), hexadecimal
 (prefix with '0x') or in decimal. As an example, the following three debug
 commands all set a breakpoint at the same location:
-	
+
 	debug> b 16
 	debug> b 0x10
 	debug> b 020
@@ -883,16 +883,16 @@ The '.' command can be used to display the H2 cores internal state:
 	debug> .
 	Return Stack:
 	0000: 0000 08aa 0883 017b 0000 031b 0000 ffb0 0000 02eb ffb5 0210 0167 0167
-	0167 0167 
+	0167 0167
 	0010: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
-	0000 0000 
+	0000 0000
 
 	Variable Stack:
 	tos:  0000
 	0001: 0000 0000 0000 0001 0004 0005 0000 ffb0 0000 0000 0000 0000 0000 0000
-	0000 0000 
+	0000 0000
 	0011: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
-	0000 0000 
+	0000 0000
 
 	pc:   0538
 	rp:   0001
@@ -927,9 +927,9 @@ mode).
 ## Graphical simulator
 
 A separate program can be compiled, tested under [Linux][] and [Windows][].
-This simulates the [Nexys3][] board peripherals that the SoC interfaces with, 
-but provides a graphical environment, unlike the command line utility. It is easier 
-to interact with the device and see what it is doing, but the debugging sessions 
+This simulates the [Nexys3][] board peripherals that the SoC interfaces with,
+but provides a graphical environment, unlike the command line utility. It is easier
+to interact with the device and see what it is doing, but the debugging sessions
 are a less controlled. It requires [free glut][].
 
 The simulator is a work in progress and is fairly crude, but the simulation of
@@ -985,16 +985,16 @@ screen.
 # VHDL Components
 
 The VHDL components used in this system are designed to be reusable and
-portable across different toolchains and vendors. Hardware components, like block 
+portable across different toolchains and vendors. Hardware components, like block
 RAM, are inferred and not explicitly instantiated. The components are also made
 to be as generic as possible, with most having selectable widths. This would be
 taken to the extreme, but unfortunately many vendors still do not support the
 VHDL-2008 standard.
-	
+
 	+--------+----------+---------------+------------------------------------+
 	| File   | License  | Author        | Description                        |
 	+--------+----------+---------------+------------------------------------+
-	|util.vhd|MIT       |Richard J Howe |A collection of generic components  | 
+	|util.vhd|MIT       |Richard J Howe |A collection of generic components  |
 	|h2.vhd  |MIT       |Richard J Howe |H2 Forth CPU Core                   |
 	|vga.vhd |LGPL 3.0  |Javier V García|Text Mode VGA 80x40 Display         |
 	|uart.vhd|Apache 2.0|Peter A Bennett|UART, modified from orignal         |
@@ -1044,7 +1044,7 @@ The Forth words needed are:
 And of course numeric input, all of which are provided by this interpreter. The
 protocol is line oriented, the host with the program to transfer to the H2
 (called PC) sends a line of text and expects a reply from the H2 board (called
-H2), 
+H2),
 
 	PC: decimal           ( set the H2 core to a known numeric output )
 	PC: .free cp @ . cr   ( query how much space is left, and where to put it )
@@ -1060,7 +1060,7 @@ H2),
 	PC: ADDR execute      ( Begin execution of word )
 
 The advantage of this "protocol" is that is human readable, and includes a
-debugger for the microcontroller it is operating on. 
+debugger for the microcontroller it is operating on.
 
 # A simple Forth block editor
 
@@ -1076,7 +1076,7 @@ conjunction with a simple block editor for a full Forth experience.
 
 There are several languages used throughout this project, all of which are
 radically different from each other and require their own set of coding
-standards and style guides. 
+standards and style guides.
 
 ## VHDL
 
@@ -1112,7 +1112,7 @@ component into a module that can be synthesized but not the other way around.
 * Use "downto" not "to" when specify variable ranges.
 * Use assertions throughout the code with the correct severity level ('failure'
 for when something has seriously gone wrong or 'error' for debugging purposes)
-* Constrain types and generic parameters if possible, as an example, if a generic 
+* Constrain types and generic parameters if possible, as an example, if a generic
 value should never be zero, use "positive" not "natural".
 * Try not to specify constants with fixed lengths where an expression using
 "others" can be used instead, for example:
@@ -1161,7 +1161,7 @@ width register:
 			N: positive); -- Generic parameters make for a generic component
 		port(
 			clk: in  std_logic; -- standard signal names
-			rst: in  std_logic; -- 
+			rst: in  std_logic; --
 			we:  in  std_logic;
 			di:  in  std_logic_vector(N - 1 downto 0);
 			do:  out std_logic_vector(N - 1 downto 0)); -- note the position of ");
