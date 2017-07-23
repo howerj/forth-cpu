@@ -888,7 +888,8 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			uint8_t c = 0;
 			bool char_arrived = fifo_pop(ps2_rx_fifo, &c);
 			return (char_arrived << PS2_NEW_CHAR_BIT) | c;
-		}	    
+		}
+	case iLfsr:     return soc->lfsr;
 	}
 	return 0;
 }
@@ -937,6 +938,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 			  
 			  soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
+	case oLfsr:       soc->lfsr           = value; break;
 	}
 }
 

@@ -21,7 +21,15 @@ program counter and the like
 * This will need to be optimized for size soon
 * Vectored words should be used so input can be taken from
 UART, or the P2/2 keyboard. The same should happen with the
-output, vectored output to either the VGA or UART )
+output, vectored output to either the VGA or UART 
+
+Forth To Do:
+* Strings, Throw/Catch, abort, vocabularies, see, create/does, constant,
+variable, make/doer, ...
+* Optimization and size reduction
+
+
+)
 
 ( ======================== System Constants ================= )
 
@@ -34,9 +42,10 @@ will need an in-line bit, as well as an immediate bit )
 
 constant =exit         0x601c ( op code for exit )
 constant =invert       0x6600 ( op code for invert ) 
-constant =bl           32
-constant =cr           13
-constant =lf           10
+constant =bl           32     ( blank, or space )
+constant =cr           13     ( carriage return )
+constant =lf           10     ( line feed )
+constant =bs           8      ( back space )
 
 ( Outputs: 0x6000 - 0x7FFF )
 constant oUart         0x6000
@@ -199,7 +208,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : min  2dup < if drop else nip then ;
 : max  2dup > if drop else nip then ;
 : >char ( c -- c : convert character to '_' if not ASCII or is control char )
-  0x7f and dup 127 bl within if drop [char] _ then ;
+  0x7f and dup 127 =bl within if drop [char] _ then ;
 
 : um/mod ( ud u -- ur uq )
 	2dup u<
@@ -256,7 +265,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	over @ xor swap ! ;
 
 : cr =cr emit =lf emit ;
-: space bl emit ;
+: space =bl emit ;
 
 : type ( c-addr u -- : print a string )
  	dup 0= if 2drop exit then
@@ -293,7 +302,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : nchars ( +n c -- ) \ "chars" in eForth, this is an ANS FORTH conflict
   swap 0 max for aft dup emit then next drop ;
 
-: spaces ( +n -- ) bl nchars ;
+: spaces ( +n -- ) =bl nchars ;
 
 : .r    ( n +n -- :display an integer in a field of n columns, right justified )
 	>r str                ( convert n to a number string )
@@ -328,7 +337,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	swap for swap aft 2dup c! 1+ then next 2drop ;
 
 : -trailing ( b u -- b u )
-	for aft bl over r@ + c@ <
+	for aft =bl over r@ + c@ <
 		if r> 1+ exit then then
 	next 0 ;
 
@@ -340,23 +349,21 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : tib ( -- a : terminal input buffer )
 	#tib cell+ @ ;
 
-( @bug The delete key does not seem to work for some reason, this needs
-figuring out, as it makes input much more difficult )
+: echo _echo @execute ;
 
-: ^h ( b b b -- b b b ) \ backspace
-  >r over r> swap over xor
-  if  8 _echo @execute
-     bl _echo @execute \ destructive
-      8 _echo @execute \ backspace
-  then ;
+: ^h ( bot eot cur c -- bot eot cur )
+	>r over r@ < dup 
+	if
+		=bs dup echo =bl echo echo 
+	then r> + ;
 
 : tap ( bot eot cur c -- bot eot cur )
-  dup _echo @execute over c! 1 + ;
+	dup echo over c! 1 + ;
 
 : ktap ( bot eot cur c -- bot eot cur )
-  dup 13 xor
-  if 8 xor if bl tap else ^h then exit
-  then drop swap drop dup ;
+	dup =cr xor
+	if =bs xor if =bl tap else ^h then exit
+	then drop swap drop dup ;
 
 : key? _?key @execute ;
 : key begin key? until ;
@@ -366,7 +373,7 @@ figuring out, as it makes input much more difficult )
 	begin 
 		2dup xor
 	while  
-		key  dup bl -  95 u<
+		key  dup =bl -  95 u<
 		if tap else _tap @execute then
 	repeat drop over - ;
  
@@ -444,12 +451,12 @@ figuring out, as it makes input much more difficult )
 	begin
 		dup
 	while
-		dup .id @ address
+		dup @ hidden? 0= if dup .id then @ address
 	repeat drop cr ;
 
 : .base ( -- ) base @ decimal dup . base  ! ;
 
-: nuf? ( -- f ) key? dup if 2drop key 13 = then ;
+: nuf? ( -- f ) key? dup if 2drop key =cr = then ;
 
 : ?exit if rdrop then ;
 
@@ -463,10 +470,10 @@ figuring out, as it makes input much more difficult )
 	[char] A [char] [ within ; ( 'Z' + 1 = '[' )
 
 : >upper ( c -- C : convert char to uppercase iff lower case )
-	dup lowercase? if bl xor then ;
+	dup lowercase? if =bl xor then ;
 
 : >lower ( C -- c : convert char to lowercase iff upper case )
-	dup uppercase? if bl xor then ;
+	dup uppercase? if =bl xor then ;
 
 : numeric? ( char -- n|-1 : convert character in 0-9 a-z range to number )
 	dup lowercase? if 97 - 10 + exit then ( 97 = 'a' )
@@ -519,34 +526,50 @@ figuring out, as it makes input much more difficult )
 	next drop ;
 
 : dm+ ( a u -- a )
-	over 4 u.r space
+	over 5 u.r space
 	for 
 		aft count 3 u.r then 
 	next ;
 
+constant dump-length 16
+
 : dump ( a u -- )
-	base @ >r hex 10 /
+	base @ >r hex dump-length /
 	for 
-		cr 10 2dup dm+ -rot
+		cr dump-length 2dup dm+ -rot
 		2 spaces _type
 	next drop r> base ! ;
 
 ( @todo cleanup skip and scan, they need simplifying )
 
+\ variable _test 0
+\ 
+\ : lookfor
+\ 	>r dup 0= if rdrop exit then
+\ 	begin
+\ 		over c@ r@ - r@ =bl = _test @execute if rdrop exit then
+\ 		1 /string dup 0=
+\ 	until rdrop ;
+\ 
+\ skipTest: if 0> else 0<> then exit
+\ scanTest: if 0<= else 0= then exit
+\ : skip ' skipTest _test ! lookfor ;
+\ : scan ' scanTest _test ! lookfor ;
+ 
 : skip ( b u c -- b u : skip until not 'c' )
 	>r dup 0= if rdrop exit then
 	begin
-		over c@ r@ - r@ bl = if 0> else 0<> then if rdrop exit then
+		over c@ r@ - r@ =bl =  if 0> else 0<> then if rdrop exit then
 		1 /string dup 0=
 	until rdrop ;
-
+ 
 : scan ( b u c -- b u : scan until 'c' )
 	>r dup 0= if rdrop exit then
 	begin
-		over c@ r@ - r@ bl = if 0<= else 0= then if rdrop exit then
+		over c@ r@ - r@ =bl = if 0<= else 0= then if rdrop exit then
 		1 /string dup 0=
 	until rdrop ;
-
+ 
 ( @todo store tmp on the return stack with stack magic )
 variable tmp 0
 
@@ -563,7 +586,7 @@ variable tmp 0
 : "\" #tib @ >in ! ; immediate
 
 : word parse here pack$ ;
-: char bl parse drop c@ ;
+: char =bl parse drop c@ ;
 
 : .s ( -- ) cr depth for aft r@ pick . then next ( ."  <sp" ) ;
 : free 0x1fff here - ;
@@ -600,43 +623,46 @@ them vectored words )
 			dup @ inline? if
 				cfa @ ,
 			else
-				cfa 2/ 0x4000 or ,
+				cfa 2/ 0x4000 or , ( turn into a call )
 			then 
 		then
 	else
 		number? if literal ( else abort ) then
 	then ;
 
-: "immediate" last address dup @ 0x2000 or swap ! ;
-: "hide"      last address dup @ 0x4000 or swap ! ;
+: "immediate" last address 0x2000 toggle ;
+\ : "hide"      last address 0x4000 toggle ; ( make a parsing version )
 
 : [ ' $interpret _eval ! ; immediate
 : ] ' $compile   _eval ! ; 
 
-: token bl parse ;
+: token =bl parse ;
 
 : .ok ' $interpret _eval @ = if space OK count type space cr then ;
 
 : eval 
 	begin token dup while _eval @execute repeat 2drop _prompt @execute ;
 
-\ : quit q: query .ok b: bl parse dup 0= if 2drop branch q then $interpret branch b ;
 : quit begin query eval again ;
 
-: ":" here last address , pwd ! bl word count + cp ! ] ; 
-: "'" bl parse find if cfa else ( -1 throw ) 0 then ; immediate
-: compile call "'" 2/ 0x4000 or , ; immediate
+: ":" here last address , pwd ! =bl word count + cp ! ] ; 
+: "'" =bl parse find if cfa else ( -1 throw ) 0 then ; immediate
 : ";" =exit , [ ; immediate
 
-\ : x compile * compile . compile cr ;
-\ 4 5 x
+: "?branch" 2/ 0x2000 or , ; 
+: "branch" 2/ ( 0x0000 or ) , ; 
+: "begin" here ; immediate
+: "until" call "?branch" ; immediate
+: "again" call "branch" ; immediate
+: "if" here 0 call "?branch" ; immediate
+: "then" here 2/ over @ or swap ! ; immediate 
+: "while" call "if" ; immediate
+: "repeat" swap call "again" call "then" ; immediate
+: recurse last cfa 2/ 0x4000 or , ; immediate
+: tail last cfa call "branch" ; immediate
 
-( @note a primitive bootloader should be made that:
-* prints out 
-
-Primitive 'evaluate' would use self modify code to write an instruction
-to a location and then execute it )
-
+\ : create call ":" ' doVar , [ ;
+\ : "variable" create 0 , ;
 
 ( ======================== Word Set ========================= )
 
@@ -675,13 +701,14 @@ variable cursor 0  ( index into VGA text memory )
 perhaps it could be a vectored word )
 : page ( -- : clear VGA screen )
 	0 cursor !
-	0x1FFF for bl r@ vga! next ;
+	0x1FFF for =bl r@ vga! next ;
 	
 \ @todo Optimize and extend (handle tabs, back spaces, etcetera )
 : terminal ( n a -- a : act like a terminal )
 	swap
 	dup =lf = if drop vgaX / 1+ dup 0 swap at-xy vgaX * exit then
 	dup =cr = if drop exit then
+	\ dup =bs = if 1- exit then
 	swap vgaTextSize mod tuck dup 1+ vgaX /mod at-xy vga! 1+ ;
 
 : segment! o8SegLED ! ; ( n -- : display a number on the LED 7/8 segment display )

@@ -2802,7 +2802,7 @@ static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t 
 
 	switch(i) {
 	case SPECIAL_VARIABLE_PC:   return h->pc << 1;
-	case SPECIAL_VARIABLE_PWD:  return a->pwd;
+	case SPECIAL_VARIABLE_PWD:  return a->pwd; /**@note already as a character address */
 	default: fatal("reached the unreachable: %zu", i);
 	}
 
@@ -2916,7 +2916,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_QUOTE:
 	{
 		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
-		if(!s || s->type != SYMBOL_TYPE_CALL)
+		if(!s || (s->type != SYMBOL_TYPE_CALL && s->type != SYMBOL_TYPE_LABEL))
 			assembly_error(e, "not a defined procedure: %s", n->token->p.id);
 		generate_literal(h, a, /*OP_CALL |*/ s->value);
 		break;
@@ -3054,6 +3054,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			l = symbol_table_lookup(t, n->value->p.id);
 			if(l) { 
 				value = l->value;
+				/*if(l->type == SYMBOL_TYPE_CALL || l->type == SYMBOL_TYPE_LABEL)
+					value <<= 1;*/
 			} else {
 				value = symbol_special(h, a, n->value->p.id, e);
 			}
