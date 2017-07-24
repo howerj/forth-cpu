@@ -11,7 +11,7 @@
 
 #define MAX_CORE             (8192u)
 #define STK_SIZE             (32u)
-#define START_ADDR           (8u)
+#define START_ADDR           (0u)
 
 #define H2_CPU_ID_SIMULATION (0xDEADu)
 #define H2_CPU_ID_VHDL       (0xCAFEu)

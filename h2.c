@@ -14,8 +14,6 @@
  * @todo Turn the diagrams in this file into help strings which can
  * be printed out
  * @todo Use the FIFO routines to simulate the H2 SoC FIFOs
- * @todo Change start address to be the same as in "h2.vhd", which is
- * now 0, this requires changes to the code generation.
  * @todo Make a source level debugger, this would affect the code
  * generation, but could be done by saving an array of nodes, each
  * location referring matching up with a location in the core, also
@@ -499,7 +497,7 @@ size_t fifo_count(fifo_t * fifo)
 	else if (fifo_is_full(fifo))
 		return fifo->size;
 	else if (fifo->head < fifo->tail)
-		return (fifo->head) + (fifo->size - fifo->tail);
+		return fifo->head + (fifo->size - fifo->tail);
 	else
 		return fifo->head - fifo->tail;
 }
@@ -1713,7 +1711,6 @@ typedef enum {
 	LEX_INLINE,
 	LEX_QUOTE,
 
-	LEX_ISR,
 	LEX_SET,
 	LEX_PC,
 	LEX_BREAK,
@@ -1757,7 +1754,6 @@ static const char *keywords[] =
 	[LEX_HIDDEN]    =  "hidden",
 	[LEX_INLINE]    =  "inline",
 	[LEX_QUOTE]     =  "'",
-	[LEX_ISR]       =  ".isr",
 	[LEX_SET]       =  ".set",
 	[LEX_PC]        =  ".pc",
 	[LEX_BREAK]     =  ".break",
@@ -2124,7 +2120,6 @@ again:
 	X(SYM_DEFINITION,          "definition")\
 	X(SYM_CHAR,                "[char]")\
 	X(SYM_QUOTE,               "'")\
-	X(SYM_ISR,                 "isr")\
 	X(SYM_SET,                 "set")\
 	X(SYM_PC,                  "pc")\
 	X(SYM_BREAK,               "break")\
@@ -2404,19 +2399,6 @@ static node_t *char_compile(lexer_t *l)
 	return r;
 }
 
-static node_t *isr(lexer_t *l)
-{
-	node_t *r;
-	assert(l);
-	r = node_new(l, SYM_ISR, 0);
-	expect(l, LEX_IDENTIFIER);
-	use(l, r);
-	if(!accept(l, LEX_IDENTIFIER))
-		expect(l, LEX_LITERAL);
-	use(l, r);
-	return r;
-}
-
 static node_t *mode(lexer_t *l)
 {
 	node_t *r;
@@ -2524,9 +2506,6 @@ again:
 	} else if(accept(l, LEX_IDENTIFIER)) {
 		r->o[i++] = defined_by_token(l, SYM_CALL_DEFINITION);
 		goto again;
-	} else if(accept(l, LEX_ISR)) {
-		r->o[i++] = isr(l);
-		goto again;
 	} else if(accept(l, LEX_SET)) {
 		r->o[i++] = set(l);
 		goto again;
@@ -2598,7 +2577,7 @@ typedef struct {
 	uint16_t pwd; /* previous word register */
 	uint16_t fence; /* mark a boundary before which optimization cannot take place */
 	symbol_t *do_next;
-	//symbol_t *do_var;
+	symbol_t *do_var;
 } assembler_t;
 
 static void update_fence(assembler_t *a, uint16_t pc)
@@ -2815,7 +2794,7 @@ static built_in_words_t built_in_words[] = {
 	 * compiling the other in-line-able, so the compiler can use them for
 	 * variable declaration and for...next loops */
 	/**@warning 1 lshift used, in the original j1.v it is not needed */
-	{ .name = "doVar", .inline_bit = false, .len = 1, .code = {CODE_FROMR} },
+	{ .name = "doVar", .inline_bit = false, .len = 3, .code = {CODE_FROMR, 0x8001, CODE_LSHIFT} },
 	{ .name = "r1-",   .inline_bit = false, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
 	{ .name = NULL,    .inline_bit = false, .len = 0, .code = {0} }
 };
@@ -2839,7 +2818,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	assert(h);
 	assert(t);
 	assert(e);
-	static const char *start_symbol = "start";
 
 	if(!n)
 		return;
@@ -2849,19 +2827,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 
 	switch(n->type) {
 	case SYM_PROGRAM:
-	{
-		/**@todo Remove special cased start symbol and replace with
-		 * assembler directives */
-		symbol_t *s;
-		uint16_t start = hole(h, a);
 		assemble(h, a, n->o[0], t, e);
-		if(!(s = symbol_table_lookup(t, start_symbol)))
-			assembly_error(e, "unable to locate start symbol: %s", start_symbol);
-		if(s->type != SYMBOL_TYPE_LABEL)
-			assembly_error(e, "start symbol '%s' can only be a label", start_symbol);
-		fix(h, start, OP_BRANCH | s->value);
 		break;
-	}
 	case SYM_STATEMENTS:
 		for(size_t i = 0; i < n->length; i++)
 			assemble(h, a, n->o[i], t, e);
@@ -2879,17 +2846,18 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e);
 		break;
 	case SYM_VARIABLE:
-		/**@todo add dictionary header */
-		/*if(a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined) {
-			symbol_t *s = symbol_table_lookup(t, "doVar");
-			assert(s);
+#if 0
+		if(a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined) {
+			a->do_var = a->do_var ? a->do_var : symbol_table_lookup(t, "doVar");
 			hole1 = hole(h, a);
 			fix(h, hole1, a->pwd);
 			a->pwd = hole1 << 1;
 			pack_string(h, a, n->token->p.id, e);
-			generate(h, a, OP_LITERAL | s->value);
+			generate(h, a, OP_CALL | a->do_var->value);
 		}
-		here(h, a); */
+#endif
+		here(h, a); 
+
 
 		if(n->o[0]->token->type == LEX_LITERAL) {
 			hole1 = hole(h, a);
@@ -3004,29 +2972,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_CHAR: /* [char] A  */
 		generate(h, a, OP_LITERAL | n->token->p.id[0]);
 		break;
-	case SYM_ISR:
-	{
-		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
-		uint16_t fixme = 0, fixval = 0;
-
-		if(!s || s->type != SYMBOL_TYPE_CALL)
-			assembly_error(e, "not a function call/defined symbol: %s", n->token->p.id);
-		if(n->value->type == LEX_IDENTIFIER) {
-			symbol_t *l = symbol_table_lookup(t, n->value->p.id);
-			if(!l || l->type != SYMBOL_TYPE_CONSTANT)
-				assembly_error(e, "identifier is not a constant: %s", n->value->p.id);
-			fixme  = l->value;
-			fixval = s->value;
-		} else {
-			assert(n->value->type == LEX_LITERAL);
-			fixme  = n->value->p.number;
-			fixval = s->value;
-		}
-		if(fixme >= NUMBER_OF_INTERRUPTS)
-			assembly_error(e, "invalid interrupt number: %"PRId16, fixme);
-		fix(h, fixme, fixval);
-		break;
-	}
 	case SYM_SET:
 	{
 		uint16_t location, value;
