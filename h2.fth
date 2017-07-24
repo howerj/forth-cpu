@@ -671,19 +671,18 @@ them vectored words )
 ( ======================== Miscellaneous ==================== )
 
 \ ccitt: ( crc c -- crc : calculate polynomial 0x1021 AKA "x16 + x12 + x5 + 1" )
-\	over 256/ xor           ( crc x )
-\	dup  4  rshift xor      ( crc x )
-\	dup  5  lshift xor      ( crc x )
-\	dup  12 lshift xor      ( crc x )
-\	swap 8  lshift xor exit ( crc )
-
-\ : crc ( b u -- u : calculate crc16-ccitt )
-\	( dup 0= if abort then )
-\ 	0xffff >r
-\	begin
-\		r> over c@ call ccitt >r
-\		1 /string dup 0=
-\	until 2drop r> ;
+\ 	over 256/ xor           ( crc x )
+\ 	dup  4  rshift xor      ( crc x )
+\ 	dup  5  lshift xor      ( crc x )
+\ 	dup  12 lshift xor      ( crc x )
+\ 	swap 8  lshift xor exit ( crc )
+\ 
+\ : crc 0xffff >r ( b u -- u : calculate ccitt-ffff CRC )
+\ begin dup while 
+\ 	r> over c@ call ccitt >r
+\ 	1 /string
+\ repeat 2drop r> ;
+ 
 
 ( Initial value of VGA
   BIT     MEANING
