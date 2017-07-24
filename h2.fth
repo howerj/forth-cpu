@@ -525,6 +525,7 @@ http://lars.nocrew.org/forth2012/core/FIND.html )
 : random  iLfsr @ ; ( -- u : get a pseudo random number )
 
 : pick ?dup if swap >r 1- pick r> swap exit then dup ;
+: roll  dup 0> if swap >r 1- roll r> swap else drop then ;
 
 : _type ( b u -- ) for aft count >char emit then next drop ;
 
@@ -668,6 +669,21 @@ them vectored words )
 ( ======================== Word Set ========================= )
 
 ( ======================== Miscellaneous ==================== )
+
+\ ccitt: ( crc c -- crc : calculate polynomial 0x1021 AKA "x16 + x12 + x5 + 1" )
+\	over 256/ xor           ( crc x )
+\	dup  4  rshift xor      ( crc x )
+\	dup  5  lshift xor      ( crc x )
+\	dup  12 lshift xor      ( crc x )
+\	swap 8  lshift xor exit ( crc )
+
+\ : crc ( b u -- u : calculate crc16-ccitt )
+\	( dup 0= if abort then )
+\ 	0xffff >r
+\	begin
+\		r> over c@ call ccitt >r
+\		1 /string dup 0=
+\	until 2drop r> ;
 
 ( Initial value of VGA
   BIT     MEANING
