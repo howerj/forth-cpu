@@ -125,6 +125,8 @@ typedef struct {
 	uint16_t lfsr;
 
 	bool wait;
+	bool interrupt;
+	uint8_t interrupt_selector;
 } h2_soc_state_t;
 
 typedef uint16_t (*h2_io_get)(h2_soc_state_t *soc, uint16_t addr, bool *debug_on);
@@ -161,6 +163,17 @@ typedef enum {
 	oIrcMask      = 0x6006,
 	oLfsr         = 0x6007,
 } h2_output_addr_t;
+
+typedef enum {
+	isrEntry,
+	isrRxFifoNotEmpty,
+	isrRxFifoFull,
+	isrTxFifoNotEmpty,
+	isrTxFifoFull,
+	isrKbdNew,
+	isrTimer,
+	isrBrnLeft,
+} h2_interrupt_address_t;
 
 void *allocate_or_die(size_t length);
 FILE *fopen_or_die(const char *file, const char *mode);

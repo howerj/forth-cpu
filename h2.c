@@ -19,13 +19,6 @@
  * location referring matching up with a location in the core, also
  * the disassembler could use the dictionary if it is present.
  *
- *
- * @note Given a sufficiently developed H2 application, it should be possible
- * to feed the same inputs into h2_run and except the same outputs as the
- * VHDL based CPU. This could be used as an advanced test bench. This could
- * be done instruction by instruction, or the data could be read in from a
- * file.
- *
  * The H2 CPU is a rewrite of the J1 Forth CPU in VHDL with some extensions,
  *
  * It is a stack based CPU with minimal state; a program counter, a top
@@ -1041,7 +1034,10 @@ static void h2_io_update_default(h2_soc_state_t *soc)
 		} else {
 			soc->timer++;
 			if((soc->timer > (soc->timer_control & 0x1FFF))) {
-				/**@todo generate interrupt*/
+				if(soc->timer_control & TIMER_INTERRUPT_ENABLE) {
+					soc->interrupt          = soc->irc_mask & (1 << isrTimer);
+					soc->interrupt_selector = soc->irc_mask & (1 << isrTimer);
+				}
 				soc->timer = 0;
 			}
 		}
@@ -1511,6 +1507,16 @@ again:
 	return 0;
 }
 
+static uint16_t interrupt_decode(uint8_t *vector)
+{
+	for(unsigned i = 0; i < NUMBER_OF_INTERRUPTS; i++)
+		if(*vector & (1 << i)) {
+			*vector ^= 1 << i;
+			return i;
+		}
+	return 0;
+}
+
 /**@todo make a incredibly simple version of the simulator only in a single C file */
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
 {
@@ -1546,7 +1552,13 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 		literal = instruction & 0x7FFF;
 		address = instruction & 0x1FFF; /* NB. also used for ALU OP */
 
-		/**@todo interrupt handling */
+		if(h->ie && io && io->soc->interrupt) {
+			rpush(h, h->pc << 1);
+			io->soc->interrupt = false;
+			h->pc = interrupt_decode(&io->soc->interrupt_selector);
+			continue;
+		}
+
 		pc_plus_one = (h->pc + 1) % MAX_CORE;
 
 		if(log_level >= LOG_DEBUG || ds.trace_on)
@@ -1572,7 +1584,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			uint16_t npc = pc_plus_one;
 
 			if(instruction & R_TO_PC)
-				npc = h->rstk[h->rp % STK_SIZE];
+				npc = h->rstk[h->rp % STK_SIZE] >> 1;
 
 			switch(ALU_OP(instruction)) {
 			case ALU_OP_T:        /* tos = tos; */ break;
@@ -1667,7 +1679,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			h->tos = tos;
 			h->pc = npc;
 		} else if (IS_CALL(instruction)) {
-			rpush(h, pc_plus_one);
+			rpush(h, pc_plus_one << 1);
 			h->pc = address;
 		} else if (IS_0BRANCH(instruction)) {
 			if(!dpop(h))
@@ -1746,35 +1758,39 @@ typedef enum {
 
 static const char *keywords[] =
 {
-	[LEX_CONSTANT]  =  "constant",
-	[LEX_CALL]      =  "call",
-	[LEX_BRANCH]    =  "branch",
-	[LEX_0BRANCH]   =  "0branch",
-	[LEX_BEGIN]     =  "begin",
-	[LEX_WHILE]     =  "while",
-	[LEX_REPEAT]    =  "repeat",
-	[LEX_AGAIN]     =  "again",
-	[LEX_UNTIL]     =  "until",
-	[LEX_FOR]       =  "for",
-	[LEX_AFT]       =  "aft",
-	[LEX_NEXT]      =  "next",
-	[LEX_IF]        =  "if",
-	[LEX_ELSE]      =  "else",
-	[LEX_THEN]      =  "then",
-	[LEX_DEFINE]    =  ":",
-	[LEX_ENDDEFINE] =  ";",
-	[LEX_CHAR]      =  "[char]",
-	[LEX_VARIABLE]  =  "variable",
-	[LEX_IMMEDIATE] =  "immediate",
-	[LEX_HIDDEN]    =  "hidden",
-	[LEX_INLINE]    =  "inline",
-	[LEX_QUOTE]     =  "'",
-	[LEX_SET]       =  ".set",
-	[LEX_PC]        =  ".pc",
-	[LEX_BREAK]     =  ".break",
-	[LEX_MODE]      =  ".mode",
-	[LEX_ALLOCATE]  =  ".allocate",
-	[LEX_BUILT_IN]  =  ".built-in",
+	[LEX_LITERAL]    = "literal",
+	[LEX_IDENTIFIER] = "identifier",
+	[LEX_LABEL]      = "label",
+	[LEX_STRING]     = "string",
+	[LEX_CONSTANT]   =  "constant",
+	[LEX_CALL]       =  "call",
+	[LEX_BRANCH]     =  "branch",
+	[LEX_0BRANCH]    =  "0branch",
+	[LEX_BEGIN]      =  "begin",
+	[LEX_WHILE]      =  "while",
+	[LEX_REPEAT]     =  "repeat",
+	[LEX_AGAIN]      =  "again",
+	[LEX_UNTIL]      =  "until",
+	[LEX_FOR]        =  "for",
+	[LEX_AFT]        =  "aft",
+	[LEX_NEXT]       =  "next",
+	[LEX_IF]         =  "if",
+	[LEX_ELSE]       =  "else",
+	[LEX_THEN]       =  "then",
+	[LEX_DEFINE]     =  ":",
+	[LEX_ENDDEFINE]  =  ";",
+	[LEX_CHAR]       =  "[char]",
+	[LEX_VARIABLE]   =  "variable",
+	[LEX_IMMEDIATE]  =  "immediate",
+	[LEX_HIDDEN]     =  "hidden",
+	[LEX_INLINE]     =  "inline",
+	[LEX_QUOTE]      =  "'",
+	[LEX_SET]        =  ".set",
+	[LEX_PC]         =  ".pc",
+	[LEX_BREAK]      =  ".break",
+	[LEX_MODE]       =  ".mode",
+	[LEX_ALLOCATE]   =  ".allocate",
+	[LEX_BUILT_IN]   =  ".built-in",
 
 	/* start of instructions */
 #define X(NAME, STRING, INSTRUCTION) [ LEX_ ## NAME ] = STRING,
@@ -1782,7 +1798,7 @@ static const char *keywords[] =
 #undef X
 	/* end of named tokens and instructions */
 
-	[LEX_ERROR]     =  NULL,
+	[LEX_ERROR]      =  NULL,
 	NULL
 };
 
@@ -2234,9 +2250,11 @@ static void use(lexer_t *l, node_t *n)
 }
 
 static int token_enum_print(token_e sym, FILE *output)
-{ /**@todo improve this function */
+{ 
 	assert(output);
-	return fprintf(stderr, "%u", sym);
+	assert(sym < LEX_ERROR);
+	const char *s = keywords[sym];
+	return fprintf(stderr, "%s(%u)", s ? s : "???", sym);
 }
 
 static void node_print(FILE *output, node_t *n, bool shallow, unsigned depth)
@@ -2809,7 +2827,7 @@ static built_in_words_t built_in_words[] = {
 	 * compiling the other in-line-able, so the compiler can use them for
 	 * variable declaration and for...next loops */
 	/**@warning 1 lshift used, in the original j1.v it is not needed */
-	{ .name = "doVar", .inline_bit = false, .len = 3, .code = {CODE_FROMR, 0x8001, CODE_LSHIFT} },
+	{ .name = "doVar", .inline_bit = false, .len = 1, .code = {CODE_FROMR} },
 	{ .name = "r1-",   .inline_bit = false, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
 	{ .name = NULL,    .inline_bit = false, .len = 0, .code = {0} }
 };
@@ -2891,7 +2909,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
 		if(!s || (s->type != SYMBOL_TYPE_CALL && s->type != SYMBOL_TYPE_LABEL))
 			assembly_error(e, "not a defined procedure: %s", n->token->p.id);
-		generate_literal(h, a, /*OP_CALL |*/ s->value);
+		generate_literal(h, a, s->value << 1);
 		break;
 	}
 	case SYM_LITERAL:
@@ -2993,16 +3011,15 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		symbol_t *l = NULL;
 		location = literal_or_symbol_lookup(n->token, t, e);
 
-		/**@note Special variables should probably handled in a better
-		 * way */
 		if(n->value->type == LEX_LITERAL) {
 			value = n->value->p.number;
 		} else {
 			l = symbol_table_lookup(t, n->value->p.id);
 			if(l) {
 				value = l->value;
-				/*if(l->type == SYMBOL_TYPE_CALL || l->type == SYMBOL_TYPE_LABEL)
-					value <<= 1;*/
+				/**@bug There should actually be two versions of ".set" depending on what we are using it for */
+				if(l->type == SYMBOL_TYPE_CALL) // || l->type == SYMBOL_TYPE_LABEL)
+					value <<= 1;
 			} else {
 				value = symbol_special(h, a, n->value->p.id, e);
 			}
