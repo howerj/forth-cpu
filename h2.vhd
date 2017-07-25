@@ -248,11 +248,13 @@ begin
 				tos_n <= din;
 			end if;
 		when "01101" => tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-		when "01110" => tos_n(vstkp_c'range) <= vstkp_c;
+		when "01110" => tos_n(15 downto 0) <= (others => '0');
+				tos_n(vstkp_c'range) <= vstkp_c;
 		when "01111" => tos_n    <= (others => compare.umore);
 		when "10000" => int_en_n <= tos_c(0);
 		when "10001" => tos_n    <= (others => int_en_c);
-		when "10010" => tos_n(rstkp_c'range) <= rstkp_c;
+		when "10010" => tos_n(15 downto 0) <= (others => '0');
+				tos_n(rstkp_c'range) <= rstkp_c;
 		when "10011" => tos_n    <= (others => compare.zero);
 		when "10100" => tos_n    <= cpu_id;
 		when others  => tos_n <= tos_c;

@@ -513,7 +513,7 @@ http://lars.nocrew.org/forth2012/core/FIND.html )
 : number? 0 -rot >number nip 0= ; ( b u -- n f : is number? )
 : seed  oLfsr ! ; ( u -- : seed PRNG, requires non-zero value )
 : random  iLfsr @ ; ( -- u : get a pseudo random number @todo replace with XORShift )
-: pick ?dup if swap >r 1- pick r> swap exit then dup ;
+: pick ?dup if swap >r 1- pick r> swap exit then dup ; ( @bug does not work for high stack depths - mashes the return stack )
 : roll  dup 0> if swap >r 1- roll r> swap else drop then ;
 : ndrop for aft drop then next ;
 : _type ( b u -- ) for aft count >char emit then next drop ;
