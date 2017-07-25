@@ -27,8 +27,6 @@ cause confusion otherwise
 * A way of making words with no header would be useful for size purposes
 * Does it make more sense for the top three bits of an instruction set
 to zero to encode a call or a branch?
-* The 2/ 2* between return stack addresses and normal addresses really
-needs fixing
 * Make a small test program for interrupts, and fix interrupts in the
 simulator, the test program should write the switch state to the LEDs once a
 timer expires.
@@ -791,7 +789,6 @@ adequate assembler directives )
 start:
 .set entry start
 	init
-	.break
 
 	here . .free .ok
 

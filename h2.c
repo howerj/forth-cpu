@@ -19,13 +19,6 @@
  * location referring matching up with a location in the core, also
  * the disassembler could use the dictionary if it is present.
  *
- *
- * @note Given a sufficiently developed H2 application, it should be possible
- * to feed the same inputs into h2_run and except the same outputs as the
- * VHDL based CPU. This could be used as an advanced test bench. This could
- * be done instruction by instruction, or the data could be read in from a
- * file.
- *
  * The H2 CPU is a rewrite of the J1 Forth CPU in VHDL with some extensions,
  *
  * It is a stack based CPU with minimal state; a program counter, a top
@@ -2891,7 +2884,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
 		if(!s || (s->type != SYMBOL_TYPE_CALL && s->type != SYMBOL_TYPE_LABEL))
 			assembly_error(e, "not a defined procedure: %s", n->token->p.id);
-		generate_literal(h, a, /*OP_CALL |*/ s->value);
+		generate_literal(h, a, s->value << 1);
 		break;
 	}
 	case SYM_LITERAL:
@@ -2993,14 +2986,13 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		symbol_t *l = NULL;
 		location = literal_or_symbol_lookup(n->token, t, e);
 
-		/**@note Special variables should probably handled in a better
-		 * way */
 		if(n->value->type == LEX_LITERAL) {
 			value = n->value->p.number;
 		} else {
 			l = symbol_table_lookup(t, n->value->p.id);
 			if(l) {
 				value = l->value;
+				/**@bug There should actually be two versions of ".set" depending on what we are using it for */
 				if(l->type == SYMBOL_TYPE_CALL) // || l->type == SYMBOL_TYPE_LABEL)
 					value <<= 1;
 			} else {
