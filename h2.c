@@ -1572,7 +1572,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			uint16_t npc = pc_plus_one;
 
 			if(instruction & R_TO_PC)
-				npc = h->rstk[h->rp % STK_SIZE];
+				npc = h->rstk[h->rp % STK_SIZE] >> 1;
 
 			switch(ALU_OP(instruction)) {
 			case ALU_OP_T:        /* tos = tos; */ break;
@@ -1667,7 +1667,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			h->tos = tos;
 			h->pc = npc;
 		} else if (IS_CALL(instruction)) {
-			rpush(h, pc_plus_one);
+			rpush(h, pc_plus_one << 1);
 			h->pc = address;
 		} else if (IS_0BRANCH(instruction)) {
 			if(!dpop(h))
@@ -2809,7 +2809,7 @@ static built_in_words_t built_in_words[] = {
 	 * compiling the other in-line-able, so the compiler can use them for
 	 * variable declaration and for...next loops */
 	/**@warning 1 lshift used, in the original j1.v it is not needed */
-	{ .name = "doVar", .inline_bit = false, .len = 3, .code = {CODE_FROMR, 0x8001, CODE_LSHIFT} },
+	{ .name = "doVar", .inline_bit = false, .len = 1, .code = {CODE_FROMR} },
 	{ .name = "r1-",   .inline_bit = false, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
 	{ .name = NULL,    .inline_bit = false, .len = 0, .code = {0} }
 };
@@ -3001,8 +3001,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			l = symbol_table_lookup(t, n->value->p.id);
 			if(l) {
 				value = l->value;
-				/*if(l->type == SYMBOL_TYPE_CALL || l->type == SYMBOL_TYPE_LABEL)
-					value <<= 1;*/
+				if(l->type == SYMBOL_TYPE_CALL) // || l->type == SYMBOL_TYPE_LABEL)
+					value <<= 1;
 			} else {
 				value = symbol_special(h, a, n->value->p.id, e);
 			}

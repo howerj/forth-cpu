@@ -334,10 +334,10 @@ begin
 			if is_instr.call = '1' then
 				rstkp_n   <= std_logic_vector(unsigned(rstkp_c) + 1);
 				rstk_we   <= '1';
-				rstk_data <= "000" & pc_plus_one;
+				rstk_data <= "00" & pc_plus_one & "0";
 			else
 				rstk_we   <= '0';
-				rstk_data <= "000" & pc_plus_one;
+				rstk_data <= "00" & pc_plus_one & "0";
 			end if;
 		end if;
 	end process;
@@ -368,7 +368,7 @@ begin
 				pc_n <=  insn(12 downto 0);
 			elsif is_instr.alu = '1' and insn(4) = '1' then
 				-- @warning rtos_c discards the lowest bit in the original core
-				pc_n <=  rtos_c(12 downto 0);
+				pc_n <=  rtos_c(13 downto 1);
 			else
 				pc_n <=  pc_plus_one;
 			end if;

@@ -29,6 +29,9 @@ cause confusion otherwise
 to zero to encode a call or a branch?
 * The 2/ 2* between return stack addresses and normal addresses really
 needs fixing
+* Make a small test program for interrupts, and fix interrupts in the
+simulator, the test program should write the switch state to the LEDs once a
+timer expires.
  
 Forth To Do:
 * Strings, Throw/Catch, abort, vocabularies, see, create/does, constant,
@@ -557,8 +560,10 @@ variable _test 0
 		1 /string dup 0=
 	until rdrop ; hidden
 
-skipTest: if 0> else 0<> then exit
-scanTest: if 0<= else 0= then exit
+\ skipTest: if 0> else 0<> then exit
+\ scanTest: if 0<= else 0= then exit
+: skipTest if 0> else 0<> then ;
+: scanTest if 0<= else 0= then ;
 : skip ' skipTest _test ! lookfor ;
 : scan ' scanTest _test ! lookfor ;
 
@@ -597,7 +602,7 @@ them vectored words )
 : $interpret ( a u -- )
 	2dup find
 	if
-		nip nip cfa 2/ execute
+		nip nip cfa  execute
 	else
 		number? 0= if drop ( else abort ) then
 	then ;
@@ -617,7 +622,7 @@ them vectored words )
 	2dup find
 	if
 		nip nip dup @ immediate? if
-			cfa 2/ execute
+			cfa  execute
 		else
 			dup @ inline? if ( could improve this by copy all data until exit is found )
 				cfa @ ,
@@ -785,8 +790,8 @@ adequate assembler directives )
 
 start:
 .set entry start
-
 	init
+	.break
 
 	here . .free .ok
 
