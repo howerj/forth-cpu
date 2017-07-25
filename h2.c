@@ -1034,7 +1034,10 @@ static void h2_io_update_default(h2_soc_state_t *soc)
 		} else {
 			soc->timer++;
 			if((soc->timer > (soc->timer_control & 0x1FFF))) {
-				/**@todo generate interrupt*/
+				if(soc->timer_control & TIMER_INTERRUPT_ENABLE) {
+					soc->interrupt          = soc->irc_mask & (1 << isrTimer);
+					soc->interrupt_selector = soc->irc_mask & (1 << isrTimer);
+				}
 				soc->timer = 0;
 			}
 		}
@@ -1504,6 +1507,16 @@ again:
 	return 0;
 }
 
+static uint16_t interrupt_decode(uint8_t *vector)
+{
+	for(unsigned i = 0; i < NUMBER_OF_INTERRUPTS; i++)
+		if(*vector & (1 << i)) {
+			*vector ^= 1 << i;
+			return i;
+		}
+	return 0;
+}
+
 /**@todo make a incredibly simple version of the simulator only in a single C file */
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
 {
@@ -1539,7 +1552,13 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 		literal = instruction & 0x7FFF;
 		address = instruction & 0x1FFF; /* NB. also used for ALU OP */
 
-		/**@todo interrupt handling */
+		if(h->ie && io && io->soc->interrupt) {
+			rpush(h, h->pc << 1);
+			io->soc->interrupt = false;
+			h->pc = interrupt_decode(&io->soc->interrupt_selector);
+			continue;
+		}
+
 		pc_plus_one = (h->pc + 1) % MAX_CORE;
 
 		if(log_level >= LOG_DEBUG || ds.trace_on)
@@ -1739,35 +1758,39 @@ typedef enum {
 
 static const char *keywords[] =
 {
-	[LEX_CONSTANT]  =  "constant",
-	[LEX_CALL]      =  "call",
-	[LEX_BRANCH]    =  "branch",
-	[LEX_0BRANCH]   =  "0branch",
-	[LEX_BEGIN]     =  "begin",
-	[LEX_WHILE]     =  "while",
-	[LEX_REPEAT]    =  "repeat",
-	[LEX_AGAIN]     =  "again",
-	[LEX_UNTIL]     =  "until",
-	[LEX_FOR]       =  "for",
-	[LEX_AFT]       =  "aft",
-	[LEX_NEXT]      =  "next",
-	[LEX_IF]        =  "if",
-	[LEX_ELSE]      =  "else",
-	[LEX_THEN]      =  "then",
-	[LEX_DEFINE]    =  ":",
-	[LEX_ENDDEFINE] =  ";",
-	[LEX_CHAR]      =  "[char]",
-	[LEX_VARIABLE]  =  "variable",
-	[LEX_IMMEDIATE] =  "immediate",
-	[LEX_HIDDEN]    =  "hidden",
-	[LEX_INLINE]    =  "inline",
-	[LEX_QUOTE]     =  "'",
-	[LEX_SET]       =  ".set",
-	[LEX_PC]        =  ".pc",
-	[LEX_BREAK]     =  ".break",
-	[LEX_MODE]      =  ".mode",
-	[LEX_ALLOCATE]  =  ".allocate",
-	[LEX_BUILT_IN]  =  ".built-in",
+	[LEX_LITERAL]    = "literal",
+	[LEX_IDENTIFIER] = "identifier",
+	[LEX_LABEL]      = "label",
+	[LEX_STRING]     = "string",
+	[LEX_CONSTANT]   =  "constant",
+	[LEX_CALL]       =  "call",
+	[LEX_BRANCH]     =  "branch",
+	[LEX_0BRANCH]    =  "0branch",
+	[LEX_BEGIN]      =  "begin",
+	[LEX_WHILE]      =  "while",
+	[LEX_REPEAT]     =  "repeat",
+	[LEX_AGAIN]      =  "again",
+	[LEX_UNTIL]      =  "until",
+	[LEX_FOR]        =  "for",
+	[LEX_AFT]        =  "aft",
+	[LEX_NEXT]       =  "next",
+	[LEX_IF]         =  "if",
+	[LEX_ELSE]       =  "else",
+	[LEX_THEN]       =  "then",
+	[LEX_DEFINE]     =  ":",
+	[LEX_ENDDEFINE]  =  ";",
+	[LEX_CHAR]       =  "[char]",
+	[LEX_VARIABLE]   =  "variable",
+	[LEX_IMMEDIATE]  =  "immediate",
+	[LEX_HIDDEN]     =  "hidden",
+	[LEX_INLINE]     =  "inline",
+	[LEX_QUOTE]      =  "'",
+	[LEX_SET]        =  ".set",
+	[LEX_PC]         =  ".pc",
+	[LEX_BREAK]      =  ".break",
+	[LEX_MODE]       =  ".mode",
+	[LEX_ALLOCATE]   =  ".allocate",
+	[LEX_BUILT_IN]   =  ".built-in",
 
 	/* start of instructions */
 #define X(NAME, STRING, INSTRUCTION) [ LEX_ ## NAME ] = STRING,
@@ -1775,7 +1798,7 @@ static const char *keywords[] =
 #undef X
 	/* end of named tokens and instructions */
 
-	[LEX_ERROR]     =  NULL,
+	[LEX_ERROR]      =  NULL,
 	NULL
 };
 
@@ -2227,9 +2250,11 @@ static void use(lexer_t *l, node_t *n)
 }
 
 static int token_enum_print(token_e sym, FILE *output)
-{ /**@todo improve this function */
+{ 
 	assert(output);
-	return fprintf(stderr, "%u", sym);
+	assert(sym < LEX_ERROR);
+	const char *s = keywords[sym];
+	return fprintf(stderr, "%s(%u)", s ? s : "???", sym);
 }
 
 static void node_print(FILE *output, node_t *n, bool shallow, unsigned depth)

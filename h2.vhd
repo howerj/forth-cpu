@@ -14,8 +14,6 @@
 --|  CPU (such as interrupts and ALU operations) could be made to be optional.
 --|  * Turn this component into a package
 --|  * Turn this into a literate file, describing the CPU
---|  * Fix conversion between T->R and R->T, there should be a character
---|  to cell address conversion.
 --|  * Fix Address mapping, it should only take one bit to specify I/O
 --|  reads and writes in the address, not two.
 --|
@@ -310,13 +308,13 @@ begin
 			-- Interrupts are similar to a call
 			rstkp_n   <= std_logic_vector(unsigned(rstkp_c) + 1);
 			rstk_we   <= '1';
-			rstk_data <= "000" & pc_c; -- return to current instruction
+			rstk_data <= "00" & pc_c & "0"; -- return to current instruction
 		elsif is_instr.lit = '1' then
 			assert to_integer(unsigned(vstkp_c)) + 1 < stack_size;
 
 			vstkp_n   <= std_logic_vector(unsigned(vstkp_c) + 1);
 			rstk_we   <= '0';
-			rstk_data <= "000" & pc_plus_one;
+			rstk_data <= "00" & pc_plus_one & "0";
 		elsif is_instr.alu = '1' then
 			-- For return stack: implication insn(6) -> stack within bounds
 			assert (not insn(6) = '1') or ((to_integer(unsigned(rstkp_c)) + to_integer(signed(rd))) < stack_size);
@@ -367,7 +365,6 @@ begin
 			if is_instr.branch = '1' or (is_instr.branch0 = '1' and compare.zero = '1') or is_instr.call = '1' then
 				pc_n <=  insn(12 downto 0);
 			elsif is_instr.alu = '1' and insn(4) = '1' then
-				-- @warning rtos_c discards the lowest bit in the original core
 				pc_n <=  rtos_c(13 downto 1);
 			else
 				pc_n <=  pc_plus_one;

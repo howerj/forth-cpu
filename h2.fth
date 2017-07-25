@@ -253,40 +253,21 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	next rot drop ;
 
 : * ( n n -- n ) um* drop ;
-
-: m* ( n n -- d )
-	2dup xor 0< >r abs swap abs um*  r> if dnegate then ;
-
+: m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ; ( n n -- d )
 : */mod ( n n n -- r q ) >r m* r> m/mod ;
 : */ ( n n n -- q ) */mod swap drop ;
 
 : aligned ( b -- a )
-	dup 0 cell ( 2 or 'cell'?) um/mod drop dup
+	dup 0 cell um/mod drop dup
 	if 2 swap - then + ;
 
-: at-xy ( x y -- : set terminal cursor to x-y position )
-	256* or oVgaCursor ! ;
-
-: /string ( b u1 u2 -- b u : advance a string u2 characters )
-	over min rot over + -rot - ;
-
+: at-xy 256* or oVgaCursor ! ; ( x y -- : set terminal cursor to x-y position )
+: /string over min rot over + -rot - ; ( b u1 u2 -- b u : advance a string u2 characters )
 : last pwd @ ;
-
-: emit ( char -- : write out a char )
-	_emit @execute ;
-
-: toggle ( a u -- : xor value at addr with u )
-	over @ xor swap ! ;
-
+: emit _emit @execute ; ( char -- : write out a char )
+: toggle over @ xor swap ! ; ( a u -- : xor value at addr with u )
 : cr =cr emit =lf emit ;
 : space =bl emit ;
-
-: type ( b u -- : print a string )
- 	dup 0= if 2drop exit then
- 	begin
- 		swap dup c@ emit 1+ swap 1-
- 		dup 0=
- 	until 2drop ;
 
 : digit ( u -- c ) 9 over < 7 and + 48 + ;
 : extract ( n base -- n c ) 0 swap um/mod swap digit ;
@@ -312,6 +293,13 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	<# #s                 ( convert all digits )
 	r> sign               ( add sign from n )
 	#> ;                  ( return number string addr and length )
+
+: type ( b u -- : print a string )
+	begin
+		dup
+	while
+		swap dup c@ emit 1+ swap 1-
+	repeat 2drop ;
 
 : nchars ( +n c -- ) \ "chars" in eForth, this is an ANS FORTH conflict
   swap 0 max for aft dup emit then next drop ;
@@ -522,16 +510,12 @@ http://lars.nocrew.org/forth2012/core/FIND.html )
 	r> if rot negate -rot then
 	r> base ! ;
 
-: number?  0 -rot >number nip 0= ; ( b u -- n f : is number? )
-
-( @todo replace with XORShift )
+: number? 0 -rot >number nip 0= ; ( b u -- n f : is number? )
 : seed  oLfsr ! ; ( u -- : seed PRNG, requires non-zero value )
-: random  iLfsr @ ; ( -- u : get a pseudo random number )
-
+: random  iLfsr @ ; ( -- u : get a pseudo random number @todo replace with XORShift )
 : pick ?dup if swap >r 1- pick r> swap exit then dup ;
 : roll  dup 0> if swap >r 1- roll r> swap else drop then ;
 : ndrop for aft drop then next ;
-
 : _type ( b u -- ) for aft count >char emit then next drop ;
 
 : dm+ ( a u -- a )
@@ -581,7 +565,8 @@ variable tmp 0
 : "\" #tib @ >in ! ; immediate
 
 : word parse here pack$ ;
-: char =bl parse drop c@ ;
+: token =bl parse ;
+: char token drop c@ ;
 
 : .s ( -- ) cr sp@ for aft r@ pick . then next ( ."  <sp" ) ;
 : free 0x2000 here - ;
@@ -634,20 +619,14 @@ them vectored words )
 
 : "immediate" last address 0x2000 toggle ;
 : "hide" bl parse find if address 0x4000 toggle ( else throw ) then ;
- 
-
 : [ ' $interpret _eval ! ; immediate
 : ] ' $compile   _eval ! ;
-
-: token =bl parse ;
-
-
 : .ok ' $interpret _eval @ = if space OK print space then cr ;
 : eval begin token dup while _eval @execute repeat 2drop _prompt @execute ;
 : quit [ begin query eval again ;
 
 : ":" here last address , pwd ! =bl word count + aligned cp ! ] ;
-: "'" =bl parse find if cfa else ( -1 throw ) 0 then ; immediate
+: "'" token find if cfa else ( -1 throw ) 0 then ; immediate
 : ";" =exit , [ ; immediate
 
 : "?branch" 2/ 0x2000 or , ;
@@ -661,23 +640,23 @@ them vectored words )
 : "repeat" swap call "again" call "then" ; immediate
 : recurse last cfa 2/ compile, ; immediate
 : tail last cfa call "branch" ; immediate
-: create call ":" ' doVar compile, [ ;
+: create call ":" ' doVar 2/ compile, [ ;
 : "variable" create 0 , ;
-: ":noname" here 2/ ] ;
-\ : _next r> r> ?dup if 1- >r @ >r exit then 1+ ( should be cell+ ) >r ; 
-\ : "next" ' _next compile, , ; immediate
-\ : "for" =>r , here ; immediate
+: ":noname" here ] ;
+: _next r> r> ?dup if 1- >r @ >r exit then cell+ >r ; 
+: "next" ' _next 2/ compile, , ; immediate
+: "for" =>r , here ; immediate
 
 \ : [compile] ( -- ; <string> ) "'" compile, ; immediate
-\ : compile ( -- ) r> dup @ , 1+ ( should be 'cell+' ) >r ;
+\ : compile ( -- ) r> dup @ , cell+ >r ;
 
 ( strings: almost work )
 \ : do$ ( -- a ) r> r@ r> count + aligned >r swap >r ;
 \ : $"| ( -- a ) do$ ;
 \ : ."| ( -- ) do$ print ; ( compile-only )
 \ : $," ( -- ) 34 word count aligned cp ! ;
-\ : $" ( -- ; <string> ) ' $"| compile, $," ; immediate
-\ : ." ( -- ; <string> ) ' ."| compile, $," ; immediate
+\ : $" ( -- ; <string> ) ' $"| 2/ compile, $," ; immediate
+\ : ." ( -- ; <string> ) ' ."| 2/ compile, $," ; immediate
 
 
 ( ======================== Word Set ========================= )
@@ -767,6 +746,20 @@ variable read-count      0
 : rp! ( n -- , R: ??? -- ??? : set the return stack pointer )
 	begin dup rp@ = 0= while rdrop repeat drop ;
 
+irq:
+	.break
+	0 seti
+	switches led!
+	1 seti
+	exit
+
+.set 12 irq
+
+: irqTest
+	0xffff oIrcMask !
+	0xffff oTimerCtrl !
+	1 seti ;
+
 ( ======================== Miscellaneous ==================== )
 
 ( ======================== Starting Code ==================== )
@@ -776,17 +769,16 @@ variable read-count      0
 	timerInit timer!       \ Enable timer
 	cpu-id segments!       \ Display CPU ID on 7-Segment Displays
 	page
+	0 seti
 	1 seed ;               \ Set up PRNG seed
 	\ 0x00FF oIrcMask !
 	\ 1   seti ;
 
-( The start up code begins here, on initialization the assembler
-jumps to a special symbol "start".
-
-@todo This special case symbol should be removed by adding
-adequate assembler directives )
-
 start:
+
+( @bug The ".set" directive is a bit of a hack at the moment, it divides the
+address by two for function address but not for labels, this works in the
+current setup, but is not ideal )
 .set entry start
 	init
 
