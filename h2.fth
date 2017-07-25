@@ -96,18 +96,19 @@ constant iLfsr         0x6006
 
 ( ======================== System Variables ================= )
 
-variable pwd  0  ( Present Word Variable: Set at end of file )
-variable cp   0  ( Dictionary Pointer: Set at end of file )
-variable hld  0  ( Pointer into hold area for numeric output )
-variable base 10 ( Current output radix )
-variable span 0  ( Hold character count received by expect   )
-variable #tib 0  ( Current count of terminal input buffer    )
-variable tib-buf 0 ( ... and address )
+variable csp     0  ( current data stack pointer - for error checking )
+variable >in     0  ( Hold character pointer when parsing input )
+variable state   0  ( compiler state variable )
+variable pwd     0  ( Present Word Variable: Set at end of file )
+variable cp      0  ( Dictionary Pointer: Set at end of file )
+variable hld     0  ( Pointer into hold area for numeric output )
+variable base    10 ( Current output radix )
+variable span    0  ( Hold character count received by expect   )
+variable #tib    0  ( Current count of terminal input buffer    )
+variable tib-buf 0  ( ... and address )
 .set tib-buf $pc
 .allocate tib-length
 
-variable >in     0 ( Hold character pointer when parsing input )
-variable state   0 ( compiler state variable )
 
 ( These variables are for vectored word execution, there are
 set at the end of the file )
@@ -117,7 +118,6 @@ variable _expect  0
 variable _tap     0
 variable _echo    0
 variable _prompt  0
-variable _eval    0
 variable _number? 0
 variable OK      "ok"
 ( ======================== System Variables ================= )
@@ -573,11 +573,12 @@ variable tmp 0
 : .free free u. ;
 
 variable ERROR "error"
-: error cr 
-	ERROR print cr ( print error message )
-	sp@ ndrop      ( clear variable stack )
-	call "\"       ( flush input )
-	branch 0 ;     ( reset machine )
+: error 
+	[char] ? emit cr ( print error message )
+	sp@ ndrop        ( clear variable stack )
+	call "\"         ( flush input )
+	0 state ! ;      ( set interpret state )
+	\ branch 0 ;     ( reset machine )
 
 ( @todo Better factor $interpret and $compile, as well as making
 them vectored words )
@@ -587,7 +588,7 @@ them vectored words )
 	if
 		nip nip cfa  execute
 	else
-		number? 0= if drop ( else abort ) then
+		number? 0= if drop error then
 	then ;
 
 : literal ( n -- : write a literal into the dictionary )
@@ -599,7 +600,7 @@ them vectored words )
 	then ; immediate
 
 : compile, ( cfa -- : compile a code field address )
-	0x4000 or , ; ( 2/ ? )
+	2/ 0x4000 or , ; ( 2/ ? )
 
 : $compile ( a u -- )
 	2dup find
@@ -610,25 +611,25 @@ them vectored words )
 			dup @ inline? if ( could improve this by copy all data until exit is found )
 				cfa @ ,
 			else
-				cfa 2/ compile, ( turn into a call )
+				cfa compile, ( turn into a call )
 			then
 		then
 	else
-		number? if literal ( else abort ) then
+		number? if literal  else error ( @todo retreat to nearest marker set by ':' or ':noname' ) then
 	then ;
 
 : "immediate" last address 0x2000 toggle ;
 : "hide" bl parse find if address 0x4000 toggle ( else throw ) then ;
-: [ ' $interpret _eval ! ; immediate
-: ] ' $compile   _eval ! ;
-: .ok ' $interpret _eval @ = if space OK print space then cr ;
-: eval begin token dup while _eval @execute repeat 2drop _prompt @execute ;
+: [  0 state ! ; immediate 
+: ] -1 state ! ;
+: .ok state @ 0= if space OK print space then cr ;
+: eval begin token dup while state @ if $compile else $interpret then repeat 2drop _prompt @execute ;
 : quit [ begin query eval again ;
-
-: ":" here last address , pwd ! =bl word count + aligned cp ! ] ;
+: !csp sp@ csp ! ;
+: ?csp sp@ csp @ xor if error then ;
+: ":" !csp here last address , pwd ! =bl word count + aligned cp ! ] ;
 : "'" token find if cfa else ( -1 throw ) 0 then ; immediate
-: ";" =exit , [ ; immediate
-
+: ";" =exit , [ ?csp ; immediate
 : "?branch" 2/ 0x2000 or , ;
 : "branch" 2/ ( 0x0000 or ) , ;
 : "begin" here ; immediate
@@ -638,13 +639,13 @@ them vectored words )
 : "then" here 2/ over @ or swap ! ; immediate
 : "while" call "if" ; immediate
 : "repeat" swap call "again" call "then" ; immediate
-: recurse last cfa 2/ compile, ; immediate
+: recurse last cfa compile, ; immediate
 : tail last cfa call "branch" ; immediate
-: create call ":" ' doVar 2/ compile, [ ;
+: create call ":" ' doVar compile, [ ;
 : "variable" create 0 , ;
-: ":noname" here ] ;
+: ":noname" here ] !csp ;
 : _next r> r> ?dup if 1- >r @ >r exit then cell+ >r ; 
-: "next" ' _next 2/ compile, , ; immediate
+: "next" ' _next compile, , ; immediate
 : "for" =>r , here ; immediate
 
 \ : [compile] ( -- ; <string> ) "'" compile, ; immediate
@@ -654,10 +655,9 @@ them vectored words )
 \ : do$ ( -- a ) r> r@ r> count + aligned >r swap >r ;
 \ : $"| ( -- a ) do$ ;
 \ : ."| ( -- ) do$ print ; ( compile-only )
-\ : $," ( -- ) 34 word count aligned cp ! ;
-\ : $" ( -- ; <string> ) ' $"| 2/ compile, $," ; immediate
-\ : ." ( -- ; <string> ) ' ."| 2/ compile, $," ; immediate
-
+\ : $,' ( -- ) 34 word count + aligned cp ! ;
+\ : $" ( -- ; <string> ) ' $"| compile, $,' ; immediate
+\ : ." ( -- ; <string> ) ' ."| compile, $,' ; immediate
 
 ( ======================== Word Set ========================= )
 
@@ -746,6 +746,7 @@ variable read-count      0
 : rp! ( n -- , R: ??? -- ??? : set the return stack pointer )
 	begin dup rp@ = 0= while rdrop repeat drop ;
 
+
 irq:
 	.break
 	0 seti
@@ -793,12 +794,11 @@ current setup, but is not ideal )
 .set pwd $pwd
 .set cp  $pc
 
-.set _?key    input      ( execution vector of ?key,   default to ?rx. )
-.set _emit    output     ( execution vector of emit,   default to tx! )
+.set _?key    input      ( execution vector of ?key,   default to input. )
+.set _emit    output     ( execution vector of emit,   default to output )
 .set _expect  accept     ( execution vector of expect, default to 'accept'. )
 .set _tap     ktap       ( execution vector of tap,    default the ktap. )
-.set _echo    output     ( execution vector of echo,   default to tx!. )
+.set _echo    output     ( execution vector of echo,   default to output. )
 .set _prompt  .ok        ( execution vector of prompt, default to '.ok'. )
-.set _eval    $interpret ( execution vector of eval,   default to $interpret )
 .set _number? number?    ( execution vector of number? default to number? )
 
