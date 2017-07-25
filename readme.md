@@ -46,7 +46,7 @@ boards I am looking to support are it's successor, the Nexys 4, and the myStorm
 BlackIce (<https://mystorm.uk/>). The myStorm board uses a completely open
 source toolchain for synthesis, place and route and bit file generation.
 
-# Build requirements
+# Build and Running requirements
 
 The build has been tested under [Debian][] [Linux][], version 8.
 
@@ -62,6 +62,13 @@ You will require:
   <http://store.digilentinc.com/digilent-adept-2-download-only/>
 * [freeglut][] (for the GUI simulator only)
 * [pandoc][] for building the documentation
+* [picocom][] (or an alternative terminal client)
+
+Hardware:
+
+* VGA Monitor 
+* USB Keyboard (plugs into the Nexys3 USB to PS/2 bridge)
+* [Nexys3][] development board
 
 [Xilinx ISE][] can (or could be) downloaded for free, but requires
 registration. ISE needs to be on your path:
@@ -795,7 +802,7 @@ The simulator in C implements the H2 core and most of the SoC. The IO for the
 simulator is not cycle accurate (and most likely will never be), but can be
 used for running and debugging programs with results that are very similar to
 how the hardware behaves. This is much faster than rebuilding the bit file used
-to flash the [FPGA][].
+to flash the [FPGA][]. 
 
 ## Debugger
 
@@ -918,24 +925,17 @@ but provides a graphical environment, unlike the command line utility. It is eas
 to interact with the device and see what it is doing, but the debugging sessions
 are a less controlled. It requires [free glut][].
 
-The simulator is a work in progress and is fairly crude, but the simulation of
-the peripherals is much more developed than the command line simulator.
-
 * VGA output works
-* UART or PS/2 input (not selectable at the moment) comes from the screen,
-in the case of the UART this is buffered with a FIFO.
-* UART output gets redirected to standard output
-* The 7-Segment displays are simulated correctly
+* UART or PS/2 input (selectable by pressing F11) comes from typing in the screen,
+and in the case of the UART this is buffered with a FIFO.
+* UART output gets written to a display box.
+* There are four 7-Segment displays as on the original board.
 * The switches and push buttons can take their input from either keyboard keys
 or from mouse clicks.
 * The LED indicators above the switches can be lit up.
 
-The simulator, how it looks and behaves, may be changed in the future to
-improve it.
+Below is an image of a running session in the GUI simulator:
 
-<!-- This GIF does not work for the PDF generation obviously
-![H2 GUI Simulator](info/forth-cpu-gui.gif "Running GUI H2 SoC Simulator")
--->
 ![H2 GUI Simulator](info/forth-cpu-gui.png "Running GUI H2 SoC Simulator")
 
 Building can be done with
@@ -1339,7 +1339,6 @@ Examples of words and their stack comments:
 Words can have their arguments numbered to make it clearer what the effects
 are.
 
-
 # To Do
 
 * Guide to reusing the VHDL in this project, and component listing
@@ -1351,12 +1350,12 @@ the running board.
 * Memory interface to Nexys 3 board on board memory
 * Add documentation for the [Nexys3][] board in case it is no longer available
 in the future? Also port to different [FPGA][] boards.
-* Make a utility for generating text for the VGA screen.
 * Make a javascript based simulator for the H2, perhaps with [emscripten][]
-* Convert tables in this document to markdown tables as supported
-by [pandoc][].
 * Move this file to "h2.md" and make a simpler "readme.md" with a short
 description and flashy GIFs
+* Add notes about picocom, and setting up the hardware:
+
+	picocom --omap delbs -b 115200 -e b /dev/ttyUSB1
 
 ## Forth
 
@@ -1428,7 +1427,7 @@ project.
 [X-Macro]: https://en.wikipedia.org/wiki/X_Macro
 [Windows]: https://en.wikipedia.org/wiki/Windows_7
 [pandoc]: https://pandoc.org
-
+[picocom]: https://github.com/npat-efault/picocom
 
 <!--
 
