@@ -528,11 +528,6 @@ static void draw_led_8_segment(led_8_segment_t *l)
 	draw_rectangle_filled(l->x, l->y, l->width, l->height, WHITE);
 }
 
-#define VGA_MEMORY_SIZE (8192)
-#define VGA_WIDTH       (80)
-#define VGA_HEIGHT      (40)
-#define VGA_AREA        (VGA_WIDTH * VGA_HEIGHT)
-
 typedef struct {
 	double x;
 	double y;
@@ -547,7 +542,7 @@ typedef struct {
 	bool blink_on;
 
 	/**@warning The actual VGA memory is 16-bit, only the lower 8-bits are used */
-	uint8_t m[VGA_MEMORY_SIZE];
+	uint8_t m[VGA_BUFFER_LENGTH];
 } vga_t;
 
 static color_t vga_map_color(uint8_t c)
@@ -1241,8 +1236,8 @@ int main(int argc, char **argv)
 	uart_tx_fifo = fifo_new(UART_FIFO_DEPTH);
 	ps2_rx_fifo  = fifo_new(8 /* should be 1 - but this does not work */);
 
-	for(int i = 0; i < VGA_MEMORY_SIZE / VGA_WIDTH; i++)
-		memset(vga.m + (i * VGA_WIDTH), ' '/*'a'+(i%26)*/, VGA_MEMORY_SIZE / VGA_WIDTH);
+	//for(int i = 0; i < VGA_BUFFER_LENGTH / VGA_WIDTH; i++)
+	//	memset(vga.m + (i * VGA_WIDTH), ' '/*'a'+(i%26)*/, VGA_BUFFER_LENGTH / VGA_WIDTH);
 	initialize_rendering(argv[0]);
 	glutMainLoop();
 

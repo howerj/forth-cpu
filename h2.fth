@@ -41,25 +41,28 @@ the maximum number of items on the stack is already too high )
 
 ( ======================== System Constants ================= )
 
+constant cell 2
+
 ( The first 8 cells [16 bytes] of memory contain the entry point and interrupt
 service routine call locations, we can set the instruction to be run [such as
 a jump or a call] by setting the label to it with the ".set" directive. Later
 in the program the entry point, the first location in memory, is set to the
 start label )
-entry:             .allocate 2
-isrRxFifoNotEmpty: .allocate 2
-isrRxFifoFull:     .allocate 2
-isrTxFifoNotEmpty: .allocate 2
-isrTxFifoFull:     .allocate 2
-isrKbdNew:         .allocate 2
-isrTimer:          .allocate 2
-isrBrnLeft:        .allocate 2
+entry:             .allocate cell
+isrRxFifoNotEmpty: .allocate cell
+isrRxFifoFull:     .allocate cell
+isrTxFifoNotEmpty: .allocate cell
+isrTxFifoFull:     .allocate cell
+isrKbdNew:         .allocate cell
+isrTimer:          .allocate cell
+isrBrnLeft:        .allocate cell
 
 .mode 1   ( Turn word header compilation and optimization off )
 .built-in ( Add the built in words to the dictionary )
 
 constant =exit         0x601c ( op code for exit )
 constant =invert       0x6600 ( op code for invert )
+constant =>r           0x6147 ( op code for >r )
 constant =bl           32     ( blank, or space )
 constant =cr           13     ( carriage return )
 constant =lf           10     ( line feed )
@@ -130,8 +133,8 @@ variable OK      "ok"
 \ : 2- 2 - ;
 : 2/ 1 rshift ;
 : 2* 1 lshift ;
-: cell- 2 - ;
-: cell+ 2 + ;
+: cell- cell - ;
+: cell+ cell + ;
 : cells 2* ;
 : ?dup dup if dup then ;
 \ : do-next r> r> ?dup if 1- >r @ >r exit then cell+ >r ;
@@ -257,7 +260,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : */ ( n n n -- q ) */mod swap drop ;
 
 : aligned ( b -- a )
-	dup 0 2 um/mod drop dup
+	dup 0 cell ( 2 or 'cell'?) um/mod drop dup
 	if 2 swap - then + ;
 
 : at-xy ( x y -- : set terminal cursor to x-y position )
@@ -526,6 +529,7 @@ http://lars.nocrew.org/forth2012/core/FIND.html )
 
 : pick ?dup if swap >r 1- pick r> swap exit then dup ;
 : roll  dup 0> if swap >r 1- roll r> swap else drop then ;
+: ndrop for aft drop then next ;
 
 : _type ( b u -- ) for aft count >char emit then next drop ;
 
@@ -580,8 +584,12 @@ variable tmp 0
 : free 0x2000 here - ;
 : .free free u. ;
 
-\ variable ERROR "error"
-\ : error cr ERROR print . cr branch 0 ;
+variable ERROR "error"
+: error cr 
+	ERROR print cr ( print error message )
+	sp@ ndrop      ( clear variable stack )
+	call "\"       ( flush input )
+	branch 0 ;     ( reset machine )
 
 ( @todo Better factor $interpret and $compile, as well as making
 them vectored words )
@@ -653,6 +661,9 @@ them vectored words )
 : create call ":" ' doVar compile, [ ;
 : "variable" create 0 , ;
 : ":noname" here 2/ ] ;
+\ : _next r> r> ?dup if 1- >r @ >r exit then 1+ ( should be cell+ ) >r ; 
+\ : "next" ' _next compile, , ; immediate
+\ : "for" =>r , here ; immediate
 
 \ : [compile] ( -- ; <string> ) "'" compile, ; immediate
 \ : compile ( -- ) r> dup @ , 1+ ( should be 'cell+' ) >r ;
@@ -728,11 +739,11 @@ perhaps it could be a vectored word )
 	dup =bs = if drop 1- exit then
 	swap vgaTextSize mod tuck dup 1+ vgaX /mod at-xy vga! 1+ ;
 
-: segment! o8SegLED ! ; ( n -- : display a number on the LED 7/8 segment display )
-: led!     oLeds ! ; ( n -- : write to LED lights )
-: switches iSwitches  @ ;
-: timer!   oTimerCtrl ! ;
-: timer@   iTimerDin  @ ;
+: segments! o8SegLED ! ; ( n -- : display a number on the LED 7/8 segment display )
+: led!      oLeds ! ; ( n -- : write to LED lights )
+: switches  iSwitches  @ ;
+: timer!    oTimerCtrl ! ;
+: timer@    iTimerDin  @ ;
 
 : ?ps2 ( -- c -1 | 0 : like ?rx but for the PS/2 keyboard )
 	iPs2 @ dup 0xff and swap 0x0100 and if -1 else drop 0 then ;
@@ -740,23 +751,18 @@ perhaps it could be a vectored word )
 variable wrote-count     0
 variable read-count      0
 
-: input ( -- c -1 | 0 : )
+: input ( -- c -1 | 0 : look for input from UART or PS/2 keyboard )
 	?rx if -1 else ?ps2 then if read-count 1+! -1 else 0 then ;
 
-: output ( c -- )
+: output ( c -- : write to UART and VGA display )
 	dup tx!
 	( drop exit \ @note The rest of this word is responsible for the large return stack usage )
 	cursor @ terminal
 	dup 1+ cursor @ u< if drop page else cursor ! then
 	wrote-count 1+! ;
 
-( This routine must be written in assembly; begin...while...repeat compiles to
-simple branches
-
-@bug This doesn't work - yet! )
-\ : rp!
-\	begin dup rp@ = 0= while rdrop .break repeat drop .break ;
-
+: rp! ( n -- , R: ??? -- ??? : set the return stack pointer )
+	begin dup rp@ = 0= while rdrop repeat drop ;
 
 ( ======================== Miscellaneous ==================== )
 
@@ -765,7 +771,7 @@ simple branches
 : init
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
 	timerInit timer!       \ Enable timer
-	cpu-id segment!        \ Display CPU ID on 7-Segment Displays
+	cpu-id segments!       \ Display CPU ID on 7-Segment Displays
 	page
 	1 seed ;               \ Set up PRNG seed
 	\ 0x00FF oIrcMask !
@@ -801,5 +807,4 @@ start:
 .set _prompt  .ok        ( execution vector of prompt, default to '.ok'. )
 .set _eval    $interpret ( execution vector of eval,   default to $interpret )
 .set _number? number?    ( execution vector of number? default to number? )
-
 

@@ -228,11 +228,11 @@ typedef enum {
 	X(AND,    "and",    (OP_ALU_OP | MK_CODE(ALU_OP_T_AND_N)                | MK_DSTACK(DELTA_N1)))\
 	X(XOR,    "xor",    (OP_ALU_OP | MK_CODE(ALU_OP_T_XOR_N)                | MK_DSTACK(DELTA_N1)))\
 	X(OR,     "or",     (OP_ALU_OP | MK_CODE(ALU_OP_T_OR_N)                 | MK_DSTACK(DELTA_N1)))\
-	X(DEPTH,  "sp@",    (OP_ALU_OP | MK_CODE(ALU_OP_DEPTH)                  | MK_DSTACK(DELTA_1)))\
+	X(DEPTH,  "sp@",    (OP_ALU_OP | MK_CODE(ALU_OP_DEPTH)   | T_TO_N       | MK_DSTACK(DELTA_1)))\
 	X(T_N1,   "1-",     (OP_ALU_OP | MK_CODE(ALU_OP_T_DECREMENT)))\
 	X(IEN,    "seti",   (OP_ALU_OP | MK_CODE(ALU_OP_ENABLE_INTERRUPTS)      | MK_DSTACK(DELTA_N1)))\
 	X(ISIEN,  "iset?",  (OP_ALU_OP | MK_CODE(ALU_OP_INTERRUPTS_ENABLED)     | MK_DSTACK(DELTA_1)))\
-	X(RDEPTH, "rp@",    (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)                 | MK_DSTACK(DELTA_1)))\
+	X(RDEPTH, "rp@",    (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)  | T_TO_N       | MK_DSTACK(DELTA_1)))\
 	X(TE0,    "0=",     (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
 	X(UP1,    "up1",    (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_DSTACK(DELTA_1)))\
 	X(NOP,    "nop",    (OP_ALU_OP | MK_CODE(ALU_OP_T)))\
@@ -1206,6 +1206,7 @@ static const debug_command_t debug_commands[] = {
 	{ .cmd = 't', .argc = 0, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "toggle tracing         " },
 	{ .cmd = 'u', .argc = 2, .arg1 = DBG_CMD_NUMBER, .arg2 = DBG_CMD_NUMBER, .description = "unassemble             " },
 	{ .cmd = 'y', .argc = 0, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "list symbols           " },
+	{ .cmd = 'v', .argc = 0, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "print VGA display      " },
 	{ .cmd = 'P', .argc = 1, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "push value             " },
 	{ .cmd = 'D', .argc = 0, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "pop value              " },
 	{ .cmd = 'G', .argc = 1, .arg1 = DBG_CMD_EITHER, .arg2 = DBG_CMD_NO_ARG, .description = "call function/location " },
@@ -1478,6 +1479,20 @@ again:
 				symbol_table_print(symbols, ds->output);
 			else
 				fprintf(ds->output, "symbol table unavailable\n");
+			break;
+		case 'v':
+			if(!io) {
+				fprintf(ds->output, "I/O unavailable\n");
+				break;
+			}
+			for(size_t i = 0; i < VGA_HEIGHT; i++) {
+				for(size_t j = 0; j < VGA_WIDTH; j++) {
+					unsigned char c = io->soc->vga[i*VGA_HEIGHT + j];
+					fputc(c < 32 || c > 127 ? '?' : c, ds->output);
+				}
+				fputc('\n', ds->output);
+			}
+
 			break;
 		case 'p':
 			if(io)
@@ -3313,10 +3328,13 @@ done:
 			return 0;
 		}
 
+	/** @todo This should probably only accept one file */
 	for(; i < argc; i++) { /* process all files on command line */
 		FILE *input = fopen_or_die(argv[i], "rb");
 		if(command(&cmd, input, stdout, symbols) < 0)
 			fatal("failed to process file: %s", argv[i]);
+		/**@note keeping "input" open until the command exits locks the
+		 * file for longer than is necessary under Windows */
 		fclose(input);
 	}
 

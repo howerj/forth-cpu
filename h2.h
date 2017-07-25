@@ -58,6 +58,9 @@ typedef struct {
 #define CLOCK_SPEED_HZ             (100000000ULL)
 
 #define VGA_BUFFER_LENGTH          (1 << 13)
+#define VGA_WIDTH                  (80)
+#define VGA_HEIGHT                 (40)
+#define VGA_AREA                   (VGA_WIDTH * VGA_HEIGHT)
 
 #define VGA_CTL_B_BIT              (0)
 #define VGA_CTL_G_BIT              (1)
