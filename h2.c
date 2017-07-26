@@ -18,6 +18,9 @@
  * generation, but could be done by saving an array of nodes, each
  * location referring matching up with a location in the core, also
  * the disassembler could use the dictionary if it is present.
+ * @todo An option to break when either the return stack or data
+ * stack reaches a value, or reaches a new max would help in optimizing
+ * the code
  *
  * The H2 CPU is a rewrite of the J1 Forth CPU in VHDL with some extensions,
  *
@@ -976,7 +979,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	case iSwitches:     return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
-	/** @bug reading from VGA memory is broken for the moment */
+	/** @bug reading from VGA memory is broken in the hardware for the moment */
 	case iVgaTxtDout:   return 0;
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
@@ -1600,9 +1603,6 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			case ALU_OP_T_DECREMENT: tos--; break;
 			case ALU_OP_R:           tos = h->rstk[h->rp % STK_SIZE]; break;
 			case ALU_OP_T_LOAD:
-				/* if(run_debugger)
-					if(h2_debugger(&ds, h, io, symbols, h->tos))
-						return 0; */
 				if(h->tos & 0x6000) {
 					if(io) {
 						tos = io->in(io->soc, h->tos, &turn_debug_on);
@@ -1615,11 +1615,6 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 						warning("I/O read attempted on addr: %"PRIx16, h->tos);
 					}
 				} else {
-					/**@note The lowest bit is not used in the address for memory reads */
-
-					/*if(h->tos & 1)
-						warning(stderr, "unaligned load %04x\n", (unsigned)(h->tos));*/
-
 					tos = h->core[(h->tos >> 1) % MAX_CORE];
 				}
 				break;
@@ -1651,15 +1646,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			if(instruction & T_TO_N)
 				h->dstk[h->sp % STK_SIZE] = h->tos;
 
-			/** @bug A read operation with ALU_OP_T_LOAD should
-			 * stop a write from happening - except for VGA memory
-			 * writes, for the moment. */
 			if(instruction & N_TO_ADDR_T) {
-				/* if(run_debugger)
-					if(h2_debugger(&ds, h, io, symbols, h->tos))
-						return 0; */
-
-				if(h->tos & 0x6000) {
+				if((h->tos & 0x6000) && ALU_OP(instruction) != ALU_OP_T_LOAD) {
 					if(io) {
 						io->out(io->soc, h->tos, nos, &turn_debug_on);
 						if(turn_debug_on) {
@@ -1671,7 +1659,6 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 						warning("I/O write attempted with addr/value: %"PRIx16 "/%"PRIx16, tos, nos);
 					}
 				} else {
-					/**@note The lowest bit is not used in the address for memory writes */
 					h->core[(h->tos >> 1) % MAX_CORE] = nos;
 				}
 			}
@@ -2585,7 +2572,6 @@ static node_t *parse(FILE *input)
 	l->error.jmp_buf_valid = 1;
 	if(setjmp(l->error.j)) {
 		lexer_free(l);
-		/**@bug leaks parsed nodes */
 		return NULL;
 	}
 	node_t *n = program(l);
@@ -3024,8 +3010,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 				value = symbol_special(h, a, n->value->p.id, e);
 			}
 		}
-		/**@bug only divide by 2 if literal_or_symbol_lookup was a
-		 * variable */
+		/**@bug only divide by 2 if literal_or_symbol_lookup was not a
+		 * constant  variable */
 		fix(h, location >> 1, value);
 		break;
 	}
@@ -3081,7 +3067,6 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	assert(n);
 	memset(&a, 0, sizeof a);
 
-	/**@bug these variables might be clobbered by setjmp/longjmp ('h' and 't')*/
 	t = symbols ? symbols : symbol_table_new();
 	h = h2_new(START_ADDR);
 	a.fence = h->pc;

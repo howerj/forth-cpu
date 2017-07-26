@@ -130,15 +130,8 @@ begin
 		ps2_keyboard_data => ps2_keyboard_data,
 		ps2_keyboard_clk  => ps2_keyboard_clk);
 
-	uut_function: entity work.function_tb       generic map(clock_frequency => clock_frequency) port map(stop => stop);
-	uut_shiftReg: entity work.shift_register_tb generic map(clock_frequency => clock_frequency);
-	uut_timer_us: entity work.timer_us_tb       generic map(clock_frequency => clock_frequency);
-	uut_edge:     entity work.edge_tb           generic map(clock_frequency => clock_frequency);
-	uut_full_add: entity work.full_adder_tb     generic map(clock_frequency => clock_frequency);
-	uut_fifo:     entity work.fifo_tb           generic map(clock_frequency => clock_frequency);
-	uut_counter:  entity work.counter_tb        generic map(clock_frequency => clock_frequency);
-	uut_lfsr:     entity work.lfsr_tb           generic map(clock_frequency => clock_frequency);
-	uut_ucpu:     entity work.ucpu_tb           generic map(clock_frequency => clock_frequency);
+	uut_util: entity work.util_tb generic map(clock_frequency => clock_frequency);
+	uut_restoring_divider: entity work.restoring_divider_tb generic map(clock_frequency => clock_frequency);
 
 	-- The "io_pins_tb" works correctly, however GHDL 0.29, compiled under
 	-- Windows, cannot fails to simulate this component correctly, and it

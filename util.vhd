@@ -10,9 +10,9 @@
 --|
 --| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
 --| vice versa), pulse generator, population count, priority encoder, types,
---| gray codes, Manchester encoder/decoder and other generic functions
+--| gray codes, CORDIC, Manchester encoder/decoder and other generic functions
 --| and components. Configurable Logic Block primitives could also be
---| provided.
+--| provided. Debouncers and a UART of my own design would also be useful.
 --| @todo Some simple communications primitives could be added in here, such
 --| as a SPI master. Another one would be a pin control module that can
 --| be used to control physical pins on the FPGA with a pin direction register,
@@ -29,9 +29,8 @@ use ieee.numeric_std.all;
 use std.textio.all;
 
 package util is
-	component function_tb is
+	component util_tb is
 		generic(clock_frequency: positive);
-		port(stop: in std_logic);
 	end component;
 
 	component clock_source_tb is
@@ -264,6 +263,23 @@ package util is
 		generic(
 			clock_frequency: positive;
 			file_name: string := "ucpu.bin");
+	end component;
+
+	component restoring_divider is
+		generic(N: positive);
+		port(
+			clk:   in  std_logic;
+			rst:   in  std_logic := '0';
+
+			a:     in  std_logic_vector(N - 1 downto 0);
+			b:     in  std_logic_vector(N - 1 downto 0);
+			start: in  std_logic;
+			done:  out std_logic;
+			c:     out std_logic_vector(N - 1 downto 0));
+	end component;
+
+	component restoring_divider_tb is
+		generic(clock_frequency: positive);
 	end component;
 
 	function max(a: natural; b: natural) return natural;
@@ -537,18 +553,25 @@ package body util is
 
 end;
 
-------------------------- Function Test Bench ---------------------------------------
+------------------------- Utility Test Bench ----------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 use work.util.all;
 
-entity function_tb is
+entity util_tb is
 	generic(clock_frequency: positive);
-	port(stop: in std_logic);
 end entity;
 
-architecture behav of function_tb is
+architecture behav of util_tb is
 begin
+	uut_shiftReg: work.util.shift_register_tb generic map(clock_frequency => clock_frequency);
+	uut_timer_us: work.util.timer_us_tb       generic map(clock_frequency => clock_frequency);
+	uut_edge:     work.util.edge_tb           generic map(clock_frequency => clock_frequency);
+	uut_full_add: work.util.full_adder_tb     generic map(clock_frequency => clock_frequency);
+	uut_fifo:     work.util.fifo_tb           generic map(clock_frequency => clock_frequency);
+	uut_counter:  work.util.counter_tb        generic map(clock_frequency => clock_frequency);
+	uut_lfsr:     work.util.lfsr_tb           generic map(clock_frequency => clock_frequency);
+	uut_ucpu:     work.util.ucpu_tb           generic map(clock_frequency => clock_frequency);
 
 	stimulus_process: process
 	begin
@@ -1998,3 +2021,156 @@ begin
 end architecture;
 
 ------------------------- uCPU ------------------------------------------------------
+
+
+------------------------- Restoring Division ----------------------------------------
+-- @todo Test in hardware, add remainder to output, renames signals, make a
+-- better test bench, add non-restoring division, and describe module
+--
+-- Computes a/b in N cycles
+--
+-- https://en.wikipedia.org/wiki/Division_algorithm#Restoring_division
+--
+--
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity restoring_divider is
+	generic(N: positive);
+	port(
+		clk:   in  std_logic;
+		rst:   in  std_logic := '0';
+
+		a:     in  unsigned(N - 1 downto 0);
+		b:     in  unsigned(N - 1 downto 0);
+		start: in  std_logic;
+		done:  out std_logic;
+		c:     out unsigned(N - 1 downto 0));
+end entity;
+
+architecture rtl of restoring_divider is 
+	signal a_c, a_n: unsigned(a'range) := (others => '0');
+	signal b_c, b_n: unsigned(b'range) := (others => '0');
+	signal m_c, m_n: unsigned(b'range) := (others => '0');
+	signal e_c, e_n: std_logic         := '0';
+begin
+	c <= a_c;
+
+	process(clk, rst)
+	begin
+		if rst = '1' then
+			a_c <= (others => '0');
+			b_c <= (others => '0');
+			m_c <= (others => '0');
+			e_c <= '0';
+		elsif rising_edge(clk) then
+			a_c <= a_n;
+			b_c <= b_n;
+			m_c <= m_n;
+			e_c <= e_n;
+		end if;
+	end process;
+
+	divide: process(a, b, start, a_c, b_c, m_c, e_c)
+		variable m_v: unsigned(c'range) := (others => '0');
+		variable count: unsigned(work.util.n_bits(N) downto 0) := (others => '0');
+	begin
+		done <= '0';
+		a_n  <= a_c;
+		b_n  <= b_c;
+		m_v  := m_c;
+		e_n  <= e_c;
+		if start = '1' then
+			a_n <= a;
+			b_n <= b;
+			m_v := (others => '0');
+			count := (others => '0');
+			e_n <= '1';
+		elsif e_c = '1' then
+			if count(count'high) = '1' then 
+				done  <= '1';
+				e_n   <= '0';
+				count := (others => '0');
+			else
+				m_v(b'high downto 1) := m_v(b'high - 1 downto 0);
+				m_v(0) := a_c(a'high);
+				a_n(a'high downto 1) <= a_c(a'high - 1 downto 0);
+				m_v := m_v - b_c;
+				if m_v(m_v'high) = '1' then
+					m_v := m_v + b_c;
+					a_n(0) <= '0';
+				else
+					a_n(0) <= '1';
+				end if;
+				count := count + 1;
+			end if;
+		else
+			count := (others => '0');
+		end if;
+		m_n <= m_v;
+	end process;
+end architecture;
+
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use ieee.math_real.all;
+
+entity restoring_divider_tb is
+	generic(clock_frequency: positive);
+end entity;
+
+architecture testing of restoring_divider_tb is
+	constant clk_period: time     := 1000 ms / clock_frequency;
+	constant N:          positive := 8;
+
+	signal a: unsigned(N - 1 downto 0) := (others => '0');
+	signal b: unsigned(N - 1 downto 0) := (others => '0');
+	signal c: unsigned(N - 1 downto 0) := (others => '0');
+	signal start, done: std_logic := '0';
+
+	signal clk, rst: std_logic := '0';
+	signal stop:     std_logic := '0';
+begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
+	uut: entity work.restoring_divider 
+		generic map(N => N)
+		port map(
+			clk   => clk,
+			rst   => rst,
+			a     => a,
+			b     => b,
+			start => start,
+			done  => done,
+			c     => c);
+
+	stimulus_process: process
+	begin
+		wait for clk_period * 2;
+
+		a <= x"64";
+		b <= x"0A";
+		start <= '1';
+		wait for clk_period * 1;
+		start <= '0';
+		wait until done = '1';
+		assert c = x"0A" severity failure;
+
+		wait for clk_period * 10;
+		b     <= x"05";
+		start <= '1';
+		wait for clk_period * 1;
+		start <= '0';
+		wait until done = '1';
+		assert c = x"14" severity failure;
+
+		stop <= '1';
+		wait;
+	end process;
+
+end architecture;
+------------------------- Restoring Divider ---------------------------------------------------
