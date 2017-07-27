@@ -158,12 +158,12 @@ begin
 	-- should really raise a bus error, but this is not implemented.
 	dout   <=  nos;
 	daddr  <=  tos_c(13 downto 1) when is_ram_write = '1' else tos_n(13 downto 1);
-	dwe    <=  '1' when is_ram_write = '1' and tos_c(14) /= '1' else '0';
+	dwe    <=  '1' when is_ram_write = '1' and tos_c(15 downto 14) = "00" else '0';
 	dre    <=  '1' when tos_n(15 downto 14) = "00" else '0';
 
 	io_dout   <=  nos;
 	io_daddr  <=  tos_c(15 downto 0);
-	io_wr     <= '1' when is_ram_write = '1' and tos_c(14) = '1' else '0';
+	io_wr     <= '1' when is_ram_write = '1' and tos_c(15 downto 14) /= "00" else '0';
 	-- @note io_re is handled in the ALU
 
 	pc_plus_one <= std_logic_vector(unsigned(pc_c) + 1);
@@ -239,7 +239,7 @@ begin
 		when "01011" => tos_n <= rtos_c;
 		when "01100" =>
 			-- input: 0x4000 - 0x7FFF is external input
-			if tos_c(14) = '1' then
+			if tos_c(15 downto 14) /= "00" then
 				tos_n <= io_din;
 				io_re <= '1';
 			else
