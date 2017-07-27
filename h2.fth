@@ -84,24 +84,23 @@ constant tib-length    80     ( size of terminal input buffer )
 constant pad-length    80     ( pad area begins HERE + pad-length )
 
 ( Outputs: 0x6000 - 0x7FFF )
-constant oUart         0x6000 ( UART TX/RX Control register )
-constant oLeds         0x6001 ( LEDs )
-constant oTimerCtrl    0x6002 ( Timer Control )
-constant oVgaCursor    0x6003 ( VGA X/Y Cursor position )
-constant oVgaCtrl      0x6004 ( VGA Control )
-constant o8SegLED      0x6005 ( 4x7 Segment display )
-constant oIrcMask      0x6006 ( Interrupt Mask )
-constant oLfsr         0x6007
+constant oUart         0x4000 ( UART TX/RX Control register )
+constant oLeds         0x4001 ( LEDs )
+constant oTimerCtrl    0x4002 ( Timer Control )
+constant oVgaCursor    0x4003 ( VGA X/Y Cursor position )
+constant oVgaCtrl      0x4004 ( VGA Control )
+constant o8SegLED      0x4005 ( 4x7 Segment display )
+constant oIrcMask      0x4006 ( Interrupt Mask )
+constant oLfsr         0x4007
 
 ( Inputs: 0x6000 - 0x7FFF )
-constant iUart         0x6000
-constant iSwitches     0x6001
-constant iTimerCtrl    0x6002
-constant iTimerDin     0x6003
-constant iVgaTxtDout   0x6004
-constant iPs2          0x6005
-constant iLfsr         0x6006
-
+constant iUart         0x4000
+constant iSwitches     0x4001
+constant iTimerCtrl    0x4002
+constant iTimerDin     0x4003
+constant iVgaTxtDout   0x4004
+constant iPs2          0x4005
+constant iLfsr         0x4006
 
 ( ======================== System Constants ================= )
 
@@ -669,7 +668,7 @@ constant vgaTextSize   3200
 
 variable cursor 0  ( index into VGA text memory )
 
-: vga! 0xE000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
+: vga! 0xC000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
 
 ( This should also emit the ANSI Terminal codes for paging as well,
 perhaps it could be a vectored word )

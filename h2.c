@@ -1606,7 +1606,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			case ALU_OP_T_DECREMENT: tos--; break;
 			case ALU_OP_R:           tos = h->rstk[h->rp % STK_SIZE]; break;
 			case ALU_OP_T_LOAD:
-				if(h->tos & 0x6000) {
+				if(h->tos & 0x4000) {
 					if(io) {
 						tos = io->in(io->soc, h->tos, &turn_debug_on);
 						if(turn_debug_on) {
@@ -1650,7 +1650,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 				h->dstk[h->sp % STK_SIZE] = h->tos;
 
 			if(instruction & N_TO_ADDR_T) {
-				if((h->tos & 0x6000) && ALU_OP(instruction) != ALU_OP_T_LOAD) {
+				if((h->tos & 0x4000) && ALU_OP(instruction) != ALU_OP_T_LOAD) {
 					if(io) {
 						io->out(io->soc, h->tos, nos, &turn_debug_on);
 						if(turn_debug_on) {

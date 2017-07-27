@@ -144,24 +144,24 @@ typedef struct {
  * generate constants for use with the assembler */
 
 typedef enum {
-	iUart         = 0x6000,
-	iSwitches     = 0x6001,
-	iTimerCtrl    = 0x6002,
-	iTimerDin     = 0x6003,
-	iVgaTxtDout   = 0x6004,
-	iPs2          = 0x6005,
-	iLfsr         = 0x6006,
+	iUart         = 0x4000,
+	iSwitches     = 0x4001,
+	iTimerCtrl    = 0x4002,
+	iTimerDin     = 0x4003,
+	iVgaTxtDout   = 0x4004,
+	iPs2          = 0x4005,
+	iLfsr         = 0x4006,
 } h2_input_addr_t;
 
 typedef enum {
-	oUart         = 0x6000,
-	oLeds         = 0x6001,
-	oTimerCtrl    = 0x6002,
-	oVgaCursor    = 0x6003,
-	oVgaCtrl      = 0x6004,
-	o8SegLED      = 0x6005,
-	oIrcMask      = 0x6006,
-	oLfsr         = 0x6007,
+	oUart         = 0x4000,
+	oLeds         = 0x4001,
+	oTimerCtrl    = 0x4002,
+	oVgaCursor    = 0x4003,
+	oVgaCtrl      = 0x4004,
+	o8SegLED      = 0x4005,
+	oIrcMask      = 0x4006,
+	oLfsr         = 0x4007,
 } h2_output_addr_t;
 
 typedef enum {

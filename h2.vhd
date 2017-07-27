@@ -1,8 +1,7 @@
 -------------------------------------------------------------------------------
 --| @file h2.vhd
---| @brief The H2 Processor:
---| J1 processor translation and extension. Moved bit 12 to bit 4 to
---| allow for more ALU instructions.
+--| @brief The H2 Processor: J1 processor translation and extension. 
+--| Moved bit 12 to bit 4 to allow for more ALU instructions.
 --|
 --| @author         Richard James Howe.
 --| @copyright      Copyright 2017 Richard James Howe.
@@ -14,8 +13,7 @@
 --|  CPU (such as interrupts and ALU operations) could be made to be optional.
 --|  * Turn this component into a package
 --|  * Turn this into a literate file, describing the CPU
---|  * Fix Address mapping, it should only take one bit to specify I/O
---|  reads and writes in the address, not two.
+--|  * Check address mapping fix
 --|
 -------------------------------------------------------------------------------
 
@@ -160,12 +158,12 @@ begin
 	-- should really raise a bus error, but this is not implemented.
 	dout   <=  nos;
 	daddr  <=  tos_c(13 downto 1) when is_ram_write = '1' else tos_n(13 downto 1);
-	dwe    <=  '1' when is_ram_write = '1' and tos_c(14 downto 13) /= "11" else '0';
+	dwe    <=  '1' when is_ram_write = '1' and tos_c(14) /= '1' else '0';
 	dre    <=  '1' when tos_n(15 downto 14) = "00" else '0';
 
 	io_dout   <=  nos;
 	io_daddr  <=  tos_c(15 downto 0);
-	io_wr     <= '1' when is_ram_write = '1' and tos_c(14 downto 13) = "11" else '0';
+	io_wr     <= '1' when is_ram_write = '1' and tos_c(14) = '1' else '0';
 	-- @note io_re is handled in the ALU
 
 	pc_plus_one <= std_logic_vector(unsigned(pc_c) + 1);
@@ -240,8 +238,8 @@ begin
 		when "01010" => tos_n <= std_logic_vector(unsigned(tos_c) - 1);
 		when "01011" => tos_n <= rtos_c;
 		when "01100" =>
-			-- input: 0x6000 - 0x7FFF is external input
-			if tos_c(14 downto 13) /= "00" then
+			-- input: 0x4000 - 0x7FFF is external input
+			if tos_c(14) = '1' then
 				tos_n <= io_din;
 				io_re <= '1';
 			else
