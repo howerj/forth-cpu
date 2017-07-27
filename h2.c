@@ -21,6 +21,9 @@
  * @todo An option to break when either the return stack or data
  * stack reaches a value, or reaches a new max would help in optimizing
  * the code
+ * @todo Load/Save special variables to symbol table
+ * @todo Allow forward branches
+ * @todo Add names to breakpoint structure
  *
  * The H2 CPU is a rewrite of the J1 Forth CPU in VHDL with some extensions,
  *
@@ -3146,7 +3149,7 @@ typedef struct {
 } command_args_t;
 
 static const char *help = "\
-usage ./h2 [-hvdDarRT] [-s number] [-L symbol.file] [-S symbol.file] files*\n\n\
+usage ./h2 [-hvdDarRT] [-s number] [-L symbol.file] [-S symbol.file] (file.hex|file.fth)\n\n\
 Brief:     A H2 CPU Assembler, disassembler and Simulator.\n\
 Author:    Richard James Howe\n\
 Site:      https://github.com/howerj/forth-cpu\n\
@@ -3165,8 +3168,8 @@ Options:\n\n\
 \t-L #\tload symbol file\n\
 \t-S #\tsave symbols to file\n\
 \t-s #\tnumber of steps to run simulation (0 = forever)\n\
-\tfile*\tfile to process\n\n\
-Options must precede any files given, if no files have been\n\
+\tfile\thex or forth file to process\n\n\
+Options must precede any files given, if a file has not been\n\
 given as arguments input is taken from stdin. Output is to\n\
 stdout. Program returns zero on success, non zero on failure.\n\n\
 ";
@@ -3242,6 +3245,7 @@ int h2_main(int argc, char **argv)
 	symbol_table_t *symbols = NULL;
 	FILE *symfile = NULL;
 	FILE *newsymfile = NULL;
+	FILE *input = NULL;
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.steps = DEFAULT_STEPS;
 
@@ -3324,21 +3328,21 @@ int h2_main(int argc, char **argv)
 	if(!symbols)
 		symbols = symbol_table_new();
 done:
-	if(i == argc)
-		if(command(&cmd, stdin, stdout, symbols) < 0) {
+	if(i == argc) {
+		if(command(&cmd, stdin, stdout, symbols) < 0)
 			fatal("failed to process standard input");
-			return 0;
-		}
-
-	/** @todo This should probably only accept one file */
-	for(; i < argc; i++) { /* process all files on command line */
-		FILE *input = fopen_or_die(argv[i], "rb");
-		if(command(&cmd, input, stdout, symbols) < 0)
-			fatal("failed to process file: %s", argv[i]);
-		/**@note keeping "input" open until the command exits locks the
-		 * file for longer than is necessary under Windows */
-		fclose(input);
+		return 0;
 	}
+
+	if(i < (argc - 1))
+		fatal("more than one file argument given");
+
+	input = fopen_or_die(argv[i], "rb");
+	if(command(&cmd, input, stdout, symbols) < 0)
+		fatal("failed to process file: %s", argv[i]);
+	/**@note keeping "input" open until the command exits locks the
+	 * file for longer than is necessary under Windows */
+	fclose(input);
 
 	if(newsymfile) {
 		symbol_table_print(symbols, newsymfile);
