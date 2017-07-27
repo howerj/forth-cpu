@@ -13,7 +13,6 @@
 --|  CPU (such as interrupts and ALU operations) could be made to be optional.
 --|  * Turn this component into a package
 --|  * Turn this into a literate file, describing the CPU
---|  * Check address mapping fix
 --|
 -------------------------------------------------------------------------------
 

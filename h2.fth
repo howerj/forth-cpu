@@ -517,7 +517,7 @@ variable tmp 0
 return stack, which can cause a lot of problems, but instead
 use the space pad )
 : .s ( -- ) cr sp@ for aft r@ pick . then next [char] * emit ;
-: unused 0x2000 here - ;
+: unused 0x4000 here - ;
 \ : .free unused u. ;
 
 : preset sp@ ndrop tib #tib cell+ ! ;
@@ -756,7 +756,7 @@ start:
 	page                   \ Clear display
 	1 seed                 \ Set up PRNG seed
 
-	here . unused u. .ok
+	hex here . unused u. .ok decimal
 
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
