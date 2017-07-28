@@ -56,18 +56,6 @@ package vga_pkg is
 		ctl:    std_logic_vector(7 downto 0); -- Control register
 	end record;
 
--- 	type vga_ram_registers is record
--- 		din:     std_logic_vector(15 downto 0);
--- 		addr:    std_logic_vector(12 downto 0);
--- 	end record;
---
--- 	type vga_ram_interface is record
--- 		ram_we:  std_logic; -- Write enable RAM
--- 		addr_we: std_logic; -- Write enable address
--- 		din_we:  std_logic; -- Write enable data
--- 		reg:     vga_ram_registers;
--- 	end record;
-
 	constant vga_control_registers_initialize: vga_control_registers_interface := (
 			cry => (others => '0'),
 			crx => (others => '0'),
@@ -138,8 +126,7 @@ package vga_pkg is
 			clk: in  std_logic;
 			ce:  in  std_logic; -- enable counting
 			rs:  in  std_logic; -- synchronous rst
-			do:  out integer range (M-1) downto 0 := 0
-		);
+			do:  out integer range (M-1) downto 0 := 0);
 	end component;
 
 end package;

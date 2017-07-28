@@ -578,9 +578,10 @@ static void draw_vga(const world_t *world, vga_t *v)
 
 	double char_width  = scale.x / X_MAX;
        	double char_height = scale.y / Y_MAX;
+	uint8_t *m = v->m + (v->control & VGA_SCREEN_SELECT ? VGA_BUFFER_LENGTH/2 : 0);
 
 	for(size_t i = 0; i < VGA_HEIGHT; i++)
-		draw_block_scaled(v->x, v->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*VGA_WIDTH), VGA_WIDTH, color);
+		draw_block_scaled(v->x, v->y - ((double)i * char_height), scale_x, scale_y, 0, m + (i*VGA_WIDTH), VGA_WIDTH, color);
 	draw_string_scaled(v->x, v->y - (VGA_HEIGHT * char_height), scale_x, scale_y, 0, "VGA", color);
 
 	/* fudge factor = 1/((1/scale_x)/X_MAX) ??? */

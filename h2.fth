@@ -627,11 +627,6 @@ is not consumed )
 : $" ( -- ; <string> ) ' $"| compile, $,' ; immediate
 : ." ( -- ; <string> ) ' ."| compile, $,' ; immediate
 
-
-( ======================== Word Set ========================= )
-
-( ======================== Miscellaneous ==================== )
-
 \ ccitt: ( crc c -- crc : calculate polynomial 0x1021 AKA "x16 + x12 + x5 + 1" )
 \ 	over 256/ xor           ( crc x )
 \ 	dup  4  rshift xor      ( crc x )
@@ -645,10 +640,12 @@ is not consumed )
 \ 	1 /string
 \ repeat 2drop r> ;
  
+( ======================== Word Set ========================= )
+
+( ======================== Miscellaneous ==================== )
+
 
 ( Initial value of VGA
-@todo reverse the order of red-green-blue so it matches up with ANSI
-terminal code encoding
 
   BIT     MEANING
   7   -  Display Next Screen
@@ -665,16 +662,23 @@ constant vgaX          80
 constant vgaY          40
 constant vgaTextSize   3200
 
-( Initial value of timer
-  BIT     MEANING
-  15   -  Enable Timer
-  14   -  Reset Timer Value immediately
-  13   -  Interrupt Enable
-  12-0 -  Value to compare against )
-
 variable cursor 0  ( index into VGA text memory )
 
-: vga! 0xC000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
+\ variable vga.on        1
+\ variable vga.cursor.en 0
+\ variable vga.color     1
+\ variable vga.screen    0
+
+\ : vga.ctrl! ( -- )
+\ 	0
+\ 	vga.screen    @ if 0x80 or then
+\ 	vga.on        @ if 0x40 or then
+\ 	vga.screen    @ if 0x20 or then
+\ 	vga.cursor.en @ if 0x10 or then
+\ 	vga.color     @ 0x7 and or
+\ 	0x4004 ! ;
+
+: vga! ( vga.screen @ if 4096 + then ) 0xC000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
 
 ( This should also emit the ANSI Terminal codes for paging as well,
 perhaps it could be a vectored word )
@@ -731,6 +735,14 @@ This is clearly magic. )
 	dup 1+ cursor @ u< if drop page else cursor ! then
 	( wrote-count 1+! ) ;
 
+
+( Initial value of timer
+  BIT     MEANING
+  15   -  Enable Timer
+  14   -  Reset Timer Value immediately
+  13   -  Interrupt Enable
+  12-0 -  Value to compare against )
+
 ( \ Testing for the interrupt mechanism 
 irq:
 	.break
@@ -753,55 +765,54 @@ irq:
 see: https://en.wikipedia.org/wiki/ANSI_escape_code
 These codes will provide a relatively portable means of
 manipulating a terminal )
-
-constant escape 27
-variable colorize 0 ( set to 'drop' to disable, 'tx!' turn on )
-.set colorize tx!
-
-CSI: escape emit [char] [ emit exit
-10u.: base @ >r decimal <# #s #> type r> base ! exit ( n -- : print a number in decimal )
-
-( Colors can be used for the lower VGA control bits, as well as for ANSI
-Terminal escape sequences )
-: black    0 ;
-: red      1 ;
-: green    2 ;
-: yellow   3 ;
-: blue     4 ;
-: magenta  5 ;
-: cyan     6 ;
-: white    7 ;
-: dark     0 ;
-: bright   1 ;
-: foreground ;
-: background 10 + ;
-
-
-( usage:
-
-	dark red foreground color
-	bright blue background color 
-)
-: color ( brightness color-code -- : set the color on an ANSI terminal )
-	colorize @ 0= if 2drop exit then
-	_emit colorize switch
-	30 + 
-	call CSI call 10u. 
-	if  
-		59 emit  49 emit ( ." ;1" ) 
-	then 
-	[char] m emit
-	_emit colorize switch ;
-
-\ : at-xy CSI 10u. [char] ; emit 10u. [char] H emit ; ( x y -- : set ANSI terminal cursor position to x y )
-\ : page CSI ." 2J" 1 1 at-xy ; ( -- : clear ANSI terminal screen and move cursor to beginning )
-
-\ location HIDE_CURSOR "?25l" : hide-cursor CSI HIDE_CURSOR print ; ( -- : hide cursor )
-\ location SHOW_CURSOR "?25h" : show-cursor CSI SHOW_CURSOR print ; ( -- : show the cursor )
-\ : save-cursor CSI [char] s emit ; ( -- : save cursor position )
-\ : restore-cursor CSI [char] u emit ; ( -- : restore saved cursor position )
-\ : reset-color colorize @ 0= if exit then CSI 0 10u. [char] m emit ; ( -- : reset terminal color to its default value)
-
+\ 
+\ constant escape 27
+\ variable colorize 0 ( set to 'drop' to disable, 'tx!' turn on )
+\ .set colorize tx!
+\ 
+\ CSI: escape emit [char] [ emit exit
+\ 10u.: base @ >r decimal <# #s #> type r> base ! exit ( n -- : print a number in decimal )
+\ 
+\ ( Colors can be used for the lower VGA control bits, as well as for ANSI
+\ Terminal escape sequences )
+\ : black    0 ;
+\ : red      1 ;
+\ : green    2 ;
+\ : yellow   3 ;
+\ : blue     4 ;
+\ : magenta  5 ;
+\ : cyan     6 ;
+\ : white    7 ;
+\ : dark     0 ;
+\ : bright   1 ;
+\ : ansi.foreground ;
+\ : ansi.background 10 + ;
+\ 
+\ ( usage:
+\ 
+\ 	dark red foreground color
+\ 	bright blue background color 
+\ )
+\ : ansi.color ( brightness color-code -- : set the color on an ANSI terminal )
+\ 	colorize @ 0= if 2drop exit then
+\ 	_emit colorize switch
+\ 	30 + 
+\ 	call CSI call 10u. 
+\ 	if  
+\ 		59 emit  49 emit ( ." ;1" ) 
+\ 	then 
+\ 	[char] m emit
+\ 	_emit colorize switch ;
+\ 
+\ : ansi.at-xy call CSI call 10u. 59 emit call 10u. [char] H emit ; ( x y -- : set ANSI terminal cursor position to x y )
+\ : ansi.page call CSI 2 call 10u. [char] J emit 1 1 ansi.at-xy ; ( -- : clear ANSI terminal screen and move cursor to beginning )
+\ 
+\ location HIDE_CURSOR "?25l" : ansi.hide-cursor call CSI HIDE_CURSOR print ; ( -- : hide cursor )
+\ location SHOW_CURSOR "?25h" : ansi.show-cursor call CSI SHOW_CURSOR print ; ( -- : show the cursor )
+\ : ansi.save-cursor call CSI [char] s emit ; ( -- : save cursor position )
+\ : ansi.restore-cursor call CSI [char] u emit ; ( -- : restore saved cursor position )
+\ : ansi.reset-color colorize @ 0= if exit then call CSI 0 call 10u. [char] m emit ; ( -- : reset terminal color to its default value)
+\ 
 ( ======================== ANSI SYSTEM   ==================== )
 
 ( ======================== Starting Code ==================== )
