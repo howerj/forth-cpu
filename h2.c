@@ -413,7 +413,6 @@ void h2_free(h2_t *h)
 	free(h);
 }
 
-/** @brief load in a file containing a single hexadecimal digit per line */
 int h2_load(h2_t *h, FILE *hexfile)
 {
 	assert(h);

@@ -117,7 +117,7 @@ variable _echo    0  ( "echo" vector )
 variable _prompt  0  ( "prompt" vector )
 variable _boot    0  ( "boot" vector )
 
-variable OK      "ok" ( used by "prompt" )
+location OK     "ok" ( used by "prompt" )
 variable csp      0  ( current data stack pointer - for error checking )
 variable >in      0  ( Hold character pointer when parsing input )
 variable state    0  ( compiler state variable )
@@ -262,7 +262,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : spaces ( +n -- ) =bl nchars ;
 : cmove for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ; ( b b u -- )
 : fill swap for swap aft 2dup c! 1+ then next 2drop ; ( b u c -- )
-
+: switch 2dup @ >r @ swap ! r> swap ! ; ( a a -- swap contents )
 
 : um/mod ( ud u -- ur uq )
 	2dup u<
@@ -305,6 +305,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : extract ( n base -- n c ) 0 swap um/mod swap digit ;
 : <# ( -- ) pad hld ! ;
 : hold ( c -- ) hld @ 1 - dup hld ! c! ;
+\ : holds begin dup while 1- 2dup + c@ hold repeat 2drop ; ( a u -- )
 : # ( u -- u ) base @ extract hold ;
 : #s ( u -- 0 ) begin # dup while repeat ;
 : sign ( n -- ) 0< if [char] - hold then ;
@@ -366,15 +367,15 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : expect ( b u -- ) _expect @execute span ! drop ;
 : query tib tib-length _expect @execute #tib !  drop 0 >in ! ; ( -- )
 
-( @todo simplify this code )
+
 : =string ( a1 u2 a1 u2 -- f : string equality )
 	>r swap r> ( a1 a2 u1 u2 )
 	over xor if 3drop  0 exit then
-	dup  0=  if 3drop -1 exit then
-	1-
 	for ( a1 a2 )
-		2dup c@ swap c@ xor if 2drop rdrop 0 exit then
-		1+ swap 1+
+		aft
+			count >r swap count r> xor
+			if 2drop rdrop 0 exit then
+		then
 	next 2drop -1 ;
 
 : address 0x1fff and ; ( a -- a : mask off address bits )
@@ -398,15 +399,15 @@ returned.
 
 http://lars.nocrew.org/forth2012/core/FIND.html )
 
-: find ( a u -- pwd 1 | pwd -1 | 0 : find a word in the dictionary )
-	>r >r
+: find ( a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
+	>r
 	last address
 	begin
 		dup
 	while
-		dup nfa count r> r> 2dup >r >r =string
+		dup nfa count r@ count =string
 		if ( found! )
-			rdrop rdrop    ( get rid of string )
+			rdrop ( get rid of string )
 			dup hidden? 
 			( "0=" is "drop 0" in this case as argument is alway non zero ) 
 			if 0= else dup immediate? if 1 else -1 then then 
@@ -414,7 +415,7 @@ http://lars.nocrew.org/forth2012/core/FIND.html )
 		then
 		@ address
 	repeat
-	rdrop rdrop drop 0 exit ;
+	drop r> 0 ;
 
 : words ( -- : list all the words in the dictionary )
 	space
@@ -509,6 +510,7 @@ location tmp 0
 
 : .( 41 parse type ; immediate
 : "(" 41 parse 2drop ; immediate
+: ) ; immediate
 : "\" #tib @ >in ! ; immediate
 : word parse here pack$ ; ( c -- a ; <string> )
 : token =bl parse word-length min word-buf pack$ ; ( -- a ; <string> )
@@ -543,10 +545,8 @@ doLit: 0x8000 or , exit
 : compile, ( cfa -- : compile a code field address )
 	2/ 0x4000 or , ; ( 2/ ? )
 
-( @todo This should be changes so it use counted strings internally )
-: interpret ( ??? b u -- ??? : The command/compiler loop )
-	2dup find ?dup if
-		>r >r 2drop r> r>
+: interpret ( ??? a -- ??? : The command/compiler loop )
+	find ?dup if
 		state @ 
 		if
 			0> if \ immediate 
@@ -563,11 +563,11 @@ doLit: 0x8000 or , exit
 			drop cfa execute
 		then
 	else \ not a word 
-		2dup number? if
-			nip nip
+		dup count number? if
+			nip
 			state @ if literal then
 		else
-			drop space type error
+			drop space print error
 		then
 	then ;
 
@@ -580,7 +580,7 @@ doLit: 0x8000 or , exit
 	begin 
 		query 
 		( begin...while...repeat is 'eval' ) 
-		begin token count dup while interpret repeat 2drop _prompt @execute
+		begin token dup count nip while interpret repeat drop _prompt @execute
 	again 
 	branch 0 ;
 
@@ -592,7 +592,7 @@ doLit: 0x8000 or , exit
 \ variable redefined "redefined"
 \ : ?unique dup count find if drop redefined print then ;
 : ":" call !csp here last address , pwd ! =bl word count + aligned cp ! ] ; 
-: "'" token count find if cfa else error then ; immediate
+: "'" token find if cfa else error then ; immediate
 : ";" =exit , [ call ?csp ; immediate
 jumpz,: 2/ 0x2000 or , exit
 jump,: 2/ ( 0x0000 or ) , exit
@@ -647,15 +647,18 @@ is not consumed )
  
 
 ( Initial value of VGA
+@todo reverse the order of red-green-blue so it matches up with ANSI
+terminal code encoding
+
   BIT     MEANING
   7   -  Display Next Screen
   6   -  Enable VGA
   5   -  Cursor enable
   4   -  Cursor blinks
   3   -  Cursor mode
-  2   -  Red
+  2   -  Blue
   1   -  Green
-  0   -  Blue )
+  0   -  Red )
 constant vgaInit       0x7A \ 0x007A
 
 constant vgaX          80
@@ -683,7 +686,6 @@ perhaps it could be a vectored word )
 	while
 		dup =bl swap vga! 1-
 	repeat drop ;	
-	\ 0x1FFF for =bl r@ vga! next ;
 
 : seed    oLfsr ! ; ( u -- : seed PRNG, requires non-zero value )
 : random  iLfsr @ ; ( -- u : get a pseudo random number @todo replace with XORShift )
@@ -743,6 +745,64 @@ irq:
 	1 seti ; )
 
 ( ======================== Miscellaneous ==================== )
+
+( ======================== ANSI SYSTEM   ==================== )
+
+( Terminal colorization module, via ANSI Escape Codes
+
+see: https://en.wikipedia.org/wiki/ANSI_escape_code
+These codes will provide a relatively portable means of
+manipulating a terminal )
+
+constant escape 27
+variable colorize 0 ( set to 'drop' to disable, 'tx!' turn on )
+.set colorize tx!
+
+CSI: escape emit [char] [ emit exit
+10u.: base @ >r decimal <# #s #> type r> base ! exit ( n -- : print a number in decimal )
+
+( Colors can be used for the lower VGA control bits, as well as for ANSI
+Terminal escape sequences )
+: black    0 ;
+: red      1 ;
+: green    2 ;
+: yellow   3 ;
+: blue     4 ;
+: magenta  5 ;
+: cyan     6 ;
+: white    7 ;
+: dark     0 ;
+: bright   1 ;
+: foreground ;
+: background 10 + ;
+
+
+( usage:
+
+	dark red foreground color
+	bright blue background color 
+)
+: color ( brightness color-code -- : set the color on an ANSI terminal )
+	colorize @ 0= if 2drop exit then
+	_emit colorize switch
+	30 + 
+	call CSI call 10u. 
+	if  
+		59 emit  49 emit ( ." ;1" ) 
+	then 
+	[char] m emit
+	_emit colorize switch ;
+
+\ : at-xy CSI 10u. [char] ; emit 10u. [char] H emit ; ( x y -- : set ANSI terminal cursor position to x y )
+\ : page CSI ." 2J" 1 1 at-xy ; ( -- : clear ANSI terminal screen and move cursor to beginning )
+
+\ location HIDE_CURSOR "?25l" : hide-cursor CSI HIDE_CURSOR print ; ( -- : hide cursor )
+\ location SHOW_CURSOR "?25h" : show-cursor CSI SHOW_CURSOR print ; ( -- : show the cursor )
+\ : save-cursor CSI [char] s emit ; ( -- : save cursor position )
+\ : restore-cursor CSI [char] u emit ; ( -- : restore saved cursor position )
+\ : reset-color colorize @ 0= if exit then CSI 0 10u. [char] m emit ; ( -- : reset terminal color to its default value)
+
+( ======================== ANSI SYSTEM   ==================== )
 
 ( ======================== Starting Code ==================== )
 

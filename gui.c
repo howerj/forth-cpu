@@ -548,14 +548,14 @@ typedef struct {
 static color_t vga_map_color(uint8_t c)
 {
 	color_t r = WHITE;
-	switch(c & 0x7) { /* RED  GRN  BLU */
+	switch(c & 0x7) { /* MSB -> BLU  GRN  RED <- LSB*/
 	case 0: r = BLACK;   break;
-	case 1: r = BLUE;    break;
+	case 1: r = RED;     break;
 	case 2: r = GREEN;   break;
-	case 3: r = CYAN;    break;
-	case 4: r = RED;     break;
+	case 3: r = YELLOW;  break;
+	case 4: r = BLUE;    break;
 	case 5: r = MAGENTA; break;
-	case 6: r = YELLOW;  break;
+	case 6: r = CYAN;    break;
 	case 7: r = WHITE;   break;
 	}
 	return r;
@@ -705,6 +705,7 @@ void update_terminal(terminal_t *t, fifo_t *f)
 {
 	assert(t);
 	assert(f);
+	/**@todo implement some ANSI terminal escape codes here */
 	for(;!fifo_is_empty(f);) {
 		uint8_t c = 0;
 		bool r = fifo_pop(f, &c);

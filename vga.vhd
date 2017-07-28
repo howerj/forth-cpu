@@ -432,14 +432,13 @@ begin
 
 	-- Control register. Individual control signal
 
-	-- @note This has been reorganized from the original
 	vga_en    <= octl(6);
 	cur_en    <= octl(5);
 	cur_blink <= octl(4);
 	cur_mode  <= octl(3);
-	ctl_r     <= octl(2);
+	ctl_b     <= octl(2);
 	ctl_g     <= octl(1);
-	ctl_b     <= octl(0);
+	ctl_r     <= octl(0);
 
 	-- counters, hctr, vctr, srcx, srcy, chrx, chry
 	counters: block
