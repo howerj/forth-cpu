@@ -61,13 +61,13 @@ a jump or a call] by setting the label to it with the ".set" directive. Later
 in the program the entry point, the first location in memory, is set to the
 start label )
 entry:             .allocate cell
-isrRxFifoNotEmpty: .allocate cell
-isrRxFifoFull:     .allocate cell
-isrTxFifoNotEmpty: .allocate cell
-isrTxFifoFull:     .allocate cell
-isrKbdNew:         .allocate cell
-isrTimer:          .allocate cell
-isrBrnLeft:        .allocate cell
+isrRxFifoNotEmpty: .allocate cell ( UART RX FIFO not empty )
+isrRxFifoFull:     .allocate cell ( UART RX FIFO full )
+isrTxFifoNotEmpty: .allocate cell ( UART TX FIFO not empty )
+isrTxFifoFull:     .allocate cell ( UART TX FIFO full )
+isrKbdNew:         .allocate cell ( New PS/2 Keyboard character )
+isrTimer:          .allocate cell ( Timer interrupt )
+isrBrnLeft:        .allocate cell ( Left button pressed )
 
 .mode 1   ( Turn word header compilation and optimization off )
 .built-in ( Add the built in words to the dictionary )
@@ -82,6 +82,7 @@ constant =bs           8      ( back space )
 
 constant tib-length    80     ( size of terminal input buffer )
 constant pad-length    80     ( pad area begins HERE + pad-length )
+constant word-length   31     ( maximum length of a word )
 
 ( Outputs: 0x6000 - 0x7FFF )
 constant oUart         0x4000 ( UART TX/RX Control register )
@@ -91,31 +92,32 @@ constant oVgaCursor    0x4003 ( VGA X/Y Cursor position )
 constant oVgaCtrl      0x4004 ( VGA Control )
 constant o8SegLED      0x4005 ( 4x7 Segment display )
 constant oIrcMask      0x4006 ( Interrupt Mask )
-constant oLfsr         0x4007
+constant oLfsr         0x4007 ( Seed value of LFSR )
 
 ( Inputs: 0x6000 - 0x7FFF )
-constant iUart         0x4000
-constant iSwitches     0x4001
-constant iTimerCtrl    0x4002
-constant iTimerDin     0x4003
-constant iVgaTxtDout   0x4004
-constant iPs2          0x4005
-constant iLfsr         0x4006
+constant iUart         0x4000 ( Matching registers for iUart )
+constant iSwitches     0x4001 ( Switch control [on/off] )
+constant iTimerCtrl    0x4002 ( Timer control, not really needed )
+constant iTimerDin     0x4003 ( Current timer value )
+constant iVgaTxtDout   0x4004 ( VGA text output, currently broken )
+constant iPs2          0x4005 ( PS/2 keyboard input )
+constant iLfsr         0x4006 ( Input from Linear Feedback Shift Register )
 
 ( ======================== System Constants ================= )
 
 ( ======================== System Variables ================= )
 
-( These variables are for vectored word execution, there are
-set at the end of the file )
-variable _?key    0
-variable _emit    0
-variable _expect  0
-variable _tap     0
-variable _echo    0
-variable _prompt  0
-variable _boot    0
-variable OK      "ok"
+( Execution vectors for changing the behaviour of the program,
+they are set at the end of this file )
+variable _key?    0  ( "key?" vector )
+variable _emit    0  ( "emit" vector )
+variable _expect  0  ( "accept" vector )
+variable _tap     0  ( "tap" vector, for terminal handling )
+variable _echo    0  ( "echo" vector )
+variable _prompt  0  ( "prompt" vector )
+variable _boot    0  ( "boot" vector )
+
+variable OK      "ok" ( used by "prompt" )
 variable csp      0  ( current data stack pointer - for error checking )
 variable >in      0  ( Hold character pointer when parsing input )
 variable state    0  ( compiler state variable )
@@ -125,10 +127,12 @@ variable hld      0  ( Pointer into hold area for numeric output )
 variable base     10 ( Current output radix )
 variable span     0  ( Hold character count received by expect   )
 variable #tib     0  ( Current count of terminal input buffer    )
-variable tib-buf  0  ( ... and address )
-.set tib-buf $pc
-.allocate tib-length
-.allocate cell
+location tib-buf  0  ( ... and address )
+.set tib-buf $pc     ( set tib-buf to current dictionary location )
+.allocate tib-length ( allocate enough for the terminal input buffer )
+.allocate cell       ( plus one extra cell for safety )
+location word-buf 0  ( transient word buffer starts here )
+.allocate 34         ( allocate room for it )
 
 ( ======================== System Variables ================= )
 
@@ -224,12 +228,12 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : count  dup 1+ swap c@ ; ( cs -- b u )
 : rot >r swap r> swap ;
 : -rot swap >r swap r> ;
-: min 2dup < if drop else nip then ;
-: max 2dup > if drop else nip then ;
+: min over over < if drop else nip then ;
+: max over over > if drop else nip then ;
 : >char 0x7f and dup 127 =bl within if drop [char] _ then ; ( c -- c )
 : tib #tib cell+ @ ;        ( -- a )
 : echo _echo @execute ;     ( c -- )
-: key? _?key @execute ;     ( -- c -1 | 0 )
+: key? _key? @execute ;     ( -- c -1 | 0 )
 : key begin key? until ;    ( -- c )
 : allot cp +! ;             ( u -- )
 : , here dup cell+ cp ! ! ; ( u -- )
@@ -308,7 +312,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : hex ( -- ) 16 base ! ;
 : decimal ( -- ) 10 base ! ;
 
-
 : str   ( n -- b u : convert a signed integer to a numeric string )
 	dup >r                ( save a copy for sign )
 	abs                   ( use absolute of n )
@@ -350,7 +353,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		if =bl tap else ^h then 
 		exit
 	then drop swap drop dup ;
-
 
 : accept ( b u -- b u )
 	over + over
@@ -414,7 +416,6 @@ http://lars.nocrew.org/forth2012/core/FIND.html )
 	repeat
 	rdrop rdrop drop 0 exit ;
 
-
 : words ( -- : list all the words in the dictionary )
 	space
 	last address
@@ -472,7 +473,7 @@ constant dump-length 16
 		2 spaces _type
 	next drop r> base ! ;
 
-variable _test 0
+location _test 0
 
 lookfor: ( b u c -- b u : skip until _test succeeds )
 	>r 
@@ -489,7 +490,7 @@ lookfor: ( b u c -- b u : skip until _test succeeds )
 : scan ' scanTest _test ! call lookfor ;
 
 ( @todo store tmp on the return stack with stack magic )
-variable tmp 0
+location tmp 0
 
 : parse 
 	>r tib >in @ + #tib @ >in @ - r> 
@@ -502,7 +503,7 @@ variable tmp 0
 	word )
 	tmp ! over >r
 	tmp @ skip 2dup
-	tmp @ scan swap r> - >r - r>
+	tmp @ scan swap r> - >r - r> 
 	( ============================================== )
 	>in +! ; ( c -- b u ; <string> )
 
@@ -510,8 +511,8 @@ variable tmp 0
 : "(" 41 parse 2drop ; immediate
 : "\" #tib @ >in ! ; immediate
 : word parse here pack$ ; ( c -- a ; <string> )
-: token =bl parse ; ( -- a u; <string> )
-: char token drop c@ ; ( -- c; <string> )
+: token =bl parse word-length min word-buf pack$ ; ( -- a ; <string> )
+: char token count drop c@ ; ( -- c; <string> )
 
 ( @todo .s and pick should be changed so as not to use the
 return stack, which can cause a lot of problems, but instead
@@ -542,7 +543,7 @@ doLit: 0x8000 or , exit
 : compile, ( cfa -- : compile a code field address )
 	2/ 0x4000 or , ; ( 2/ ? )
 
-( @todo This should be changes so it accept a counted string )
+( @todo This should be changes so it use counted strings internally )
 : interpret ( ??? b u -- ??? : The command/compiler loop )
 	2dup find ?dup if
 		>r >r 2drop r> r>
@@ -579,7 +580,7 @@ doLit: 0x8000 or , exit
 	begin 
 		query 
 		( begin...while...repeat is 'eval' ) 
-		begin token dup while interpret repeat 2drop _prompt @execute
+		begin token count dup while interpret repeat 2drop _prompt @execute
 	again 
 	branch 0 ;
 
@@ -591,7 +592,7 @@ doLit: 0x8000 or , exit
 \ variable redefined "redefined"
 \ : ?unique dup count find if drop redefined print then ;
 : ":" call !csp here last address , pwd ! =bl word count + aligned cp ! ] ; 
-: "'" token find if cfa else error then ; immediate
+: "'" token count find if cfa else error then ; immediate
 : ";" =exit , [ call ?csp ; immediate
 jumpz,: 2/ 0x2000 or , exit
 jump,: 2/ ( 0x0000 or ) , exit
@@ -599,7 +600,9 @@ jump,: 2/ ( 0x0000 or ) , exit
 : "until" call jumpz, call +csp ; immediate
 : "again" call jump, call +csp ; immediate
 : "if" here 0 call jumpz, call -csp ; immediate
-: "then" here 2/ over @ or swap ! call +csp ; immediate
+doThen: here 2/ over @ or swap ! exit
+: "then" call doThen call +csp ; immediate
+: "else" here 0 call jump, swap call doThen ; immediate
 : "while" call "if" ; immediate
 : "repeat" swap call "again" call "then" ; immediate
 : recurse last cfa compile, ; immediate
@@ -674,11 +677,11 @@ variable cursor 0  ( index into VGA text memory )
 perhaps it could be a vectored word )
 : page ( -- : clear VGA screen )
 	0 cursor !
-	0x1fff
+	vgaTextSize
 	begin
 		dup
 	while
-		dup =bl swap vga! 1+
+		dup =bl swap vga! 1-
 	repeat drop ;	
 	\ 0x1FFF for =bl r@ vga! next ;
 
@@ -756,7 +759,7 @@ start:
 	page                   \ Clear display
 	1 seed                 \ Set up PRNG seed
 
-	hex here . unused u. .ok decimal
+	here . 0x2000 here - u. ( unused u. ) .ok 
 
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
@@ -766,7 +769,7 @@ start:
 .set pwd $pwd
 .set cp  $pc
 
-.set _?key    input      ( execution vector of ?key,   default to input. )
+.set _key?    input      ( execution vector of ?key,   default to input. )
 .set _emit    output     ( execution vector of emit,   default to output )
 .set _expect  accept     ( execution vector of expect, default to 'accept'. )
 .set _tap     ktap       ( execution vector of tap,    default the ktap. )

@@ -1723,6 +1723,7 @@ typedef enum {
 	LEX_ENDDEFINE,
 	LEX_CHAR,
 	LEX_VARIABLE,
+	LEX_LOCATION,
 	LEX_IMMEDIATE,
 	LEX_HIDDEN,
 	LEX_INLINE,
@@ -1771,6 +1772,7 @@ static const char *keywords[] =
 	[LEX_ENDDEFINE]  =  ";",
 	[LEX_CHAR]       =  "[char]",
 	[LEX_VARIABLE]   =  "variable",
+	[LEX_LOCATION]   =  "location",
 	[LEX_IMMEDIATE]  =  "immediate",
 	[LEX_HIDDEN]     =  "hidden",
 	[LEX_INLINE]     =  "inline",
@@ -2081,7 +2083,7 @@ again:
  *
  * Program     := Statement* EOF
  * Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
- *                | Identifier | Constant | Variable | Definition | If
+ *                | Identifier | Constant | Variable | Location | Definition | If
  *                | Begin | Char | Set | Pc | Break | Mode | String | BuiltIn
  * Label       := Identifier ";"
  * Branch      := "branch"  ( Identifier | Literal | String )
@@ -2095,6 +2097,7 @@ again:
  * Allocate    := ".allocate" ( Identifier | Literal )
  * Constant    := "constant" Identifier Literal
  * Variable    := "variable" Identifier ( Literal | String )
+ * Location    := "location" Identifier ( Literal | String )
  * Instruction := "@" | "store" | "exit" | ...
  * Definition  := ":" ( Identifier | String) Statement* ";" ( "hidden" | "immediate" | "inline")
  * If          := "if" Statement* [ "else" ] Statement* "then"
@@ -2129,6 +2132,7 @@ again:
 	X(SYM_CALL,                "call")\
 	X(SYM_CONSTANT,            "constant")\
 	X(SYM_VARIABLE,            "variable")\
+	X(SYM_LOCATION,            "location")\
 	X(SYM_LITERAL,             "literal")\
 	X(SYM_STRING,              "string")\
 	X(SYM_INSTRUCTION,         "instruction")\
@@ -2292,6 +2296,7 @@ static node_t *defined_by_token(lexer_t *l, parse_e type)
 	return r;
 }
 
+/** @note LEX_LOCATION handled by modifying return node in statement() */
 static node_t *variable_or_constant(lexer_t *l, bool variable)
 {
 	node_t *r;
@@ -2507,6 +2512,10 @@ again:
 		goto again;
 	} else if(accept(l, LEX_VARIABLE)) {
 		r->o[i++] = variable_or_constant(l, true);
+		goto again;
+	} else if(accept(l, LEX_LOCATION)) {
+		r->o[i]   = variable_or_constant(l, true);
+		r->o[i++]->type = SYM_LOCATION;
 		goto again;
 	} else if(accept(l, LEX_IF)) {
 		r->o[i++] = if1(l);
@@ -2868,7 +2877,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e);
 		break;
 	case SYM_VARIABLE:
-#if 0
 		if(a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined) {
 			a->do_var = a->do_var ? a->do_var : symbol_table_lookup(t, "doVar");
 			hole1 = hole(h, a);
@@ -2877,7 +2885,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			pack_string(h, a, n->token->p.id, e);
 			generate(h, a, OP_CALL | a->do_var->value);
 		}
-#endif
+		/* fall through */
+	case SYM_LOCATION:
 		here(h, a); 
 
 

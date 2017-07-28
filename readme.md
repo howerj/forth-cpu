@@ -238,28 +238,28 @@ disabled.
 |                   Input Registers                       |
 |-------------|---------|---------------------------------|
 | Register    | Address | Description                     |
-| iUart       | 0x6000  | UART register                   |
-| iSwitches   | 0x6001  | Buttons and switches            |
-| iTimerCtrl  | 0x6002  | Timer control Register          |
-| iTimerDin   | 0x6003  | Current Timer Value             |
-| iVgaTxtDout | 0x6004  | Contents of address oVgaTxtAddr |
-| iPs2        | 0x6005  | PS2 Keyboard Register           |
-| iLfsr       | 0x6006  | LFSR Seed                       |
+| iUart       | 0x4000  | UART register                   |
+| iSwitches   | 0x4001  | Buttons and switches            |
+| iTimerCtrl  | 0x4002  | Timer control Register          |
+| iTimerDin   | 0x4003  | Current Timer Value             |
+| iVgaTxtDout | 0x4004  | Contents of address oVgaTxtAddr |
+| iPs2        | 0x4005  | PS2 Keyboard Register           |
+| iLfsr       | 0x4006  | LFSR Seed                       |
 
 The output registers:
 
 |                   Output Registers                      |
 |-------------|---------|---------------------------------|
 | Register    | Address | Description                     |
-| oUart       | 0x6000  | UART register                   |
-| oLeds       | 0x6001  | LED outputs                     |
-| oTimerCtrl  | 0x6002  | Timer control                   |
-| oVgaCursor  | 0x6003  | VGA Cursor X/Y cursor position  |
-| oVgaCtrl    | 0x6004  | VGA control registers           |
-| o8SegLED    | 0x6005  | 4 x LED 8 Segment display 0     |
-| oIrcMask    | 0x6006  | CPU Interrupt Mask              |
-| oLfsr       | 0x6007  | LFSR Value                      |
-| VGA Memory  | 0xE000  | VGA Memory Start                |
+| oUart       | 0x4000  | UART register                   |
+| oLeds       | 0x4001  | LED outputs                     |
+| oTimerCtrl  | 0x4002  | Timer control                   |
+| oVgaCursor  | 0x4003  | VGA Cursor X/Y cursor position  |
+| oVgaCtrl    | 0x4004  | VGA control registers           |
+| o8SegLED    | 0x4005  | 4 x LED 8 Segment display 0     |
+| oIrcMask    | 0x4006  | CPU Interrupt Mask              |
+| oLfsr       | 0x4007  | LFSR Value                      |
+| VGA Memory  | 0xC000  | VGA Memory Start                |
 |             |    -    |                                 |
 |             | 0xFFFF  | VGA Memory End                  |
 
@@ -649,7 +649,7 @@ A rough [EBNF][] grammar for the language is as follows:
 
 	Program     := Statement* EOF
 	Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
-		       | Identifier | Constant | Variable | Definition | If
+		       | Identifier | Constant | Variable | Location | Definition | If
 		       | Begin | Char | Set | Pc | Break | Mode | String | BuiltIn
 	Label       := Identifier ";"
 	Branch      := "branch"  ( Identifier | Literal )
@@ -663,6 +663,7 @@ A rough [EBNF][] grammar for the language is as follows:
 	Allocate    := ".allocate" ( Identifier | Literal )
 	Constant    := "constant" Identifier Literal
 	Variable    := "variable" Identifier ( Literal | String )
+	Location    := "Location" Identifier ( Literal | String )
 	Instruction := "@" | "store" | "exit" | ...
 	Definition  := ":" ( Identifier | String) Statement* ";" ( "hidden" | "immediate" | "inline")
 	If          := "if" Statement* [ "else" ] Statement* "then"
@@ -1347,7 +1348,6 @@ a Forth system like in "The Zen of eForth by C. H. Ting".
 * Make a bootloader/program loader as a single, simple program
 * Make diagrams of the SoC layout, take GIFs and pictures of the simulators and
 the running board.
-* Memory interface to Nexys 3 board on board memory
 * Add documentation for the [Nexys3][] board in case it is no longer available
 in the future? Also port to different [FPGA][] boards.
 * Make a javascript based simulator for the H2, perhaps with [emscripten][]
@@ -1355,7 +1355,33 @@ in the future? Also port to different [FPGA][] boards.
 description and flashy GIFs
 * Add notes about picocom, and setting up the hardware:
 
+<!-- -- >
+
 	picocom --omap delbs -b 115200 -e b /dev/ttyUSB1
+
+* Memory interface to Nexys 3 board on board memory, the SPI memory on the
+Nexys3 would be more difficult to interface with than the bus addressable
+memory. Once this is done a primitive file system could be made. The file
+system would consist of Forth blocks (1024 character arrays), the block would
+consist of either a file, or a directory. Directory blocks would have a simple
+format, something like:
+
+<!-- -->
+
+	|-----|-------|-----|--------------------|
+	|  0  |   1   |  2  |      4 - 15        |
+	|-----|-------|-----|--------------------|
+	| TAG | START | END |       NAME         |
+	|-----|-------|-----|--------------------|
+
+	TAG:    FILE/DIRECTORY/MISC BITS
+	START:  STARTING BLOCK
+	END:    END BLOCK
+	NAME:   COUNTED STRING
+
+Each directory block would consist of 32 records, of 32 bytes each. Data 
+blocks would just be raw blocks, it is up to the user how they are treated.
+This could be prototyped on the computer, in C, or using [libforth][].
 
 ## Forth
 
