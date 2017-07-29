@@ -407,11 +407,8 @@ http://lars.nocrew.org/forth2012/core/FIND.html )
 	while
 		dup nfa count r@ count =string
 		if ( found! )
-			rdrop ( get rid of string )
 			dup hidden? 
-			( "0=" is "drop 0" in this case as argument is alway non zero ) 
-			if 0= else dup immediate? if 1 else -1 then then 
-			exit
+			0= if dup immediate? if 1 else -1 then rdrop exit then 
 		then
 		@ address
 	repeat
@@ -530,8 +527,8 @@ use the space pad )
 : error ( @todo retreat to nearest marker set by ':' or ':noname' )
 	[char] ? emit cr ( print error message )
 	preset
-	[ ;
-	\ branch 0 ;     ( reset machine )
+	[ 
+	1 rp! ;     ( reset machine )
 
 doLit: 0x8000 or , exit
 : literal ( n -- : write a literal into the dictionary )
@@ -588,32 +585,33 @@ doLit: 0x8000 or , exit
 ?csp: sp@ csp @ xor if error then exit
 +csp: csp 1+! exit
 -csp: csp 1-! exit
-\ : compile-only state @ 0= if error then ;
-\ variable redefined "redefined"
-\ : ?unique dup count find if drop redefined print then ;
-: ":" call !csp here last address , pwd ! =bl word count + aligned cp ! ] ; 
+: ?compile state @ 0= if error then ; ( fail if not compiling )
+location redefined " redefined"
+: ?unique dup find if drop redefined print cr else drop then ;
+: smudge last address 0x4000 toggle ;
+: ":" call !csp here last address , pwd ! smudge =bl word ?unique  count + aligned cp ! ] ; 
 : "'" token find if cfa else error then ; immediate
-: ";" =exit , [ call ?csp ; immediate
+: ";" =exit , [ call ?csp smudge ; immediate
 jumpz,: 2/ 0x2000 or , exit
 jump,: 2/ ( 0x0000 or ) , exit
-: "begin" here call -csp ; immediate
-: "until" call jumpz, call +csp ; immediate
-: "again" call jump, call +csp ; immediate
-: "if" here 0 call jumpz, call -csp ; immediate
-doThen: here 2/ over @ or swap ! exit
-: "then" call doThen call +csp ; immediate
-: "else" here 0 call jump, swap call doThen ; immediate
-: "while" call "if" ; immediate
-: "repeat" swap call "again" call "then" ; immediate
-: recurse last cfa compile, ; immediate
-: tail last cfa call jump, ; immediate
+: "begin" ?compile here call -csp ; immediate
+: "until" ?compile call jumpz, call +csp ; immediate
+: "again" ?compile call jump, call +csp ; immediate
+: "if" ?compile here 0 call jumpz, call -csp ; immediate
+doThen:  here 2/ over @ or swap ! exit
+: "then" ?compile call doThen call +csp ; immediate
+: "else" ?compile here 0 call jump, swap call doThen ; immediate
+: "while" ?compile call "if" ; immediate
+: "repeat" ?compile swap call "again" call "then" ; immediate
+: recurse ?compile last cfa compile, ; immediate
+: tail ?compile last cfa call jump, ; immediate
 : create call ":" ' doVar compile, [ ; ( @todo does> )
 : >body cell+ ;
 : "variable" create 0 , ;
-: ":noname" here ] call !csp ;
-: "for" =>r , here call -csp ; immediate
+: ":noname" smudge ( <-- bug ) here ] call !csp ;
+: "for" ?compile =>r , here call -csp ; immediate
 : doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; 
-: "next" ' doNext compile, , call +csp ; immediate
+: "next" ?compile ' doNext compile, , call +csp ; immediate
 
 \ : [compile] ( -- ; <string> ) "'" compile, ; immediate
 \ : compile ( -- ) r> dup @ , cell+ >r ;
