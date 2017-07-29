@@ -13,38 +13,25 @@ TODO:
 * Bootloader: A super simple one, preferably on that takes up less than 100
 words
 * Turn this into a literate file
-* This will need to be optimized for size soon, a mechanism for conditional
-compilation would help, or simply commenting out code that is not needed
 * The maximum value for the return stack depth is 24, out of a possible 32 this
 is quite high, this is not during general running though, but is still higher
 than desired.
 * Make a special version of exit, which does exactly the same as exit but with
 a different op-code value. This special version could be compiled in by ';', so
 the decompiler knows when a word ends.
-* A way to mark words in this file as run time only should be made, this could
-cause confusion otherwise
 * Turn magic number into constants
-* A way of making words with no header would be useful for size purposes
-* Does it make more sense for the top three bits of an instruction set
-to zero to encode a call or a branch?
 * Fix interrupt code
 * An automatic test suite for this program would help in development a lot,
 it would have to interact with the debugger, a Perl script that deals
 with would be the optimal solution.
-* eForth passes around pointers to counted strings all over the place,
-using a pointer to a counted string takes up less space on the stack and is
-generally easier to manipulate - they should be used more.
-* Refactoring "find" to accept a counted string would be useful, however
-it would mean changing token to copy the string it parses into a temporary
-buffer.
 
 * For tiny math routines, look at:
 http://files.righto.com/calculator/sinclair_scientific_simulator.html
 https://en.wikipedia.org/wiki/Sinclair_Scientific
 
 Forth To Do:
-* Strings, Throw/Catch, abort, vocabularies, see, create/does, constant,
-variable, make/doer, ...
+* Throw/Catch, abort, vocabularies, see, does>, make/doer, ...
+* Fix PARSE
 * Word for printing out the state of the interpreter would help, if a
 word specifically for printing out variables is produced this would help
 * "-1" is a commonly used constant, however it takes up two instructions,
