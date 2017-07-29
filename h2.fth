@@ -80,6 +80,9 @@ constant oVgaCtrl      0x4004 ( VGA Control )
 constant o8SegLED      0x4005 ( 4x7 Segment display )
 constant oIrcMask      0x4006 ( Interrupt Mask )
 constant oLfsr         0x4007 ( Seed value of LFSR )
+constant oMemControl   0x4008 ( Memory control and high address bits )
+constant oMemAddrLow   0x4009 ( Lower memory address bits )
+constant oMemDout      0x400A ( Memory output for writes )
 
 ( Inputs: 0x6000 - 0x7FFF )
 constant iUart         0x4000 ( Matching registers for iUart )
@@ -89,6 +92,7 @@ constant iTimerDin     0x4003 ( Current timer value )
 constant iVgaTxtDout   0x4004 ( VGA text output, currently broken )
 constant iPs2          0x4005 ( PS/2 keyboard input )
 constant iLfsr         0x4006 ( Input from Linear Feedback Shift Register )
+constant iMemDin       0x4007 ( Memory input for reads )
 
 ( ======================== System Constants ================= )
 
@@ -790,6 +794,53 @@ manipulating a terminal )
 \ : ansi.reset-color colorize @ 0= if exit then call CSI 0 call 10u. [char] m emit ; ( -- : reset terminal color to its default value)
 \ 
 ( ======================== ANSI SYSTEM   ==================== )
+
+
+( ======================== Memory Interface ================= )
+
+\ oMemControl   0x4008 
+\ oMemAddrLow   0x4009
+\ oMemDout      0x400A
+\ iMemDin       0x4007 
+
+variable mwindow 0
+
+: mcontrol! ( u -- : write to memory control register )
+	0x3ff invert    and    ( mask off control bits )
+	mwindow @ 0x3ff and or ( or in higher address bits )
+	oMemControl ! ;
+
+: m! ( n a -- : write to non-volatile memory )
+	oMemAddrLow !
+	oMemDout !
+	20 call 40ns 
+	0x8800 mcontrol! 
+	20 call 40ns 
+	0x0000 mcontrol! ;
+
+: m@ ( a -- n : read from non-volatile memory )
+	oMemAddrLow !
+	0x4800 mcontrol! ( read enable mode )
+	20 call 40ns 
+	iMemDin @        ( get input )
+	0x0000 mcontrol! ;
+
+: mrst ( -- : reset non-volatile memory )
+	0x2000 mcontrol!
+	20 call 40ns 
+	0x0000 mcontrol! ;
+
+: mdump ( a u -- : dump non-volatile memory )
+	begin
+		dup
+	while
+		over . 58 emit over m@ . cr
+		1 /string
+	repeat 2drop cr ;
+
+
+( ======================== Memory Interface ================= )
+
 
 ( ======================== Starting Code ==================== )
 

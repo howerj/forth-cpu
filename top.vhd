@@ -61,11 +61,17 @@ entity top is
 		ps2_keyboard_clk:   in std_logic           := '0';
 	
 		-- Memory Interface
-		MemOE:    out   std_logic := '0';
-		MemWR:    out   std_logic := '0';
-		MemClk:   out   std_logic := '0';
+		RamCS:          out   std_logic := '1';
+		QuadSpiFlashCS: out   std_logic := '1';
+
+		MemOE:    out   std_logic := '0'; -- negative logic
+		MemWR:    out   std_logic := '0'; -- negative logic
+		MemClk:   out   std_logic := '0'; -- negative logic
+		MemAdv:   out   std_logic := '0'; -- negative logic
+		MemWait:  out   std_logic := '0'; -- positive!
+
 		FlashCS:  out   std_logic := '0';
-		FlashRp:  out   std_logic := '0';
+		FlashRp:  out   std_logic := '1';
 		MemAdr:   out   std_logic_vector(26 downto 1) := (others => '0');
 		MemDB:    inout std_logic_vector(15 downto 0) := (others => 'Z'));
 end;
@@ -173,8 +179,8 @@ architecture behav of top is
 	signal mem_data_buf_i:    std_logic_vector(15 downto 0) := (others => '0');
 	signal mem_data_o:        std_logic_vector(15 downto 0) := (others => '0');
 
-	signal mem_control_i:     std_logic_vector(1 downto 0)  := (others => '0');
-	signal mem_control_o:     std_logic_vector(1 downto 0)  := (others => '0');
+	signal mem_control_i:     std_logic_vector(4 downto 0)  := (others => '0');
+	signal mem_control_o:     std_logic_vector(4 downto 0)  := (others => '0');
 	signal mem_control_we:    std_logic := '0';
 
 	signal mem_we:            std_logic := '0';
@@ -329,7 +335,7 @@ begin
 		lfsr_i_we         <= '0';
 		mem_addr_16_1     <= io_dout;
 		mem_addr_26_17    <= io_dout(9 downto 0);
-		mem_control_i     <= io_dout(15 downto 14);
+		mem_control_i     <= io_dout(15 downto 11);
 		mem_data_i        <= io_dout;
 
 		if io_re = '1' and io_daddr(15) = '0' then
@@ -619,7 +625,7 @@ begin
 			do  => MemAdr(26 downto 17));
 
 	mem_control_reg: entity work.reg 
-		generic map(N => 2) 
+		generic map(N => 5) 
 		port map(
 			clk => clk, 
 			rst => rst, 
@@ -636,13 +642,15 @@ begin
 			di  => mem_data_i,
 			do  => mem_data_buf_i);
 
-	FlashCS    <= '1' when mem_control_o /= "00" else '0';
-	-- FlashRp    <= ???
-	mem_oe     <= '1' when mem_control_o  = "01" else '0';
-	mem_we     <= '1' when mem_control_o  = "10" else '0';
+	FlashCS    <= '0' when mem_control_o(4 downto 3) /= "00"  else '1';
+	FlashRp    <= '0' when mem_control_o(2) = '1' else '1';
+	MemWait    <= mem_control_o(1);
+	MemAdv     <= '0' when mem_control_o(0) = '1' else '1';
+	mem_oe     <= '1' when mem_control_o(4 downto 3) = "01"  else '0';
+	mem_we     <= '1' when mem_control_o(4 downto 3) = "10"  else '0';
 
-	MemOE      <= mem_oe;
-	MemWR      <= mem_we;
+	MemOE      <= not mem_oe;
+	MemWR      <= not mem_we;
 
 	mem_data_o <= MemDB when mem_oe = '1' else (others => '0');
 	MemDB      <= mem_data_buf_i when mem_we = '1' else (others => 'Z');

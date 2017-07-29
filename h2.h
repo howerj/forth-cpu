@@ -107,6 +107,15 @@ typedef struct {
 #define PS2_NEW_CHAR_BIT           (8)
 #define PS2_NEW_CHAR               (1 << PS2_NEW_CHAR_BIT)
 
+#define PCM_MEMORY_SIZE            (16*1024*1024)
+#define PCM_MASK_ADDR_UPPER_MASK   (0x3ff)
+
+#define PCM_MEMORY_OE_BIT          (14)
+#define PCM_MEMORY_WE_BIT          (15)
+
+#define PCM_MEMORY_OE              (1 << PCM_MEMORY_OE_BIT)
+#define PCM_MEMORY_WE              (1 << PCM_MEMORY_WE_BIT)
+
 typedef struct {
 	uint8_t leds;
 	uint16_t vga_cursor;
@@ -125,6 +134,11 @@ typedef struct {
 	uint8_t switches;
 
 	uint16_t lfsr;
+
+	uint16_t mem[PCM_MEMORY_SIZE];
+	uint16_t mem_control;
+	uint16_t mem_addr_low;
+	uint16_t mem_dout;
 
 	bool wait;
 	bool interrupt;
@@ -153,6 +167,7 @@ typedef enum {
 	iVgaTxtDout   = 0x4004,
 	iPs2          = 0x4005,
 	iLfsr         = 0x4006,
+	iMemDin       = 0x4007,
 } h2_input_addr_t;
 
 typedef enum {
@@ -164,6 +179,9 @@ typedef enum {
 	o8SegLED      = 0x4005,
 	oIrcMask      = 0x4006,
 	oLfsr         = 0x4007,
+	oMemControl   = 0x4008,
+	oMemAddrLow   = 0x4009,
+	oMemDout      = 0x400A,
 } h2_output_addr_t;
 
 typedef enum {

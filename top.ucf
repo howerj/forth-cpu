@@ -152,11 +152,11 @@ NET "ps2_keyboard_clk"  LOC = "L12" | IOSTANDARD = "LVCMOS33" | PULLUP;  #Bank =
 ## onBoard Cellular RAM, Numonyx StrataFlash and Numonyx Quad Flash
 Net "MemOE" LOC = L18 | IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L46N_FOE_B_M1DQ3, Sch name = P30-OE
 Net "MemWR" LOC = M16 | IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L47P_FWE_B_M1DQ0, Sch name = P30-WE
-#Net "MemAdv" LOC = H18 | IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L43N_GCLK4_M1DQ5, Sch name = P30-ADV
-#Net "MemWait" LOC = V4 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L63N, Sch name = P30-WAIT
+Net "MemAdv" LOC = H18 | IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L43N_GCLK4_M1DQ5, Sch name = P30-ADV
+Net "MemWait" LOC = V4 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L63N, Sch name = P30-WAIT
 Net "MemClk" LOC = R10 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L29P_GCLK3, Sch name = P30-CLK
 
-#Net "RamCS" LOC = L15 | IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L42P_GCLK7_M1UDM, Sch name = MT-CE
+Net "RamCS" LOC = L15 | IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L42P_GCLK7_M1UDM, Sch name = MT-CE
 #Net "RamCRE" LOC = M18 |  IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L47N_LDC_M1DQ1, Sch name = MT-CRE
 #Net "RamUB" LOC = K15  |  IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L41P_GCLK9_IRDY1_M1RASN, Sch name = MT-UB
 #Net "RamLB" LOC = K16  |  IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L41N_GCLK8_M1CASN, Sch name = MT-LB
@@ -164,7 +164,7 @@ Net "MemClk" LOC = R10 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L29P_GC
 Net "FlashCS" LOC = L17 | IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L46P_FCS_B_M1DQ2, Sch name = P30-CE
 Net "FlashRp" LOC = T4  | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L63P, Sch name = P30-RST
 
-#Net "QuadSpiFlashCS" LOC = V3  | IOSTANDARD = LVCMOS33; #Bank = MISC, pin name = IO_L65N_CSO_B_2, Sch name = CS
+Net "QuadSpiFlashCS" LOC = V3  | IOSTANDARD = LVCMOS33; #Bank = MISC, pin name = IO_L65N_CSO_B_2, Sch name = CS
 #Net "QuadSpiFlashSck"  LOC = R15 | IOSTANDARD = LVCMOS33; #Bank = MISC, pin name = IO_L1P_CCLK_2, Sch name = SCK
 
 Net "MemAdr<1>" LOC = K18  |  IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L45N_A0_M1LDQSN, Sch name = P30-A0

@@ -985,6 +985,10 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	case iVgaTxtDout:   return 0;
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
+	case iMemDin:       
+		if((soc->mem_control & PCM_MEMORY_OE) && !(soc->mem_control & PCM_MEMORY_WE))
+			return soc->mem[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
+		return 0;
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 	}
@@ -1015,6 +1019,13 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	case o8SegLED:    soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
+	case oMemControl: 
+		soc->mem_control    = value; 
+		if(!(soc->mem_control & PCM_MEMORY_OE) && (soc->mem_control & PCM_MEMORY_WE))
+			soc->mem[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
+		break;
+	case oMemAddrLow: soc->mem_addr_low   = value; break;
+	case oMemDout:    soc->mem_dout       = value; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 	}
