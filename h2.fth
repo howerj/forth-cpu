@@ -388,17 +388,6 @@ logical: 0= 0= exit ( n -- f )
 : hidden?    @ 0x4000 and call logical ; ( pwd -- f : is hidden? )
 : inline?    @ 0x8000 and call logical ; ( pwd -- f : is inline? )
 
-( Find should have the following stack comment: 
-
-	[ c-addr -- c-addr 0 | xt 1 | xt -1 ]
-
-A counted string is passed in, and 0 and the original string
-is returned if the string has not been found, the execution
-and either 1 [word is immediate] or -1 [word is compiling] is
-returned.
-
-http://lars.nocrew.org/forth2012/core/FIND.html )
-
 : find ( a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
 	>r
 	last address
@@ -581,6 +570,8 @@ doLit: 0x8000 or , exit
 	again 
 	branch 0 ;
 
+( @todo save marker for dictionary and previous word pointer, restore this
+on any kind of failure that occurs between ":" and ";" )
 !csp: sp@ csp ! exit
 ?csp: sp@ csp @ xor if error then exit
 +csp: csp 1+! exit
