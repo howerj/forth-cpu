@@ -642,6 +642,7 @@ begin
 			di  => mem_data_i,
 			do  => mem_data_buf_i);
 
+	-- @bug RamCS and MemAdv overlap
 	FlashCS    <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(0) = '0' else '1';
 	RamCS      <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(1) = '1' else '1';
 	FlashRp    <= '0' when mem_control_o(3) = '1' else '1';

@@ -235,18 +235,7 @@ from <https://eewiki.net/pages/viewpage.action?pageId=28279002>
 The SoC also features a limited set of interrupts that can be enabled or
 disabled.
 
-|                   Input Registers                       |
-|-------------|---------|---------------------------------|
-| Register    | Address | Description                     |
-| iUart       | 0x4000  | UART register                   |
-| iSwitches   | 0x4001  | Buttons and switches            |
-| iTimerCtrl  | 0x4002  | Timer control Register          |
-| iTimerDin   | 0x4003  | Current Timer Value             |
-| iVgaTxtDout | 0x4004  | Contents of address oVgaTxtAddr |
-| iPs2        | 0x4005  | PS2 Keyboard Register           |
-| iLfsr       | 0x4006  | LFSR Seed                       |
-
-The output registers:
+The output register map:
 
 |                   Output Registers                      |
 |-------------|---------|---------------------------------|
@@ -259,9 +248,28 @@ The output registers:
 | o8SegLED    | 0x4005  | 4 x LED 8 Segment display 0     |
 | oIrcMask    | 0x4006  | CPU Interrupt Mask              |
 | oLfsr       | 0x4007  | LFSR Value                      |
+| oMemControl | 0x4008  | Memory Control / Hi Address     |
+| oMemAddrLow | 0x4009  | Memory Lo Address               |
+| oMemDout    | 0x400A  | Memory Data Output              |
 | VGA Memory  | 0xC000  | VGA Memory Start                |
 |             |    -    |                                 |
 |             | 0xFFFF  | VGA Memory End                  |
+
+
+The input registers:
+
+|                   Input Registers                       |
+|-------------|---------|---------------------------------|
+| Register    | Address | Description                     |
+| iUart       | 0x4000  | UART register                   |
+| iSwitches   | 0x4001  | Buttons and switches            |
+| iTimerCtrl  | 0x4002  | Timer control Register          |
+| iTimerDin   | 0x4003  | Current Timer Value             |
+| iVgaTxtDout | 0x4004  | Contents of address oVgaTxtAddr |
+| iPs2        | 0x4005  | PS2 Keyboard Register           |
+| iLfsr       | 0x4006  | LFSR Seed                       |
+| iMemDin     | 0x4007  | Memory Data Input               |
+
 
 
 The following description of the registers should be read in order and describe
@@ -428,6 +436,53 @@ counting, which can be supplied with iLfsr.
 	LFSR: Current Linear Feedback Shift Register Value
 
 
+#### oMemControl
+
+This register contains the control registers for the onboard memory on the
+[Nexys3][] board. The board contains three memory devices, two non-volatile
+memory devices and a volatile RAM based device. The two devices accessible by a
+simple SRAM interface (one volatile, one non-volatile) are both accessible, the
+third is an SPI based memory device and is currently not accessible.
+
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	| OE | WE | RST|WAIT| RCS| FCS|                 Address Hi                      |
+	+-------------------------------------------------------------------------------+
+
+	OE:  Output Enable - enable reading from current address into iMemDin
+	WE:  Write Enable  - enable writing oMemDout into ram at current address
+	RST: Reset the Flash memory controller
+	RCS: RAM Chip Select, Enable Volatile Memory
+	FCS: Flash Chip Select, Enable Non-Volatile Memory
+	Address Hi: High Bits of RAM address
+
+OE and WE are mutually exclusive, if both are set then there is no effect.
+
+The memory controller is in active development, and the interface to it might
+change.
+
+#### oMemAddrLow
+
+This is the lower address bits of the RAM.
+
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|                           Address Lo                                          |
+	+-------------------------------------------------------------------------------+
+
+#### oMemDout
+
+Data to be output to selected address when write enable (WE) issued in
+oMemControl.
+
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|                           Data Ouput                                          |
+	+-------------------------------------------------------------------------------+
+
 #### VGA Memory
 
 The VGA memory occupies the range 0xE000 to 0xFFFF, it can be written to (but
@@ -548,6 +603,15 @@ counting, the LFSR can be used to generate pseudo random numbers.
 	|-------------------------------------------------------------------------------|
 
 	LFSR: Linear Feedback Shift Register Seed Value
+
+#### iMemDin
+
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|                           Data Input                                          |
+	+-------------------------------------------------------------------------------+
+
 
 ### Interrupt Service Routines
 

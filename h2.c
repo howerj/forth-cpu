@@ -3,107 +3,24 @@
  *  @copyright Richard James Howe (2017)
  *  @license   MIT
  *
- * Initially this program will be for just simulating the H2 core,
- * but eventually it will be extended so the peripherals can also
- * be simulated. This should speed up development of programs written
- * for the device, and allow for simulating the device where there
- * is no tool chain for dealing with VHDL.
+ * This file contains the toolchain for the H2, it is an assembler/compiler,
+ * a simulator, a disassembler and a debugger. The H2 is written in VHDL and
+ * is based on the J1 processor (see http://excamera.com/sphinx/fpga-j1.html).
+ *
+ * The processor has been tested on an FPGA and is working. 
+ * The project can be found at: https://github.com/howerj/forth-cpu
  *
  * @todo make a peephole optimizer for the assembler and a super optimizer
  * utility.
- * @todo Turn the diagrams in this file into help strings which can
- * be printed out
  * @todo Use the FIFO routines to simulate the H2 SoC FIFOs
- * @todo Make a source level debugger, this would affect the code
- * generation, but could be done by saving an array of nodes, each
- * location referring matching up with a location in the core, also
- * the disassembler could use the dictionary if it is present.
  * @todo An option to break when either the return stack or data
  * stack reaches a value, or reaches a new max would help in optimizing
  * the code
  * @todo Load/Save special variables to symbol table
  * @todo Allow forward branches
  * @todo Add names to breakpoint structure
- *
- * The H2 CPU is a rewrite of the J1 Forth CPU in VHDL with some extensions,
- *
- * It is a stack based CPU with minimal state; a program counter, a top
- * of the data stack register and two stacks 32 deep each, the return
- * and the data stacks. It is a 16-bit CPU.
- *
- * The program is stored in RAM and is 8192 cells long, which is the
- * maximum number of cells that the program can be. Any read or write
- * to an address larger than this can be used for memory mapped peripherals.
- *
- * Instruction layout:
- *
- *	*---------------------------------------------------------------*
- *	| F | E | D | C | B | A | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
- *	*---------------------------------------------------------------*
- *	| 1 |                    LITERAL VALUE                          |
- *	*---------------------------------------------------------------*
- *	| 0 | 0 | 0 |            BRANCH TARGET ADDRESS                  |
- *	*---------------------------------------------------------------*
- *	| 0 | 0 | 1 |            CONDITIONAL BRANCH TARGET ADDRESS      |
- *	*---------------------------------------------------------------*
- *	| 0 | 1 | 0 |            CALL TARGET ADDRESS                    |
- *	*---------------------------------------------------------------*
- *	| 0 | 1 | 1 |   ALU OPERATION   |T2N|T2R|N2A|R2P| RSTACK| DSTACK|
- *	*---------------------------------------------------------------*
- *	| F | E | D | C | B | A | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
- *	*---------------------------------------------------------------*
- *
- *      T   : Top of data stack
- *	N   : Next on data stack
- *	PC  : Program Counter
- *
- *      LITERAL VALUES : push a value onto the data stack
- *      CONDITIONAL    : BRANCHS pop and test the T
- *      CALLS          : PC+1 onto the return stack
- *
- *	T2N : Move T to N
- *	T2R : Move T to top of return stack
- *	N2A : STORE T to memory location addressed by N
- *	R2P : Move top of return stack to PC
- *
- *	RSTACK and DSTACK are signed values (twos compliment) that are
- *	the stack delta (the amount to increment or decrement the stack
- *	by for their respective stacks: return and data)
- *
- * ALU OPERATIONS
- *
- * All ALU operations replace T:
- *
- *	*-------*----------------*-----------------------*
- *	| Value |   Operation    |     Description       |
- *	*-------*----------------*-----------------------*
- *	|   0   |       T        |  Top of Stack         |
- *	|   1   |       N        |  Copy T to N          |
- *	|   2   |     T + N      |  Addition             |
- *	|   3   |     T & N      |  Bitwise AND          |
- *	|   4   |     T | N      |  Bitwise OR           |
- *	|   5   |     T ^ N      |  Bitwise XOR          |
- *	|   6   |      ~T        |  Bitwise Inversion    |
- *	|   7   |     T = N      |  Equality test        |
- *	|   8   |     N < T      |  Signed comparison    |
- *	|   9   |     N >> T     |  Logical Right Shift  |
- *	|  10   |     T - 1      |  Decrement            |
- *	|  11   |       R        |  Top of return stack  |
- *	|  12   |      [T]       |  Load from address    |
- *	|  13   |     N << T     |  Logical Left Shift   |
- *	|  14   |     depth      |  Depth of stack       |
- *	|  15   |     N u< T     |  Unsigned comparison  |
- *	|  16   | set interrupts |  Enable interrupts    |
- *	|  17   | interrupts on? |  Are interrupts on?   |
- *	|  18   |     rdepth     |  Depth of return stk  |
- *	|  19   |      0=        |  T == 0?              |
- *	|  20   |     CPU ID     |  CPU Identifier       |
- *	*-------*----------------*-----------------------*
- *
- * More information about the original J1 CPU can be found at:
- *
- * 	http://excamera.com/sphinx/fpga-j1.html
- */
+ * @todo Simulate both non-volatile and volatile memory, and back the
+ * non-volatile memory with a file */
 
 /* ========================== Preamble: Types, Macros, Globals ============= */
 
@@ -2087,52 +2004,6 @@ again:
 
 /********* PARSER *********/
 
-/**
- *
- * Grammar:
- *
- * Program     := Statement* EOF
- * Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
- *                | Identifier | Constant | Variable | Location | Definition | If
- *                | Begin | Char | Set | Pc | Break | Mode | String | BuiltIn
- * Label       := Identifier ";"
- * Branch      := "branch"  ( Identifier | Literal | String )
- * 0Branch     := "0branch" ( Identifier | Literal | String )
- * Call        := "call"    ( Identifier | Literal | String )
- * Set         := ".set"    ( Identifier | Literal ) ( Identifier | Literal )
- * Pc          := ".pc"     ( Identifier | Literal )
- * Break       := ".break"
- * BuiltIn     := ".built-in"
- * Mode        := ".mode"      Literal
- * Allocate    := ".allocate" ( Identifier | Literal )
- * Constant    := "constant" Identifier Literal
- * Variable    := "variable" Identifier ( Literal | String )
- * Location    := "location" Identifier ( Literal | String )
- * Instruction := "@" | "store" | "exit" | ...
- * Definition  := ":" ( Identifier | String) Statement* ";" ( "hidden" | "immediate" | "inline")
- * If          := "if" Statement* [ "else" ] Statement* "then"
- * Begin       := "begin" Statement* ("until" | "again" | "while" Statement* "repeat")
- * For         := "for"   Statement* ("aft" Statement* "then" Statement* | "next")
- * Isr         := "isr" Identifier (Identifier | Literal)
- * Literal     := [ "-" ] Number
- * String      := '"' SChar* '"'
- * Char        := "[char]" ASCII ","
- * Number      := Octal | Hex | Decimal
- * Octal       := "0" ... "7"
- * Decimal     := "1" ... "9" ( "0" ... "9" )*
- * Hex         := ( "x" | "X" ) HexDigit HexDigit*
- * HexDigit    := ( "a" ... "f" | "A" ... "F" )
- * SChar       := Any character except quote
- *
- * NB. Literals have higher priority than Identifiers, and comments are '\'
- * until a new line is encountered, or '(' until a ')' is encountered.
- *
- * The grammar allows for nested word definitions, however state is held in the
- * lexer to prevent this.
- *
- **/
-
-
 #define X_MACRO_PARSE\
 	X(SYM_PROGRAM,             "program")\
 	X(SYM_STATEMENTS,          "statements")\
@@ -2641,10 +2512,7 @@ static void generate(h2_t *h, assembler_t *a, uint16_t instruction)
 	 * The pattern matching could mostly be done with a ternary
 	 * "1"/"0"/"Don't care" matches on sequences of instructions.
 	 *
-	 * A FIFO could be used to hold the instructions before checking
-	 *
-	 * @bug This optimization works in the simulator but not
-	 * in the hardware, the reason it unknown. */
+	 * A FIFO could be used to hold the instructions before checking */
 	if(IS_CALL(instruction) || IS_LITERAL(instruction) || IS_0BRANCH(instruction) || IS_BRANCH(instruction))
 		update_fence(a, h->pc);
 

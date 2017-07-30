@@ -67,6 +67,9 @@ constant =cr           13     ( carriage return )
 constant =lf           10     ( line feed )
 constant =bs           8      ( back space )
 
+constant c/l           64     ( characters per line in a block )
+
+
 constant tib-length    80     ( size of terminal input buffer )
 constant pad-length    80     ( pad area begins HERE + pad-length )
 constant word-length   31     ( maximum length of a word )
@@ -100,13 +103,16 @@ constant iMemDin       0x4007 ( Memory input for reads )
 
 ( Execution vectors for changing the behaviour of the program,
 they are set at the end of this file )
-variable _key?    0  ( "key?" vector )
-variable _emit    0  ( "emit" vector )
-variable _expect  0  ( "accept" vector )
-variable _tap     0  ( "tap" vector, for terminal handling )
-variable _echo    0  ( "echo" vector )
-variable _prompt  0  ( "prompt" vector )
-variable _boot    0  ( "boot" vector )
+variable _key?     0  ( -- c -1 | 0 : new character available? )
+variable _emit     0  ( c -- : emit character )
+variable _expect   0  ( "accept" vector )
+variable _tap      0  ( "tap" vector, for terminal handling )
+variable _echo     0  ( c -- : emit character )
+variable _prompt   0  ( -- : display prompt )
+variable _boot     0  ( -- : execute program at startup )
+variable _bload    0  ( a u k -- f : load block )
+variable _bsave    0  ( a u k -- f : save block )
+variable _binvalid 0  ( k -- k : throws error if k invalid )
 
 location OK     "ok" ( used by "prompt" )
 variable csp      0  ( current data stack pointer - for error checking )
@@ -125,6 +131,12 @@ location tib-buf  0  ( ... and address )
 location word-buf 0  ( transient word buffer starts here )
 .allocate 34         ( allocate room for it )
 
+constant block-size 1024 ( size of a block )
+variable blk          -1 ( current blk loaded )
+location block-dirty   0 ( -1 if loaded block buffer is modified )
+location block-buffer  0 ( block buffer starts here )
+.allocate block-size
+
 ( ======================== System Variables ================= )
 
 ( ======================== Forth Kernel ===================== )
@@ -135,19 +147,19 @@ location word-buf 0  ( transient word buffer starts here )
 : 1+ 1 + ;
 : negate invert 1 + ;
 : - invert 1 + + ;
-\ : 2+ 2 + ;
-\ : 2- 2 - ;
+: 2+ 2 + ;
+: 2- 2 - ;
 : 2/ 1 rshift ;
-\ : 2* 1 lshift ;
-\ : cell- cell - ;
+: 2* 1 lshift ;
+: cell- cell - ;
 : cell+ cell + ;
 \ : cells 2* ;
 : ?dup dup if dup then ;
-\ : >= < invert ;
+: >= < invert ;
 : >  swap < ;
-\ : u> swap u< ;
-\ : u>= u< invert ;
-\ : <> = invert ;
+: u> swap u< ;
+: u>= u< invert ;
+: <> = invert ;
 : 0<> 0= invert ;
 : 0> 0 > ;
 : 0< 0 < ;
@@ -201,20 +213,20 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 ( ======================== Word Set ========================= )
 
-\ : 0<= 0> 0= ;
-\ : 0>= 0< 0= ;
-\ : 2! ( d a -- ) tuck ! cell+ ! ;
-\ : 2@ ( a -- d ) dup cell+ @ swap @ ;
+: 0<= 0> 0= ;
+: 0>= 0< 0= ;
+: 2! ( d a -- ) tuck ! cell+ ! ;
+: 2@ ( a -- d ) dup cell+ @ swap @ ;
 : here cp @ ;
 : pad here pad-length + ;
 : @execute @ ?dup if execute then ;
 : 3drop 2drop drop ;
 : bl =bl ;
 : within over - >r - r> u< ; ( u lo hi -- t )
-\ : not -1 xor ;
+: not -1 xor ;
 : dnegate invert >r invert 1 um+ r> + ; ( d -- d )
-\ : d=  >r swap r> = >r = r> and ; ( d d -- f )
-\ : d<> d= 0= ; ( d d -- f )
+: d=  >r swap r> = >r = r> and ; ( d d -- f )
+: d<> d= 0= ; ( d d -- f )
 : abs dup 0< if negate then ;
 : count  dup 1+ swap c@ ; ( cs -- b u )
 : rot >r swap r> swap ;
@@ -235,19 +247,18 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : cr =cr emit =lf emit ;
 : space =bl emit ;
 : pick ?dup if swap >r 1- pick r> swap exit then dup ; ( @bug does not work for high stack depths - mashes the return stack )
-\ : roll  dup 0> if swap >r 1- roll r> swap else drop then ;
+: roll  dup 0> if swap >r 1- roll r> swap else drop then ;
 : ndrop for aft drop then next ;
 : type begin dup while swap count emit swap 1- repeat 2drop ; ( b u -- : print a string )
 : _type begin dup while swap count >char emit swap 1- repeat 2drop ; ( b u -- : print a string )
 : print count type ;
-\ : .base ( -- ) base @ decimal dup . base  ! ;
-\ : nuf? ( -- f ) key? dup if 2drop key =cr = then ;
-\ : ?exit if rdrop then ;
-\ : 2rdrop r> rdrop rdrop >r ;
+: nuf? ( -- f ) key? dup if 2drop key =cr = then ;
+: ?exit if rdrop then ;
+: 2rdrop r> rdrop rdrop >r ;
 : decimal? 48 58 within ; ( c -- f : decimal char? )
 : lowercase? [char] a [char] { within ; ( c -- f : is character lower case? )
 : uppercase? [char] A [char] [ within ; ( c -- f : is character upper case? )
-\ : >upper dup lowercase? if =bl xor then ; ( c -- c : convert to upper case )
+: >upper dup lowercase? if =bl xor then ; ( c -- c : convert to upper case )
 : >lower  dup uppercase? if =bl xor then ; ( c -- c : convert to lower case )
 : nchars swap 0 max for aft dup emit then next drop ; ( +n c -- : emit c n times  ) 
 : spaces ( +n -- ) =bl nchars ;
@@ -296,7 +307,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : extract ( n base -- n c ) 0 swap um/mod swap digit ;
 : <# ( -- ) pad hld ! ;
 : hold ( c -- ) hld @ 1 - dup hld ! c! ;
-\ : holds begin dup while 1- 2dup + c@ hold repeat 2drop ; ( a u -- )
+: holds begin dup while 1- 2dup + c@ hold repeat 2drop ; ( a u -- )
 : # ( u -- u ) base @ extract hold ;
 : #s ( u -- 0 ) begin # dup while repeat ;
 : sign ( n -- ) 0< if [char] - hold then ;
@@ -311,13 +322,14 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	r> sign               ( add sign from n )
 	#> ;                  ( return number string addr and length )
 
-\ : .r  >r str r> over - spaces type ; ( n n : print n, right justified by +n )
+: .r  >r str r> over - spaces type ; ( n n : print n, right justified by +n )
 : u.r >r <# #s #> r> over - spaces type ; ( u +n -- : print u right justified by +n)
 : u. <# #s #> space type ; ( u -- : print unsigned number )
 : . base @ 10 xor if u. exit then str space type ; ( n -- print space, signed number )
 
 : ? @ . ; ( a -- : display the contents in a memory cell )
-\ : 2. swap . . ;
+: 2. swap . . ;
+: .base ( -- ) base @ decimal dup . base  ! ;
 
 : -trailing ( b u -- b u : remove trailing spaces )
 	for 
@@ -462,8 +474,8 @@ lookfor: ( b u c -- b u : skip until _test succeeds )
 		1 /string 
 	repeat rdrop exit
 
-: skipTest if 0> else 0<> then ; ( n f -- f )
-: scanTest skipTest invert ;     ( n f -- f )
+: skipTest if 0> else 0<> then ; hidden ( n f -- f )
+: scanTest skipTest invert ; hidden    ( n f -- f )
 : skip ' skipTest _test ! call lookfor ;
 : scan ' scanTest _test ! call lookfor ;
 
@@ -498,13 +510,16 @@ return stack, which can cause a lot of problems, but instead
 use the space pad )
 : .s ( -- ) cr sp@ for aft r@ pick . then next [char] * emit ;
 : unused 0x4000 here - ;
-\ : .free unused u. ;
+: .free unused u. ;
 
 : preset sp@ ndrop tib #tib cell+ ! ;
 : [  0 state ! ; immediate 
 : ] -1 state ! ;
 
-: error ( @todo retreat to nearest marker set by ':' or ':noname' )
+( @todo retreat to nearest marker set by ':' or ':noname', also
+error should act like a primitive version of 'throw' and take
+an error number )
+: error 
 	[char] ? emit cr ( print error message )
 	preset
 	[ 
@@ -595,10 +610,10 @@ doThen:  here 2/ over @ or swap ! exit
 : doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; 
 : "next" ?compile ' doNext compile, , call +csp ; immediate
 
-\ : [compile] ( -- ; <string> ) "'" compile, ; immediate
-\ : compile ( -- ) r> dup @ , cell+ >r ;
+: [compile] ( -- ; <string> ) call "'" compile, ; immediate
+: compile ( -- ) r> dup @ , cell+ >r ;
 
-( strings: almost work - there is a problem with parsing, the terminating '"'
+( @bug strings: almost work - there is a problem with parsing, the terminating '"'
 is not consumed )
 : do$ ( -- a ) r> r@ r> count + aligned >r swap >r ;
 : $"| ( -- a ) do$ ;
@@ -607,20 +622,121 @@ is not consumed )
 : $" ( -- ; <string> ) ' $"| compile, $,' ; immediate
 : ." ( -- ; <string> ) ' ."| compile, $,' ; immediate
 
-\ ccitt: ( crc c -- crc : calculate polynomial 0x1021 AKA "x16 + x12 + x5 + 1" )
-\ 	over 256/ xor           ( crc x )
-\ 	dup  4  rshift xor      ( crc x )
-\ 	dup  5  lshift xor      ( crc x )
-\ 	dup  12 lshift xor      ( crc x )
-\ 	swap 8  lshift xor exit ( crc )
-\ 
-\ : crc 0xffff >r ( b u -- u : calculate ccitt-ffff CRC )
-\ begin dup while 
-\ 	r> over c@ call ccitt >r
-\ 	1 /string
-\ repeat 2drop r> ;
+: update -1 block-dirty ! ;
+: +block blk @ + ; 
+: b/buf block-size ;
+: empty-buffers -1 blk ! ;
+: save-buffers
+	blk @ -1 = if exit then
+	block-buffer b/buf blk @ _bsave @execute drop ( if error then )
+	0 block-dirty ! ;
+
+: flush save-buffers empty-buffers ;
+
+: block ( k -- a )
+	_binvalid @execute                    ( check validity of block number )
+	dup blk @ = if drop block-buffer then ( block already loaded ) 
+	flush
+	dup >r block-buffer b/buf r> _bload @execute drop ( if error then )
+	blk !
+	block-buffer ;
+
+: buffer block ;
+
+\ : load block b/buf evaluate throw ;
+\ : --> 1 +block load ;
+
+: scr blk ;
+: line c/l for count emit next drop ; hidden ( a -- )
+: list block 15 for dup line cr c/l + next drop ;
+: thru over - for dup . cr dup list 1+ key drop next ;
+
+: ccitt ( crc c -- crc : calculate polynomial 0x1021 AKA "x16 + x12 + x5 + 1" )
+ 	over 256/ xor           ( crc x )
+ 	dup  4  rshift xor      ( crc x )
+ 	dup  5  lshift xor      ( crc x )
+ 	dup  12 lshift xor      ( crc x )
+ 	swap 8  lshift xor ;    ( crc )
+ 
+: crc 0xffff >r ( b u -- u : calculate ccitt-ffff CRC )
+	begin dup while 
+		r> over c@ ccitt >r
+		1 /string
+	repeat 2drop r> ;
  
 ( ======================== Word Set ========================= )
+
+( ======================== Memory Interface ================= )
+
+( @note Flash is word addressable, the RAM is bit addressable? )
+
+variable mwindow  0
+variable mram     0
+constant mwin-max 0x3ff
+
+: mcontrol! ( u -- : write to memory control register )
+	mram @ if 0x400 or then
+	mwin-max invert    and    ( mask off control bits )
+	mwindow @ mwindow and or ( or in higher address bits )
+	oMemControl ! ;
+
+: m! ( n a -- : write to non-volatile memory )
+	oMemAddrLow !
+	oMemDout !
+	20 call 40ns 
+	0x8800 mcontrol! 
+	20 call 40ns 
+	0x0000 mcontrol! ;
+
+: m@ ( a -- n : read from non-volatile memory )
+	oMemAddrLow !
+	0x4800 mcontrol! ( read enable mode )
+	20 call 40ns 
+	iMemDin @        ( get input )
+	0x0000 mcontrol! ;
+
+: mrst ( -- : reset non-volatile memory )
+	0x2000 mcontrol!
+	20 call 40ns 
+	0x0000 mcontrol! ;
+
+: mdump ( a u -- : dump non-volatile memory )
+	begin
+		dup
+	while
+		over . 58 emit over m@ . cr
+		1 /string
+	repeat 2drop cr ;
+
+: r1+ r> r> 1+ >r >r ; hidden ( R: n -- n : increment first return stack value )
+
+: minvalid ( k -- k : is 'k' a valid block number, throw on error )
+	dup -1 = if error then ; hidden
+	\ dup 512 um* nip mwin-max u> if error then ; hidden
+
+: msave ( a u k -- f )
+	512 um* mwindow ! >r
+	begin
+		dup
+	while
+		over @ r@ m! r1+
+		cell /string
+	repeat
+	rdrop 2drop -1 ; hidden
+
+: mload ( a u k -- f )
+	512 um* mwindow ! >r
+	begin
+		dup
+	while
+		over r@ m@ r1+ swap !
+		cell /string
+	repeat
+	rdrop 2drop -1 ; hidden
+
+( ======================== Memory Interface ================= )
+
+
 
 ( ======================== Miscellaneous ==================== )
 
@@ -715,7 +831,6 @@ This is clearly magic. )
 	dup 1+ cursor @ u< if drop page else cursor ! then
 	( wrote-count 1+! ) ;
 
-
 ( Initial value of timer
   BIT     MEANING
   15   -  Enable Timer
@@ -795,52 +910,6 @@ manipulating a terminal )
 \ 
 ( ======================== ANSI SYSTEM   ==================== )
 
-
-( ======================== Memory Interface ================= )
-
-( @note Flash is word addressable, the RAM is bit addressable? )
-
-variable mwindow 0
-variable mram    0
-
-: mcontrol! ( u -- : write to memory control register )
-	mram @ if 0x400 or then
-	0x3ff invert    and    ( mask off control bits )
-	mwindow @ 0x3ff and or ( or in higher address bits )
-	oMemControl ! ;
-
-: m! ( n a -- : write to non-volatile memory )
-	oMemAddrLow !
-	oMemDout !
-	20 call 40ns 
-	0x8800 mcontrol! 
-	20 call 40ns 
-	0x0000 mcontrol! ;
-
-: m@ ( a -- n : read from non-volatile memory )
-	oMemAddrLow !
-	0x4800 mcontrol! ( read enable mode )
-	20 call 40ns 
-	iMemDin @        ( get input )
-	0x0000 mcontrol! ;
-
-: mrst ( -- : reset non-volatile memory )
-	0x2000 mcontrol!
-	20 call 40ns 
-	0x0000 mcontrol! ;
-
-: mdump ( a u -- : dump non-volatile memory )
-	begin
-		dup
-	while
-		over . 58 emit over m@ . cr
-		1 /string
-	repeat 2drop cr ;
-
-
-( ======================== Memory Interface ================= )
-
-
 ( ======================== Starting Code ==================== )
 
 ( @bug The ".set" directive is a bit of a hack at the moment, it divides the
@@ -856,7 +925,7 @@ start:
 	page                   \ Clear display
 	1 seed                 \ Set up PRNG seed
 
-	here . 0x2000 here - u. ( unused u. ) .ok 
+	here . .free cr  .ok 
 
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
@@ -866,10 +935,14 @@ start:
 .set pwd $pwd
 .set cp  $pc
 
-.set _key?    input      ( execution vector of ?key,   default to input. )
-.set _emit    output     ( execution vector of emit,   default to output )
-.set _expect  accept     ( execution vector of expect, default to 'accept'. )
-.set _tap     ktap       ( execution vector of tap,    default the ktap. )
-.set _echo    output     ( execution vector of echo,   default to output. )
-.set _prompt  .ok        ( execution vector of prompt, default to '.ok'. )
-.set _boot    0          ( @execute does nothing if zero )
+.set _key?     input      ( execution vector of ?key,   default to input. )
+.set _emit     output     ( execution vector of emit,   default to output )
+.set _expect   accept     ( execution vector of expect, default to 'accept'. )
+.set _tap      ktap       ( execution vector of tap,    default the ktap. )
+.set _echo     output     ( execution vector of echo,   default to output. )
+.set _prompt   .ok        ( execution vector of prompt, default to '.ok'. )
+.set _boot     0          ( @execute does nothing if zero )
+.set _bload    mload
+.set _bsave    msave
+.set _binvalid minvalid
+
