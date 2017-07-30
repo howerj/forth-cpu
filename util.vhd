@@ -282,6 +282,18 @@ package util is
 		generic(clock_frequency: positive);
 	end component;
 
+	component debounce_us is
+		generic(clock_frequency: positive; timer_period_us: natural);
+		port(
+			clk:   in  std_logic;
+			di:    in  std_logic;
+			do:    out std_logic);
+	end component;
+
+	component debounce_us_tb is
+		generic(clock_frequency: positive);
+	end component;
+
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
 	function n_bits(x: natural) return natural;
@@ -573,6 +585,7 @@ begin
 	uut_lfsr:     work.util.lfsr_tb              generic map(clock_frequency => clock_frequency);
 	uut_ucpu:     work.util.ucpu_tb              generic map(clock_frequency => clock_frequency);
 	uut_rdivider: work.util.restoring_divider_tb generic map(clock_frequency => clock_frequency);
+	uut_debouce:  work.util.debounce_us_tb       generic map(clock_frequency => clock_frequency);
 
 	stimulus_process: process
 	begin
@@ -820,7 +833,7 @@ use work.util.n_bits;
 entity timer_us is
 	generic(
 		clock_frequency: positive;
-		timer_period_us: natural  := 0);
+		timer_period_us: positive := 1);
 	port(
 		clk:  in std_logic := 'X';
 		rst:  in std_logic := 'X';
@@ -2023,9 +2036,8 @@ end architecture;
 
 ------------------------- uCPU ------------------------------------------------------
 
-
 ------------------------- Restoring Division ----------------------------------------
--- @todo Test in hardware, add remainder to output, renames signals, make a
+-- @todo Add remainder to output, renames signals, make a
 -- better test bench, add non-restoring division, and describe module
 --
 -- Computes a/b in N cycles
@@ -2184,3 +2196,81 @@ begin
 
 end architecture;
 ------------------------- Restoring Divider ---------------------------------------------------
+
+------------------------- Debouncer -----------------------------------------------------------
+
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity debounce_us is
+	generic(clock_frequency: positive; timer_period_us: natural);
+	port(
+		clk:   in  std_logic;
+		di:    in  std_logic;
+		do:    out std_logic := '0');
+end entity;
+
+architecture rtl of debounce_us is 
+	signal ff: std_logic_vector(1 downto 0) := (others => '0');
+	signal rst, done: std_logic             := '0';
+begin
+	timer: work.util.timer_us
+		generic map(
+			clock_frequency => clock_frequency, 
+			timer_period_us => timer_period_us)
+		port map(
+			clk => clk,
+			rst => rst,
+			co  => done);
+
+	process(clk)
+	begin
+		if rising_edge(clk) then
+			ff(0) <= di;
+			ff(1) <= ff(0);
+			rst   <= '0';
+			if (ff(0) xor ff(1)) = '1' then
+				rst <= '1';
+			elsif done = '1' then
+				do  <= ff(1);
+			end if;
+		end if;
+	end process;
+end architecture;
+
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity debounce_us_tb is
+	generic(clock_frequency: positive);
+end entity;
+
+architecture testing of debounce_us_tb is
+	constant clk_period: time     := 1000 ms / clock_frequency;
+
+	signal di,  do:  std_logic := '0';
+	signal clk, rst: std_logic := '0';
+	signal stop:     std_logic := '0';
+begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
+	uut: work.util.debounce_us
+		generic map(clock_frequency => clock_frequency, timer_period_us => 1)
+		port map(clk => clk, di => di, do => do);
+
+	stimulus_process: process
+	begin
+		wait for clk_period * 2;
+		di <= '1';
+
+		wait for 1.5 us;
+
+		stop <= '1';
+		wait;
+	end process;
+end architecture;
+------------------------- Debouncer -----------------------------------------------------------
