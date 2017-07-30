@@ -441,8 +441,9 @@ counting, which can be supplied with iLfsr.
 This register contains the control registers for the onboard memory on the
 [Nexys3][] board. The board contains three memory devices, two non-volatile
 memory devices and a volatile RAM based device. The two devices accessible by a
-simple SRAM interface (one volatile, one non-volatile) are both accessible, the
-third is an SPI based memory device and is currently not accessible.
+simple SRAM interface (one volatile M45W8MW16, one non-volatile - a 
+NP8P128A13T1760E) are both accessible, the third is an SPI based memory device, 
+NP5Q128A13ESFC0E) and is currently not accessible.
 
 	+-------------------------------------------------------------------------------+
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |

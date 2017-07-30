@@ -69,7 +69,6 @@ constant =bs           8      ( back space )
 
 constant c/l           64     ( characters per line in a block )
 
-
 constant tib-length    80     ( size of terminal input buffer )
 constant pad-length    80     ( pad area begins HERE + pad-length )
 constant word-length   31     ( maximum length of a word )
@@ -131,10 +130,11 @@ location tib-buf  0  ( ... and address )
 location word-buf 0  ( transient word buffer starts here )
 .allocate 34         ( allocate room for it )
 
-constant block-size 1024 ( size of a block )
-variable blk          -1 ( current blk loaded )
-location block-dirty   0 ( -1 if loaded block buffer is modified )
-location block-buffer  0 ( block buffer starts here )
+constant block-invalid   -1 ( block invalid number )
+constant block-size    1024 ( size of a block )
+variable blk             -1 ( current blk loaded )
+location block-dirty      0 ( -1 if loaded block buffer is modified )
+location block-buffer     0 ( block buffer starts here )
 .allocate block-size
 
 ( ======================== System Variables ================= )
@@ -250,7 +250,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : roll  dup 0> if swap >r 1- roll r> swap else drop then ;
 : ndrop for aft drop then next ;
 : type begin dup while swap count emit swap 1- repeat 2drop ; ( b u -- : print a string )
-: _type begin dup while swap count >char emit swap 1- repeat 2drop ; ( b u -- : print a string )
+: $type begin dup while swap count >char emit swap 1- repeat 2drop ; ( b u -- : print a string )
 : print count type ;
 : nuf? ( -- f ) key? dup if 2drop key =cr = then ;
 : ?exit if rdrop then ;
@@ -312,8 +312,10 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : #s ( u -- 0 ) begin # dup while repeat ;
 : sign ( n -- ) 0< if [char] - hold then ;
 : #> ( w -- b u ) drop hld @ pad over - ;
-: hex ( -- ) 16 base ! ;
+: binary ( -- ) 2 base ! ;
+: octal ( -- ) 8 base ! ;
 : decimal ( -- ) 10 base ! ;
+: hex ( -- ) 16 base ! ;
 
 : str   ( n -- b u : convert a signed integer to a numeric string )
 	dup >r                ( save a copy for sign )
@@ -460,7 +462,7 @@ constant dump-length 16
 	base @ >r hex dump-length /
 	for
 		cr dump-length 2dup dm+ -rot
-		2 spaces _type
+		2 spaces $type
 	next drop r> base ! ;
 
 location _test 0
@@ -482,7 +484,9 @@ lookfor: ( b u c -- b u : skip until _test succeeds )
 ( @todo store tmp on the return stack with stack magic )
 location tmp 0
 
-: parse 
+( @bug ." xxx" creates a string of size 4, the space is
+not consumed in the previous parse )
+: parse  ( c -- b u ; <string> )
 	>r tib >in @ + #tib @ >in @ - r> 
 
 	( ============================================== )
@@ -494,8 +498,9 @@ location tmp 0
 	tmp ! over >r
 	tmp @ skip 2dup
 	tmp @ scan swap r> - >r - r> 
+	tmp @ bl <> if 1+ then ( <-- this is a hack, relate to the string length bug )
 	( ============================================== )
-	>in +! ; ( c -- b u ; <string> )
+	>in +! ; 
 
 : .( 41 parse type ; immediate
 : "(" 41 parse 2drop ; immediate
@@ -516,14 +521,16 @@ use the space pad )
 : [  0 state ! ; immediate 
 : ] -1 state ! ;
 
-( @todo retreat to nearest marker set by ':' or ':noname', also
-error should act like a primitive version of 'throw' and take
-an error number )
-: error 
-	[char] ? emit cr ( print error message )
-	preset
-	[ 
-	1 rp! ;     ( reset machine )
+( @todo error should act like a primitive version of 'throw' and 
+take an error number )
+: error ( n --, R: ??? -- ??? )
+	?dup if
+		[char] ? emit ( print error message )
+		. [char] # cr ( print error number )
+		preset        ( reset machine )
+		[             ( back into interpret mode )
+		1 rp!         ( reset machine )
+	then ;     
 
 doLit: 0x8000 or , exit
 : literal ( n -- : write a literal into the dictionary )
@@ -559,12 +566,12 @@ doLit: 0x8000 or , exit
 			nip
 			state @ if literal then
 		else
-			drop space print error
+			drop space print -13 error
 		then
 	then ;
 
 : "immediate" last address 0x2000 toggle ;
-: "hide" bl parse find if address 0x4000 toggle else error then ;
+: "hide" bl parse find if address 0x4000 toggle else -13 error then ;
 : .ok state @ 0= if space OK print space then cr ;
 : quit 
 	quitLoop:
@@ -579,15 +586,15 @@ doLit: 0x8000 or , exit
 ( @todo save marker for dictionary and previous word pointer, restore this
 on any kind of failure that occurs between ":" and ";" )
 !csp: sp@ csp ! exit
-?csp: sp@ csp @ xor if error then exit
+?csp: sp@ csp @ xor if -22 error then exit
 +csp: csp 1+! exit
 -csp: csp 1-! exit
-: ?compile state @ 0= if error then ; ( fail if not compiling )
+: ?compile state @ 0= if -14 error then ; ( fail if not compiling )
 location redefined " redefined"
 : ?unique dup find if drop redefined print cr else drop then ;
 : smudge last address 0x4000 toggle ;
 : ":" call !csp here last address , pwd ! smudge =bl word ?unique  count + aligned cp ! ] ; 
-: "'" token find if cfa else error then ; immediate
+: "'" token find if cfa else -13 error then ; immediate
 : ";" =exit , [ call ?csp smudge ; immediate
 jumpz,: 2/ 0x2000 or , exit
 jump,: 2/ ( 0x0000 or ) , exit
@@ -613,8 +620,6 @@ doThen:  here 2/ over @ or swap ! exit
 : [compile] ( -- ; <string> ) call "'" compile, ; immediate
 : compile ( -- ) r> dup @ , cell+ >r ;
 
-( @bug strings: almost work - there is a problem with parsing, the terminating '"'
-is not consumed )
 : do$ ( -- a ) r> r@ r> count + aligned >r swap >r ;
 : $"| ( -- a ) do$ ;
 : ."| ( -- ) do$ print ; ( compile-only )
@@ -622,22 +627,24 @@ is not consumed )
 : $" ( -- ; <string> ) ' $"| compile, $,' ; immediate
 : ." ( -- ; <string> ) ' ."| compile, $,' ; immediate
 
+: updated? block-dirty @ ;
 : update -1 block-dirty ! ;
 : +block blk @ + ; 
 : b/buf block-size ;
-: empty-buffers -1 blk ! ;
+: empty-buffers block-invalid blk ! ;
 : save-buffers
-	blk @ -1 = if exit then
-	block-buffer b/buf blk @ _bsave @execute drop ( if error then )
+	blk @ block-invalid  = if exit then
+	updated? 0= if exit then
+	block-buffer b/buf blk @ _bsave @execute error 
 	0 block-dirty ! ;
 
 : flush save-buffers empty-buffers ;
 
 : block ( k -- a )
-	_binvalid @execute                    ( check validity of block number )
-	dup blk @ = if drop block-buffer then ( block already loaded ) 
+	_binvalid @execute                         ( check validity of block number )
+	dup blk @ = if drop block-buffer exit then ( block already loaded ) 
 	flush
-	dup >r block-buffer b/buf r> _bload @execute drop ( if error then )
+	dup >r block-buffer b/buf r> _bload @execute error 
 	blk !
 	block-buffer ;
 
@@ -647,8 +654,7 @@ is not consumed )
 \ : --> 1 +block load ;
 
 : scr blk ;
-: line c/l for count emit next drop ; hidden ( a -- )
-: list block 15 for dup line cr c/l + next drop ;
+: list block 15 cr for dup c/l $type cr c/l + next drop ;
 : thru over - for dup . cr dup list 1+ key drop next ;
 
 : ccitt ( crc c -- crc : calculate polynomial 0x1021 AKA "x16 + x12 + x5 + 1" )
@@ -675,10 +681,10 @@ variable mram     0
 constant mwin-max 0x3ff
 
 : mcontrol! ( u -- : write to memory control register )
-	mram @ if 0x400 or then
-	mwin-max invert    and    ( mask off control bits )
+	mram @ if 0x400 or then  ( select correct memory device )
+	mwin-max invert    and   ( mask off control bits )
 	mwindow @ mwindow and or ( or in higher address bits )
-	oMemControl ! ;
+	oMemControl ! ;          ( and finally write in control )
 
 : m! ( n a -- : write to non-volatile memory )
 	oMemAddrLow !
@@ -711,10 +717,10 @@ constant mwin-max 0x3ff
 : r1+ r> r> 1+ >r >r ; hidden ( R: n -- n : increment first return stack value )
 
 : minvalid ( k -- k : is 'k' a valid block number, throw on error )
-	dup -1 = if error then ; hidden
-	\ dup 512 um* nip mwin-max u> if error then ; hidden
+	dup block-invalid = if -35 error then ; hidden
 
 : msave ( a u k -- f )
+	minvalid
 	512 um* mwindow ! >r
 	begin
 		dup
@@ -722,9 +728,10 @@ constant mwin-max 0x3ff
 		over @ r@ m! r1+
 		cell /string
 	repeat
-	rdrop 2drop -1 ; hidden
+	rdrop 2drop 0 ; hidden
 
 : mload ( a u k -- f )
+	minvalid
 	512 um* mwindow ! >r
 	begin
 		dup
@@ -732,7 +739,7 @@ constant mwin-max 0x3ff
 		over r@ m@ r1+ swap !
 		cell /string
 	repeat
-	rdrop 2drop -1 ; hidden
+	rdrop 2drop 0 ; hidden
 
 ( ======================== Memory Interface ================= )
 
