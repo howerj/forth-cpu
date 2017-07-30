@@ -113,22 +113,23 @@ variable _bload    0  ( a u k -- f : load block )
 variable _bsave    0  ( a u k -- f : save block )
 variable _binvalid 0  ( k -- k : throws error if k invalid )
 
-location OK     "ok" ( used by "prompt" )
-variable csp      0  ( current data stack pointer - for error checking )
-variable >in      0  ( Hold character pointer when parsing input )
-variable state    0  ( compiler state variable )
-variable pwd      0  ( Present Word Variable: Set at end of file )
-variable cp       0  ( Dictionary Pointer: Set at end of file )
-variable hld      0  ( Pointer into hold area for numeric output )
-variable base     10 ( Current output radix )
-variable span     0  ( Hold character count received by expect   )
-variable #tib     0  ( Current count of terminal input buffer    )
-location tib-buf  0  ( ... and address )
-.set tib-buf $pc     ( set tib-buf to current dictionary location )
-.allocate tib-length ( allocate enough for the terminal input buffer )
-.allocate cell       ( plus one extra cell for safety )
-location word-buf 0  ( transient word buffer starts here )
-.allocate 34         ( allocate room for it )
+location OK     "ok"  ( used by "prompt" )
+location pwd       0  ( Present Word Variable: Set at end of file )
+location cp        0  ( Dictionary Pointer: Set at end of file )
+location csp       0  ( current data stack pointer - for error checking )
+location _id       0  ( used for source id )
+variable >in       0  ( Hold character pointer when parsing input )
+variable state     0  ( compiler state variable )
+variable hld       0  ( Pointer into hold area for numeric output )
+variable base      10 ( Current output radix )
+variable span      0  ( Hold character count received by expect   )
+variable #tib      0  ( Current count of terminal input buffer    )
+location tib-buf   0  ( ... and address )
+.set tib-buf $pc      ( set tib-buf to current dictionary location )
+.allocate tib-length  ( allocate enough for the terminal input buffer )
+.allocate cell        ( plus one extra cell for safety )
+location word-buf  0  ( transient word buffer starts here )
+.allocate 34          ( allocate room for it )
 
 constant block-invalid   -1 ( block invalid number )
 constant block-size    1024 ( size of a block )
@@ -153,7 +154,7 @@ location block-buffer     0 ( block buffer starts here )
 : 2* 1 lshift ;
 : cell- cell - ;
 : cell+ cell + ;
-\ : cells 2* ;
+: cells 2* ;
 : ?dup dup if dup then ;
 : >= < invert ;
 : >  swap < ;
@@ -176,7 +177,7 @@ location block-buffer     0 ( block buffer starts here )
 	swap over dup ( -2 and ) @ swap 1 and 0 = 0xff xor
 	>r over xor r> and xor swap ( -2 and ) store drop ;
 
-\ : !io ; ( Initialize I/O devices )
+: !io ; ( Initialize I/O devices )
 : rx? ( -- c -1 | 0 : read in a character of input from UART )
 	iUart @ 0x0100 and 0=
 	if
@@ -203,7 +204,7 @@ location block-buffer     0 ( block buffer starts here )
 : rp! ( n -- , R: ??? -- ??? : set the return stack pointer )
 	begin dup rp@ = 0= while rdrop repeat drop ;
 
-( @todo Implement "sp!" and "next" )
+( @todo Implement "sp!" )
 
 ( With the built in words defined in the assembler, and the words
 defined so far, all of the primitive words needed by eForth should
@@ -218,6 +219,8 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : 2! ( d a -- ) tuck ! cell+ ! ;
 : 2@ ( a -- d ) dup cell+ @ swap @ ;
 : here cp @ ;
+: source #tib 2@ ;
+: source-id _id @ ;
 : pad here pad-length + ;
 : @execute @ ?dup if execute then ;
 : 3drop 2drop drop ;
@@ -264,7 +267,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : spaces ( +n -- ) =bl nchars ;
 : cmove for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ; ( b b u -- )
 : fill swap for swap aft 2dup c! 1+ then next 2drop ; ( b u c -- )
-: switch 2dup @ >r @ swap ! r> swap ! ; ( a a -- swap contents )
+: switch 2dup @ >r @ swap ! r> swap ! ; ( a a -- : swap contents )
 
 : um/mod ( ud u -- ur uq )
 	2dup u<
@@ -383,6 +386,8 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		then
 	next 2drop -1 ;
 
+( @bug too many bits are now being used to store information
+about words in, so the word layout will need to be rearranged )
 : address 0x1fff and ; ( a -- a : mask off address bits )
 : nfa address cell+ ; ( pwd -- nfa : move to name field address)
 : cfa nfa dup count nip + cell + ; ( pwd -- cfa : move to code field address )
@@ -498,7 +503,7 @@ not consumed in the previous parse )
 	tmp ! over >r
 	tmp @ skip 2dup
 	tmp @ scan swap r> - >r - r> 
-	tmp @ bl <> if 1+ then ( <-- this is a hack, relate to the string length bug )
+	tmp @ =bl <> if 1+ then ( <-- this is a hack, relate to the string length bug )
 	( ============================================== )
 	>in +! ; 
 
@@ -571,17 +576,10 @@ doLit: 0x8000 or , exit
 	then ;
 
 : "immediate" last address 0x2000 toggle ;
-: "hide" bl parse find if address 0x4000 toggle else -13 error then ;
+: "hide" =bl token find if address 0x4000 toggle else -13 error then ;
 : .ok state @ 0= if space OK print space then cr ;
-: quit 
-	quitLoop:
-	preset [ 
-	begin 
-		query 
-		( begin...while...repeat is 'eval' ) 
-		begin token dup count nip while interpret repeat drop _prompt @execute
-	again 
-	branch 0 ;
+: eval begin token dup count nip while interpret repeat drop _prompt @execute ;
+: quit quitLoop: preset [ begin query eval again branch 0 ;
 
 ( @todo save marker for dictionary and previous word pointer, restore this
 on any kind of failure that occurs between ":" and ";" )
@@ -648,14 +646,27 @@ doThen:  here 2/ over @ or swap ! exit
 	blk !
 	block-buffer ;
 
-: buffer block ;
+: buffer block ; ( k -- a )
+
+
+\ : evaluate ( a u -- )
+\	0 >in !
+\	#tib 2@ >r >r 
+\	swap #tib 2!
+\	eval
+\	r> r> #tib 2! ;
+
 
 \ : load block b/buf evaluate throw ;
 \ : --> 1 +block load ;
 
 : scr blk ;
-: list block 15 cr for dup c/l $type cr c/l + next drop ;
+: pipe 124 emit ; hidden
+location border-string "+---|---"
+: border 3 spaces 7 for border-string print next cr ; hidden
+: list block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
 : thru over - for dup . cr dup list 1+ key drop next ;
+: blank =bl fill ;
 
 : ccitt ( crc c -- crc : calculate polynomial 0x1021 AKA "x16 + x12 + x5 + 1" )
  	over 256/ xor           ( crc x )
@@ -742,8 +753,6 @@ constant mwin-max 0x3ff
 	rdrop 2drop 0 ; hidden
 
 ( ======================== Memory Interface ================= )
-
-
 
 ( ======================== Miscellaneous ==================== )
 
@@ -859,6 +868,42 @@ irq:
 	1 seti ; )
 
 ( ======================== Miscellaneous ==================== )
+
+
+( ======================== Block Editor  ==================== )
+
+( Block Editor Help 
+
+      n    move to next block
+      p    move to previous block
+    # d    delete line in current block
+      x    erase current block
+      e    evaluate current block
+    # i    insert line
+ # #2 ia   insert at line #2 at column #
+      q    quit editor loop
+    # b    set block number
+      s    save block and write it out
+      u    update block )
+
+( 
+: [block] blk @ block ; hidden
+: [check] dup b/buf c/l / u>= if -24 error then ; hidden
+: [line] [check] c/l * [block] + ; hidden 
+: [clean]  ;
+: n  1 +block block ;
+: p -1 +block block ;
+: d [line] c/l bl fill ;
+: x [block] b/buf bl fill ;
+: s update save-buffers ;
+: q rdrop rdrop ;
+\ : e blk @ load char drop ;
+: ia c/l * + dup b/buf swap - >r [block] + r> accept drop [clean] ;
+: i 0 swap ia ;
+: u update ;
+: b block ;
+: l blk @ list ;
+)
 
 ( ======================== ANSI SYSTEM   ==================== )
 
