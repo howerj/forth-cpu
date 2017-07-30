@@ -145,9 +145,15 @@ simulation: tb.ghw h2${EXE}
 
 ## Simulation ==============================================================
 
+
 # gtkwave -S signals -f tb.ghw &> /dev/null&
 viewer: simulation
 	gtkwave -S signals -f tb.ghw 
+
+USB?=/dev/ttyUSB0
+
+talk:
+	picocom --omap delbs -e b -b 115200 ${USB}
 
 bitfile: design.bit
 

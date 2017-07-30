@@ -61,12 +61,12 @@ entity top is
 		ps2_keyboard_clk:   in std_logic           := '0';
 	
 		-- Memory Interface
-		RamCS:          out   std_logic := '1';
-		QuadSpiFlashCS: out   std_logic := '1';
+		--RamCS:          out   std_logic := '1';
+		--QuadSpiFlashCS: out   std_logic := '1';
+		--MemClk:   out   std_logic := '0'; -- negative logic
 
 		MemOE:    out   std_logic := '0'; -- negative logic
 		MemWR:    out   std_logic := '0'; -- negative logic
-		MemClk:   out   std_logic := '0'; -- negative logic
 		MemAdv:   out   std_logic := '0'; -- negative logic
 		MemWait:  out   std_logic := '0'; -- positive!
 
