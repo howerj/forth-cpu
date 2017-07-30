@@ -40,7 +40,6 @@ SOURCES = \
 	util.vhd \
 	timer.vhd \
 	uart.vhd \
-	debounce.vhd \
 	kbd.vhd \
 	vga.vhd \
 	irqh.vhd \
@@ -129,7 +128,6 @@ grun: gui${EXE} h2.hex
 irqh.o: util.o
 led.o: util.o led.vhd
 vga.o: util.o vga.vhd text.bin font.bin
-kbd.o: kbd.vhd debounce.o
 cpu.o: util.o h2.o irqh.o cpu.vhd h2.hex
 uart.o: util.o uart.vhd
 top.o: util.o timer.o cpu.o uart.o vga.o kbd.o led.o top.vhd 

@@ -53,6 +53,14 @@ package kbd_pkg is
 		ps2_code:     out std_logic_vector(7 downto 0)); -- code received from PS/2
 	end component;
 
+	component ps2_debounce is
+		generic(counter_size:  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
+		port(
+			clk:    in  std_logic;
+			button: in  std_logic;  --input signal to be debounced
+			result: out std_logic := '0'); --debounced signal
+	end component;
+
 end package;
 
 ------ PS2 KBD TOP -------------------------------------------------------------
@@ -399,14 +407,6 @@ architecture rtl of ps2_kbd_core is
 	signal parity_error: std_logic;                       -- validate parity, start, and stop bits
 	signal count_idle: integer range 0 to clock_frequency/18000; --counter to determine PS/2 is idle
 
-	-- declare debounce component for debouncing ps2 input signals
-	component debounce is
-	generic(counter_size : integer); -- debounce period (in seconds) = 2^counter_size/(clk freq in hz)
-	port(
-		clk:    in  std_logic;  -- input clock
-		button: in  std_logic;  -- input signal to be debounced
-		result: out std_logic); -- debounced signal
-	end component;
 begin
 
 	--synchronizer flip-flops
@@ -419,11 +419,11 @@ begin
 	end process;
 
 	-- debounce ps2 input signals
-	debounce_ps2_clk: debounce
+	debounce_ps2_clk: work.kbd_pkg.ps2_debounce
 	generic map(counter_size => debounce_counter_size)
 	port map(clk => clk, button => sync_ffs(0), result => ps2_clk_int);
 
-	debounce_ps2_data: debounce
+	debounce_ps2_data: work.kbd_pkg.ps2_debounce
 	generic map(counter_size => debounce_counter_size)
 	port map(clk => clk, button => sync_ffs(1), result => ps2_data_int);
 
@@ -460,3 +460,66 @@ begin
 	end process;
 
 end;
+
+--------------------------------------------------------------------------------
+--
+--   FileName:         (originally) debounce.vhd
+--   Dependencies:     none
+--   Design Software:  Quartus II 32-bit Version 11.1 Build 173 SJ Full Version
+--
+--   HDL CODE IS PROVIDED "AS IS."  DIGI-KEY EXPRESSLY DISCLAIMS ANY
+--   WARRANTY OF ANY KIND, WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT
+--   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+--   PARTICULAR PURPOSE, OR NON-INFRINGEMENT. IN NO EVENT SHALL DIGI-KEY
+--   BE LIABLE FOR ANY INCIDENTAL, SPECIAL, INDIRECT OR CONSEQUENTIAL
+--   DAMAGES, LOST PROFITS OR LOST DATA, HARM TO YOUR EQUIPMENT, COST OF
+--   PROCUREMENT OF SUBSTITUTE GOODS, TECHNOLOGY OR SERVICES, ANY CLAIMS
+--   BY THIRD PARTIES (INCLUDING BUT NOT LIMITED TO ANY DEFENSE THEREOF),
+--   ANY CLAIMS FOR INDEMNITY OR CONTRIBUTION, OR OTHER SIMILAR COSTS.
+--
+--   Version History
+--   Version 1.0 3/26/2012 Scott Larson
+--     Initial Public Release
+--
+-- @note This file has been modified from the original one found
+-- on the web from: <https://eewiki.net/pages/viewpage.action?pageId=28279002>
+-- @todo make a module that accepts an array std_logic_vector to be debounced.
+--
+--------------------------------------------------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity ps2_debounce is
+	generic(counter_size:  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
+	port(
+		clk:    in  std_logic;
+		button: in  std_logic;  --input signal to be debounced
+		result: out std_logic := '0'); --debounced signal
+end entity;
+
+architecture rtl of ps2_debounce is
+	signal flipflops:   std_logic_vector(1 downto 0); --input flip flops
+	signal counter_set: std_logic;                    --sync reset to zero
+	signal counter_out: unsigned(counter_size downto 0) := (others => '0'); --counter output
+begin
+
+	counter_set <= flipflops(0) xor flipflops(1);   --determine when to start/reset counter
+
+	process(clk)
+	begin
+		if rising_edge(clk) then
+			flipflops(0) <= button;
+			flipflops(1) <= flipflops(0);
+			if(counter_set = '1') then                  --reset counter because input is changing
+				counter_out <= (others => '0');
+			elsif(counter_out(counter_size) = '0') then --stable input time is not yet met
+				counter_out <= counter_out + 1;
+			else                                        --stable input time is met
+				result <= flipflops(1);
+			end if;
+		end if;
+	end process;
+end;
+

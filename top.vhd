@@ -549,18 +549,32 @@ begin
 
 	--- Buttons -------------------------------------------------------
 
-	btnu_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnu, result => btnu_d);
-	btnd_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnd, result => btnd_d);
-	btnc_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnc, result => btnc_d);
-	btnl_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnl, result => btnl_d);
-	btnr_d0: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => btnr, result => btnr_d);
+	btnu_d0: entity work.debounce_us 
+		generic map(clock_frequency => clock_frequency, timer_period_us => 20000) 
+		port map(clk => clk, di => btnu, do => btnu_d);
+	btnd_d0: entity work.debounce_us 
+		generic map(clock_frequency => clock_frequency, timer_period_us => 20000) 
+		port map(clk => clk, di => btnd, do => btnd_d);
+	btnc_d0: entity work.debounce_us 
+		generic map(clock_frequency => clock_frequency, timer_period_us => 20000) 
+		port map(clk => clk, di => btnc, do => btnc_d);
+	btnl_d0: entity work.debounce_us 
+		generic map(clock_frequency => clock_frequency, timer_period_us => 20000) 
+		port map(clk => clk, di => btnl, do => btnl_d);
+	btnr_d0: entity work.debounce_us 
+		generic map(clock_frequency => clock_frequency, timer_period_us => 20000) 
+		port map(clk => clk, di => btnr, do => btnr_d);
 
 	--- Buttons -------------------------------------------------------
 
 	--- Switches ------------------------------------------------------
 
 	sw_debouncer: for i in sw'range generate
-		sw_d_instance: entity work.debounce generic map(counter_size => 20) port map(clk => clk, button => sw(i), result => sw_d(i));
+		sw_d_instance: entity work.debounce_us 
+			generic map(
+				clock_frequency => clock_frequency,
+				timer_period_us => 20000) 
+			port map(clk => clk, di => sw(i), do => sw_d(i));
 	end generate;
 
 	--- Switches ------------------------------------------------------
