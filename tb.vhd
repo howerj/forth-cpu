@@ -131,7 +131,6 @@ begin
 		ps2_keyboard_clk  => ps2_keyboard_clk);
 
 	uut_util: entity work.util_tb generic map(clock_frequency => clock_frequency);
-	uut_restoring_divider: entity work.restoring_divider_tb generic map(clock_frequency => clock_frequency);
 
 	-- The "io_pins_tb" works correctly, however GHDL 0.29, compiled under
 	-- Windows, cannot fails to simulate this component correctly, and it
