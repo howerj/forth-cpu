@@ -156,7 +156,7 @@ Net "MemAdv" LOC = H18 | IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L43N_GC
 Net "MemWait" LOC = V4 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L63N, Sch name = P30-WAIT
 #Net "MemClk" LOC = R10 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L29P_GCLK3, Sch name = P30-CLK
 
-#Net "RamCS" LOC = L15 | IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L42P_GCLK7_M1UDM, Sch name = MT-CE
+Net "RamCS" LOC = L15 | IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L42P_GCLK7_M1UDM, Sch name = MT-CE
 #Net "RamCRE" LOC = M18 |  IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L47N_LDC_M1DQ1, Sch name = MT-CRE
 #Net "RamUB" LOC = K15  |  IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L41P_GCLK9_IRDY1_M1RASN, Sch name = MT-UB
 #Net "RamLB" LOC = K16  |  IOSTANDARD = LVCMOS33; #Bank = 1, pin name = IO_L41N_GCLK8_M1CASN, Sch name = MT-LB

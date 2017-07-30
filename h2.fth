@@ -798,14 +798,13 @@ manipulating a terminal )
 
 ( ======================== Memory Interface ================= )
 
-\ oMemControl   0x4008 
-\ oMemAddrLow   0x4009
-\ oMemDout      0x400A
-\ iMemDin       0x4007 
+( @note Flash is word addressable, the RAM is bit addressable? )
 
 variable mwindow 0
+variable mram    0
 
 : mcontrol! ( u -- : write to memory control register )
+	mram @ if 0x400 or then
 	0x3ff invert    and    ( mask off control bits )
 	mwindow @ 0x3ff and or ( or in higher address bits )
 	oMemControl ! ;

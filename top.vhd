@@ -61,7 +61,7 @@ entity top is
 		ps2_keyboard_clk:   in std_logic           := '0';
 	
 		-- Memory Interface
-		--RamCS:          out   std_logic := '1';
+		RamCS:    out   std_logic := '1';
 		--QuadSpiFlashCS: out   std_logic := '1';
 		--MemClk:   out   std_logic := '0'; -- negative logic
 
@@ -179,8 +179,8 @@ architecture behav of top is
 	signal mem_data_buf_i:    std_logic_vector(15 downto 0) := (others => '0');
 	signal mem_data_o:        std_logic_vector(15 downto 0) := (others => '0');
 
-	signal mem_control_i:     std_logic_vector(4 downto 0)  := (others => '0');
-	signal mem_control_o:     std_logic_vector(4 downto 0)  := (others => '0');
+	signal mem_control_i:     std_logic_vector(5 downto 0)  := (others => '0');
+	signal mem_control_o:     std_logic_vector(5 downto 0)  := (others => '0');
 	signal mem_control_we:    std_logic := '0';
 
 	signal mem_we:            std_logic := '0';
@@ -335,7 +335,7 @@ begin
 		lfsr_i_we         <= '0';
 		mem_addr_16_1     <= io_dout;
 		mem_addr_26_17    <= io_dout(9 downto 0);
-		mem_control_i     <= io_dout(15 downto 11);
+		mem_control_i     <= io_dout(15 downto 10);
 		mem_data_i        <= io_dout;
 
 		if io_re = '1' and io_daddr(15) = '0' then
@@ -625,7 +625,7 @@ begin
 			do  => MemAdr(26 downto 17));
 
 	mem_control_reg: entity work.reg 
-		generic map(N => 5) 
+		generic map(N => 6) 
 		port map(
 			clk => clk, 
 			rst => rst, 
@@ -642,12 +642,13 @@ begin
 			di  => mem_data_i,
 			do  => mem_data_buf_i);
 
-	FlashCS    <= '0' when mem_control_o(4 downto 3) /= "00"  else '1';
-	FlashRp    <= '0' when mem_control_o(2) = '1' else '1';
-	MemWait    <= mem_control_o(1);
-	MemAdv     <= '0' when mem_control_o(0) = '1' else '1';
-	mem_oe     <= '1' when mem_control_o(4 downto 3) = "01"  else '0';
-	mem_we     <= '1' when mem_control_o(4 downto 3) = "10"  else '0';
+	FlashCS    <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(0) = '0' else '1';
+	RamCS      <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(1) = '1' else '1';
+	FlashRp    <= '0' when mem_control_o(3) = '1' else '1';
+	MemWait    <= mem_control_o(2);
+	MemAdv     <= '0' when mem_control_o(1) = '1' else '1';
+	mem_oe     <= '1' when mem_control_o(5 downto 4) = "01"  else '0';
+	mem_we     <= '1' when mem_control_o(5 downto 4) = "10"  else '0';
 
 	MemOE      <= not mem_oe;
 	MemWR      <= not mem_we;
