@@ -124,12 +124,6 @@ static double seconds_to_ticks(const world_t *world, double s)
 	return s * (1000. / (double)world->arena_tick_ms);
 }
 
-static double ticks_to_seconds(const world_t *world, double t)
-{
-	assert(world);
-	return t * (((double)world->arena_tick_ms)/1000.);
-}
-
 static void _error(const char *func, unsigned line, const char *fmt, ...)
 {
 	va_list args;
@@ -146,11 +140,6 @@ static void _error(const char *func, unsigned line, const char *fmt, ...)
 static double rad2deg(double rad)
 {
 	return (rad / (2.0 * PI)) * 360.0;
-}
-
-static double deg2rad(double deg)
-{
-	return (deg / 360.0) * 2.0 * PI;
 }
 
 static void set_color(color_t color)
@@ -363,17 +352,6 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 
 	}
 	glPopMatrix();
-	return r;
-}
-
-static int draw_text(color_t color, double x, double y, const char *fmt, ...)
-{
-	assert(fmt);
-	int r;
-	va_list ap;
-	va_start(ap, fmt);
-	r = vdraw_text(color, x, y, fmt, ap);
-	va_end(ap);
 	return r;
 }
 

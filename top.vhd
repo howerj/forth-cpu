@@ -9,6 +9,10 @@
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
+--| @note Non portable components could be put in a wrapper around this
+--| top level module, to make a top level synthesizeable component, this
+--| could include things like a Digital Clock Manager (DCM), which is easy 
+--| enough to simulate.
 ---------------------------------------------------------------------------------
 
 library ieee,work;
@@ -104,8 +108,8 @@ architecture behav of top is
 	attribute buffer_type of clk25MHz: signal is "BUFG";
 
 	-- Basic IO register
-	---- LEDs/Switches
 
+	---- LEDs/Switches
 	signal ld_c, ld_n: std_logic_vector(7 downto 0):=  (others => '0');
 
 	---- VGA
@@ -127,7 +131,6 @@ architecture behav of top is
 	signal tx_fifo_empty:  std_logic := '0';
 	signal tx_data_we:     std_logic := '0';
 
-
 	---- Timer
 	signal timer_control_we: std_logic := '0';
 	signal timer_control_i:  std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
@@ -146,7 +149,6 @@ architecture behav of top is
 	signal kbd_char_c, kbd_char_n: std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
 
 	---- 8 Segment Display
-
 
 	signal leds_reg:    std_logic_vector(15 downto 0) := (others => '0');
 	signal leds_reg_we: std_logic := '0';
@@ -346,20 +348,15 @@ begin
 				io_din(9)          <= rx_fifo_full;
 				io_din(11)         <= tx_fifo_empty;
 				io_din(12)         <= tx_fifo_full;
-
 			when "001" => -- Switches and buttons
 				io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
-
 			when "010" => 
 				-- @todo remove this register
 				io_din <= timer_control_o;
-
 			when "011" => -- Timer in
 				io_din(timer_counter_o'range) <= timer_counter_o;
-
 			when "100" => -- VGA dout
 				io_din <= vga_dout;
-
 			when "101" => -- PS/2 Keyboard, Check for new char
 				io_din(6 downto 0) <= kbd_char_c;
 				io_din(8)          <= kbd_new_c;
@@ -375,10 +372,8 @@ begin
 			when "0000" => -- UART
 				tx_data_we <= io_dout(13);
 				rx_data_re <= io_dout(10);
-
 			when "0001" => -- LEDs, next to switches.
 				ld_n <= io_dout(7 downto 0);
-
 			when "0010" => -- General purpose timer
 				timer_control_we <= '1';
 			when "0011" => -- VGA, cursor registers.
@@ -403,7 +398,6 @@ begin
 			when others =>
 			end case;
 		end if;
-
 	end process;
 
 	--- UART ----------------------------------------------------------
@@ -605,6 +599,10 @@ begin
 	--- Switches ------------------------------------------------------
 
 	--- Memory Interface ----------------------------------------------
+
+	-- @todo This memory interface really should be replaced with a
+	-- SRAM memory interface module so the timing is guaranteed to
+	-- be correct.
 
 	mem_addr_16_1_reg: entity work.reg 
 		generic map(N => 16) 

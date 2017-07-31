@@ -103,7 +103,7 @@ Which will assemble the H2 Forth source file [h2.fth][], and run the assembled
 object file under the H2 simulator with the debugger activated. A graphical
 simulator can be run with:
 
-	make grun
+	make gui-run
 
 Which requires [freeglut][] as well as a [C][] compiler.
 
@@ -1011,7 +1011,7 @@ Building can be done with
 
 And running:
 
-	make grun
+	make gui-run
 
 Or:
 

@@ -10,12 +10,6 @@
  * The processor has been tested on an FPGA and is working. 
  * The project can be found at: https://github.com/howerj/forth-cpu
  *
- * @todo make a peephole optimizer for the assembler and a super optimizer
- * utility.
- * @todo Use the FIFO routines to simulate the H2 SoC FIFOs
- * @todo An option to break when either the return stack or data
- * stack reaches a value, or reaches a new max would help in optimizing
- * the code
  * @todo Load/Save special variables to symbol table
  * @todo Allow forward branches
  * @todo Add names to breakpoint structure
@@ -948,7 +942,6 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	}
 }
 
-/**@todo check correctness */
 static uint16_t lfsr(uint16_t v)
 {
 	return (v >> 1) ^ (-(v & 1u) & 0x400b);
@@ -1450,7 +1443,6 @@ static uint16_t interrupt_decode(uint8_t *vector)
 	return 0;
 }
 
-/**@todo make a incredibly simple version of the simulator only in a single C file */
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
 {
 	bool turn_debug_on = false;
@@ -1875,12 +1867,8 @@ static int number(char *s, uint16_t *o, size_t length)
 		start = ++i;
 	}
 
-	/**@bug this does not quite work correctly, it accepts
-	 * things as numbers that is should not */
 	if(s[i] == '0') {
 		base = 8;
-		/* if(!numeric(s[i+1], base))
-			return 0; */
 		if(s[i+1] == 'x' || s[i+1] == 'X') {
 			base = 16;
 			if(s[i+2] == '\0')
@@ -1924,7 +1912,6 @@ again:
 	case EOF:
 		l->token->type = LEX_EOI;
 		return;
-		/**@todo fix '\' and '(', they should be keywords */
 	case '\\':
 		for(; '\n' != (ch = next_char(l));)
 			if(ch == EOF)
@@ -2256,8 +2243,8 @@ static node_t *if1(lexer_t *l)
 }
 
 typedef enum {
-	DEFINE_IMMEDIATE = 1 << 0,
-	DEFINE_HIDDEN    = 1 << 1,
+	DEFINE_HIDDEN    = 1 << 0,
+	DEFINE_IMMEDIATE = 1 << 1,
 	DEFINE_INLINE    = 1 << 2,
 } define_type_e;
 
@@ -2751,7 +2738,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate_jump(h, a, t, n->token, n->type, e);
 		break;
 	case SYM_CONSTANT:
-		/**@todo optionally compile header */
 		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e);
 		break;
 	case SYM_VARIABLE:
@@ -2766,7 +2752,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		/* fall through */
 	case SYM_LOCATION:
 		here(h, a); 
-
 
 		if(n->o[0]->token->type == LEX_LITERAL) {
 			hole1 = hole(h, a);
@@ -2864,8 +2849,9 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_DEFINITION:
 		if(n->bits && !(a->mode & MODE_COMPILE_WORD_HEADER))
 			assembly_error(e, "cannot modify word bits (immediate/hidden/inline) if not in compile mode");
-		if(a->mode & MODE_COMPILE_WORD_HEADER) {
+		if(a->mode & MODE_COMPILE_WORD_HEADER && !(n->bits & DEFINE_HIDDEN)) {
 			hole1 = hole(h, a);
+			n->bits &= (DEFINE_IMMEDIATE | DEFINE_INLINE);
 			fix(h, hole1, a->pwd | (n->bits << 13)); /* shift in word bits into PWD field */
 			a->pwd = hole1 << 1;
 			pack_string(h, a, n->token->p.id, e);
@@ -2900,8 +2886,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 				value = symbol_special(h, a, n->value->p.id, e);
 			}
 		}
-		/**@bug only divide by 2 if literal_or_symbol_lookup was not a
-		 * constant  variable */
 		fix(h, location >> 1, value);
 		break;
 	}
@@ -2913,7 +2897,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		a->mode = n->token->p.number;
 		break;
 	case SYM_ALLOCATE:
-		/**@todo Only allow constants or literal */
 		h->pc += literal_or_symbol_lookup(n->token, t, e) >> 1;
 		update_fence(a, h->pc);
 		break;
