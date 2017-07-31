@@ -9,6 +9,10 @@
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
+--| @note Non portable components could be put in a wrapper around this
+--| top level module, to make a top level synthesizeable component, this
+--| could include things like a Digital Clock Manager (DCM), which is easy 
+--| enough to simulate.
 ---------------------------------------------------------------------------------
 
 library ieee,work;
@@ -33,7 +37,6 @@ entity top is
 
 		clk:      in  std_logic                    := 'X';  -- clock
 		-- Buttons
-		-- @todo Turn button interface into record.
 		btnu:     in  std_logic                    := 'X';  -- button up
 		btnd:     in  std_logic                    := 'X';  -- button down
 		btnc:     in  std_logic                    := 'X';  -- button centre
@@ -59,7 +62,22 @@ entity top is
 		gpt0_nq:  out std_logic                    := '0';
 		-- PS/2 Interface
 		ps2_keyboard_data:  in std_logic           := '0';
-		ps2_keyboard_clk:   in std_logic           := '0');
+		ps2_keyboard_clk:   in std_logic           := '0';
+	
+		-- Memory Interface
+		RamCS:    out   std_logic := '1';
+		--QuadSpiFlashCS: out   std_logic := '1';
+		--MemClk:   out   std_logic := '0'; -- negative logic
+
+		MemOE:    out   std_logic := '0'; -- negative logic
+		MemWR:    out   std_logic := '0'; -- negative logic
+		MemAdv:   out   std_logic := '0'; -- negative logic
+		MemWait:  out   std_logic := '0'; -- positive!
+
+		FlashCS:  out   std_logic := '0';
+		FlashRp:  out   std_logic := '1';
+		MemAdr:   out   std_logic_vector(26 downto 1) := (others => '0');
+		MemDB:    inout std_logic_vector(15 downto 0) := (others => 'Z'));
 end;
 
 architecture behav of top is
@@ -90,8 +108,8 @@ architecture behav of top is
 	attribute buffer_type of clk25MHz: signal is "BUFG";
 
 	-- Basic IO register
-	---- LEDs/Switches
 
+	---- LEDs/Switches
 	signal ld_c, ld_n: std_logic_vector(7 downto 0):=  (others => '0');
 
 	---- VGA
@@ -113,7 +131,6 @@ architecture behav of top is
 	signal tx_fifo_empty:  std_logic := '0';
 	signal tx_data_we:     std_logic := '0';
 
-
 	---- Timer
 	signal timer_control_we: std_logic := '0';
 	signal timer_control_i:  std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
@@ -133,7 +150,6 @@ architecture behav of top is
 
 	---- 8 Segment Display
 
-
 	signal leds_reg:    std_logic_vector(15 downto 0) := (others => '0');
 	signal leds_reg_we: std_logic := '0';
 
@@ -152,6 +168,25 @@ architecture behav of top is
 	signal lfsr_o:     std_logic_vector(lfsr_tap'high + 1 downto lfsr_tap'low);
 	signal lfsr_i:     std_logic_vector(lfsr_o'range);
 	signal lfsr_i_we:  std_logic := '0';
+
+	-- Memory
+	signal mem_addr_26_17:    std_logic_vector(26 downto 17) := (others => '0');
+	signal mem_addr_26_17_we: std_logic := '0';
+
+	signal mem_addr_16_1:     std_logic_vector(16 downto 1) := (others => '0');
+	signal mem_addr_16_1_we:  std_logic := '0';
+
+	signal mem_data_i:        std_logic_vector(15 downto 0) := (others => '0');
+	signal mem_data_i_we:     std_logic := '0';
+	signal mem_data_buf_i:    std_logic_vector(15 downto 0) := (others => '0');
+	signal mem_data_o:        std_logic_vector(15 downto 0) := (others => '0');
+
+	signal mem_control_i:     std_logic_vector(5 downto 0)  := (others => '0');
+	signal mem_control_o:     std_logic_vector(5 downto 0)  := (others => '0');
+	signal mem_control_we:    std_logic := '0';
+
+	signal mem_we:            std_logic := '0';
+	signal mem_oe:            std_logic := '0';
 begin
 -------------------------------------------------------------------------------
 -- The Main components
@@ -263,21 +298,10 @@ begin
 		lfsr_o,
 
 		timer_control_o,
-		timer_counter_o)
+		timer_counter_o,
+	
+		mem_data_o)
 	begin
-		ld <= ld_c;
-		ld_n <= ld_c;
-
-		tx_data_we <= '0';
-		rx_data_re <= '0';
-
-		vga_control_we <= vga_control_registers_we_initialize;
-
-		timer_control_we <= '0';
-
-		cpu_irc_mask_we <= '0';
-
-		leds_reg_we <= '0';
 
 		if kbd_new_edge = '1' then
 			kbd_new_n  <= '1';
@@ -287,23 +311,36 @@ begin
 			kbd_char_n <= kbd_char_c;
 		end if;
 
-		io_din <= (others => '0');
+		io_din             <= (others => '0');
 
-		cpu_irc_mask     <= io_dout(number_of_interrupts - 1 downto 0);
-		timer_control_i  <= io_dout;
-		vga_control.crx  <= io_dout(6 downto 0);
-		vga_control.cry  <= io_dout(13 downto 8);
-		vga_control.ctl  <= io_dout(vga_control.ctl'range);
-		leds_reg         <= io_dout;
-		tx_data          <= io_dout(tx_data'range);
-		lfsr_i           <= io_dout;
-		lfsr_i_we        <= '0';
+		ld                 <= ld_c;
+		ld_n               <= ld_c;
+		tx_data_we         <= '0';
+		rx_data_re         <= '0';
+		vga_control_we     <= vga_control_registers_we_initialize;
+		timer_control_we   <= '0';
+		cpu_irc_mask_we    <= '0';
+		leds_reg_we        <= '0';
+		mem_addr_26_17_we  <= '0';
+		mem_addr_16_1_we   <= '0';
+		mem_control_we     <= '0';
+		mem_data_i_we      <= '0';
 
-		-- @note a 32 bit ALU could be added as an I/O port for
-		-- multiplication and addition at least. This should speed
-		-- up the CPU.
+		cpu_irc_mask      <= io_dout(number_of_interrupts - 1 downto 0);
+		timer_control_i   <= io_dout;
+		vga_control.crx   <= io_dout(6 downto 0);
+		vga_control.cry   <= io_dout(13 downto 8);
+		vga_control.ctl   <= io_dout(vga_control.ctl'range);
+		leds_reg          <= io_dout;
+		tx_data           <= io_dout(tx_data'range);
+		lfsr_i            <= io_dout;
+		lfsr_i_we         <= '0';
+		mem_addr_16_1     <= io_dout;
+		mem_addr_26_17    <= io_dout(9 downto 0);
+		mem_control_i     <= io_dout(15 downto 10);
+		mem_data_i        <= io_dout;
+
 		if io_re = '1' and io_daddr(15) = '0' then
-			-- Get input.
 			case io_daddr(2 downto 0) is
 			when "000" => -- buttons, plus direct access to UART bit.
 				io_din(7 downto 0) <= rx_data_n;
@@ -311,60 +348,56 @@ begin
 				io_din(9)          <= rx_fifo_full;
 				io_din(11)         <= tx_fifo_empty;
 				io_din(12)         <= tx_fifo_full;
-
 			when "001" => -- Switches and buttons
 				io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
-
-			when "010" => -- VGA, Read VGA text buffer.
+			when "010" => 
 				-- @todo remove this register
 				io_din <= timer_control_o;
-
 			when "011" => -- Timer in
 				io_din(timer_counter_o'range) <= timer_counter_o;
-
 			when "100" => -- VGA dout
 				io_din <= vga_dout;
-
 			when "101" => -- PS/2 Keyboard, Check for new char
 				io_din(6 downto 0) <= kbd_char_c;
 				io_din(8)          <= kbd_new_c;
 				kbd_new_n          <= '0';
 			when "110" =>
 				io_din             <= lfsr_o;
-
+			when "111" =>
+				io_din             <= mem_data_o;
 			when others => io_din <= (others => '0');
 			end case;
 		elsif io_wr = '1' and io_daddr(15) = '0' then
-			-- Write output.
-			case io_daddr(2 downto 0) is
-			when "000" => -- UART
+			case io_daddr(3 downto 0) is
+			when "0000" => -- UART
 				tx_data_we <= io_dout(13);
 				rx_data_re <= io_dout(10);
-
-			when "001" => -- LEDs, next to switches.
+			when "0001" => -- LEDs, next to switches.
 				ld_n <= io_dout(7 downto 0);
-
-			when "010" => -- General purpose timer
+			when "0010" => -- General purpose timer
 				timer_control_we <= '1';
-
-			-- @todo Turn VGA display into 64x16 text display, then have the
-			-- cursor track the VGA address register
-			when "011" => -- VGA, cursor registers.
+			when "0011" => -- VGA, cursor registers.
 				vga_control_we.crx <= '1';
 				vga_control_we.cry <= '1';
-			when "100" => -- VGA, control register.
+			when "0100" => -- VGA, control register.
 				vga_control_we.ctl <= '1';
-			when "101" => -- LEDs
+			when "0101" => -- LEDs
 				leds_reg_we <= '1';
-			when "110" => -- CPU Mask
+			when "0110" => -- CPU Mask
 				cpu_irc_mask_we <= '1';
-			when "111" =>
+			when "0111" =>
 				lfsr_i <= io_dout;
 				lfsr_i_we <= '1';
+			when "1000" =>
+				mem_addr_26_17_we <= '1';
+				mem_control_we    <= '1';
+			when "1001" =>
+				mem_addr_16_1_we  <= '1';
+			when "1010" =>
+				mem_data_i_we     <= '1';
 			when others =>
 			end case;
 		end if;
-
 	end process;
 
 	--- UART ----------------------------------------------------------
@@ -422,7 +455,6 @@ begin
 		Q         => timer_q,
 		NQ        => timer_nq);
 	--- Timer ---------------------------------------------------------
-
 
 	--- VGA -----------------------------------------------------------
 
@@ -522,6 +554,7 @@ begin
 				di(0) => leds_reg_we,
 				do(0) => leds_reg_we_o);
 
+		-- @todo change led interface, records are a bad idea for them
 		leds(0).display <= leds_reg_o(15 downto 12);
 		leds(0).we      <= leds_reg_we_o;
 		leds(1).display <= leds_reg_o(11 downto 8);
@@ -579,11 +612,70 @@ begin
 
 	--- Switches ------------------------------------------------------
 
+	--- Memory Interface ----------------------------------------------
+
+	-- @todo This memory interface really should be replaced with a
+	-- SRAM memory interface module so the timing is guaranteed to
+	-- be correct.
+
+	mem_addr_16_1_reg: entity work.reg 
+		generic map(N => 16) 
+		port map(
+			clk => clk, 
+			rst => rst, 
+			we  => mem_addr_16_1_we, 
+			di  => mem_addr_16_1,
+			do  => MemAdr(16 downto 1));
+
+	mem_addr_26_17_reg: entity work.reg 
+		generic map(N => 10) 
+		port map(
+			clk => clk, 
+			rst => rst, 
+			we  => mem_addr_26_17_we, 
+			di  => mem_addr_26_17,
+			do  => MemAdr(26 downto 17));
+
+	mem_control_reg: entity work.reg 
+		generic map(N => 6) 
+		port map(
+			clk => clk, 
+			rst => rst, 
+			we  => mem_control_we, 
+			di  => mem_control_i,
+			do  => mem_control_o);
+
+	mem_data_i_reg: entity work.reg 
+		generic map(N => 16) 
+		port map(
+			clk => clk, 
+			rst => rst, 
+			we  => mem_data_i_we, 
+			di  => mem_data_i,
+			do  => mem_data_buf_i);
+
+	FlashCS    <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(0) = '0' else '1';
+	RamCS      <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(1) = '1' else '1';
+	FlashRp    <= '0' when mem_control_o(3) = '1' else '1';
+	MemWait    <= mem_control_o(2);
+	MemAdv     <= '0' when mem_oe = '1' or mem_we = '1' else '1';
+	mem_oe     <= '1' when mem_control_o(5 downto 4) = "01"  else '0';
+	mem_we     <= '1' when mem_control_o(5 downto 4) = "10"  else '0';
+
+	MemOE      <= not mem_oe;
+	MemWR      <= not mem_we;
+
+	mem_data_o <= MemDB when mem_oe = '1' else (others => '0');
+	MemDB      <= mem_data_buf_i when mem_we = '1' else (others => 'Z');
+
+	--- Memory Interface ----------------------------------------------
+
 	--- LFSR ----------------------------------------------------------
 
 	lfsr_0: entity work.lfsr generic map(tap => lfsr_tap) port map(clk => clk, rst => rst, ce => '1', di => lfsr_i, we => lfsr_i_we, do => lfsr_o);
 
 	--- LFSR ----------------------------------------------------------
+
 
 	--- uCPU ----------------------------------------------------------
 --      -- uCPU test code

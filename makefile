@@ -5,12 +5,13 @@
 # @Copyright   Copyright 2013 Marc Eberhard, 2016 Richard Howe
 # @License     LGPL
 #
-# This file needs a lot of improving, OS detection for the building
-# of C programs can be found at:
+# This makefile can build the toolchain, simulators, and the bit
+# file for the FPGA. Type "make help" at the command line for a
+# list of options
 #
-# https://stackoverflow.com/questions/714100/os-detecting-makefile
-# https://stackoverflow.com/questions/7876876/tell-if-make-is-running-on-windows-or-linux
-# https://stackoverflow.com/questions/9279765/how-to-detect-os-in-a-make-file
+# @todo The options relating to building the bit file (synthesis,
+# implementation and bitfile) need improving in terms of their
+# dependencies.
 #
 
 NETLIST=top
@@ -23,9 +24,12 @@ ifeq ($(OS),Windows_NT)
 GUI_LDFLAGS = -lfreeglut -lopengl32 -lm 
 DF=
 EXE=.exe
-#h2:   h2.exe
-#gui:  gui.exe
-#uart: uart.exe
+
+.PHONY: h2 gui uart
+
+h2:   h2.exe
+gui:  gui.exe
+uart: uart.exe
 
 else # assume unixen
 GUI_LDFLAGS = -lglut -lGL -lm 
@@ -33,7 +37,7 @@ DF=./
 EXE=
 endif
 
-.PHONY: simulation viewer synthesis bitfile upload clean run grun
+.PHONY: simulation viewer synthesis bitfile upload clean run gui-run
 
 ## Remember to update the synthesis section as well
 SOURCES = \
@@ -59,7 +63,7 @@ all:
 	@echo "make h2${EXE}             - build C based CLI emulator for the VHDL SoC"
 	@echo "make gui${EXE}            - build C based GUI emulator for the Nexys3 board"
 	@echo "make run            - run the C CLI emulator on h2.fth"
-	@echo "make grun           - run the GUI emulator on h2.hex"
+	@echo "make gui-run        - run the GUI emulator on h2.hex"
 	@echo ""
 	@echo "Synthesis:"
 	@echo ""
@@ -108,16 +112,16 @@ disassemble: h2${EXE} h2.fth
 run: h2${EXE} h2.fth
 	${DF}h2 -T -v -R h2.fth
 
-sim.o: h2.c h2.h
+h2nomain.o: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 -DNO_MAIN  $< -c -o $@
 
 gui.o: gui.c
 	${CC} ${CFLAGS} -std=gnu99  $< -c -o $@
 
-gui${EXE}: sim.o gui.o
+gui${EXE}: h2nomain.o gui.o
 	${CC} ${CFLAGS} $^ ${GUI_LDFLAGS} -o $@
 
-grun: gui${EXE} h2.hex
+gui-run: gui${EXE} h2.hex
 	${DF}$^
 
 ## Simulation ==============================================================
@@ -143,9 +147,15 @@ simulation: tb.ghw h2${EXE}
 
 ## Simulation ==============================================================
 
+
 # gtkwave -S signals -f tb.ghw &> /dev/null&
 viewer: simulation
 	gtkwave -S signals -f tb.ghw 
+
+USB?=/dev/ttyUSB0
+
+talk:
+	picocom --omap delbs -e b -b 115200 ${USB}
 
 bitfile: design.bit
 

@@ -124,12 +124,6 @@ static double seconds_to_ticks(const world_t *world, double s)
 	return s * (1000. / (double)world->arena_tick_ms);
 }
 
-static double ticks_to_seconds(const world_t *world, double t)
-{
-	assert(world);
-	return t * (((double)world->arena_tick_ms)/1000.);
-}
-
 static void _error(const char *func, unsigned line, const char *fmt, ...)
 {
 	va_list args;
@@ -146,11 +140,6 @@ static void _error(const char *func, unsigned line, const char *fmt, ...)
 static double rad2deg(double rad)
 {
 	return (rad / (2.0 * PI)) * 360.0;
-}
-
-static double deg2rad(double deg)
-{
-	return (deg / 360.0) * 2.0 * PI;
 }
 
 static void set_color(color_t color)
@@ -363,17 +352,6 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 
 	}
 	glPopMatrix();
-	return r;
-}
-
-static int draw_text(color_t color, double x, double y, const char *fmt, ...)
-{
-	assert(fmt);
-	int r;
-	va_list ap;
-	va_start(ap, fmt);
-	r = vdraw_text(color, x, y, fmt, ap);
-	va_end(ap);
 	return r;
 }
 
@@ -880,6 +858,13 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			return (char_arrived << PS2_NEW_CHAR_BIT) | c;
 		}
 	case iLfsr:     return soc->lfsr;
+	case iMemDin:       
+		if((soc->mem_control & PCM_MEMORY_OE) && !(soc->mem_control & PCM_MEMORY_WE))
+			return soc->mem[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
+		return 0;
+	default:
+		/*warning("invalid read from %04"PRIx16, addr);*/
+		break;
 	}
 	return 0;
 }
@@ -929,6 +914,16 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 			  soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
+	case oMemControl: 
+		soc->mem_control    = value; 
+		if(!(soc->mem_control & PCM_MEMORY_OE) && (soc->mem_control & PCM_MEMORY_WE))
+			soc->mem[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
+		break;
+	case oMemAddrLow: soc->mem_addr_low   = value; break;
+	case oMemDout:    soc->mem_dout       = value; break;
+	default:
+		/*warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value); */
+		break;
 	}
 }
 
