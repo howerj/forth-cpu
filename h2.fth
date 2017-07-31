@@ -63,9 +63,9 @@ isrBrnLeft:        .allocate cell ( Left button pressed )
 .mode 1   ( Turn word header compilation and optimization off )
 .built-in ( Add the built in words to the dictionary )
 
-constant =exit         0x601c ( op code for exit )
-constant =invert       0x6600 ( op code for invert )
-constant =>r           0x6147 ( op code for >r )
+constant =exit         $601c ( op code for exit )
+constant =invert       $6600 ( op code for invert )
+constant =>r           $6147 ( op code for >r )
 constant =bl           32     ( blank, or space )
 constant =cr           13     ( carriage return )
 constant =lf           10     ( line feed )
@@ -77,28 +77,28 @@ constant tib-length    80     ( size of terminal input buffer )
 constant pad-length    80     ( pad area begins HERE + pad-length )
 constant word-length   31     ( maximum length of a word )
 
-( Outputs: 0x6000 - 0x7FFF )
-constant oUart         0x4000 ( UART TX/RX Control register )
-constant oLeds         0x4001 ( LEDs )
-constant oTimerCtrl    0x4002 ( Timer Control )
-constant oVgaCursor    0x4003 ( VGA X/Y Cursor position )
-constant oVgaCtrl      0x4004 ( VGA Control )
-constant o8SegLED      0x4005 ( 4x7 Segment display )
-constant oIrcMask      0x4006 ( Interrupt Mask )
-constant oLfsr         0x4007 ( Seed value of LFSR )
-constant oMemControl   0x4008 ( Memory control and high address bits )
-constant oMemAddrLow   0x4009 ( Lower memory address bits )
-constant oMemDout      0x400A ( Memory output for writes )
+( Outputs: $6000 - $7FFF )
+constant oUart         $4000 ( UART TX/RX Control register )
+constant oLeds         $4001 ( LEDs )
+constant oTimerCtrl    $4002 ( Timer Control )
+constant oVgaCursor    $4003 ( VGA X/Y Cursor position )
+constant oVgaCtrl      $4004 ( VGA Control )
+constant o8SegLED      $4005 ( 4x7 Segment display )
+constant oIrcMask      $4006 ( Interrupt Mask )
+constant oLfsr         $4007 ( Seed value of LFSR )
+constant oMemControl   $4008 ( Memory control and high address bits )
+constant oMemAddrLow   $4009 ( Lower memory address bits )
+constant oMemDout      $400A ( Memory output for writes )
 
-( Inputs: 0x6000 - 0x7FFF )
-constant iUart         0x4000 ( Matching registers for iUart )
-constant iSwitches     0x4001 ( Switch control [on/off] )
-constant iTimerCtrl    0x4002 ( Timer control, not really needed )
-constant iTimerDin     0x4003 ( Current timer value )
-constant iVgaTxtDout   0x4004 ( VGA text output, currently broken )
-constant iPs2          0x4005 ( PS/2 keyboard input )
-constant iLfsr         0x4006 ( Input from Linear Feedback Shift Register )
-constant iMemDin       0x4007 ( Memory input for reads )
+( Inputs: $6000 - $7FFF )
+constant iUart         $4000 ( Matching registers for iUart )
+constant iSwitches     $4001 ( Switch control [on/off] )
+constant iTimerCtrl    $4002 ( Timer control, not really needed )
+constant iTimerDin     $4003 ( Current timer value )
+constant iVgaTxtDout   $4004 ( VGA text output, currently broken )
+constant iPs2          $4005 ( PS/2 keyboard input )
+constant iLfsr         $4006 ( Input from Linear Feedback Shift Register )
+constant iMemDin       $4007 ( Memory input for reads )
 
 ( ======================== System Constants ================= )
 
@@ -175,17 +175,17 @@ location block-buffer     0 ( block buffer starts here )
 : 1+! 1 swap +! ;          ( a -- )
 : 1-! -1 swap +! ;         ( a -- )
 : execute >r ;             ( cfa -- )
-: c@ dup ( -2 and ) @ swap 1 and if 8 rshift else 0xff and then ; ( b -- c )
+: c@ dup ( -2 and ) @ swap 1 and if 8 rshift else $ff and then ; ( b -- c )
 : c!                       ( c b -- )
-	swap 0xff and dup 8 lshift or swap
-	swap over dup ( -2 and ) @ swap 1 and 0 = 0xff xor
+	swap $ff and dup 8 lshift or swap
+	swap over dup ( -2 and ) @ swap 1 and 0 = $ff xor
 	>r over xor r> and xor swap ( -2 and ) store drop ;
 
 : !io ;                    ( -- : Initialize I/O devices )
 : rx? ( -- c -1 | 0 : read in a character of input from UART )
-	iUart @ 0x0100 and 0=
+	iUart @ $0100 and 0=
 	if
-		0x0400 oUart ! iUart @ 0xff and -1
+		$0400 oUart ! iUart @ $ff and -1
 	else
 		0
 	then ;
@@ -194,8 +194,8 @@ location block-buffer     0 ( block buffer starts here )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
 
 : tx! ( c -- : write a character to UART )
-	begin iUart @ 0x0800 and until ( Wait until TX FIFO is not full )
-	0x2000 or oUart ! ;            ( Write character out )
+	begin iUart @ $0800 and until ( Wait until TX FIFO is not full )
+	$2000 or oUart ! ;            ( Write character out )
 
 : um+ ( w w -- w carry )
 	over over + >r
@@ -240,7 +240,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : -rot swap >r swap r> ;                  ( n1 n2 n3 -- n3 n1 n2 )
 : min over over < if drop else nip then ; ( n n -- n )
 : max over over > if drop else nip then ; ( n n -- n )
-: >char 0x7f and dup 127 =bl within if drop [char] _ then ; ( c -- c )
+: >char $7f and dup 127 =bl within if drop [char] _ then ; ( c -- c )
 : tib #tib cell+ @ ;                      ( -- a )
 : echo _echo @execute ;                   ( c -- )
 : key? _key? @execute ;                   ( -- c -1 | 0 )
@@ -389,14 +389,14 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		then
 	next 2drop -1 ;
 
-: address 0x3fff and ; ( a -- a : mask off address bits )
+: address $3fff and ; ( a -- a : mask off address bits )
 : nfa address cell+ ; ( pwd -- nfa : move to name field address)
 : cfa nfa dup count nip + cell + ; ( pwd -- cfa : move to code field address )
 : .id nfa print space ; ( pwd -- : print out a word )
 
 : logical 0= 0= ; hidden ( n -- f )
-: immediate? @ 0x4000 and logical ; ( pwd -- f : is immediate? )
-: inline?    @ 0x8000 and logical ; ( pwd -- f : is inline? )
+: immediate? @ $4000 and logical ; ( pwd -- f : is immediate? )
+: inline?    @ $8000 and logical ; ( pwd -- f : is inline? )
 
 : find ( a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
 	>r
@@ -441,8 +441,8 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : >number ( n b u -- n b u : convert string )
 	base @ >r
-	over c@ 0x2D = if 1 /string -1 >r else 0 >r then ( -negative )
-	over c@ 0x24 = if 1 /string hex then ( $hex )
+	over c@ $2D = if 1 /string -1 >r else 0 >r then ( -negative )
+	over c@ $24 = if 1 /string hex then ( $hex )
 	do-number
 	r> if rot negate -rot then
 	r> base ! ;
@@ -513,7 +513,7 @@ not consumed in the previous parse )
 return stack, which can cause a lot of problems, but instead
 use the space pad )
 : .s ( -- ) cr sp@ for aft r@ pick . then next [char] * emit ;
-: unused 0x4000 here - ;
+: unused $4000 here - ;
 : .free unused u. ;
 
 : preset sp@ ndrop tib #tib cell+ ! ;
@@ -529,9 +529,9 @@ use the space pad )
 		1 rp!         ( reset machine )
 	then ;     
 
-: doLit 0x8000 or , ; hidden
+: doLit $8000 or , ; hidden
 : literal ( n -- : write a literal into the dictionary )
-	dup 0x8000 and ( n > $7fff ? )
+	dup $8000 and ( n > $7fff ? )
 	if
 		invert doLit =invert , ( store inversion of n the invert it )
 	else
@@ -539,7 +539,7 @@ use the space pad )
 	then ; immediate
 
 : compile, ( cfa -- : compile a code field address )
-	2/ 0x4000 or , ; ( 2/ ? )
+	2/ $4000 or , ; ( 2/ ? )
 
 : interpret ( ??? a -- ??? : The command/compiler loop )
 	find ?dup if
@@ -567,10 +567,10 @@ use the space pad )
 		then
 	then ;
 
-: "immediate" last address 0x4000 toggle ;
+: "immediate" last address $4000 toggle ;
 ( @todo reimplement hide by removing the word to hide from the linked list
 of words )
-\ : "hide" =bl token find if address 0x4000 toggle else -13 error then ;
+\ : "hide" =bl token find if address $4000 toggle else -13 error then ;
 : .ok state @ 0= if space OK print space then cr ;
 : eval begin token dup count nip while interpret repeat drop _prompt @execute ;
 : quit quitLoop: preset [ begin query eval again branch 0 ;
@@ -584,12 +584,12 @@ on any kind of failure that occurs between ":" and ";" )
 : ?compile state @ 0= if -14 error then ; ( fail if not compiling )
 location redefined " redefined"
 \ : ?unique dup find if drop redefined print cr else drop then ;
-\ : smudge last address 0x4000 toggle ;
+\ : smudge last address $4000 toggle ;
 : ":" !csp here last address , pwd ! ( smudge ) =bl word ( ?unique ) count + aligned cp ! ] ; 
 : "'" token find if cfa else -13 error then ; immediate
 : ";" =exit , [ ?csp ( smudge ) ; immediate
-: jumpz, 2/ 0x2000 or , ; hidden
-: jump, 2/ ( 0x0000 or ) , ; hidden
+: jumpz, 2/ $2000 or , ; hidden
+: jump, 2/ ( $0000 or ) , ; hidden
 : "begin" ?compile here -csp ; immediate
 : "until" ?compile jumpz, +csp ; immediate
 : "again" ?compile jump, +csp ; immediate
@@ -661,14 +661,14 @@ location border-string "+---|---"
 : thru over - for dup . dup list 1+ key drop next drop ;
 : blank =bl fill ;
 
-: ccitt ( crc c -- crc : calculate polynomial 0x1021 AKA "x16 + x12 + x5 + 1" )
+: ccitt ( crc c -- crc : calculate polynomial $1021 AKA "x16 + x12 + x5 + 1" )
  	over 256/ xor           ( crc x )
  	dup  4  rshift xor      ( crc x )
  	dup  5  lshift xor      ( crc x )
  	dup  12 lshift xor      ( crc x )
  	swap 8  lshift xor ;    ( crc )
  
-: crc 0xffff >r ( b u -- u : calculate ccitt-ffff CRC )
+: crc $ffff >r ( b u -- u : calculate ccitt-ffff CRC )
 	begin dup while 
 		r> over c@ ccitt >r
 		1 /string
@@ -707,10 +707,10 @@ location border-string "+---|---"
 
 variable mwindow  0
 variable mram     0
-constant mwin-max 0x3ff
+constant mwin-max $3ff
 
 : mcontrol! ( u -- : write to memory control register )
-	mram @ if 0x400 or then  ( select correct memory device )
+	mram @ if $400 or then  ( select correct memory device )
 	mwin-max invert    and   ( mask off control bits )
 	mwindow @ mwindow and or ( or in higher address bits )
 	oMemControl ! ;          ( and finally write in control )
@@ -719,21 +719,21 @@ constant mwin-max 0x3ff
 	oMemAddrLow !
 	oMemDout !
 	20 40ns 
-	0x8800 mcontrol! 
+	$8800 mcontrol! 
 	20 40ns 
-	0x0000 mcontrol! ;
+	$0000 mcontrol! ;
 
 : m@ ( a -- n : read from non-volatile memory )
 	oMemAddrLow !
-	0x4800 mcontrol! ( read enable mode )
+	$4800 mcontrol! ( read enable mode )
 	20 40ns 
 	iMemDin @        ( get input )
-	0x0000 mcontrol! ;
+	$0000 mcontrol! ;
 
 : mrst ( -- : reset non-volatile memory )
-	0x2000 mcontrol!
+	$2000 mcontrol!
 	20 40ns 
-	0x0000 mcontrol! ;
+	$0000 mcontrol! ;
 
 : mdump ( a u -- : dump non-volatile memory )
 	begin
@@ -788,7 +788,7 @@ they are exactly the same apart from the direction of the read/write )
   2   -  Blue
   1   -  Green
   0   -  Red )
-constant vgaInit       0x7A \ 0x007A
+constant vgaInit       $7A \ $007A
 
 constant vgaX          80
 constant vgaY          40
@@ -803,14 +803,14 @@ variable cursor 0  ( index into VGA text memory )
 
 \ : vga.ctrl! ( -- )
 \ 	0
-\ 	vga.screen    @ if 0x80 or then
-\ 	vga.on        @ if 0x40 or then
-\ 	vga.screen    @ if 0x20 or then
-\ 	vga.cursor.en @ if 0x10 or then
-\ 	vga.color     @ 0x7 and or
-\ 	0x4004 ! ;
+\ 	vga.screen    @ if $80 or then
+\ 	vga.on        @ if $40 or then
+\ 	vga.screen    @ if $20 or then
+\ 	vga.cursor.en @ if $10 or then
+\ 	vga.color     @ $7 and or
+\ 	$4004 ! ;
 
-: vga! ( vga.screen @ if 4096 + then ) 0xC000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
+: vga! ( vga.screen @ if 4096 + then ) $C000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
 
 ( This should also emit the ANSI Terminal codes for paging as well,
 perhaps it could be a vectored word )
@@ -833,9 +833,9 @@ even perhaps ANSI Terminal codes. This word takes up far too much
 return stack space and uses arithmetic too freely
 
 Dividing by vgaX [80] can be done with:
-	0xCCCD um* swap drop 6 rshift
+	$CCCD um* swap drop 6 rshift
 vgaY [40] with:
-	0xCCCD um* swap drop 5 rshift
+	$CCCD um* swap drop 5 rshift
 
 This is clearly magic. )
 
@@ -856,7 +856,7 @@ This is clearly magic. )
 : timer@    iTimerDin  @ ;
 
 : ps2? ( -- c -1 | 0 : like "rx?" but for the PS/2 keyboard )
-	iPs2 @ dup 0xff and swap 0x0100 and if -1 else drop 0 then ;
+	iPs2 @ dup $ff and swap $0100 and if -1 else drop 0 then ;
 
 : input ( -- c -1 | 0 : look for input from UART or PS/2 keyboard )
 	rx? if -1 else ps2? then ;
@@ -883,8 +883,8 @@ irq:
 	exit
  .set 12 irq
 : irqTest
-	0xffff oIrcMask !
-	0xffff oTimerCtrl !
+	$ffff oIrcMask !
+	$ffff oTimerCtrl !
 	1 seti ; )
 
 ( ======================== Miscellaneous ==================== )

@@ -1842,9 +1842,7 @@ static uint16_t map_char_to_number(int c)
 
 static bool numeric(int c, int base)
 {
-	assert(base == 8 || base == 10 || base == 16);
-	if(base == 8)
-		return isdigit(c) && c < '8';
+	assert(base == 10 || base == 16);
 	if(base == 10)
 		return isdigit(c);
 	return isxdigit(c);
@@ -1867,14 +1865,11 @@ static int number(char *s, uint16_t *o, size_t length)
 		start = ++i;
 	}
 
-	if(s[i] == '0') {
-		base = 8;
-		if(s[i+1] == 'x' || s[i+1] == 'X') {
-			base = 16;
-			if(s[i+2] == '\0')
-				return 0;
-			start = i+2;
-		}
+	if(s[i] == '$') {
+		base = 16;
+		if(s[i+1] == '\0')
+			return 0;
+		start = i + 1;
 	}
 
 	for(i = start; i < length; i++)

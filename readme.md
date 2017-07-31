@@ -734,14 +734,12 @@ A rough [EBNF][] grammar for the language is as follows:
 	If          := "if" Statement* [ "else" ] Statement* "then"
 	Begin       := "begin" Statement* ("until" | "again" | "while" Statement* "repeat")
 	For         := "for"   Statement* ("aft" Statement* "then" Statement* | "next")
-	Isr         := "isr" Identifier (Identifier | Literal)
 	Literal     := [ "-" ] Number
 	String      := '"' SChar* '"'
 	Char        := "[char]" ASCII ","
-	Number      := Octal | Hex | Decimal
-	Octal       := "0" ... "7"
-	Decimal     := "1" ... "9" ( "0" ... "9" )*
-	Hex         := ( "x" | "X" ) HexDigit HexDigit*
+	Number      := Hex | Decimal
+	Decimal     := "0" ... "9" ("0" ... "9")* 
+	Hex         := "$" HexDigit HexDigit*
 	HexDigit    := ( "a" ... "f" | "A" ... "F" )
 	SChar       := Any character except quote
 
