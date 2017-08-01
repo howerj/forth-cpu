@@ -115,7 +115,7 @@ run: h2${EXE} h2.fth
 h2nomain.o: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 -DNO_MAIN  $< -c -o $@
 
-gui.o: gui.c
+gui.o: gui.c h2.h
 	${CC} ${CFLAGS} -std=gnu99  $< -c -o $@
 
 gui${EXE}: h2nomain.o gui.o

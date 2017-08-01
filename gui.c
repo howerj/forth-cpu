@@ -116,6 +116,8 @@ typedef struct { /**@note it might be worth translating some functions to use po
 	double x, y;
 } point_t;
 
+static const char *nvram_file = "nvram.dump";
+
 /**@bug not quite correct, arena_tick_ms is what we request, not want the arena
  * tick actually is */
 static double seconds_to_ticks(const world_t *world, double s)
@@ -123,19 +125,6 @@ static double seconds_to_ticks(const world_t *world, double s)
 	assert(world);
 	return s * (1000. / (double)world->arena_tick_ms);
 }
-
-static void _error(const char *func, unsigned line, const char *fmt, ...)
-{
-	va_list args;
-	va_start(args, fmt);
-	fprintf(stderr, "[ERROR %s %d]: ", func, line);
-	vfprintf(stderr, fmt, args);
-	va_end(args);
-	fputc('\n', stderr);
-	exit(EXIT_FAILURE);
-}
-
-#define error(FMT, ...) _error(__func__, __LINE__, (FMT), ## __VA_ARGS__)
 
 static double rad2deg(double rad)
 {
@@ -155,7 +144,7 @@ static void set_color(color_t color)
 	case BROWN:   glColor3f(0.35, 0.35, 0.0); break;
 	case BLACK:   glColor3f(0.0, 0.0, 0.0);   break;
 	default:
-		error("invalid color '%d'", color);
+		fatal("invalid color '%d'", color);
 	}
 }
 
@@ -230,7 +219,7 @@ static double shape_to_sides(shape_t shape)
 		[CIRCLE]   = 24
 	};
 	if(shape >= INVALID_SHAPE)
-		error("invalid shape '%d'", shape);
+		fatal("invalid shape '%d'", shape);
 	return sides[shape % INVALID_SHAPE];
 }
 
@@ -347,7 +336,7 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 		}
 		case 0:
 		default:
-			error("invalid format specifier '%c'", f);
+			fatal("invalid format specifier '%c'", f);
 		}
 
 	}
@@ -860,7 +849,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 	case iLfsr:     return soc->lfsr;
 	case iMemDin:       
 		if((soc->mem_control & PCM_MEMORY_OE) && !(soc->mem_control & PCM_MEMORY_WE))
-			return soc->mem[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
+			return soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
 		return 0;
 	default:
 		/*warning("invalid read from %04"PRIx16, addr);*/
@@ -917,7 +906,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oMemControl: 
 		soc->mem_control    = value; 
 		if(!(soc->mem_control & PCM_MEMORY_OE) && (soc->mem_control & PCM_MEMORY_WE))
-			soc->mem[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
+			soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
 		break;
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
@@ -1206,11 +1195,30 @@ static void initialize_rendering(char *arg_0)
 	glutTimerFunc(world.arena_tick_ms, timer_callback, 0);
 }
 
-/**@todo Read in some configuration options */
+void finalize(void)
+{
+	FILE *nvram_fh = NULL;
+	errno = 0;
+	if((nvram_fh = fopen(nvram_file, "wb"))) {
+		fwrite(h2_io->soc->nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
+		fclose(nvram_fh);
+	} else {
+		error("nvram file write (to %s) failed: %s", nvram_file, strerror(errno));
+	}
+	h2_free(h);
+	h2_io_free(h2_io);
+	fifo_free(uart_tx_fifo);
+	fifo_free(uart_rx_fifo);
+	fifo_free(ps2_rx_fifo);
+}
+
 int main(int argc, char **argv)
 {
 	FILE *hexfile = NULL;
+	FILE *nvram_fh = NULL;
 	int r = 0;
+
+	log_level = LOG_NOTE;
 
 	if(argc != 2) {
 		fprintf(stderr, "usage %s h2.hex\n", argv[0]);
@@ -1235,6 +1243,16 @@ int main(int argc, char **argv)
 
 	//for(int i = 0; i < VGA_BUFFER_LENGTH / VGA_WIDTH; i++)
 	//	memset(vga.m + (i * VGA_WIDTH), ' '/*'a'+(i%26)*/, VGA_BUFFER_LENGTH / VGA_WIDTH);
+	
+	errno = 0;
+	if((nvram_fh = fopen(nvram_file, "rb"))) {
+		fread(h2_io->soc->nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
+		fclose(nvram_fh);
+	} else {
+		debug("nvram file read (from %s) failed: %s", nvram_file, strerror(errno));
+	}
+
+	atexit(finalize);
 	initialize_rendering(argv[0]);
 	glutMainLoop();
 

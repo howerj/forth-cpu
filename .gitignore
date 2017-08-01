@@ -7,6 +7,7 @@
 *.cmd_log
 core
 design.bit
+*.dll
 doc/doxy/
 doc/doxy/*
 doxy/
@@ -14,7 +15,9 @@ doxy/*
 doxy/html/*
 doxy/latex/*
 *.drc
+*dump
 *_envsettings.html
+*.exe
 filter
 fth/doc/doxygen/*
 *.ghw
@@ -56,6 +59,7 @@ _ngo/
 *.par
 par_usage_statistics.html
 *_par.xrpt
+*.patch
 *.pcf
 *.pdf
 post/

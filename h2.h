@@ -107,7 +107,7 @@ typedef struct {
 #define PS2_NEW_CHAR_BIT           (8)
 #define PS2_NEW_CHAR               (1 << PS2_NEW_CHAR_BIT)
 
-#define PCM_MEMORY_SIZE            (16*1024*1024)
+#define CHIP_MEMORY_SIZE           (16*1024*1024)
 #define PCM_MASK_ADDR_UPPER_MASK   (0x3ff)
 
 #define PCM_MEMORY_OE_BIT          (14)
@@ -135,7 +135,8 @@ typedef struct {
 
 	uint16_t lfsr;
 
-	uint16_t mem[PCM_MEMORY_SIZE];
+	uint16_t nvram[CHIP_MEMORY_SIZE];
+	uint16_t vram[CHIP_MEMORY_SIZE];
 	uint16_t mem_control;
 	uint16_t mem_addr_low;
 	uint16_t mem_dout;
@@ -226,5 +227,35 @@ bool fifo_is_empty(fifo_t * fifo);
 size_t fifo_count(fifo_t * fifo);
 size_t fifo_push(fifo_t * fifo, fifo_data_t data);
 size_t fifo_pop(fifo_t * fifo, fifo_data_t * data);
+
+/** @warning LOG_FATAL level kills the program */
+#define X_MACRO_LOGGING\
+	X(LOG_MESSAGE_OFF,  "")\
+	X(LOG_FATAL,        "fatal")\
+	X(LOG_ERROR,        "error")\
+	X(LOG_WARNING,      "warning")\
+	X(LOG_NOTE,         "note")\
+	X(LOG_DEBUG,        "debug")\
+	X(LOG_ALL_MESSAGES, "any")
+
+typedef enum {
+#define X(ENUM, NAME) ENUM,
+	X_MACRO_LOGGING
+#undef X
+} log_level_e;
+
+extern log_level_e log_level;
+
+int logger(log_level_e level, const char *func,
+		const unsigned line, const char *fmt, ...);
+
+#define fatal(FMT, ...)   logger(LOG_FATAL,   __func__, __LINE__, FMT, ##__VA_ARGS__)
+#define error(FMT, ...)   logger(LOG_ERROR,   __func__, __LINE__, FMT, ##__VA_ARGS__)
+#define warning(FMT, ...) logger(LOG_WARNING, __func__, __LINE__, FMT, ##__VA_ARGS__)
+#define note(FMT, ...)    logger(LOG_NOTE,    __func__, __LINE__, FMT, ##__VA_ARGS__)
+#define debug(FMT, ...)   logger(LOG_DEBUG,   __func__, __LINE__, FMT, ##__VA_ARGS__)
+
+int memory_load(FILE *input, uint16_t *p, size_t length);
+int memory_save(FILE *output, uint16_t *p, size_t length);
 
 #endif

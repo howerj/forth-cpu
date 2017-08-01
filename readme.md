@@ -1416,6 +1416,8 @@ in the future? Also port to different [FPGA][] boards.
 * Make a javascript based simulator for the H2, perhaps with [emscripten][]
 * Move this file to "h2.md" and make a simpler "readme.md" with a short
 description and flashy GIFs
+* Put a help file, and extra source, in some Forth blocks, which could then be
+  loaded onto the Nexys3.
 * Add notes about picocom, and setting up the hardware:
 
 <!-- -- >

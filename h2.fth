@@ -28,6 +28,7 @@ with would be the optimal solution.
 * There is a bit of confusion over what words accept as execution tokens,
 some take pointers to the CFA of a word, other the PWD field
 * An optimized, smaller version, of this interpreter should be created.
+* Load initial VGA screen from NVRAM?
 
 * For tiny math routines, look at:
 http://files.righto.com/calculator/sinclair_scientific_simulator.html
@@ -232,6 +233,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : within over - >r - r> u< ;              ( u lo hi -- t )
 : not -1 xor ;                            ( n -- n )
 : dnegate invert >r invert 1 um+ r> + ;   ( d -- d )
+: d+  >r swap >r um+ r> r> + + ;          ( d d -- d )
 : d=  >r swap r> = >r = r> and ;          ( d d -- f )
 : d<> d= 0= ;                             ( d d -- f )
 : abs dup 0< if negate then ;             ( n -- u )
@@ -906,7 +908,7 @@ irq:
       s    save block and write it out
       u    update block )
 
- ( 
+( 
 : [block] blk @ block ; hidden
 : [check] dup b/buf c/l / u>= if -24 error then ; hidden
 : [line] [check] c/l * [block] + ; hidden 
@@ -923,7 +925,6 @@ irq:
 : u update ;
 : b block ;
 : l blk @ list ;
-: q rdrop rdrop ;
 
 : editor ; \ This should start up the editor loop
 )
@@ -999,6 +1000,7 @@ start:
 	cpu-id    segments!    \ Display CPU ID on 7-Segment Displays
 	page                   \ Clear display
 	1 seed                 \ Set up PRNG seed
+	!io                    \ Initialize I/O
 
 	here . .free cr  .ok 
 

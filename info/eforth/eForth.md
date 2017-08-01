@@ -795,7 +795,7 @@ cell stores the pointer to the last name field in the name dictionary.
 The second field must be a 0, which serves to terminate a vocabulary link
 when many vocabularies are created.  Vocabularies are useful in reducing
 the number of words the text interpreter must search to locate a word,
-and allowing related words to be grouped together as logic modules.
+and allowing related words to be grouped together as logically related modules.
 Although the eForth itself only uses one vocabulary, the mechanism is
 provided to define multiple vocabularies in large applications.
 

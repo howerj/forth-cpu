@@ -34,6 +34,8 @@
 extern int _fileno(FILE *stream);
 #endif
 
+static const char *nvram_file = "nvram.dump";
+
 #define DEFAULT_STEPS (512)
 #define MAX(X, Y)     ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y)     ((X) > (Y) ? (Y) : (X))
@@ -156,22 +158,6 @@ typedef enum {
 #undef X
 } forth_word_codes_e;
 
-/** @warning LOG_FATAL level kills the program */
-#define X_MACRO_LOGGING\
-	X(LOG_MESSAGE_OFF,  "")\
-	X(LOG_FATAL,        "fatal")\
-	X(LOG_ERROR,        "error")\
-	X(LOG_WARNING,      "warning")\
-	X(LOG_NOTE,         "note")\
-	X(LOG_DEBUG,        "debug")\
-	X(LOG_ALL_MESSAGES, "any")
-
-typedef enum {
-#define X(ENUM, NAME) ENUM,
-	X_MACRO_LOGGING
-#undef X
-} log_level_e;
-
 static const char *log_levels[] =
 {
 #define X(ENUM, NAME) [ENUM] = NAME,
@@ -179,7 +165,7 @@ static const char *log_levels[] =
 #undef X
 };
 
-static log_level_e log_level = LOG_WARNING;
+log_level_e log_level = LOG_WARNING;
 
 typedef struct {
 	int error;
@@ -212,11 +198,6 @@ int logger(log_level_e level, const char *func,
 	return r;
 }
 
-#define fatal(FMT, ...)   logger(LOG_FATAL,   __func__, __LINE__, FMT, ##__VA_ARGS__)
-#define error(FMT, ...)   logger(LOG_ERROR,   __func__, __LINE__, FMT, ##__VA_ARGS__)
-#define warning(FMT, ...) logger(LOG_WARNING, __func__, __LINE__, FMT, ##__VA_ARGS__)
-#define note(FMT, ...)    logger(LOG_NOTE,    __func__, __LINE__, FMT, ##__VA_ARGS__)
-#define debug(FMT, ...)   logger(LOG_DEBUG,   __func__, __LINE__, FMT, ##__VA_ARGS__)
 
 static const char *reason(void)
 {
@@ -324,42 +305,54 @@ void h2_free(h2_t *h)
 	free(h);
 }
 
+int memory_load(FILE *input, uint16_t *p, size_t length)
+{
+	assert(input);
+	assert(p);
+	char line[80] = {0}; /*more than enough!*/
+	size_t i = 0;
+
+	for(;fgets(line, sizeof(line), input); i++) {
+		int r;
+		if(i >= length) {
+			error("file contains too many lines: %zu", i);
+			return -1;
+		}
+		r = string_to_cell(16, &p[i], line);
+		if(!r) {
+			error("invalid line - expected hex string: %s", line);
+			return -1;
+		}
+		debug("%zu %u", i, (unsigned)p[i]);
+	}
+
+	return 0;
+}
+
+int memory_save(FILE *output, uint16_t *p, size_t length)
+{
+	assert(output);
+	assert(p);
+	for(size_t i = 0; i < length; i++)
+		if(fprintf(output, "%04"PRIx16"\n", p[i]) < 0) {
+			error("failed to write line: %"PRId16, i);
+			return -1;
+		}
+	return 0;
+}
+
 int h2_load(h2_t *h, FILE *hexfile)
 {
 	assert(h);
 	assert(hexfile);
-	char line[80] = {0}; /*more than enough!*/
-	size_t i = 0;
-
-	for(;fgets(line, sizeof(line), hexfile); i++) {
-		int r;
-		if(i >= MAX_CORE) {
-			error("file contains too many lines: %zu", i);
-			return -1;
-		}
-		r = string_to_cell(16, &h->core[i], line);
-		if(!r) {
-			error("invalid line, expected hex string: %s", line);
-			return -1;
-		}
-		debug("%zu %u", i, (unsigned)h->core[i]);
-	}
-
-	return 0;
+	return memory_load(hexfile, h->core, MAX_CORE);
 }
 
 int h2_save(h2_t *h, FILE *output, bool full)
 {
 	assert(h);
 	assert(output);
-
-	uint16_t max = full ? MAX_CORE : h->pc;
-	for(uint16_t i = 0; i < max; i++)
-		if(fprintf(output, "%04"PRIx16"\n", h->core[i]) < 0) {
-			error("failed to write line: %"PRId16, i);
-			return -1;
-		}
-	return 0;
+	return memory_save(output, h->core, full ? MAX_CORE : h->pc);
 }
 
 /* From: https://stackoverflow.com/questions/215557/how-do-i-implement-a-circular-list-ring-buffer-in-c */
@@ -897,8 +890,9 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
 	case iMemDin:       
+		/**@todo Select nvram/vram, improve memory simulation */
 		if((soc->mem_control & PCM_MEMORY_OE) && !(soc->mem_control & PCM_MEMORY_WE))
-			return soc->mem[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
+			return soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
 		return 0;
 	default:
 		warning("invalid read from %04"PRIx16, addr);
@@ -931,9 +925,10 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
 	case oMemControl: 
+		/**@todo Select nvram/vram, improve memory simulation */
 		soc->mem_control    = value; 
 		if(!(soc->mem_control & PCM_MEMORY_OE) && (soc->mem_control & PCM_MEMORY_WE))
-			soc->mem[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
+			soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
 		break;
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
@@ -3011,6 +3006,7 @@ typedef struct {
 	long steps;
 	bool full_disassembly;
 	bool debug_mode;
+	const char *nvram;
 } command_args_t;
 
 static const char *help = "\
@@ -3033,6 +3029,7 @@ Options:\n\n\
 \t-L #\tload symbol file\n\
 \t-S #\tsave symbols to file\n\
 \t-s #\tnumber of steps to run simulation (0 = forever)\n\
+\t-n #\tspecify nvram file\n\
 \tfile\thex or forth file to process\n\n\
 Options must precede any files given, if a file has not been\n\
 given as arguments input is taken from stdin. Output is to\n\
@@ -3047,39 +3044,50 @@ static void debug_note(command_args_t *cmd)
 		note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
 }
 
-static int run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols)
-{
-	h2_t *h = NULL;
-	h2_io_t *io = NULL;
-	int r = 0;
-	h = h2_new(START_ADDR);
-	if(h2_load(h, input) < 0)
-		return -1;
-	debug_note(cmd);
-	io = h2_io_new();
-	r = h2_run(h, io, output, cmd->steps, symbols, cmd->debug_mode);
-
-	if(log_level >= LOG_NOTE)
-		soc_print(output, io->soc, log_level >= LOG_DEBUG);
-
-	h2_free(h);
-	h2_io_free(io);
-	return r;
-}
-
-static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols)
+static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols, bool assemble)
 {
 	assert(input);
 	assert(output);
-	h2_t *h = h2_assemble_core(input, symbols);
-	h2_io_t *io = h2_io_new();
+	assert(cmd);
+	assert(cmd->nvram);
+	FILE *nvram_fh = NULL;
+	h2_t *h = NULL;
+	h2_io_t *io = NULL;
 	int r = 0;
+
+	if(assemble) {
+		h = h2_assemble_core(input, symbols);
+	} else {
+		h = h2_new(START_ADDR);
+		if(h2_load(h, input) < 0)
+			return -1;
+	}
+
 	if(!h)
 		return -1;
+
+	io = h2_io_new();
+
+	errno = 0;
+	if((nvram_fh = fopen(cmd->nvram, "rb"))) {
+		fread(io->soc->nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
+		fclose(nvram_fh);
+	} else {
+		debug("nvram file read (from %s) failed: %s", cmd->nvram, strerror(errno));
+	}
 
 	h->pc = START_ADDR;
 	debug_note(cmd);
 	r = h2_run(h, io, output, cmd->steps, symbols, cmd->debug_mode);
+
+	errno = 0;
+	if((nvram_fh = fopen(cmd->nvram, "wb"))) {
+		fwrite(io->soc->nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
+		/*memory_save(nvram_fh, io->soc->nvram, CHIP_MEMORY_SIZE);*/
+		fclose(nvram_fh);
+	} else {
+		error("nvram file write (to %s) failed: %s", cmd->nvram, strerror(errno));
+	}
 
 	h2_free(h);
 	h2_io_free(io);
@@ -3095,8 +3103,8 @@ int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symb
 	case DEFAULT_COMMAND:      /* fall through */
 	case DISASSEMBLE_COMMAND:  return h2_disassemble(input, output, symbols);
 	case ASSEMBLE_COMMAND:     return h2_assemble_file(input, output, symbols);
-	case RUN_COMMAND:          return run_command(cmd, input, output, symbols);
-	case ASSEMBLE_RUN_COMMAND: return assemble_run_command(cmd, input, output, symbols);
+	case RUN_COMMAND:          return assemble_run_command(cmd, input, output, symbols, false);
+	case ASSEMBLE_RUN_COMMAND: return assemble_run_command(cmd, input, output, symbols, true);
 	default:                   fatal("invalid command: %d", cmd->cmd);
 	}
 	return -1;
@@ -3113,6 +3121,7 @@ int h2_main(int argc, char **argv)
 	FILE *input = NULL;
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.steps = DEFAULT_STEPS;
+	cmd.nvram = nvram_file;
 
 #ifdef _WIN32
 	/* Windows Only: Put the used standard streams into binary mode.
@@ -3184,6 +3193,12 @@ int h2_main(int argc, char **argv)
 			optarg = argv[++i];
 			if(string_to_long(0, &cmd.steps, optarg))
 				goto fail;
+			break;
+		case 'n':
+			if(i >= (argc - 1))
+				goto fail;
+			cmd.nvram = argv[++i];
+			note("nvram file %s", cmd.nvram);
 			break;
 		default:
 		fail:
