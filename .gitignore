@@ -4,6 +4,7 @@
 *.bit
 *_bitgen.xwbt
 *.bld
+*.blk
 *.cmd_log
 core
 design.bit
@@ -31,7 +32,6 @@ h2_tb
 *.html
 iseconfig/
 *.ll
-*.log
 *.log
 log.txt
 *.lso

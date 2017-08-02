@@ -1253,7 +1253,7 @@ external ASCII representation.  The radix of external representation is
 controlled by the radix value stored in the user variable BASE.
 
 Since BASE is a user variable, the user can select any reasonable radix
-for entering numbers  into the computer and format ting numbers to be
+for entering numbers  into the computer and formatting numbers to be
 shown to the user.  Most programming languages can handle a small set
 of radices, like decimal, octal, hexadecimal and binary.
 

@@ -34,7 +34,7 @@
 extern int _fileno(FILE *stream);
 #endif
 
-static const char *nvram_file = "nvram.dump";
+static const char *nvram_file = "nvram.blk";
 
 #define DEFAULT_STEPS (512)
 #define MAX(X, Y)     ((X) > (Y) ? (X) : (Y))
@@ -1404,7 +1404,7 @@ again:
 			}
 			for(size_t i = 0; i < VGA_HEIGHT; i++) {
 				for(size_t j = 0; j < VGA_WIDTH; j++) {
-					unsigned char c = io->soc->vga[i*VGA_HEIGHT + j];
+					unsigned char c = io->soc->vga[i*VGA_WIDTH + j];
 					fputc(c < 32 || c > 127 ? '?' : c, ds->output);
 				}
 				fputc('\n', ds->output);
@@ -3068,6 +3068,7 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 
 	io = h2_io_new();
 
+	/**@todo Endian agnostic serialization of block for read and write */
 	errno = 0;
 	if((nvram_fh = fopen(cmd->nvram, "rb"))) {
 		fread(io->soc->nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);

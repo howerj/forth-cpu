@@ -29,6 +29,13 @@ with would be the optimal solution.
 some take pointers to the CFA of a word, other the PWD field
 * An optimized, smaller version, of this interpreter should be created.
 * Load initial VGA screen from NVRAM?
+* An assembler mode would only allow inline words
+* Reimplement 'hide'
+* Implement user variables, and copy variables to user area on cold boot
+* Display contents of first block on the screen at start up
+* Make a 'monitor' routine, perhaps interrupt triggered, for monitoring
+if variables have changed. They would be checked for periodically.
+* Fix interrupts
 
 * For tiny math routines, look at:
 http://files.righto.com/calculator/sinclair_scientific_simulator.html
@@ -123,6 +130,7 @@ location pwd       0  ( Present Word Variable: Set at end of file )
 location cp        0  ( Dictionary Pointer: Set at end of file )
 location csp       0  ( current data stack pointer - for error checking )
 location _id       0  ( used for source id )
+variable ver   $2017  ( eForth version information )
 variable >in       0  ( Hold character pointer when parsing input )
 variable state     0  ( compiler state variable )
 variable hld       0  ( Pointer into hold area for numeric output )
@@ -227,7 +235,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : source #tib 2@ ;                        ( -- a u )
 : source-id _id @ ;                       ( -- 0 | -1 )
 : pad here pad-length + ;                 ( -- a )
-: @execute @ ?dup if execute then ;       ( cfa -- )
+: @execute @ ?dup if >r then ;            ( cfa -- )
 : 3drop 2drop drop ;                      ( n n n -- )
 : bl =bl ;                                ( -- c )
 : within over - >r - r> u< ;              ( u lo hi -- t )
@@ -261,7 +269,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : type begin dup while swap count emit swap 1- repeat 2drop ; ( b u -- : print a string )
 : $type begin dup while swap count >char emit swap 1- repeat 2drop ; ( b u -- : print a string )
 : print count type ;                      ( b -- )
-: nuf? ( -- f ) key? dup if 2drop key =cr = then ;
+: nuf? ( -- f ) key? if =cr = else 0 then ; ( -- f )
 : ?exit if rdrop then ;                   ( n --, R: n -- n | )
 : 2rdrop r> rdrop rdrop >r ;              ( R n n -- )
 : decimal? 48 58 within ;                 ( c -- f : decimal char? )
@@ -333,9 +341,9 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	r> sign               ( add sign from n )
 	#> ;                  ( return number string addr and length )
 
-: .r  >r str r> over - spaces type ; ( n n : print n, right justified by +n )
+:  .r >r str r> over - spaces type ; ( n n : print n, right justified by +n )
 : u.r >r <# #s #> r> over - spaces type ; ( u +n -- : print u right justified by +n)
-: u. <# #s #> space type ; ( u -- : print unsigned number )
+:   u. <# #s #> space type ; ( u -- : print unsigned number )
 : . base @ 10 xor if u. exit then str space type ; ( n -- print space, signed number )
 
 : ? @ . ; ( a -- : display the contents in a memory cell )
@@ -578,7 +586,8 @@ of words )
 : quit quitLoop: preset [ begin query eval again branch 0 ;
 
 ( @todo save marker for dictionary and previous word pointer, restore this
-on any kind of failure that occurs between ":" and ";" )
+on any kind of failure that occurs between ":" and ";", also only link in
+word into dictionary when ';' is called - if location to fix is non zero )
 : !csp sp@ csp ! ;
 : ?csp sp@ csp @ xor if -22 error then ;
 : +csp csp 1+! ;
@@ -627,12 +636,13 @@ location redefined " redefined"
 : b/buf block-size ;
 : empty-buffers block-invalid blk ! ;
 : save-buffers
-	blk @ block-invalid  = if exit then
-	updated? 0= if exit then
+	blk @ block-invalid = updated? 0= or if exit then
 	block-buffer b/buf blk @ _bsave @execute error 
 	0 block-dirty ! ;
-
 : flush save-buffers empty-buffers ;
+
+( @todo extend various words like '\' to work with blocks, the
+source-id word can be used by words to modify their behavior )
 
 : block ( k -- a )
 	_binvalid @execute                         ( check validity of block number )
@@ -644,25 +654,36 @@ location redefined " redefined"
 
 : buffer block ; ( k -- a )
 
- : evaluate ( a u -- )
-	0 >in !
+( @bug This does not work properly if an error is encountered within
+the string to evaluate, This should also return an error status,
+instead of just '0' )
+: evaluate ( a u -- n )
+	\ _prompt @ >r 0 _prompt !
+	\ _id     @ >r -1 _id !
+	\ >in     @ >r  0 >in !
 	#tib 2@ >r >r 
-	swap #tib 2!
+	#tib 2!
 	eval
-	r> r> #tib 2! ;
+	r> r> #tib 2! 
+	\ r> >in !
+	\ r> _id ! 
+	\ r> _prompt !
+	0 ;
 
-
-\ : load block b/buf evaluate throw ;
-\ : --> 1 +block load ;
+: load block b/buf evaluate error ;
+: --> 1 +block load ;
 
 : scr blk ;
 : pipe 124 emit ; hidden
 location border-string "+---|---"
 : border 3 spaces 7 for border-string print next cr ; hidden
 : list block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
-: thru over - for dup . dup list 1+ key drop next drop ;
+: thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
 : blank =bl fill ;
+: blank-thru over - for dup block b/buf blank update 1+ next drop flush ;
 
+( @todo use this as the PRNG instead of the hardware LFSR, which
+should be removed )
 : ccitt ( crc c -- crc : calculate polynomial $1021 AKA "x16 + x12 + x5 + 1" )
  	over 256/ xor           ( crc x )
  	dup  4  rshift xor      ( crc x )
@@ -685,9 +706,9 @@ location border-string "+---|---"
 \ : bell 7 emit ;
 \ : under >r dup r> ;
 \ : 2nip >r >r 2drop r> r> ; ( n1 n2 n3 n4 -- n3 n4 )
-\ : 2over >r >r 2dup r> swap >r swap r> r> -rot ; ( n1 n2 n3 n4 – n1 n2 n3 n4 n1 n2 )
-\ : 2swap >r -rot r> -rot ; ( n1 n2 n3 n4 – n3 n4 n1 n2 )
-\ : 2tuck 2swap 2over ; ( n1 n2 n3 n4 – n3 n4 n1 n2 n3 n4 )
+\ : 2over >r >r 2dup r> swap >r swap r> r> -rot ; ( n1 n2 n3 n4 -- n1 n2 n3 n4 n1 n2 )
+\ : 2swap >r -rot r> -rot ; ( n1 n2 n3 n4 -- n3 n4 n1 n2 )
+\ : 2tuck 2swap 2over ; ( n1 n2 n3 n4 -- n3 n4 n1 n2 n3 n4 )
 \ : 4drop 2drop 2drop ; ( n1 n2 n3 n4 -- )
 \ : ?if ' "dup" compile, call "if" ; immediate
 \ : ?dup-if ' "?dup" compile, call "if" ; immediate
@@ -889,6 +910,7 @@ irq:
 	$ffff oTimerCtrl !
 	1 seti ; )
 
+
 ( ======================== Miscellaneous ==================== )
 
 
@@ -909,6 +931,7 @@ irq:
       u    update block )
 
 ( 
+ \ @todo implement vocabularies and put these words in the editor vocabulary 
 : [block] blk @ block ; hidden
 : [check] dup b/buf c/l / u>= if -24 error then ; hidden
 : [line] [check] c/l * [block] + ; hidden 
@@ -919,12 +942,18 @@ irq:
 : x [block] b/buf bl fill ;
 : s update save-buffers ;
 : q rdrop rdrop ;
-\ : e blk @ load char drop ;
-: ia c/l * + dup b/buf swap - >r [block] + r> accept drop [clean] ;
+: e blk @ load char drop ; \ @todo fix query to read in 64 chars at a time for blocks
+: ia c/l * + [block] + tib >in @ + swap #tib @ >in @ - cmove  call "\" ; 
 : i 0 swap ia ;
 : u update ;
 : b block ;
 : l blk @ list ;
+: yank pad c/l ; hidden
+: c [line] yank >r swap r> cmove ; \ n -- yank line number to buffer 
+: y [line] yank cmove ; \ n -- copy yank buffer to line 
+: ct swap y c ; \ n1 n2 -- copy line n1 to n2 
+: ea [line] c/l evaluate error ;
+: sw 2dup y [line] swap [line] swap c/l cmove c ;
 
 : editor ; \ This should start up the editor loop
 )
@@ -1003,6 +1032,8 @@ start:
 	!io                    \ Initialize I/O
 
 	here . .free cr  .ok 
+
+	\ 0 list
 
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )

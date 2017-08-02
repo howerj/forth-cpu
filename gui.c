@@ -116,7 +116,7 @@ typedef struct { /**@note it might be worth translating some functions to use po
 	double x, y;
 } point_t;
 
-static const char *nvram_file = "nvram.dump";
+static const char *nvram_file = "nvram.blk";
 
 /**@bug not quite correct, arena_tick_ms is what we request, not want the arena
  * tick actually is */

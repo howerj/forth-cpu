@@ -97,7 +97,7 @@ documentation: readme.pdf readme.htm
 
 ## Virtual Machine and UART communications =================================
 
-CFLAGS=-Wall -Wextra
+CFLAGS=-Wall -Wextra -O2
 
 uart${EXE}: uart.c
 	${CC} ${CFLAGS} -std=gnu99 $^ -lpthread -o $@
@@ -110,7 +110,7 @@ disassemble: h2${EXE} h2.fth
 	${DF}h2 -L h2.sym h2.hex | awk '{printf "%04x %s\n", NR-1, $$0;}' | less -
 
 run: h2${EXE} h2.fth
-	${DF}h2 -T -v -R h2.fth
+	${DF}h2 -s 0 -R h2.fth
 
 h2nomain.o: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 -DNO_MAIN  $< -c -o $@

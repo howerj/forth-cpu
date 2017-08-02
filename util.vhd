@@ -12,7 +12,8 @@
 --| vice versa), pulse generator, population count, priority encoder, types,
 --| gray codes, CORDIC, Manchester encoder/decoder and other generic functions
 --| and components. Configurable Logic Block primitives could also be
---| provided. Debouncers and a UART of my own design would also be useful.
+--| provided. Debouncers and a UART of my own design would also be useful. As
+--| would a Run Length Encoder compression/decompression core
 --| @todo Some simple communications primitives could be added in here, such
 --| as a SPI master. Another one would be a pin control module that can
 --| be used to control physical pins on the FPGA with a pin direction register,
