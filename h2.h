@@ -6,11 +6,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
-/**@note STK_SIZE is fixed to 32, but h2.vhd allows for the instantiation of
+/**@note STK_SIZE is fixed to 64, but h2.vhd allows for the instantiation of
  * CPUs with different stack sizes (so long as they are a power of 2) */
 
 #define MAX_CORE             (8192u)
-#define STK_SIZE             (32u)
+#define STK_SIZE             (64u)
 #define START_ADDR           (0u)
 
 #define H2_CPU_ID_SIMULATION (0xDEADu)

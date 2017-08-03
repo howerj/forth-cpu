@@ -27,7 +27,7 @@ entity h2 is
 		cpu_id:                   std_logic_vector(15 downto 0) := X"CAFE";
 		interrupt_address_length: positive := 3;
 		start_address:            natural  := 0;
-		stack_size_log2:          positive := 5;
+		stack_size_log2:          positive := 6;
 		use_interrupts:           boolean  := true);
 	port(
 		clk:      in  std_logic;
@@ -123,7 +123,6 @@ architecture rtl of h2 is
 
 begin
 	assert stack_size > 4    report "stack size too small: " & integer'image(stack_size) severity failure;
-	assert stack_size < 128  report "stack size too large: " & integer'image(stack_size) severity failure;
 
 	-- instruction decoding is performed here
 	is_instr.alu     <=  '1' when insn(15 downto 13) = "011" else '0';

@@ -36,6 +36,12 @@ some take pointers to the CFA of a word, other the PWD field
 * Make a 'monitor' routine, perhaps interrupt triggered, for monitoring
 if variables have changed. They would be checked for periodically.
 * Fix interrupts
+* A peephole optimizer and a super optimizer for the CPU could be created.
+* A quasi-graphics mode using the block characters could be made, it could 
+then be used for some primitive games
+* Instant interpretation mode - type a word and it gets executed/compile
+immediately, without waiting for a new line, and auto complete with tabs,
+search the dictionary for a partial match.
 
 * For tiny math routines, look at:
 http://files.righto.com/calculator/sinclair_scientific_simulator.html
@@ -124,13 +130,15 @@ variable _boot     0  ( -- : execute program at startup )
 variable _bload    0  ( a u k -- f : load block )
 variable _bsave    0  ( a u k -- f : save block )
 variable _binvalid 0  ( k -- k : throws error if k invalid )
+variable _page     0  ( -- : clear screen )
 
 location OK     "ok"  ( used by "prompt" )
 location pwd       0  ( Present Word Variable: Set at end of file )
 location cp        0  ( Dictionary Pointer: Set at end of file )
 location csp       0  ( current data stack pointer - for error checking )
 location _id       0  ( used for source id )
-variable ver   $2017  ( eForth version information )
+variable seed      1  ( seed used for the PRNG )
+variable ver    $666  ( eForth version information )
 variable >in       0  ( Hold character pointer when parsing input )
 variable state     0  ( compiler state variable )
 variable hld       0  ( Pointer into hold area for numeric output )
@@ -189,8 +197,10 @@ location block-buffer     0 ( block buffer starts here )
 	swap $ff and dup 8 lshift or swap
 	swap over dup ( -2 and ) @ swap 1 and 0 = $ff xor
 	>r over xor r> and xor swap ( -2 and ) store drop ;
+: c, cp @ c! cp 1+! ; ( c -- )
 
-: !io ;                    ( -- : Initialize I/O devices )
+: !io 0 seti 0 oIrcMask ! ; ( -- : initialize I/O )
+
 : rx? ( -- c -1 | 0 : read in a character of input from UART )
 	iUart @ $0100 and 0=
 	if
@@ -377,6 +387,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		exit
 	then drop swap drop dup ;
 
+
 : accept ( b u -- b u )
 	over + over
 	begin
@@ -458,19 +469,17 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	r> base ! ;
 
 : number? 0 -rot >number nip 0= ; ( b u -- n f : is number? )
-
-: dm+ ( a u -- a )
-	over 5 u.r space
-	for
-		aft count 3 u.r then
-	next ;
+\ : dm+ for aft count 3 u.r then next ; ( a u -- a )
+: dm+ 2/ for aft dup @ 5 u.r cell+ then next ; ( a u -- a )
 
 constant dump-length 16
 
 : dump ( a u -- )
 	base @ >r hex dump-length /
 	for
-		cr dump-length 2dup dm+ -rot
+		cr dump-length 2dup 
+		over 5 u.r 58 emit space
+		dm+ -rot
 		2 spaces $type
 	next drop r> base ! ;
 
@@ -585,6 +594,13 @@ of words )
 : eval begin token dup count nip while interpret repeat drop _prompt @execute ;
 : quit quitLoop: preset [ begin query eval again branch 0 ;
 
+: pace 11 emit ;
+: xio ' accept _expect ! _tap ! _echo ! _prompt ! ;
+: file ' pace ' "drop" ' ktap xio ;
+: hand ' .ok  '  emit  ' ktap xio ;
+: console ' rx? _key? ! ' tx! _emit ! hand ;
+( @todo input/output with PS/2 and VGA version? )
+
 ( @todo save marker for dictionary and previous word pointer, restore this
 on any kind of failure that occurs between ":" and ";", also only link in
 word into dictionary when ';' is called - if location to fix is non zero )
@@ -655,29 +671,28 @@ source-id word can be used by words to modify their behavior )
 : buffer block ; ( k -- a )
 
 ( @bug This does not work properly if an error is encountered within
-the string to evaluate, This should also return an error status,
-instead of just '0' )
+the string to evaluate, this requires throw/catch to work properly )
 : evaluate ( a u -- n )
-	\ _prompt @ >r 0 _prompt !
-	\ _id     @ >r -1 _id !
-	\ >in     @ >r  0 >in !
+	_prompt @ >r 0 _prompt !
+	_id     @ >r -1 _id !
+	>in     @ >r  0 >in !
 	#tib 2@ >r >r 
 	#tib 2!
 	eval
 	r> r> #tib 2! 
-	\ r> >in !
-	\ r> _id ! 
-	\ r> _prompt !
+	r> >in !
+	r> _id ! 
+	r> _prompt !
 	0 ;
 
-: load block b/buf evaluate error ;
+: load block b/buf evaluate ;
 : --> 1 +block load ;
 
 : scr blk ;
 : pipe 124 emit ; hidden
 location border-string "+---|---"
 : border 3 spaces 7 for border-string print next cr ; hidden
-: list block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
+: list _page @execute block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
 : thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
 : blank =bl fill ;
 : blank-thru over - for dup block b/buf blank update 1+ next drop flush ;
@@ -691,11 +706,18 @@ should be removed )
  	dup  12 lshift xor      ( crc x )
  	swap 8  lshift xor ;    ( crc )
  
-: crc $ffff >r ( b u -- u : calculate ccitt-ffff CRC )
-	begin dup while 
-		r> over c@ ccitt >r
-		1 /string
-	repeat 2drop r> ;
+: crc ( b u -- u : calculate ccitt-ffff CRC )
+	$ffff >r 
+	begin 
+		dup 
+	while 
+		r> over c@ ccitt >r 1 /string 
+	repeat 2drop r> ; 
+
+: random seed @ dup 15 lshift ccitt dup seed ! ; ( -- u )
+
+location hi-string "eFORTH V"
+: hi !io hex cr hi-string print ver @ <# # # 46 hold # #> type cr here . .free cr .ok ;
  
 \ : square dup * ;
 \ : limit rot min max ;
@@ -716,11 +738,14 @@ should be removed )
 \ : <=> 2dup > if 2drop -1 exit then < ; ( x y -- z : spaceship operator! )
 \ : bounds over + swap ;
 \ : average um+ 2 um/mod nip ;
-\ \ : gcd dup if tuck mod tail then drop ; ( u1 u2 -- u : greatest common divisor )
-\ \ : lcm 2dup gcd / * ; ( u1 u2 -- u : lowest common multiple of u1 and u2 )
+\ : gcd gcdStart: dup if tuck mod branch gcdStart then drop ; ( u1 u2 -- u : greatest common divisor )
+\ : lcm 2dup gcd / * ; ( u1 u2 -- u : lowest common multiple of u1 and u2 )
 \ ( @todo add log, log2, factorial, etcetera )
 \ : ?\ 0= if call "\" then ;
 \ : ?( 0= if call "(" then ;
+\ : log  >r 0 swap begin swap 1+ swap r@ / dup 0= until drop 1- rdrop ; ( u base -- u )
+\ : log2    0 swap begin swap 1+ swap   2/ dup 0= until drop 1- ; ( u -- u )
+\ : factorial dup 2 < if drop 1 exit then 1 swap for aft r@ 1+ * then next ;
 
 ( ======================== Word Set ========================= )
 
@@ -799,7 +824,6 @@ they are exactly the same apart from the direction of the read/write )
 
 ( ======================== Miscellaneous ==================== )
 
-
 ( Initial value of VGA
 
   BIT     MEANING
@@ -846,31 +870,17 @@ perhaps it could be a vectored word )
 		dup =bl swap vga! 1-
 	repeat drop ;	
 
-: seed    oLfsr ! ; ( u -- : seed PRNG, requires non-zero value )
-: random  iLfsr @ ; ( -- u : get a pseudo random number @todo replace with XORShift )
-
 : at-xy 256* or oVgaCursor ! ; ( x y -- : set terminal cursor to x-y position )
-
-( @todo Optimize and extend handle tabs, delete, and
-even perhaps ANSI Terminal codes. This word takes up far too much
-return stack space and uses arithmetic too freely
-
-Dividing by vgaX [80] can be done with:
-	$CCCD um* swap drop 6 rshift
-vgaY [40] with:
-	$CCCD um* swap drop 5 rshift
-
-This is clearly magic. )
 
 : vgaX*  dup  6 lshift swap 4 lshift + ; hidden ( n -- n : 80* )
 : vgaTextSizeMod dup vgaTextSize u> if vgaTextSize - then ; hidden
 
 : terminal ( n a -- a : act like a terminal )
 	swap
-	dup =lf = if drop vgaX / 1+ dup 0 swap at-xy vgaX* exit then
+	dup =lf = if drop 0 vgaX um/mod nip 1+ dup 0 swap at-xy vgaX* exit then
 	dup =cr = if drop exit then
 	dup =bs = if drop 1- exit then
-	swap vgaTextSizeMod tuck dup 1+ vgaX /mod at-xy vga! 1+ ;
+	swap vgaTextSizeMod tuck dup 1+ 0 vgaX um/mod at-xy vga! 1+ ;
 
 : segments! o8SegLED ! ; ( n -- : display a number on the LED 7/8 segment display )
 : led!      oLeds ! ; ( n -- : write to LED lights )
@@ -897,7 +907,7 @@ This is clearly magic. )
   13   -  Interrupt Enable
   12-0 -  Value to compare against )
 
-( \ Testing for the interrupt mechanism 
+ \ Testing for the interrupt mechanism 
 irq:
 	.break
 	0 seti
@@ -908,7 +918,7 @@ irq:
 : irqTest
 	$ffff oIrcMask !
 	$ffff oTimerCtrl !
-	1 seti ; )
+	1 seti ; 
 
 
 ( ======================== Miscellaneous ==================== )
@@ -952,7 +962,7 @@ irq:
 : c [line] yank >r swap r> cmove ; \ n -- yank line number to buffer 
 : y [line] yank cmove ; \ n -- copy yank buffer to line 
 : ct swap y c ; \ n1 n2 -- copy line n1 to n2 
-: ea [line] c/l evaluate error ;
+: ea [line] c/l evaluate ;
 : sw 2dup y [line] swap [line] swap c/l cmove c ;
 
 : editor ; \ This should start up the editor loop
@@ -1023,15 +1033,10 @@ current setup, but is not ideal )
 start:
 .set entry start
 
-	0 seti
-	0 oIrcMask           !
 	vgaInit   oVgaCtrl   ! \ Turn on VGA monitor
-	cpu-id    segments!    \ Display CPU ID on 7-Segment Displays
 	page                   \ Clear display
-	1 seed                 \ Set up PRNG seed
-	!io                    \ Initialize I/O
-
-	here . .free cr  .ok 
+	cpu-id segments! 
+	hi
 
 	\ 0 list
 
@@ -1039,7 +1044,6 @@ start:
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
 
 ( ======================== User Code ======================== )
-
 
 .set pwd $pwd
 .set cp  $pc
@@ -1051,7 +1055,7 @@ start:
 .set _echo     output     ( execution vector of echo,   default to output. )
 .set _prompt   .ok        ( execution vector of prompt, default to '.ok'. )
 .set _boot     0          ( @execute does nothing if zero )
-.set _bload    mload
-.set _bsave    msave
-.set _binvalid minvalid
-
+.set _bload    mload      ( execution vector of _bload, used in block )
+.set _bsave    msave      ( execution vector of _bsave, used in block )
+.set _binvalid minvalid   ( execution vector of _invalid, used in block )
+.set _page     page       ( execution vector of _page, used in list )

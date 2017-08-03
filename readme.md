@@ -120,6 +120,7 @@ There are a few modifications to the [J1][] CPU which include:
 * A CPU hold line which keeps the processor in the same state so long as it is
 high.
 * Interrupt Service Routines have been added.
+* Larger stack depths
 
 The Interrupt Service Routines (ISR) have not been throughly tested and will be
 subject to the most change.
@@ -134,8 +135,8 @@ which is split into two instructions.
 
 The CPU has the following state within it:
 
-* A 32 deep return stack
-* A 33 deep variable stack
+* A 64 deep return stack (up from 32)
+* A 65 deep variable stack (up from 33)
 * A program counter
 * An interrupt enable and interrupt request bit
 * An interrupt address register
@@ -237,9 +238,8 @@ disabled.
 
 The output register map:
 
-|                   Output Registers                      |
-|-------------|---------|---------------------------------|
 | Register    | Address | Description                     |
+|-------------|---------|---------------------------------|
 | oUart       | 0x4000  | UART register                   |
 | oLeds       | 0x4001  | LED outputs                     |
 | oTimerCtrl  | 0x4002  | Timer control                   |
@@ -258,9 +258,8 @@ The output register map:
 
 The input registers:
 
-|                   Input Registers                       |
-|-------------|---------|---------------------------------|
 | Register    | Address | Description                     |
+|-------------|---------|---------------------------------|
 | iUart       | 0x4000  | UART register                   |
 | iSwitches   | 0x4001  | Buttons and switches            |
 | iTimerCtrl  | 0x4002  | Timer control Register          |
@@ -1464,6 +1463,7 @@ project.
 * <https://en.wikipedia.org/wiki/Superoptimization>
 * <https://github.com/samawati/j1eforth>
 * <https://github.com/jamesbowman/j1>
+* <http://sovietov.com/app/forthwiz.html>
 
 [javascript]: https://www.javascript.com/
 [emscripten]: https://github.com/kripken/emscripten
