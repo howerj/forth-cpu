@@ -907,19 +907,20 @@ perhaps it could be a vectored word )
   13   -  Interrupt Enable
   12-0 -  Value to compare against )
 
- \ Testing for the interrupt mechanism 
+\ Testing for the interrupt mechanism, interrupts do not
+\ work correctly at the moment
 irq:
 	.break
 	0 seti
 	switches led!
 	1 seti
 	exit
- .set 12 irq
+
+.set 12 irq
 : irqTest
 	$ffff oIrcMask !
 	$ffff oTimerCtrl !
 	1 seti ; 
-
 
 ( ======================== Miscellaneous ==================== )
 
@@ -941,13 +942,14 @@ irq:
       u    update block )
 
 ( 
- \ @todo implement vocabularies and put these words in the editor vocabulary 
+\ @todo implement vocabularies and put these words in the editor vocabulary,
+\ also make an insert mode that reads up to 15 lines of text
 : [block] blk @ block ; hidden
 : [check] dup b/buf c/l / u>= if -24 error then ; hidden
 : [line] [check] c/l * [block] + ; hidden 
 : [clean] ; hidden \ @todo call >char on modified line 
-: n  1 +block block ;
-: p -1 +block block ;
+: n  1 +block block drop ; 
+: p -1 +block block drop ;
 : d [line] c/l bl fill ;
 : x [block] b/buf bl fill ;
 : s update save-buffers ;
@@ -965,7 +967,7 @@ irq:
 : ea [line] c/l evaluate ;
 : sw 2dup y [line] swap [line] swap c/l cmove c ;
 
-: editor ; \ This should start up the editor loop
+: editor ; \ This should load the editor vocabulary 
 )
 
 ( ======================== ANSI SYSTEM   ==================== )

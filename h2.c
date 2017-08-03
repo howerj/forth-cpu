@@ -956,8 +956,8 @@ static void h2_io_update_default(h2_soc_state_t *soc)
 			soc->timer++;
 			if((soc->timer > (soc->timer_control & 0x1FFF))) {
 				if(soc->timer_control & TIMER_INTERRUPT_ENABLE) {
-					soc->interrupt          = soc->irc_mask & (1 << isrTimer);
-					soc->interrupt_selector = soc->irc_mask & (1 << isrTimer);
+					soc->interrupt           = soc->irc_mask & (1 << isrTimer);
+					soc->interrupt_selector |= soc->irc_mask & (1 << isrTimer);
 				}
 				soc->timer = 0;
 			}
