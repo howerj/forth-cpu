@@ -319,7 +319,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : /mod ( n n -- r q ) over 0< swap m/mod ;
 : mod ( n n -- r ) /mod drop ;
-: / ( n n -- q ) /mod swap drop ;
+: / ( n n -- q ) /mod nip ;
 
 : um* ( u u -- ud )
 	0 swap ( u1 0 u2 ) 15
@@ -330,10 +330,10 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : * ( n n -- n ) um* drop ;
 : m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ; ( n n -- d )
 : */mod ( n n n -- r q ) >r m* r> m/mod ;
-: */ ( n n n -- q ) */mod swap drop ;
+: */ ( n n n -- q ) */mod nip ;
 : s>d dup 0< ; ( n -- d : single to double )
 
-: aligned dup 1 and if 1 + then ; ( b -- a )
+: aligned dup 1 and if 1+ then ; ( b -- a )
 : align cp @ aligned cp ! ; ( -- )
 
 : digit ( u -- c ) 9 over < 7 and + 48 + ;
@@ -376,7 +376,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : pack$ ( b u a -- a ) \ null fill
 	aligned dup >r over
 	dup 0 cell um/mod drop
-	- over +  0 swap !  2dup c!  1 + swap cmove  r> ;
+	- over +  0 swap !  2dup c!  1+ swap cmove  r> ;
 
 : ^h ( bot eot cur c -- bot eot cur )
 	>r over r@ < dup
@@ -384,15 +384,14 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		=bs dup echo =bl echo echo
 	then r> + ;
 
-: tap dup echo over c! 1 + ; ( bot eot cur c -- bot eot cur )
+: tap dup echo over c! 1+ ; ( bot eot cur c -- bot eot cur )
 
 : ktap ( bot eot cur c -- bot eot cur )
 	dup =cr xor
 	if =bs xor 
 		if =bl tap else ^h then 
 		exit
-	then drop swap drop dup ;
-
+	then drop nip dup ;
 
 : accept ( b u -- b u )
 	over + over
@@ -1013,8 +1012,8 @@ irq:
 : [clean] ; hidden \ @todo call >char on modified line 
 : n  1 +block block drop ; 
 : p -1 +block block drop ;
-: d [line] c/l bl fill ;
-: x [block] b/buf bl fill ;
+: d [line] c/l =bl fill ;
+: x [block] b/buf =bl fill ;
 : s update save-buffers ;
 : q rdrop rdrop ;
 : e blk @ load char drop ; \ @todo fix query to read in 64 chars at a time for blocks
