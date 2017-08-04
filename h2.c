@@ -2481,28 +2481,30 @@ static void generate(h2_t *h, assembler_t *a, uint16_t instruction)
 	assert(a);
 	debug("%"PRIx16":\t%"PRIx16, h->pc, instruction);
 
-	/**@note This merges the previous instruction with CODE_EXIT if it is
-	 * possible to do so, it should eventually be turned into a table
-	 * driven peep hole optimizer. Various optimizations include
-	 * - Literal Literal Operation = Literal
-	 * - Replacing sequences (such as "r> drop" = "rdrop")
-	 * The pattern matching could mostly be done with a ternary
-	 * "1"/"0"/"Don't care" matches on sequences of instructions.
-	 *
-	 * A FIFO could be used to hold the instructions before checking */
 	if(IS_CALL(instruction) || IS_LITERAL(instruction) || IS_0BRANCH(instruction) || IS_BRANCH(instruction))
 		update_fence(a, h->pc);
 
-	if(a->mode & MODE_OPTIMIZATION_ON) {
-		if(h->pc && ((h->pc - 1) > a->fence) && (instruction == CODE_EXIT)) {
-			uint16_t previous = h->core[h->pc - 1];
+	/** @note This implements two ad-hoc optimizations, both related to
+	 * CODE_EXIT, they should be replaced by a generic peep hole optimizer */
+	if(a->mode & MODE_OPTIMIZATION_ON && h->pc) {
+		uint16_t previous = h->core[h->pc - 1];
+		if(((h->pc - 1) > a->fence) && IS_ALU_OP(previous) && (instruction == CODE_EXIT)) {
+			/* merge the CODE_EXIT instruction with the previous instruction if it is possible to do so */
 			if(!(previous & R_TO_PC) && !(previous & MK_RSTACK(DELTA_N1))) {
-				debug("optimization pc(%04"PRIx16 ") [%04"PRIx16 " -> %04"PRIx16"]", h->pc, previous, previous|instruction);
+				debug("optimization EXIT MERGE pc(%04"PRIx16 ") [%04"PRIx16 " -> %04"PRIx16"]", h->pc, previous, previous|instruction);
 				previous |= instruction;
 				h->core[h->pc - 1] = previous;
 				update_fence(a, h->pc - 1);
 				return;
 			}
+		} else if(h->pc > a->fence && IS_CALL(previous) && (instruction == CODE_EXIT)) {
+			/* do not emit CODE_EXIT if last instruction in a word
+			 * definition is a call, instead replace that call with
+			 * a jump */
+			debug("optimization TAIL CALL pc(%04"PRIx16 ") [%04"PRIx16 " -> %04"PRIx16"]", h->pc, previous, OP_BRANCH | (previous & 0x1FFF));
+			h->core[h->pc - 1] = (OP_BRANCH | (previous & 0x1FFF));
+			update_fence(a, h->pc - 1);
+			return;
 		}
 	}
 

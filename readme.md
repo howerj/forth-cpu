@@ -80,8 +80,7 @@ registration. ISE needs to be on your path:
 
 To make the [C][] based toolchain:
 
-	make h2      (on Linux)
-	make h2.exe  (on Windows)
+	make h2      
 
 To make a bit file that can be flashed to the target board:
 
@@ -107,6 +106,19 @@ simulator can be run with:
 
 Which requires [freeglut][] as well as a [C][] compiler.
 
+# Related Projects
+
+The original [J1][] project is available at:
+
+* <http://www.excamera.com/sphinx/fpga-j1.html>
+
+This project targets the original [J1][] core and provides a eForth
+implementation (written using [Gforth][] as for meta-compilation/cross
+compilation to the [J1][] core). It also provides a simulator for the system
+written in [C][].
+
+* <https://github.com/samawati/j1eforth>
+
 
 # Manual
 
@@ -120,7 +132,7 @@ There are a few modifications to the [J1][] CPU which include:
 * A CPU hold line which keeps the processor in the same state so long as it is
 high.
 * Interrupt Service Routines have been added.
-* Larger stack depths
+* Larger return and data stacks
 
 The Interrupt Service Routines (ISR) have not been throughly tested and will be
 subject to the most change.
@@ -135,8 +147,8 @@ which is split into two instructions.
 
 The CPU has the following state within it:
 
-* A 64 deep return stack (up from 32)
-* A 65 deep variable stack (up from 33)
+* A 64 deep return stack (up from 32 in the original [J1][])
+* A 65 deep variable stack (up from 33 in the original [J1][])
 * A program counter
 * An interrupt enable and interrupt request bit
 * An interrupt address register
@@ -654,8 +666,7 @@ program (see [h2.c][]). This simulator complements the [VHDL][] test bench
 To build it a [C][] compiler is needed, the build target "h2" will build the
 executable:
 
-	make h2     (on Linux)
-	make h2.exe (on Windows)
+	make h2     
 
 And it can be run on the source file [h2.fth][] with the make target:
 
@@ -689,6 +700,7 @@ A list of command line options available:
         -L #    load symbol file
         -S #    save symbols to file
         -s #    number of steps to run simulation (0 = forever)
+	-n #    specify NVRAM block file (default is nvram.blk)
         file*   file to process
 
 This program is released under the [MIT][] license, feel free to use it and
@@ -754,8 +766,9 @@ The assembler the following directives:
 	.allocate  Increment the program counter
 	.set       Set location in memory
 	.mode      Change compiler mode
-	.isr       Set ISR
 	.built-in  Assemble built words here
+
+**@todo Describe optimizations that can be performed**
 
 The built in words, with their instruction encodings:
 
@@ -1003,8 +1016,7 @@ Below is an image of a running session in the GUI simulator:
 
 Building can be done with
 
-	make gui     (on Linux)
-	make gui.exe (on Windows)
+	make gui     
 
 And running:
 
@@ -1423,37 +1435,6 @@ description and flashy GIFs
 
 	picocom --omap delbs -b 115200 -e b /dev/ttyUSB1
 
-* Memory interface to Nexys 3 board on board memory, the SPI memory on the
-Nexys3 would be more difficult to interface with than the bus addressable
-memory. Once this is done a primitive file system could be made. The file
-system would consist of Forth blocks (1024 character arrays), the block would
-consist of either a file, or a directory. Directory blocks would have a simple
-format, something like:
-
-<!-- -->
-
-	|-----|-------|-----|--------------------|
-	|  0  |   1   |  2  |      4 - 15        |
-	|-----|-------|-----|--------------------|
-	| TAG | START | END |       NAME         |
-	|-----|-------|-----|--------------------|
-
-	TAG:    FILE/DIRECTORY/MISC BITS
-	START:  STARTING BLOCK
-	END:    END BLOCK
-	NAME:   COUNTED STRING
-
-Each directory block would consist of 32 records, of 32 bytes each. Data 
-blocks would just be raw blocks, it is up to the user how they are treated.
-This could be prototyped on the computer, in C, or using [libforth][].
-
-## Forth
-
-* The on board memory could be linked up to the Forth block
-word set.
-* Most of the Forth code could be taken from my [libforth][]
-project.
-
 # Resources
 
 * <https://nanode0000.wordpress.com/2017/04/08/exploring-the-j1-instruction-set-and-architecture/>
@@ -1519,6 +1500,7 @@ project.
 [Windows]: https://en.wikipedia.org/wiki/Windows_7
 [pandoc]: https://pandoc.org
 [picocom]: https://github.com/npat-efault/picocom
+[Gforth]: https://www.gnu.org/software/gforth/
 
 <!--
 

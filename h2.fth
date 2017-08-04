@@ -46,6 +46,9 @@ search the dictionary for a partial match.
 * For tiny math routines, look at:
 http://files.righto.com/calculator/sinclair_scientific_simulator.html
 https://en.wikipedia.org/wiki/Sinclair_Scientific
+Also:
+https://groups.google.com/forum/#!topic/comp.lang.forth/_bx4dJFb9R0
+http://www.figuk.plus.com/build/arith.htm
 
 Forth To Do:
 * Throw/Catch, abort, vocabularies, see, does>, make/doer, ...
@@ -74,7 +77,7 @@ isrKbdNew:         .allocate cell ( New PS/2 Keyboard character )
 isrTimer:          .allocate cell ( Timer interrupt )
 isrBrnLeft:        .allocate cell ( Left button pressed )
 
-.mode 1   ( Turn word header compilation and optimization off )
+.mode 3   ( Turn word header compilation and optimization on )
 .built-in ( Add the built in words to the dictionary )
 
 constant =exit         $601c ( op code for exit )
@@ -251,6 +254,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : within over - >r - r> u< ;              ( u lo hi -- t )
 : not -1 xor ;                            ( n -- n )
 : dnegate invert >r invert 1 um+ r> + ;   ( d -- d )
+: dabs dup 0< if dnegate then ;           ( d -- d )
 : d+  >r swap >r um+ r> r> + + ;          ( d d -- d )
 : d=  >r swap r> = >r = r> and ;          ( d d -- f )
 : d<> d= 0= ;                             ( d d -- f )
@@ -311,6 +315,8 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	>r dup 0< if r@ + then r> um/mod r>
 	if swap negate swap then ;
 
+
+
 : /mod ( n n -- r q ) over 0< swap m/mod ;
 : mod ( n n -- r ) /mod drop ;
 : / ( n n -- q ) /mod swap drop ;
@@ -325,10 +331,10 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ; ( n n -- d )
 : */mod ( n n n -- r q ) >r m* r> m/mod ;
 : */ ( n n n -- q ) */mod swap drop ;
+: s>d dup 0< ; ( n -- d : single to double )
 
-: aligned ( b -- a )
-	dup 0 cell um/mod drop dup
-	if 2 swap - then + ;
+: aligned dup 1 and if 1 + then ; ( b -- a )
+: align cp @ aligned cp ! ; ( -- )
 
 : digit ( u -- c ) 9 over < 7 and + 48 + ;
 : extract ( n base -- n c ) 0 swap um/mod swap digit ;
@@ -368,7 +374,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	next 0 ;
 
 : pack$ ( b u a -- a ) \ null fill
-	aligned  dup >r over
+	aligned dup >r over
 	dup 0 cell um/mod drop
 	- over +  0 swap !  2dup c!  1 + swap cmove  r> ;
 
@@ -497,7 +503,7 @@ location _test 0
 : skipTest if 0> else 0<> then ; hidden ( n f -- f )
 : scanTest skipTest invert ; hidden    ( n f -- f )
 : skip ' skipTest _test ! lookfor ;
-: scan ' scanTest _test ! call lookfor ;
+: scan ' scanTest _test ! lookfor ;
 
 ( @todo store tmp on the return stack with stack magic )
 location tmp 0
@@ -600,6 +606,12 @@ of words )
 : hand ' .ok  '  emit  ' ktap xio ;
 : console ' rx? _key? ! ' tx! _emit ! hand ;
 ( @todo input/output with PS/2 and VGA version? )
+
+( @todo ";" could perform a few optimizations, if the previous word is an ALU
+instruction it might be possible to merge the exit into it, if the instruction
+does not modify the return stack pointer or set the R->PC flag. Alternatively
+if last word called in a function is a call, this can be replaced with a branch
+instead )
 
 ( @todo save marker for dictionary and previous word pointer, restore this
 on any kind of failure that occurs between ":" and ";", also only link in
@@ -748,6 +760,57 @@ location hi-string "eFORTH V"
 \ : factorial dup 2 < if drop 1 exit then 1 swap for aft r@ 1+ * then next ;
 
 ( ======================== Word Set ========================= )
+
+( ======================== See ============================== )
+
+location i.lit     "literal"
+location i.alu     "ALU    "
+location i.call    "call   "
+location i.branch  "branch "
+location i.0branch "0branch"
+
+: mask-off 2dup and = ; hidden ( u u -- u f )
+: 5u.r 5 u.r ; hidden
+
+( @todo refactor if...then )
+: instruction ( u -- : decode instruction )
+	$8000 mask-off if i.lit      print $7fff  and    5u.r exit then
+	$6000 mask-off if i.alu      print $3fff  and 2/ 5u.r exit then
+	$4000 mask-off if i.call     print $3fff  and 2/ 5u.r exit then
+	$2000 mask-off if i.0branch  print $3fff  and 2/ 5u.r exit then
+	i.branch print $3fff 2/ and 5 u.r
+	; hidden
+
+( @todo print exit, and possibly next cell [for words like doVar], and
+handle words like doVar
+@bug This decompilation strategy fails in two circumstances, firstly
+if the word 'exit' appears in a word definition body, and secondly
+if optimizations are turned on and the last compiled word is a call to another
+word then this is turned into a branch - there is no exit, this can be
+resolved by stopping if the branch goes before the beginning of the word
+definition )
+: end? ( n -- f )
+	=exit <> ; hidden
+
+: decompile ( a -- a )
+	dup 5u.r 58 emit dup @ 5u.r space
+	dup @ instruction cr
+	cell+ ; hidden
+
+location see.immediate " immediate "
+location see.inline    " inline "
+: see
+	token find 0= if -11 error then
+	cr dup .id 
+	dup inline?    if see.inline print    then
+	dup immediate? if see.immediate print then
+	cr
+
+	cfa
+	begin dup @ end? while decompile ( nuf? ) repeat
+	drop ;
+
+( ======================== See ============================== )
 
 ( ======================== Memory Interface ================= )
 

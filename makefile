@@ -25,11 +25,10 @@ GUI_LDFLAGS = -lfreeglut -lopengl32 -lm
 DF=
 EXE=.exe
 
-.PHONY: h2 gui uart
+.PHONY: h2 gui 
 
 h2:   h2.exe
 gui:  gui.exe
-uart: uart.exe
 
 else # assume unixen
 GUI_LDFLAGS = -lglut -lGL -lm 
@@ -98,9 +97,6 @@ documentation: readme.pdf readme.htm
 ## Virtual Machine and UART communications =================================
 
 CFLAGS=-Wall -Wextra -O2
-
-uart${EXE}: uart.c
-	${CC} ${CFLAGS} -std=gnu99 $^ -lpthread -o $@
 
 h2${EXE}: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 $^ -o $@
@@ -273,7 +269,7 @@ clean:
 	      top.unroutes top.xpi top_par.xrpt top.twx top.nlf design.bit top_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf h2${EXE} uart${EXE} gui${EXE}
+	@rm -vrf h2${EXE} gui${EXE}
 	@rm -vf usage_statistics_webtalk.html
 	@rm -vf mem_h2.binary mem_h2.hexadecimal
 
