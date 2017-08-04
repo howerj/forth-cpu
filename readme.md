@@ -1431,7 +1431,7 @@ description and flashy GIFs
   loaded onto the Nexys3.
 * Add notes about picocom, and setting up the hardware:
 
-<!-- -- >
+<!-- -->
 
 	picocom --omap delbs -b 115200 -e b /dev/ttyUSB1
 
