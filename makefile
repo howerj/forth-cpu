@@ -27,8 +27,9 @@ EXE=.exe
 
 .PHONY: h2 gui 
 
-h2:   h2.exe
-gui:  gui.exe
+h2:    h2.exe
+gui:   gui.exe
+text:  text.exe
 
 else # assume unixen
 GUI_LDFLAGS = -lglut -lGL -lm 
@@ -119,6 +120,12 @@ gui${EXE}: h2nomain.o gui.o
 
 gui-run: gui${EXE} h2.hex
 	${DF}$^
+
+text${EXE}: text.c
+	${CC} ${CFLAGS} -std=c99 $< -o $@
+
+text.bin: text${EXE}
+	${DF}$< -g > $@
 
 ## Simulation ==============================================================
 

@@ -1,8 +1,3 @@
-/**@brief This is a simple utility for compiling a utility that
- * reads in up to 3200 characters and converts them into a text
- * that can be used with the VHDL SoC as the file "text.bin", which
- * expects a single line containing a 16-bit binary value as zero
- * and one characters */
 #include <stdio.h>
 #include <stdint.h>
 
@@ -14,13 +9,46 @@ static int print_binary(FILE *o, uint16_t n)
 	for(i = 15; i <= 15; i--)
 		fputc(n & (1 << i) ? '1' : '0', o);
 	fputc('\n', o);
+	return 0;
 }
 
-int main(void)
+static void usage(const char *arg0)
+{
+	static const char *help = "\
+Generate initial VGA screen text for the H2 CPU project.\n\
+Options:\n\n\
+\t-h print this help message and exit\n\
+\t-g turn on generation mode - generate file full of spaces\n\n\
+This program turns a byte stream into a text file containing\n\
+a single 16-bit (doubling up the input data) ASCII file encoded\n\
+'1' and '0' characters.\n\n";
+	fprintf(stderr, "usage: %s -h -g\n", arg0);
+	fprintf(stderr, "%s", help);
+	fprintf(stderr, "%d characters are read in and converted.\n\n", MAX_READ);
+}
+
+int main(int argc, char **argv)
 {
 	size_t i;
+	int ia, gen = 0;
+	for(ia = 1; ia < argc && argv[ia][0] == '-'; ia++) {
+		switch(argv[ia][1]) {
+		case '\0': goto done; /* stop processing options */
+		case 'h':  usage(argv[0]); 
+			   return -1;
+		case 'g':  gen = 1; break;
+		default:
+			   fprintf(stderr, "unknown option '%s'\n", argv[ia]);
+			   return -1;
+		}
+	}
+done:
+	if(argc != ia) {
+		fprintf(stderr, "too many arguments supplied\n");
+		return -1;
+	}
 	for(i = 0; i < MAX_READ; i++) {
-		int c = fgetc(stdin);
+		int c = gen ? ' ' : fgetc(stdin);
 		if(c == EOF)
 			return 0;
 		if(print_binary(stdout, c) < 0)

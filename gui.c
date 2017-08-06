@@ -4,9 +4,7 @@
  * @license   MIT
  *
  * @todo Print debugging information for the H2 CPU to the screen, and make a
- * graphical debugger (simulation can be paused, single step through, etcetera)
- * @todo Find out why the UART output is so slow!
- */
+ * graphical debugger (simulation can be paused, single step through, etcetera)*/
 
 #include "h2.h"
 #include <assert.h>
@@ -24,17 +22,18 @@
 
 /* ====================================== Utility Functions ==================================== */
 
-#define PI          (3.1415926535897932384626433832795)
-#define MAX(X, Y)   ((X) > (Y) ? (X) : (Y))
-#define MIN(X, Y)   ((X) < (Y) ? (X) : (Y))
-#define ESC         (27)
-#define UNUSED(X)   ((void)(X))
-#define X_MAX       (100.0)
-#define X_MIN       (0.0)
-#define Y_MAX       (100.0)
-#define Y_MIN       (0.0)
-#define LINE_WIDTH  (0.5)
-#define RUN_FOR     (5000)
+#define VGA_INIT_FILE ("text.bin")
+#define PI            (3.1415926535897932384626433832795)
+#define MAX(X, Y)     ((X) > (Y) ? (X) : (Y))
+#define MIN(X, Y)     ((X) < (Y) ? (X) : (Y))
+#define ESC           (27)
+#define UNUSED(X)     ((void)(X))
+#define X_MAX         (100.0)
+#define X_MIN         (0.0)
+#define Y_MAX         (100.0)
+#define Y_MIN         (0.0)
+#define LINE_WIDTH    (0.5)
+#define RUN_FOR       (5000)
 
 typedef struct {
 	double window_height;
@@ -48,6 +47,8 @@ typedef struct {
 	unsigned arena_tick_ms;
 	bool use_uart_input;
 	bool debug_extra;
+	bool step;
+	bool debug_mode;
 	uint64_t cycle_count;
 	void *font_scaled;
 } world_t;
@@ -64,6 +65,8 @@ static world_t world = {
 	.arena_tick_ms               = 30, /**@todo This should be automatically adjusted based on frame rate */
 	.use_uart_input              = true,
 	.debug_extra                 = false,
+	.step                        = false,
+	.debug_mode                  = false,
 	.cycle_count                 = 0,
 	.font_scaled                 = GLUT_STROKE_MONO_ROMAN
 };
@@ -489,11 +492,11 @@ static void draw_led_8_segment(led_8_segment_t *l)
 	draw_rectangle_filled(l->x + l->width * 0.20, l->y + l->height * 0.1,  l->width * 0.5, l->height * 0.1, SEG_CLR(sgs, LED_SEGMENT_D)); /* Bottom */
 	draw_rectangle_filled(l->x + l->width * 0.20, l->y + l->height * 0.8,  l->width * 0.5, l->height * 0.1, SEG_CLR(sgs, LED_SEGMENT_A)); /* Top */
 
-	draw_rectangle_filled(l->x + l->width * 0.05, l->y + l->height * 0.15, l->width * 0.1, l->height * 0.3,  SEG_CLR(sgs, LED_SEGMENT_E)); /* Bottom Left */
-	draw_rectangle_filled(l->x + l->width * 0.75, l->y + l->height * 0.15, l->width * 0.1, l->height * 0.3,  SEG_CLR(sgs, LED_SEGMENT_C)); /* Bottom Right */
+	draw_rectangle_filled(l->x + l->width * 0.05, l->y + l->height * 0.15, l->width * 0.1, l->height * 0.3, SEG_CLR(sgs, LED_SEGMENT_E)); /* Bottom Left */
+	draw_rectangle_filled(l->x + l->width * 0.75, l->y + l->height * 0.15, l->width * 0.1, l->height * 0.3, SEG_CLR(sgs, LED_SEGMENT_C)); /* Bottom Right */
 
-	draw_rectangle_filled(l->x + l->width * 0.05, l->y + l->height * 0.50, l->width * 0.1, l->height * 0.3,  SEG_CLR(sgs, LED_SEGMENT_F)); /* Top Left */
-	draw_rectangle_filled(l->x + l->width * 0.75, l->y + l->height * 0.50, l->width * 0.1, l->height * 0.3,  SEG_CLR(sgs, LED_SEGMENT_B)); /* Top Right */
+	draw_rectangle_filled(l->x + l->width * 0.05, l->y + l->height * 0.50, l->width * 0.1, l->height * 0.3, SEG_CLR(sgs, LED_SEGMENT_F)); /* Top Left */
+	draw_rectangle_filled(l->x + l->width * 0.75, l->y + l->height * 0.50, l->width * 0.1, l->height * 0.3, SEG_CLR(sgs, LED_SEGMENT_B)); /* Top Right */
 
 	draw_regular_polygon_filled(l->x + l->width * 0.9, l->y + l->height * 0.07, 0.0, sqrt(l->width*l->height)*.06, CIRCLE, SEG_CLR(sgs, LED_SEGMENT_DP));
 
@@ -946,6 +949,7 @@ static void draw_debug_info(const world_t *world)
 	fill_textbox(&t, "fps:                %f", fps());
 
 	if(world->debug_extra) {
+		fill_textbox(&t, "Mode:               %s", world->debug_mode ? "step" : "continue");
 		fill_textbox(&t, "%s RX fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
 		fill_textbox(&t, "%s RX fifo empty: %s", fifo_str, fifo_is_empty(f) ? "true" : "false");
 		fill_textbox(&t, "%s RX fifo count: %u", fifo_str, (unsigned)fifo_count(f));
@@ -954,7 +958,7 @@ static void draw_debug_info(const world_t *world)
 		fill_textbox(&t, "UART TX fifo count: %u", (unsigned)fifo_count(uart_tx_fifo));
 
 		sprintf(buf, "%08lu", (unsigned long)(world->cycle_count));
-		fill_textbox(&t, "cycles:          %s", buf);
+		fill_textbox(&t, "cycles:             %s", buf);
 	}
 	draw_textbox(&t);
 }
@@ -1016,7 +1020,10 @@ static void keyboard_special_handler(int key, int x, int y)
 	case GLUT_KEY_F6:    switches[5].on = !(switches[5].on); break;
 	case GLUT_KEY_F7:    switches[6].on = !(switches[6].on); break;
 	case GLUT_KEY_F8:    switches[7].on = !(switches[7].on); break;
-
+	case GLUT_KEY_F9:    world.step       = true;                              
+			     world.debug_mode = true;
+			     break;
+	case GLUT_KEY_F10:   world.debug_mode     = !(world.debug_mode);     break;
 	case GLUT_KEY_F11:   world.use_uart_input = !(world.use_uart_input); break;
 	case GLUT_KEY_F12:   world.debug_extra    = !(world.debug_extra);    break;
 	default:
@@ -1148,17 +1155,29 @@ static void draw_scene(void)
 	draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2)*0.99, SQUARE, LINE_WIDTH, WHITE);
 
 	if(next != world.tick) {
+		unsigned long increment = 0;
 		next = world.tick;
 		update_terminal(&terminal, uart_tx_fifo);
-		if(h2_run(h, h2_io, stderr, RUN_FOR, NULL, false) < 0)
-			world.halt_simulation = true;
-		world.cycle_count += RUN_FOR;
+
+		if(world.debug_mode && world.step)
+			increment = 1;
+		else if(!(world.debug_mode))
+			increment = RUN_FOR;
+		
+		if(increment)
+			if(h2_run(h, h2_io, stderr, increment, NULL, false) < 0)
+				world.halt_simulation = true;
+
+		world.step = false;
+		world.cycle_count += increment;
 	}
 	draw_debug_info(&world);
-	if(world.debug_extra)
+	if(world.debug_extra) {
 		draw_debug_h2(h, X_MIN + X_MAX/40., Y_MAX*0.70);
-	else
+	} else {
+		
 		draw_vga(&world, &vga);
+	}
 
 	for(size_t i = 0; i < SWITCHES_COUNT; i++)
 		draw_switch(&switches[i]);
@@ -1245,13 +1264,26 @@ int main(int argc, char **argv)
 	h2_io->in  = h2_io_get_gui;
 	h2_io->out = h2_io_set_gui;
 
+	{ /* attempt to load initial contents of VGA memory */
+		FILE *vga_init = fopen(VGA_INIT_FILE, "rb");
+		if(vga_init) {
+			char line[80] = {0};
+			for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++) {
+				if(!fgets(line, sizeof(line), vga_init))
+					break;
+				long m = strtol(line, NULL, 2);
+				h2_io->soc->vga[i] = m;
+				vga.m[i] = m;
+			}
+
+			fclose(vga_init);
+		}
+	}
+
 	uart_rx_fifo = fifo_new(UART_FIFO_DEPTH);
 	uart_tx_fifo = fifo_new(UART_FIFO_DEPTH);
 	ps2_rx_fifo  = fifo_new(8 /* should be 1 - but this does not work */);
 
-	//for(int i = 0; i < VGA_BUFFER_LENGTH / VGA_WIDTH; i++)
-	//	memset(vga.m + (i * VGA_WIDTH), ' '/*'a'+(i%26)*/, VGA_BUFFER_LENGTH / VGA_WIDTH);
-	
 	errno = 0;
 	if((nvram_fh = fopen(nvram_file, "rb"))) {
 		fread(h2_io->soc->nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);

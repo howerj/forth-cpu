@@ -82,6 +82,7 @@ reports/*
 tb
 test_bench
 text
+text.bin
 tmp/
 tmp/*
 top_level.bld

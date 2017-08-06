@@ -211,8 +211,14 @@ location block-buffer     0 ( block buffer starts here )
 : 40ns begin dup while 1- repeat drop ; hidden ( n -- : wait for 'n'*40ns + 30us )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
 
+\ : simulation? cpu-id $dead = ; ( -- f : are we in the matrix? )
+
+( @bug Waiting until the TX FIFO is not full does not work in the
+hardware, something must be broken, it works fine in the simulation
+and speeds things up greatly )
 : tx! ( c -- : write a character to UART )
-	begin iUart @ $0800 and until ( Wait until TX FIFO is not full )
+	\ begin iUart @ $1000 and 0= until ( Wait until TX FIFO is not full )
+	begin iUart @ $0800 and until ( Wait until TX FIFO is empty )
 	$2000 or oUart ! ;            ( Write character out )
 
 : um+ ( w w -- w carry )
@@ -528,7 +534,8 @@ not consumed in the previous parse )
 : word parse here pack$ ; ( c -- a ; <string> )
 : token =bl parse word-length min word-buf pack$ ; ( -- a ; <string> )
 : char token count drop c@ ; ( -- c; <string> )
-: .s ( -- ) cr sp@ for aft r@ pick . then next [char] * emit ;
+location .s-string " <sp"
+: .s ( -- ) cr sp@ for aft r@ pick . then next .s-string print ;
 : unused $4000 here - ; hidden
 : .free unused u. ; hidden
 : preset sp@ ndrop tib #tib cell+ ! 0 >in ! 0 _id ! ; hidden
@@ -749,69 +756,71 @@ location hi-string "eFORTH V"
 ( @warning This disassembler is experimental, and liable not
 to work / break everything it touches )
 
-\ location i.lit     "literal"
-\ location i.alu     "ALU    "
-\ location i.call    "call   "
-\ location i.branch  "branch "
-\ location i.0branch "0branch"
-\ 
-\ location bcount 0
-\ : bcounter! bcount @ 0= if 2/ over swap -  bcount ! else drop then ; hidden ( u a -- u )
-\ : -bcount   bcount @ if ( bcount ? ) bcount   1-! then ; hidden ( -- )
-\ : abits $1fff and ; hidden
-\ 
-\ ( @note This does not work for hidden words, instead a previous defined that
-\ has not been hidden will be incorrectly returned instead )
-\ : name ( cfa -- nfa )
-\ 	abits 2*
-\ 	>r
-\ 	last address 
-\ 	begin 
-\ 		dup 
-\ 	while 
-\ 		address dup r@ swap dup @ address swap within if @ address nfa rdrop exit then
-\ 		address @
-\ 	repeat rdrop ; hidden
-\ 
-\ location unknown "unknown"
-\ : .name name dup if print else unknown print then ; hidden
-\ 
-\ : mask-off 2dup and = ; hidden ( u u -- u f )
-\ : instruction ( decode instruction )
-\ 	over >r
-\ 	$8000 mask-off if i.lit      print $7fff and             5u.r rdrop exit then
-\ 	$6000 mask-off if i.alu      print abits                 5u.r rdrop exit then
-\ 	$4000 mask-off if i.call     print abits dup 2*          5u.r space .name rdrop exit then
-\ 	$2000 mask-off if i.0branch  print abits r@ bcounter! 2* 5u.r rdrop exit then
-\ 	                  i.branch   print abits r@ bcounter! 2* 5u.r rdrop ; hidden
-\ 
-\ : continue? ( u a -- f )
-\ 	bcount @ if 2drop -1 exit then
-\ 	over $e000 and 0= if u> exit else drop then 
-\ 	dup ' doVar 2/ $4000 or = if drop 0 exit then ( print next address ? )
-\ 	=exit and =exit <> ; hidden
-\ 
-\ : decompile ( a -- a )
-\ 	dup 5u.r 58 emit dup @ 5u.r space
-\ 	dup @ instruction cr
-\ 	cell+ ; hidden
-\ 
-\ : decompiler ( a -- : decompile starting at address )
-\ 	0 bcount !
-\ 	dup 2/ >r
-\ 	begin dup @ r@ continue? while decompile -bcount ( nuf? ) repeat r> decompile
-\ 	2drop ; hidden
-\ 
-\ location see.immediate " immediate "
-\ location see.inline    " inline "
-\ : see
-\ 	token find 0= if -11 throw then
-\ 	cr 58 emit space dup .id 
-\ 	dup inline?    if see.inline    print then
-\ 	dup immediate? if see.immediate print then
-\ 	cr
-\ 	cfa decompiler space 59 emit cr ;
-\ 
+location i.lit     "LIT"
+location i.alu     "ALU"
+location i.call    "CAL"
+location i.branch  "BRN"
+location i.0branch "BRZ"
+
+location bcount 0
+: bcounter! bcount @ 0= if 2/ over swap -  bcount ! else drop then ; hidden ( u a -- u )
+: -bcount   bcount @ if ( bcount ? ) bcount   1-! then ; hidden ( -- )
+: abits $1fff and ; hidden
+
+: validate ( cfa pwd -- nfa | 0 )
+	tuck cfa <> if drop 0 else nfa then ; hidden
+
+: name ( cfa -- nfa )
+	abits 2*
+	>r
+	last address 
+	begin 
+		dup 
+	while 
+		address dup r@ swap dup @ address swap within 
+		if @ address r@ swap validate rdrop exit then
+		address @
+	repeat rdrop ; hidden
+
+location unknown "noname" 
+: .name name ?dup if print else unknown print then ; hidden
+
+: mask-off 2dup and = ; hidden ( u u -- u f )
+: instruction ( decode instruction )
+	over >r
+	$8000 mask-off if i.lit      print $7fff and             5u.r rdrop exit then
+	$6000 mask-off if i.alu      print abits                 5u.r rdrop exit then
+	$4000 mask-off if i.call     print abits dup 2*          5u.r space .name rdrop exit then
+	$2000 mask-off if i.0branch  print abits r@ bcounter! 2* 5u.r rdrop exit then
+	                  i.branch   print abits r@ bcounter! 2* 5u.r rdrop ; hidden
+
+: continue? ( u a -- f )
+	bcount @ if 2drop -1 exit then
+	over $e000 and 0= if u> exit else drop then 
+	dup ' doVar 2/ $4000 or = if drop 0 exit then ( print next address ? )
+	=exit and =exit <> ; hidden
+
+: decompile ( a -- a )
+	dup 5u.r 58 emit dup @ 5u.r space
+	dup @ instruction cr
+	cell+ ; hidden
+
+: decompiler ( a -- : decompile starting at address )
+	0 bcount !
+	dup 2/ >r
+	begin dup @ r@ continue? while decompile -bcount ( nuf? ) repeat decompile rdrop
+	drop ; hidden
+
+location see.immediate " immediate "
+location see.inline    " inline "
+: see
+	token find 0= if -11 throw then
+	cr 58 emit space dup .id 
+	dup inline?    if see.inline    print then
+	dup immediate? if see.immediate print then
+	cr
+	cfa decompiler space 59 emit cr ;
+
 ( ======================== See ============================== )
 
 ( ======================== Memory Interface ================= )
@@ -973,51 +982,6 @@ irq:
 ( ======================== Miscellaneous ==================== )
 
 
-( ======================== Block Editor  ==================== )
-
-( Block Editor Help 
-
-      n    move to next block
-      p    move to previous block
-    # d    delete line in current block
-      x    erase current block
-      e    evaluate current block
-    # i    insert line
- # #2 ia   insert at line #2 at column #
-      q    quit editor loop
-    # b    set block number
-      s    save block and write it out
-      u    update block )
-
-( 
-\ @todo implement vocabularies and put these words in the editor vocabulary,
-\ also make an insert mode that reads up to 15 lines of text
-: [block] blk @ block ; hidden
-: [check] dup b/buf c/l / u>= if -24 throw then ; hidden
-: [line] [check] c/l * [block] + ; hidden 
-: [clean] ; hidden \ @todo call >char on modified line 
-: n  1 +block block drop ; 
-: p -1 +block block drop ;
-: d [line] c/l =bl fill ;
-: x [block] b/buf =bl fill ;
-: s update save-buffers ;
-: q rdrop rdrop ;
-: e blk @ load char drop ; \ @todo fix query to read in 64 chars at a time for blocks
-: ia c/l * + [block] + tib >in @ + swap #tib @ >in @ - cmove  call "\" ; 
-: i 0 swap ia ;
-: u update ;
-: b block ;
-: l blk @ list ;
-: yank pad c/l ; hidden
-: c [line] yank >r swap r> cmove ; \ n -- yank line number to buffer 
-: y [line] yank cmove ; \ n -- copy yank buffer to line 
-: ct swap y c ; \ n1 n2 -- copy line n1 to n2 
-: ea [line] c/l evaluate ;
-: sw 2dup y [line] swap [line] swap c/l cmove c ;
-
-: editor ; \ This should load the editor vocabulary 
-)
-
 ( ======================== ANSI SYSTEM   ==================== )
 
 ( Terminal colorization module, via ANSI Escape Codes
@@ -1074,6 +1038,57 @@ manipulating a terminal )
 \ : ansi.reset-color colorize @ 0= if exit then CSI 0 10u. [char] m emit ; ( -- : reset terminal color to its default value)
 \ 
 ( ======================== ANSI SYSTEM   ==================== )
+
+( ======================== Block Editor  ==================== )
+
+( Block Editor Help 
+
+      n    move to next block
+      p    move to previous block
+    # d    delete line in current block
+      x    erase current block
+      e    evaluate current block
+    # i    insert line
+ # #2 ia   insert at line #2 at column #
+      q    quit editor loop
+    # b    set block number
+      s    save block and write it out
+      u    update block )
+
+( 
+location .forth 0
+location .editor 0
+: forth .forth @ pwd ! ;
+: editor .editor @ pwd ! ;
+.set .forth $pwd 
+
+\ @todo implement vocabularies and put these words in the editor vocabulary,
+\ also make an insert mode that reads up to 15 lines of text
+: [block] blk @ block ; hidden
+: [check] dup b/buf c/l / u>= if -24 throw then ; hidden
+: [line] [check] c/l * [block] + ; hidden 
+: [clean] ; hidden \ @todo call >char on modified line 
+: n  1 +block block drop ; 
+: p -1 +block block drop ;
+: d [line] c/l =bl fill ;
+: x [block] b/buf =bl fill ;
+: s update save-buffers ;
+: q rdrop rdrop ;
+: e blk @ load char drop ; 
+: ia c/l * + [block] + tib >in @ + swap #tib @ >in @ - cmove  call "\" ; 
+: i 0 swap ia ;
+: u update ;
+: b block ;
+: l blk @ list ;
+: yank pad c/l ; hidden
+: c [line] yank >r swap r> cmove ; \ n -- yank line number to buffer 
+: y [line] yank cmove ; \ n -- copy yank buffer to line 
+: ct swap y c ; \ n1 n2 -- copy line n1 to n2 
+: ea [line] c/l evaluate ;
+: sw 2dup y [line] swap [line] swap c/l cmove c ;
+.set .editor $pwd
+) 
+
 
 ( ======================== Starting Code ==================== )
 
