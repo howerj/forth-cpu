@@ -145,15 +145,15 @@ variable >in        0  ( Hold character pointer when parsing input )
 variable state      0  ( compiler state variable )
 variable hld        0  ( Pointer into hold area for numeric output )
 variable base       10 ( Current output radix )
+variable cursor     0  ( index into VGA text memory )
 variable span       0  ( Hold character count received by expect   )
 variable #tib       0  ( Current count of terminal input buffer    )
-variable cursor     0  ( index into VGA text memory )
 location tib-buf    0  ( ... and address )
-.set tib-buf $pc      ( set tib-buf to current dictionary location )
-.allocate tib-length  ( allocate enough for the terminal input buffer )
-.allocate cell        ( plus one extra cell for safety )
+.set tib-buf $pc       ( set tib-buf to current dictionary location )
+.allocate tib-length   ( allocate enough for the terminal input buffer )
+.allocate cell         ( plus one extra cell for safety )
 location word-buf   0  ( transient word buffer starts here )
-.allocate 34          ( allocate room for it )
+.allocate 34           ( allocate room for it )
 
 constant block-invalid   -1 ( block invalid number )
 constant block-size    1024 ( size of a block )
@@ -515,25 +515,17 @@ location _test 0
 
 ( @todo store tmp on the return stack with stack magic )
 location tmp 0
-
 ( @bug ." xxx" creates a string of size 4, the space is
 not consumed in the previous parse )
-: parse  ( c -- b u ; <string> )
-	>r tib >in @ + #tib @ >in @ - r> 
 
-	( ============================================== )
-	( This should be a separate word called "parser",
-	with the following stack comment:
-		b u c -- b u delta
-	But to save on space it has been folder into this
-	word )
+: parser ( b u c -- b u delta )
 	tmp ! over >r
 	tmp @ skip 2dup
 	tmp @ scan swap r> - >r - r> 
 	tmp @ =bl <> if 1+ then ( <-- this is a hack, relate to the string length bug )
-	( ============================================== )
-	>in +! ; 
+	; hidden
 
+: parse >r tib >in @ + #tib @ >in @ - r> parser >in +! ; ( c -- b u ; <string> )
 : .( 41 parse type ; immediate
 : "(" 41 parse 2drop ; immediate
 : ) ; immediate
@@ -702,7 +694,6 @@ source-id word can be used by words to modify their behavior )
 
 : load block b/buf evaluate ;
 : --> 1 +block load ;
-
 : scr blk ;
 : pipe 124 emit ; hidden
 location border-string "+---|---"
@@ -710,14 +701,14 @@ location border-string "+---|---"
 : list _page @execute block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
 : thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
 : blank =bl fill ;
-: blank-thru over - for dup block b/buf blank update 1+ next drop flush ;
+\ : blank-thru over - for dup block b/buf blank update 1+ next drop flush ;
 
 : ccitt ( crc c -- crc : calculate polynomial $1021 AKA "x16 + x12 + x5 + 1" )
- 	over 256/ xor           ( crc x )
- 	dup  4  rshift xor      ( crc x )
- 	dup  5  lshift xor      ( crc x )
- 	dup  12 lshift xor      ( crc x )
- 	swap 8  lshift xor ;    ( crc )
+ 	over 256/ xor               ( crc x )
+ 	dup  4  rshift xor          ( crc x )
+ 	dup  5  lshift xor          ( crc x )
+ 	dup  12 lshift xor          ( crc x )
+ 	swap 8  lshift xor ; hidden ( crc )
  
 : crc ( b u -- u : calculate ccitt-ffff CRC )
 	$ffff >r 
@@ -730,7 +721,7 @@ location border-string "+---|---"
 : random seed @ dup 15 lshift ccitt dup seed ! ; ( -- u )
 
 location hi-string "eFORTH V"
-: hi save !io hex cr hi-string print ver @ <# # # 46 hold # #> type cr here . .free cr ;
+: hi !io save hex cr hi-string print ver @ <# # # 46 hold # #> type cr here . .free cr ;
  
 \ : square dup * ;
 \ : limit rot min max ;
@@ -816,7 +807,7 @@ location unknown "unknown"
 	0 bcount !
 	dup 2/ >r
 	begin dup @ r@ continue? while decompile -bcount ( nuf? ) repeat r> decompile
-	2drop ;
+	2drop ; hidden
 
 location see.immediate " immediate "
 location see.inline    " inline "
@@ -836,7 +827,7 @@ location see.inline    " inline "
 
 variable mwindow  0
 variable mram     0
-constant mwin-max $3ff
+constant mwin-max $1ff
 
 : mcontrol! ( u -- : write to memory control register )
 	mram @ if $400 or then  ( select correct memory device )
@@ -1098,11 +1089,10 @@ address by two for function address but not for labels, this works in the
 current setup, but is not ideal )
 start:
 .set entry start
-	page                   \ Clear display
-	cpu-id segments! 
+	vgaInit oVgaCtrl !
+	page             
 	hi
-
-	\ 0 list
+	cpu-id segments! 
 
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
