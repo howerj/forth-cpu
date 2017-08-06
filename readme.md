@@ -1393,6 +1393,7 @@ Stack comments should be added with the following scheme:
 | c              | single character                    |
 | d              | double width number (2 Cells)       |
 | f              | boolean flag (-1 = true, 0 = false) |
+| k              | block number                        |
 | cfa            | code field address of a word        |
 | nfa            | name field address of a word        |
 | pwd            | previous word address of a word     |

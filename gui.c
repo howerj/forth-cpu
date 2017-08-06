@@ -5,8 +5,6 @@
  *
  * @todo Print debugging information for the H2 CPU to the screen, and make a
  * graphical debugger (simulation can be paused, single step through, etcetera)
- * @todo Replace magic numbers like "0.5" with 1/200 of the absolute difference
- * between x/y minimum and maximum.
  * @todo Find out why the UART output is so slow!
  */
 
@@ -29,14 +27,13 @@
 #define PI          (3.1415926535897932384626433832795)
 #define MAX(X, Y)   ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y)   ((X) < (Y) ? (X) : (Y))
-#define FONT_HEIGHT (15)
-#define FONT_WIDTH  (9)
 #define ESC         (27)
 #define UNUSED(X)   ((void)(X))
 #define X_MAX       (100.0)
 #define X_MIN       (0.0)
 #define Y_MAX       (100.0)
 #define Y_MIN       (0.0)
+#define LINE_WIDTH  (0.5)
 #define RUN_FOR     (5000)
 
 typedef struct {
@@ -317,6 +314,14 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 			r += draw_string(s);
 			break;
 		}
+		case 'x':
+		{
+			unsigned d = va_arg(ap, unsigned);
+			char s[64] = {0};
+			sprintf(s, "%04x", d);
+			r += draw_string(s);
+			break;
+		}
 		case 'u':
 		case 'd':
 		{
@@ -379,7 +384,7 @@ static void draw_textbox(textbox_t *t)
 	double char_height = scale.y / Y_MAX;
 	if(!(t->draw_border))
 		return;
-	draw_rectangle_line(t->x - 0.5, t->y - t->height + char_height - 1, t->width, t->height + 1, 0.5, t->color_box);
+	draw_rectangle_line(t->x - LINE_WIDTH, t->y - t->height + char_height - 1, t->width, t->height + 1, LINE_WIDTH, t->color_box);
 }
 
 static bool detect_circle_circle_collision(
@@ -565,7 +570,7 @@ static void draw_vga(const world_t *world, vga_t *v)
 
 	glPopMatrix();
 
-	draw_rectangle_line(v->x, v->y - (char_height * (VGA_HEIGHT-1.0)), char_width * VGA_WIDTH * 1.10, char_height * VGA_HEIGHT, 0.5, color);
+	draw_rectangle_line(v->x, v->y - (char_height * (VGA_HEIGHT-1.0)), char_width * VGA_WIDTH * 1.10, char_height * VGA_HEIGHT, LINE_WIDTH, color);
 }
 
 typedef struct {
@@ -589,7 +594,7 @@ static void draw_dpad(dpad_t *d)
 	draw_regular_polygon_filled(d->x,                   d->y + (d->radius*2.0), d->angle + (PI/2.0), d->radius, TRIANGLE, d->up     ? GREEN : RED);
 	draw_regular_polygon_filled(d->x,                   d->y,                   d->angle,            d->radius, CIRCLE,   d->center ? GREEN : RED);
 
-	draw_regular_polygon_line(d->x, d->y, d->angle, d->radius * 3.1, CIRCLE, 0.5, WHITE);
+	draw_regular_polygon_line(d->x, d->y, d->angle, d->radius * 3.1, CIRCLE, LINE_WIDTH, WHITE);
 }
 
 typedef enum {
@@ -666,14 +671,13 @@ void draw_terminal(const world_t *world, terminal_t *t)
 
 	glPopMatrix();
 
-	draw_rectangle_line(t->x, t->y - (char_height * (TERMINAL_HEIGHT-1.0)), char_width * TERMINAL_WIDTH * 1.10, char_height * TERMINAL_HEIGHT, 0.5, color);
+	draw_rectangle_line(t->x, t->y - (char_height * (TERMINAL_HEIGHT-1.0)), char_width * TERMINAL_WIDTH * 1.10, char_height * TERMINAL_HEIGHT, LINE_WIDTH, color);
 }
 
 void update_terminal(terminal_t *t, fifo_t *f)
 {
 	assert(t);
 	assert(f);
-	/**@todo implement some ANSI terminal escape codes here */
 	for(;!fifo_is_empty(f);) {
 		uint8_t c = 0;
 		bool r = fifo_pop(f, &c);
@@ -707,8 +711,6 @@ void update_terminal(terminal_t *t, fifo_t *f)
 /* ====================================== Simulator Objects ==================================== */
 
 /* ====================================== Simulator Instances ================================== */
-
-/** @todo These instances should all be part of the world object */
 
 #define SWITCHES_X       (10.0)
 #define SWITCHES_SPACING (0.6)
@@ -808,9 +810,6 @@ static fifo_t *ps2_rx_fifo = NULL;
 /* ====================================== Simulator Instances ================================== */
 
 /* ====================================== H2 I/O Handling ====================================== */
-
-/**@todo modify soc state so it has a void* in it, we can then pass in the
- * world_t structure containing all the variable instances */
 
 static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on)
 {
@@ -960,20 +959,26 @@ static void draw_debug_info(const world_t *world)
 	draw_textbox(&t);
 }
 
+static void fill_textbox_memory(textbox_t *t, uint16_t *m, size_t length)
+{
+	assert(t);
+	assert(m);
+	assert((length % 4) == 0);
+	for(size_t i = 0; i < length; i+=4)
+		fill_textbox(t, "%s%u: %x %x %x %x", i < 10 ? " " : "", i, m[i], m[i+1], m[i+2], m[i+3]);
+}
+
 static void draw_debug_h2(h2_t *h, double x, double y)
 {
 	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE };
 	assert(h);
 
-	fill_textbox(&t, "tos:  %u\n", h->tos);
-	/**@todo Replace with memory dumping routine, and also allow a dump of
-	 * main memory to be shown with alternating screens */
-	fill_textbox(&t, "%u %u %u %u", h->dstk[0], h->dstk[1], h->dstk[2], h->dstk[3]);
-	fill_textbox(&t, "%u %u %u %u", h->dstk[1], h->dstk[2], h->dstk[3], h->dstk[4]);
-	fill_textbox(&t, "pc:   %u\n", h->pc);
-	fill_textbox(&t, "rp:   %u (max %u)\n", h->rp, h->rpm);
-	fill_textbox(&t, "dp:   %u (max %u)\n", h->sp, h->spm);
-	fill_textbox(&t, "ie:   %s\n", h->ie ? "true" : "false");
+	fill_textbox(&t, "tp: %u", h->tos);
+	fill_textbox_memory(&t, h->dstk, STK_SIZE);
+	fill_textbox(&t, "pc: %u", h->pc);
+	fill_textbox(&t, "rp: %u (max %u)", h->rp, h->rpm);
+	fill_textbox(&t, "dp: %u (max %u)", h->sp, h->spm);
+	fill_textbox(&t, "ie: %s", h->ie ? "true" : "false");
 
 	draw_textbox(&t);
 }
@@ -1140,7 +1145,7 @@ static void draw_scene(void)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2)*0.99, SQUARE, 0.5, WHITE);
+	draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2)*0.99, SQUARE, LINE_WIDTH, WHITE);
 
 	if(next != world.tick) {
 		next = world.tick;
@@ -1151,7 +1156,7 @@ static void draw_scene(void)
 	}
 	draw_debug_info(&world);
 	if(world.debug_extra)
-		draw_debug_h2(h, X_MAX/2, Y_MAX/2);
+		draw_debug_h2(h, X_MIN + X_MAX/40., Y_MAX*0.70);
 	else
 		draw_vga(&world, &vga);
 
@@ -1217,6 +1222,9 @@ int main(int argc, char **argv)
 	FILE *hexfile = NULL;
 	FILE *nvram_fh = NULL;
 	int r = 0;
+	
+	assert(Y_MAX > 0. && Y_MIN < Y_MAX && Y_MIN >= 0.);
+	assert(X_MAX > 0. && X_MIN < X_MAX && X_MIN >= 0.);
 
 	log_level = LOG_NOTE;
 
