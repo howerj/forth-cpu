@@ -138,14 +138,14 @@ location csp        0  ( current data stack pointer - for error checking )
 location _id        0  ( used for source id )
 location rendezvous 0  ( saved cp and pwd )
 .allocate cell
-variable seed       1  ( seed used for the PRNG )
+location seed       1  ( seed used for the PRNG )
+location cursor     0  ( index into VGA text memory )
 variable handler    0  ( current handler for throw/catch )
 variable ver     $666  ( eForth version information )
 variable >in        0  ( Hold character pointer when parsing input )
 variable state      0  ( compiler state variable )
 variable hld        0  ( Pointer into hold area for numeric output )
 variable base       10 ( Current output radix )
-variable cursor     0  ( index into VGA text memory )
 variable span       0  ( Hold character count received by expect   )
 variable #tib       0  ( Current count of terminal input buffer    )
 location tib-buf    0  ( ... and address )
@@ -167,8 +167,8 @@ location block-buffer     0 ( block buffer starts here )
 ( ======================== Forth Kernel ===================== )
 
 : ! store drop ;           ( n a -- )
-: 256* 8 lshift ;          ( u -- u )
-: 256/ 8 rshift ;          ( u -- u )
+: 256* 8 lshift ; hidden   ( u -- u )
+: 256/ 8 rshift ; hidden   ( u -- u )
 : 1+ 1 + ;                 ( n -- n )
 : negate invert 1 + ;      ( n -- n )
 : - invert 1 + + ;         ( n n -- n )
@@ -192,15 +192,15 @@ location block-buffer     0 ( block buffer starts here )
 : 2drop drop drop ;        ( n n -- )
 : tuck swap over ;         ( n1 n2 -- n2 n1 n2 )
 : +! tuck @ + swap ! ;     ( n a -- )
-: 1+!  1 swap +! ;         ( a -- )
-: 1-! -1 swap +! ;         ( a -- )
+: 1+!  1 swap +! ; hidden  ( a -- )
+: 1-! -1 swap +! ; hidden  ( a -- )
 : execute >r ;             ( cfa -- )
 : c@ dup ( -2 and ) @ swap 1 and if 8 rshift else $ff and then ; ( b -- c )
 : c!                       ( c b -- )
 	swap $ff and dup 8 lshift or swap
 	swap over dup ( -2 and ) @ swap 1 and 0 = $ff xor
 	>r over xor r> and xor swap ( -2 and ) store drop ;
-: c, cp @ c! cp 1+! ;      ( c -- )
+\ : c, cp @ c! cp 1+! ;      ( c -- )
 
 : !io vgaInit oVgaCtrl ! 0 seti 0 oIrcMask ! ; ( -- : initialize I/O )
 
@@ -247,15 +247,15 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : source-id _id @ ;                       ( -- 0 | -1 )
 : pad here pad-length + ;                 ( -- a )
 : @execute @ ?dup if >r then ;            ( cfa -- )
-: 3drop 2drop drop ;                      ( n n n -- )
+: 3drop 2drop drop ; hidden               ( n n n -- )
 : bl =bl ;                                ( -- c )
 : within over - >r - r> u< ;              ( u lo hi -- t )
 \ : not -1 xor ;                            ( n -- n )
 : dnegate invert >r invert 1 um+ r> + ;   ( d -- d )
-: dabs dup 0< if dnegate then ;           ( d -- d )
-: d+  >r swap >r um+ r> r> + + ;          ( d d -- d )
-: d=  >r swap r> = >r = r> and ;          ( d d -- f )
-: d<> d= 0= ;                             ( d d -- f )
+\ : dabs dup 0< if dnegate then ;           ( d -- d )
+\ : d+  >r swap >r um+ r> r> + + ;          ( d d -- d )
+\ : d=  >r swap r> = >r = r> and ;          ( d d -- f )
+\ : d<> d= 0= ;                             ( d d -- f )
 : abs dup 0< if negate then ;             ( n -- u )
 : count  dup 1+ swap c@ ;                 ( cs -- b u )
 : rot >r swap r> swap ;                   ( n1 n2 n3 -- n2 n3 n1 )
@@ -276,24 +276,24 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : cr =cr emit =lf emit ;                  ( -- )
 : space =bl emit ;                        ( -- )
 : pick ?dup if swap >r 1- pick r> swap exit then dup ; ( @bug does not work for high stack depths - mashes the return stack )
-: roll  dup 0> if swap >r 1- roll r> swap else drop then ;
+\ : roll  dup 0> if swap >r 1- roll r> swap else drop then ;
 : ndrop for aft drop then next ;          ( n1 ... nu u -- )
 : type begin dup while swap count emit swap 1- repeat 2drop ; ( b u -- : print a string )
 : $type begin dup while swap count >char emit swap 1- repeat 2drop ; ( b u -- : print a string )
-: print count type ;                      ( b -- )
+: print count type ; hidden               ( b -- )
 : nuf? ( -- f ) key? if =cr = else 0 then ; ( -- f )
 \ : ?exit if rdrop then ;                   ( n --, R: n -- n | )
-: 2rdrop r> rdrop rdrop >r ;              ( R n n -- )
-: decimal? 48 58 within ;                 ( c -- f : decimal char? )
-: lowercase? [char] a [char] { within ;   ( c -- f : is character lower case? )
-: uppercase? [char] A [char] [ within ;   ( c -- f : is character upper case? )
-: >upper dup lowercase? if =bl xor then ; ( c -- c : convert to upper case )
-: >lower dup uppercase? if =bl xor then ; ( c -- c : convert to lower case )
-: nchars swap 0 max for aft dup emit then next drop ; ( +n c -- : emit c n times  ) 
+\ : 2rdrop r> rdrop rdrop >r ;              ( R n n -- )
+: decimal? 48 58 within ; hidden            ( c -- f : decimal char? )
+: lowercase? [char] a [char] { within ; hidden  ( c -- f : is character lower case? )
+: uppercase? [char] A [char] [ within ; hidden  ( c -- f : is character upper case? )
+\ : >upper dup lowercase? if =bl xor then ; ( c -- c : convert to upper case )
+: >lower dup uppercase? if =bl xor then ; hidden ( c -- c : convert to lower case )
+: nchars swap 0 max for aft dup emit then next drop ; hidden ( +n c -- : emit c n times  ) 
 : spaces =bl nchars ;                     ( +n -- )
 : cmove for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ; ( b b u -- )
 : fill swap for swap aft 2dup c! 1+ then next 2drop ; ( b u c -- )
-: switch 2dup @ >r @ swap ! r> swap ! ;   ( a a -- : swap contents )
+: switch 2dup @ >r @ swap ! r> swap ! ; hidden ( a a -- : swap contents )
 : aligned dup 1 and if 1+ then ;          ( b -- a )
 : align cp @ aligned cp ! ;               ( -- )
 
@@ -364,21 +364,21 @@ be available. "doList" and "doLit" do not need to be implemented. )
 \ : octal ( -- ) 8 base ! ;
 : decimal ( -- ) 10 base ! ;
 : hex ( -- ) 16 base ! ;
-: str dup >r abs <# #s r> sign #> ; ( n -- b u : convert a signed integer to a numeric string )
+: str dup >r abs <# #s r> sign #> ; hidden ( n -- b u : convert a signed integer to a numeric string )
 :  .r >r str r> over - spaces type ; ( n n : print n, right justified by +n )
 : u.r >r <# #s #> r> over - spaces type ; ( u +n -- : print u right justified by +n)
-:   u. <# #s #> space type ; ( u -- : print unsigned number )
-: . base @ 10 xor if u. exit then str space type ; ( n -- print space, signed number )
+: u.  <# #s #> space type ; ( u -- : print unsigned number )
+:  .  base @ 10 xor if u. exit then str space type ; ( n -- print space, signed number )
 : ? @ . ; ( a -- : display the contents in a memory cell )
-: 2. swap . . ;
-: .base ( -- ) base @ decimal dup . base  ! ;
+\ : 2. swap . . ;
+\ : .base ( -- ) base @ decimal dup . base  ! ;
 
-: -trailing ( b u -- b u : remove trailing spaces )
-	for 
-		aft =bl over r@ + c@ <
-			if r> 1+ exit then 
-		then
-	next 0 ;
+\ : -trailing ( b u -- b u : remove trailing spaces )
+\	for 
+\		aft =bl over r@ + c@ <
+\			if r> 1+ exit then 
+\		then
+\	next 0 ; 
 
 : pack$ ( b u a -- a ) \ null fill
 	aligned dup >r over
@@ -420,7 +420,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 			count >r swap count r> xor
 			if 2drop rdrop 0 exit then
 		then
-	next 2drop -1 ;
+	next 2drop -1 ; hidden
 
 : address $3fff and ; hidden ( a -- a : mask off address bits )
 : nfa address cell+ ; ( pwd -- nfa : move to name field address)
@@ -428,8 +428,8 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : .id nfa print space ; ( pwd -- : print out a word )
 
 : logical 0= 0= ; hidden ( n -- f )
-: immediate? @ $4000 and logical ; ( pwd -- f : is immediate? )
-: inline?    @ $8000 and logical ; ( pwd -- f : is inline? )
+: immediate? @ $4000 and logical ; hidden ( pwd -- f : is immediate? )
+: inline?    @ $8000 and logical ; hidden ( pwd -- f : is inline? )
 
 : find ( a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
 	>r
@@ -483,7 +483,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : number? 0 -rot >number nip 0= ; ( b u -- n f : is number? )
 
 : 5u.r 5 u.r ; hidden
-\ : dm+ for aft count 3 u.r then next ; ( a u -- a )
 : dm+ 2/ for aft dup @ 5u.r cell+ then next ; ( a u -- a )
 
 constant dump-length 16
@@ -533,15 +532,10 @@ not consumed in the previous parse )
 : word parse here pack$ ; ( c -- a ; <string> )
 : token =bl parse word-length min word-buf pack$ ; ( -- a ; <string> )
 : char token count drop c@ ; ( -- c; <string> )
-
-( @todo .s and pick should be changed so as not to use the
-return stack, which can cause a lot of problems, but instead
-use the space pad )
 : .s ( -- ) cr sp@ for aft r@ pick . then next [char] * emit ;
-: unused $4000 here - ;
-: .free unused u. ;
-
-: preset sp@ ndrop tib #tib cell+ ! ; hidden
+: unused $4000 here - ; hidden
+: .free unused u. ; hidden
+: preset sp@ ndrop tib #tib cell+ ! 0 >in ! 0 _id ! ; hidden
 : [  0 state ! ; immediate 
 : ] -1 state ! ;
 
@@ -597,7 +591,7 @@ use the space pad )
 
 : "immediate" last address $4000 toggle ;
 : .ok state @ 0= if space OK print space then cr ;
-: eval begin token dup count nip while interpret repeat drop _prompt @execute ;
+: eval begin token dup count nip while interpret repeat drop _prompt @execute ; hidden
 : quit quitLoop: preset [ begin query ' eval catch on-error again ;
 
 : pace 11 emit ;
@@ -605,7 +599,6 @@ use the space pad )
 : file ' pace ' "drop" ' ktap xio ;
 : hand ' .ok  '  emit  ' ktap xio ;
 : console ' rx? _key? ! ' tx! _emit ! hand ;
-( @todo input/output with PS/2 and VGA version? )
 
 ( @todo ";" could perform a few optimizations, if the previous word is an ALU
 instruction it might be possible to merge the exit into it, if the instruction
@@ -614,12 +607,12 @@ if last word called in a function is a call, this can be replaced with a branch
 instead )
 
 location redefined " redefined"
-: !csp sp@ csp ! ;
-: ?csp sp@ csp @ xor if -22 throw then ;
-: +csp csp 1+! ;
-: -csp csp 1-! ;
-: ?compile state @ 0= if -14 throw then ; ( fail if not compiling )
-: ?unique dup find if drop redefined print cr else drop then ; ( a -- a )
+: !csp sp@ csp ! ; hidden
+: ?csp sp@ csp @ xor if -22 throw then ; hidden
+: +csp csp 1+! ; hidden
+: -csp csp 1-! ; hidden
+: ?compile state @ 0= if -14 throw then ; hidden ( fail if not compiling )
+: ?unique dup find if drop redefined print cr else drop then ; hidden ( a -- a )
 : ":" align save !csp here last address ,  =bl word ?unique count + aligned cp ! pwd ! ] ; 
 : "'" token find if cfa else -13 throw then ; immediate
 : ";" ?compile ?csp =exit , save [ ; immediate
@@ -641,19 +634,21 @@ location redefined " redefined"
 : "variable" create 0 , ;
 : ":noname" here ] !csp ;
 : "for" ?compile =>r , here -csp ; immediate
-: doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; 
+: doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
 : "next" ?compile ' doNext compile, , +csp ; immediate
-: noop ;
+: noop ; hidden
 
-: [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
-: compile ( -- ) r> dup @ , cell+ >r ;
+\ : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
+\ : compile ( -- ) r> dup @ , cell+ >r ;
 
-: do$ ( -- a ) r> r@ r> count + aligned >r swap >r ;
-: $"| ( -- a ) do$ noop ; ( NB. noop needed to fool optimizer )
-: ."| ( -- ) do$ print ; ( compile-only )
-: $,' ( -- ) 34 word count + aligned cp ! ;
+: do$ ( -- a ) r> r@ r> count + aligned >r swap >r ; hidden
+: $"| ( -- a ) do$ noop ; hidden ( NB. noop needed to fool optimizer )
+: ."| ( -- ) do$ print ; hidden ( compile-only )
+: $,' ( -- ) 34 word count + aligned cp ! ; hidden
 : $" ( -- ; <string> ) ' $"| compile, $,' ; immediate
 : ." ( -- ; <string> ) ' ."| compile, $,' ; immediate
+: abort 0 rp! quit ;
+: abort" ?compile ." ' abort compile, ; immediate
 
 : updated? block-dirty @ ; ( -- f )
 : update -1 block-dirty ! ; ( -- )
@@ -677,7 +672,7 @@ source-id word can be used by words to modify their behavior )
 	blk !
 	block-buffer ;
 
-: buffer block ; ( k -- a )
+\ : buffer block ; ( k -- a )
 
 : evaluate ( a u -- )
 	_prompt @ >r  0 _prompt !
@@ -758,67 +753,69 @@ location hi-string "eFORTH V"
 ( @warning This disassembler is experimental, and liable not
 to work / break everything it touches )
 
-location i.lit     "literal"
-location i.alu     "ALU    "
-location i.call    "call   "
-location i.branch  "branch "
-location i.0branch "0branch"
-
-location bcount 0
-: bcounter! bcount @ 0= if 2/ over swap -  bcount ! else drop then ; hidden ( u a -- u )
-: -bcount   bcount @ if ( bcount ? ) bcount   1-! then ; hidden ( -- )
-: abits $1fff and ; hidden
-
-: name ( cfa -- nfa )
-	abits 2*
-	>r
-	last address 
-	begin 
-		dup 
-	while 
-		address dup r@ swap dup @ address swap within if @ address nfa rdrop exit then
-		address @
-	repeat rdrop ;
-
-location unknown "unknown"
-: .name name dup if print else unknown print then ;
-
-: mask-off 2dup and = ; hidden ( u u -- u f )
-: instruction ( decode instruction )
-	over >r
-	$8000 mask-off if i.lit      print $7fff and             5u.r rdrop exit then
-	$6000 mask-off if i.alu      print abits                 5u.r rdrop exit then
-	$4000 mask-off if i.call     print abits dup 2*          5u.r space .name rdrop exit then
-	$2000 mask-off if i.0branch  print abits r@ bcounter! 2* 5u.r rdrop exit then
-	                  i.branch   print abits r@ bcounter! 2* 5u.r rdrop ; hidden
-
-: continue? ( u a -- f )
-	bcount @ if 2drop -1 exit then
-	over $e000 and 0= if u> exit else drop then 
-	dup ' doVar 2/ $4000 or = if drop 0 exit then ( print next address ? )
-	=exit and =exit <> ; hidden
-
-: decompile ( a -- a )
-	dup 5u.r 58 emit dup @ 5u.r space
-	dup @ instruction cr
-	cell+ ; hidden
-
-: decompiler ( a -- : decompile starting at address )
-	0 bcount !
-	dup 2/ >r
-	begin dup @ r@ continue? while decompile -bcount ( nuf? ) repeat r> decompile
-	2drop ; hidden
-
-location see.immediate " immediate "
-location see.inline    " inline "
-: see
-	token find 0= if -11 throw then
-	cr 58 emit space dup .id 
-	dup inline?    if see.inline    print then
-	dup immediate? if see.immediate print then
-	cr
-	cfa decompiler space 59 emit cr ;
-
+\ location i.lit     "literal"
+\ location i.alu     "ALU    "
+\ location i.call    "call   "
+\ location i.branch  "branch "
+\ location i.0branch "0branch"
+\ 
+\ location bcount 0
+\ : bcounter! bcount @ 0= if 2/ over swap -  bcount ! else drop then ; hidden ( u a -- u )
+\ : -bcount   bcount @ if ( bcount ? ) bcount   1-! then ; hidden ( -- )
+\ : abits $1fff and ; hidden
+\ 
+\ ( @note This does not work for hidden words, instead a previous defined that
+\ has not been hidden will be incorrectly returned instead )
+\ : name ( cfa -- nfa )
+\ 	abits 2*
+\ 	>r
+\ 	last address 
+\ 	begin 
+\ 		dup 
+\ 	while 
+\ 		address dup r@ swap dup @ address swap within if @ address nfa rdrop exit then
+\ 		address @
+\ 	repeat rdrop ; hidden
+\ 
+\ location unknown "unknown"
+\ : .name name dup if print else unknown print then ; hidden
+\ 
+\ : mask-off 2dup and = ; hidden ( u u -- u f )
+\ : instruction ( decode instruction )
+\ 	over >r
+\ 	$8000 mask-off if i.lit      print $7fff and             5u.r rdrop exit then
+\ 	$6000 mask-off if i.alu      print abits                 5u.r rdrop exit then
+\ 	$4000 mask-off if i.call     print abits dup 2*          5u.r space .name rdrop exit then
+\ 	$2000 mask-off if i.0branch  print abits r@ bcounter! 2* 5u.r rdrop exit then
+\ 	                  i.branch   print abits r@ bcounter! 2* 5u.r rdrop ; hidden
+\ 
+\ : continue? ( u a -- f )
+\ 	bcount @ if 2drop -1 exit then
+\ 	over $e000 and 0= if u> exit else drop then 
+\ 	dup ' doVar 2/ $4000 or = if drop 0 exit then ( print next address ? )
+\ 	=exit and =exit <> ; hidden
+\ 
+\ : decompile ( a -- a )
+\ 	dup 5u.r 58 emit dup @ 5u.r space
+\ 	dup @ instruction cr
+\ 	cell+ ; hidden
+\ 
+\ : decompiler ( a -- : decompile starting at address )
+\ 	0 bcount !
+\ 	dup 2/ >r
+\ 	begin dup @ r@ continue? while decompile -bcount ( nuf? ) repeat r> decompile
+\ 	2drop ; hidden
+\ 
+\ location see.immediate " immediate "
+\ location see.inline    " inline "
+\ : see
+\ 	token find 0= if -11 throw then
+\ 	cr 58 emit space dup .id 
+\ 	dup inline?    if see.inline    print then
+\ 	dup immediate? if see.immediate print then
+\ 	cr
+\ 	cfa decompiler space 59 emit cr ;
+\ 
 ( ======================== See ============================== )
 
 ( ======================== Memory Interface ================= )
@@ -830,7 +827,7 @@ variable mram     0
 constant mwin-max $1ff
 
 : mcontrol! ( u -- : write to memory control register )
-	mram @ if $400 or then  ( select correct memory device )
+	mram @ if $400 or then   ( select correct memory device )
 	mwin-max invert    and   ( mask off control bits )
 	mwindow @ mwindow and or ( or in higher address bits )
 	oMemControl ! ;          ( and finally write in control )
