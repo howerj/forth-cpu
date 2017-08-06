@@ -141,7 +141,6 @@ architecture behav of top is
 	signal timer_nq:         std_logic;
 
 	---- PS/2
-	-- @todo Replace with FIFO
 	signal kbd_new:      std_logic := '0';  -- new ASCII char available
 	signal kbd_new_edge: std_logic := '0';
 	signal kbd_char:     std_logic_vector(6 downto 0); -- ASCII char
@@ -459,7 +458,7 @@ begin
 	--- VGA -----------------------------------------------------------
 
 	-- @todo The interface for reading from the VGA needs sorting
-	-- it is currently unusable
+	-- it is currently unusable, writing works fine.
 	vga: block
 		signal vga_din_we_d: std_logic := '0';
 		signal vga_we_ram:   std_logic := '0';

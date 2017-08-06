@@ -21,7 +21,6 @@
 --| @todo Add a CRC module, and a XXTEA (https://en.wikipedia.org/wiki/XXTEA),
 --| these should be customizable so a different number of rounds can be
 --| selected per clock cycle.
---| @todo Add a test bench that calls all the other test benches
 --| @todo Document each component extensively, with timing diagrams.
 -------------------------------------------------------------------------------
 library ieee;

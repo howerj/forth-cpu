@@ -851,7 +851,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			return soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
 		return 0;
 	default:
-		/*warning("invalid read from %04"PRIx16, addr);*/
+		warning("invalid read from %04"PRIx16, addr);
 		break;
 	}
 	return 0;
@@ -910,7 +910,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
 	default:
-		/*warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value); */
+		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value); 
 		break;
 	}
 }

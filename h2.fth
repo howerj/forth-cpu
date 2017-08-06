@@ -11,11 +11,7 @@ Execution begins at a label called "start".
 
 TODO:
 * Turn this into a literate file
-* Turn magic number into constants
 * Fix interrupt code
-* An automatic test suite for this program would help in development a lot,
-it would have to interact with the debugger, a Perl script that deals
-with would be the optimal solution.
 * There is a bit of confusion over what words accept as execution tokens,
 some take pointers to the CFA of a word, other the PWD field
 * Load initial VGA screen from NVRAM?
@@ -62,16 +58,16 @@ isrBrnLeft:        .allocate cell ( Left button pressed )
 constant =exit         $601c ( op code for exit )
 constant =invert       $6600 ( op code for invert )
 constant =>r           $6147 ( op code for >r )
-constant =bl           32     ( blank, or space )
-constant =cr           13     ( carriage return )
-constant =lf           10     ( line feed )
-constant =bs           8      ( back space )
+constant =bl           32    ( blank, or space )
+constant =cr           13    ( carriage return )
+constant =lf           10    ( line feed )
+constant =bs           8     ( back space )
 
-constant c/l           64     ( characters per line in a block )
+constant c/l           64    ( characters per line in a block )
 
-constant tib-length    80     ( size of terminal input buffer )
-constant pad-length    80     ( pad area begins HERE + pad-length )
-constant word-length   31     ( maximum length of a word )
+constant tib-length    80    ( size of terminal input buffer )
+constant pad-length    80    ( pad area begins HERE + pad-length )
+constant word-length   31    ( maximum length of a word )
 
 ( Outputs: $6000 - $7FFF )
 constant oUart         $4000 ( UART TX/RX Control register )
@@ -279,7 +275,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 \ : roll  dup 0> if swap >r 1- roll r> swap else drop then ;
 : ndrop for aft drop then next ;          ( n1 ... nu u -- )
 : type begin dup while swap count emit swap 1- repeat 2drop ; ( b u -- : print a string )
-: $type begin dup while swap count >char emit swap 1- repeat 2drop ; ( b u -- : print a string )
+: $type begin dup while swap count >char emit swap 1- repeat 2drop ; hidden ( b u -- : print a string )
 : print count type ; hidden               ( b -- )
 : nuf? ( -- f ) key? if =cr = else 0 then ; ( -- f )
 \ : ?exit if rdrop then ;                   ( n --, R: n -- n | )
@@ -346,7 +342,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : mod  /mod drop ;           ( n n -- r )
 : /  /mod nip ;              ( n n -- q )
 : *  um* drop ;              ( n n -- n )
-: m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ; ( n n -- d )
+\ : m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ; ( n n -- d )
 \ : */mod  >r m* r> m/mod ;    ( n n n -- r q )
 \ : */  */mod nip ;            ( n n n -- q )
 \ : s>d dup 0< ;             ( n -- d : single to double )
@@ -627,8 +623,8 @@ location redefined " redefined"
 : "else" ?compile here 0 jump, swap doThen ; immediate
 : "while" ?compile call "if" ; immediate
 : "repeat" ?compile swap call "again" call "then" ; immediate
-: recurse ?compile last cfa compile, ; immediate
-: tail ?compile last cfa jump, ; immediate
+: recurse ?compile last address cfa compile, ; immediate
+: tail ?compile last address cfa jump, ; immediate
 : create call ":" ' doVar compile, [ ; ( @todo does> )
 : >body cell+ ;
 : "variable" create 0 , ;
@@ -1081,9 +1077,6 @@ manipulating a terminal )
 
 ( ======================== Starting Code ==================== )
 
-( @bug The ".set" directive is a bit of a hack at the moment, it divides the
-address by two for function address but not for labels, this works in the
-current setup, but is not ideal )
 start:
 .set entry start
 	vgaInit oVgaCtrl !

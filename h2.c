@@ -8,13 +8,7 @@
  * is based on the J1 processor (see http://excamera.com/sphinx/fpga-j1.html).
  *
  * The processor has been tested on an FPGA and is working. 
- * The project can be found at: https://github.com/howerj/forth-cpu
- *
- * @todo Load/Save special variables to symbol table
- * @todo Allow forward branches
- * @todo Add names to breakpoint structure
- * @todo Simulate both non-volatile and volatile memory, and back the
- * non-volatile memory with a file */
+ * The project can be found at: https://github.com/howerj/forth-cpu */
 
 /* ========================== Preamble: Types, Macros, Globals ============= */
 

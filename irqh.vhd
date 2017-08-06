@@ -2,14 +2,17 @@
 --| @file irqh.vhd
 --| @brief Interrupt request handler, while the CPU can handle interrupts
 --|        it does not to a good job of it. This allows customization of
---|        priority and other such things.
+--|        priority.
 --|
 --| @author     Richard James Howe.
 --| @copyright  Copyright 2017 Richard James Howe.
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
---| @todo Add FIFO to input interrupts
+--| This is a simple interrupt handler, interrupts are decoded in priority
+--| order which can be set by a generic. If an interrupt occurs and then
+--| another interrupt of the same type occurs before it has been processed
+--| the second interrupt will be lost.
 --------------------------------------------------------------------------------
 
 library ieee,work;

@@ -28,7 +28,6 @@
 --|  START 0 1 2 3 4 5 6 7 STOP
 --| ----\_/-|-|-|-|-|-|-|-|-|-------
 --|
---| @todo Buffer UART outputs?
 --------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -150,11 +149,6 @@ begin
 				dout_ack <= '1';
 			end if;
 
-			-- @note this should signal that data has been lost if
-			-- "tx_fifo_empty_internal" is '1'
-			-- @todo replace by modifying the UART so output a busy
-			-- signal when it is transmitting (or receiving a
-			-- character)
 			if tx_fifo_empty_internal = '0' and tx_fifo_full_internal = '0' and din_busy = '0' then
 				tx_fifo_re <= '1';
 				wrote_n    <= '1';

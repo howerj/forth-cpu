@@ -8,9 +8,6 @@
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
---| @todo Experiment with the interface, perhaps a std_logic_vector bus with
---| a single write enable would be better instead of making 
---| led_8_segment_displays_interface record
 --------------------------------------------------------------------------------
 library ieee,work;
 use ieee.std_logic_1164.all;
@@ -45,7 +42,7 @@ package led_pkg is
 			leds:     in   led_8_segment_displays_interface;
 
 			-- Physical outputs
-			an:       out  std_logic_vector(3 downto 0);  -- anodes, controls on/off
+			an:       out  std_logic_vector(number_of_led_displays - 1 downto 0);  -- anodes, controls on/off
 			ka:       out  std_logic_vector(7 downto 0)); -- cathodes, data on display
 	end component;
 
@@ -77,8 +74,8 @@ use work.led_pkg.all;
 entity led_8_segment_display is
 	generic(
 		clock_frequency:        positive;
-		use_bcd_not_hex:        boolean := true;
-		refresh_rate_us:        natural := 1500;
+		use_bcd_not_hex:        boolean  := true;
+		refresh_rate_us:        natural  := 1500;
 		number_of_led_displays: positive := 4);
 	port(
 		clk:      in   std_logic;
@@ -87,7 +84,7 @@ entity led_8_segment_display is
 		leds:     in   led_8_segment_displays_interface;
 
 		-- Physical outputs
-		an:       out  std_logic_vector(3 downto 0);  -- anodes, controls on/off
+		an:       out  std_logic_vector(number_of_led_displays - 1 downto 0);  -- anodes, controls on/off
 		ka:       out  std_logic_vector(7 downto 0)); -- cathodes, data on display
 end;
 

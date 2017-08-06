@@ -157,9 +157,6 @@ typedef struct {
 	h2_soc_state_t *soc;
 } h2_io_t;
 
-/**@todo used the enumerations h2_input_addr_t and h2_output_addr_t to
- * generate constants for use with the assembler */
-
 typedef enum {
 	iUart         = 0x4000,
 	iSwitches     = 0x4001,
