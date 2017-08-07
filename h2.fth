@@ -23,6 +23,8 @@ some take pointers to the CFA of a word, other the PWD field
 * A peephole optimizer and a super optimizer for the CPU could be created.
 * A quasi-graphics mode using the block characters could be made, it could
 then be used for some primitive games
+* Vectored words use @execute, which does nothing if the value to execute is
+zero, this can cause problems with words that drop or produce values.
 
 * For tiny math routines, look at:
 http://files.righto.com/calculator/sinclair_scientific_simulator.html
@@ -168,10 +170,10 @@ location see.alu          "ALU"       ( decompilation -> ALU operation )
 location see.call         "CAL"       ( decompilation -> Call )
 location see.branch       "BRN"       ( decompilation -> Branch )
 location see.0branch      "BRZ"       ( decompilation -> 0 Branch )
-location see.immediate    " immediate " ( decompilation -> immediate )
-location see.inline       " inline "
-location OK               "ok"  ( used by "prompt" )
-location redefined        " redefined"
+location see.immediate    " immediate " ( used by "see", for immediate words )
+location see.inline       " inline "    ( used by "see", for inline words )
+location OK               "ok"          ( used by "prompt" )
+location redefined        " redefined" 
 location border-string    "+---|---"
 location hi-string        "eFORTH V"
 
@@ -186,8 +188,8 @@ location hi-string        "eFORTH V"
 : 1+ 1 + ;                 ( n -- n )
 : negate invert 1 + ;      ( n -- n )
 : - invert 1 + + ;         ( n n -- n )
-\ : 2+ 2 + ;                 ( n -- n )
-\ : 2- 2 - ;                 ( n -- n )
+\ : 2+ 2 + ;               ( n -- n )
+\ : 2- 2 - ;               ( n -- n )
 : 2/ 1 rshift ;            ( n -- n )
 : 2* 1 lshift ;            ( n -- n )
 : cell- cell - ;           ( a -- a )
@@ -214,7 +216,7 @@ location hi-string        "eFORTH V"
 	swap $ff and dup 8 lshift or swap
 	swap over dup ( -2 and ) @ swap 1 and 0 = $ff xor
 	>r over xor r> and xor swap ( -2 and ) store drop ;
-\ : c, cp @ c! cp 1+! ;      ( c -- )
+\ : c, cp @ c! cp 1+! ;    ( c -- )
 
 : !io vgaInit oVgaCtrl ! 0 seti 0 oIrcMask ! ; ( -- : initialize I/O )
 
@@ -258,8 +260,8 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 ( ======================== Word Set ========================= )
 
-\ : 0<= 0> 0= ;                             ( n n -- f )
-\ : 0>= 0< 0= ;                             ( n n -- f )
+\ : 0<= 0> 0= ;                           ( n n -- f )
+\ : 0>= 0< 0= ;                           ( n n -- f )
 : 2! ( d a -- ) tuck ! cell+ ! ;          ( n n a -- )
 : 2@ ( a -- d ) dup cell+ @ swap @ ;      ( a -- n n )
 : here cp @ ;                             ( -- a )
@@ -270,12 +272,12 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : 3drop 2drop drop ; hidden               ( n n n -- )
 : bl =bl ;                                ( -- c )
 : within over - >r - r> u< ;              ( u lo hi -- t )
-\ : not -1 xor ;                            ( n -- n )
+\ : not -1 xor ;                          ( n -- n )
 : dnegate invert >r invert 1 um+ r> + ;   ( d -- d )
-\ : dabs dup 0< if dnegate then ;           ( d -- d )
-\ : d+  >r swap >r um+ r> r> + + ;          ( d d -- d )
-\ : d=  >r swap r> = >r = r> and ;          ( d d -- f )
-\ : d<> d= 0= ;                             ( d d -- f )
+\ : dabs dup 0< if dnegate then ;         ( d -- d )
+\ : d+  >r swap >r um+ r> r> + + ;        ( d d -- d )
+\ : d=  >r swap r> = >r = r> and ;        ( d d -- f )
+\ : d<> d= 0= ;                           ( d d -- f )
 : abs dup 0< if negate then ;             ( n -- u )
 : count  dup 1+ swap c@ ;                 ( cs -- b u )
 : rot >r swap r> swap ;                   ( n1 n2 n3 -- n2 n3 n1 )
@@ -288,7 +290,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : key? _key? @execute ;                   ( -- c -1 | 0 )
 : key begin key? until ;                  ( -- c )
 : allot cp +! ;                           ( u -- )
-: , here dup cell+ cp ! ! ;               ( u -- )
 : /string over min rot over + -rot - ;    ( b u1 u2 -- b u : advance a string u2 characters )
 : last pwd @ ;                            ( -- pwd )
 : emit _emit @execute ;                   ( c -- : write out a char )
@@ -315,7 +316,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : fill swap for swap aft 2dup c! 1+ then next 2drop ; ( b u c -- )
 : switch 2dup @ >r @ swap ! r> swap ! ; hidden ( a a -- : swap contents )
 : aligned dup 1 and if 1+ then ;          ( b -- a )
-: align cp @ aligned cp ! ;               ( -- )
+: align cp @ aligned cp ! ; hidden        ( -- )
 
 : catch  ( xt -- exception# | 0 : return addr on stack )
 	sp@ >r        ( xt : save data stack depth )
@@ -339,6 +340,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	then ;
 
 : um/mod ( ud u -- ur uq )
+	?dup 0= if -10 throw then
 	2dup u<
 	if negate 15
 		for >r dup um+ >r >r dup um+ r> + dup
@@ -364,34 +366,36 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : /mod  over 0< swap m/mod ; ( n n -- r q )
 : mod  /mod drop ;           ( n n -- r )
-: /  /mod nip ;              ( n n -- q )
-: *  um* drop ;              ( n n -- n )
+: /    /mod nip ;            ( n n -- q )
+: *    um* drop ;            ( n n -- n )
 \ : m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ; ( n n -- d )
-\ : */mod  >r m* r> m/mod ;    ( n n n -- r q )
-\ : */  */mod nip ;            ( n n n -- q )
+\ : */mod  >r m* r> m/mod ;  ( n n n -- r q )
+\ : */  */mod nip ;          ( n n n -- q )
 \ : s>d dup 0< ;             ( n -- d : single to double )
 
-: digit ( u -- c ) 9 over < 7 and + 48 + ;
-: extract ( n base -- n c ) 0 swap um/mod swap digit ;
-: <# ( -- ) pad hld ! ;
-: hold ( c -- ) hld @ 1 - dup hld ! c! ;
-: holds begin dup while 1- 2dup + c@ hold repeat 2drop ; ( a u -- )
-: # ( u -- u ) base @ extract hold ;
-: #s ( u -- 0 ) begin # dup while repeat ;
-: sign ( n -- ) 0< if [char] - hold then ;
-: #> ( w -- b u ) drop hld @ pad over - ;
-\ : binary ( -- ) 2 base ! ;
-\ : octal ( -- ) 8 base ! ;
-: decimal ( -- ) 10 base ! ;
-: hex ( -- ) 16 base ! ;
-: str dup >r abs <# #s r> sign #> ; hidden ( n -- b u : convert a signed integer to a numeric string )
-:  .r >r str r> over - spaces type ; ( n n : print n, right justified by +n )
-: u.r >r <# #s #> r> over - spaces type ; ( u +n -- : print u right justified by +n)
-: u.  <# #s #> space type ; ( u -- : print unsigned number )
-:  .  base @ 10 xor if u. exit then str space type ; ( n -- print space, signed number )
-: ? @ . ; ( a -- : display the contents in a memory cell )
-\ : 2. swap . . ;
-\ : .base ( -- ) base @ decimal dup . base  ! ;
+: radix base @ dup 2 - 34 u> if 10 base ! -40 throw then ; hidden
+: digit  9 over < 7 and + 48 + ; hidden      ( u -- c )
+: extract  0 swap um/mod swap digit ; hidden ( n base -- n c )
+: <#  pad hld ! ;                            ( -- )
+: ?hold hld @ cp @ u< if -17 throw then ; hidden ( -- )
+: hold  hld @ 1- dup hld ! ?hold c! ;        ( c -- )
+\ : holds begin dup while 1- 2dup + c@ hold repeat 2drop ; ( a u -- )
+: #  radix extract hold ;                    ( u -- u )
+: #s begin # dup while repeat ;              ( u -- 0 )
+: sign  0< if [char] - hold then ;           ( n -- )
+: #>  drop hld @ pad over - ;                ( w -- b u )
+\ : binary  2 base ! ;                       ( -- )
+\ : octal  8 base ! ;                        ( -- )
+: decimal  10 base ! ;                       ( -- )
+: hex  16 base ! ;                           ( -- )
+: str dup >r abs <# #s r> sign #> ; hidden   ( n -- b u : convert a signed integer to a numeric string )
+\ :  .r >r str r> over - spaces type ;       ( n n : print n, right justified by +n )
+: u.r >r <# #s #> r> over - spaces type ;    ( u +n -- : print u right justified by +n)
+: u.  <# #s #> space type ;                  ( u -- : print unsigned number )
+:  .  radix 10 xor if u. exit then str space type ; ( n -- print space, signed number )
+: ? @ . ;                                    ( a -- : display the contents in a memory cell )
+\ : 2. swap . . ;                            ( n n -- )
+\ : .base  radix decimal dup . base  ! ;    ( -- )
 
 \ : -trailing ( b u -- b u : remove trailing spaces )
 \	for
@@ -399,6 +403,9 @@ be available. "doList" and "doLit" do not need to be implemented. )
 \			if r> 1+ exit then
 \		then
 \	next 0 ;
+
+: ?dictionary dup $3f00 u> if -8 throw then ; hidden
+: , here dup cell+ ?dictionary cp ! ! ; ( u -- )
 
 : pack$ ( b u a -- a ) \ null fill
 	aligned dup >r over
@@ -475,7 +482,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	dup decimal?   if 48 - exit then ( 48 = '0' )
 	drop [-1] ; hidden
 
-: digit? >lower numeric? base @ u< ; ( c -- f : is char a digit given base )
+: digit? >lower numeric? base @ u< ; hidden ( c -- f : is char a digit given base )
 
 : do-number ( n b u -- n b u : convert string )
 	begin
@@ -493,29 +500,28 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	until ; hidden
 
 : >number ( n b u -- n b u : convert string )
-	base @ >r
+	radix >r
 	over c@ $2D = if 1 /string [-1] >r else 0 >r then ( -negative )
 	over c@ $24 = if 1 /string hex then ( $hex )
 	do-number
 	r> if rot negate -rot then
-	r> base ! ;
+	r> base ! ; hidden
 
 : number? 0 -rot >number nip 0= ; ( b u -- n f : is number? )
 
 : 5u.r 5 u.r ; hidden
-: dm+ 2/ for aft dup @ 5u.r cell+ then next ; ( a u -- a )
+: dm+ 2/ for aft dup @ space 6 u.r cell+ then next ; ( a u -- a )
 
 constant dump-length 16
 
 : dump ( a u -- )
-	base @ >r hex dump-length /
+	dump-length /
 	for
 		cr dump-length 2dup
-		over 5u.r 58 emit space
+		over 5 u.r 58 emit space
 		dm+ -rot
 		2 spaces $type
-	next drop r> base ! ;
-
+	next drop ;
 
 : lookfor ( b u c -- b u : skip until _test succeeds )
 	>r
@@ -547,9 +553,10 @@ not consumed in the previous parse )
 : "(" 41 parse 2drop ; immediate
 : ) ; immediate
 : "\" #tib @ >in ! ; immediate
-: word parse here pack$ ; ( c -- a ; <string> )
-: token =bl parse word-length min word-buf pack$ ; ( -- a ; <string> )
-: char token count drop c@ ; ( -- c; <string> )
+: ?length dup word-length u> if -19 throw then ; hidden
+: word parse ?length here pack$ ;          ( c -- a ; <string> )
+: token =bl parse ?length word-buf pack$ ; ( -- a ; <string> )
+: char token count drop c@ ;               ( -- c; <string> )
 : .s ( -- ) cr sp@ for aft r@ pick . then next .s-string print ;
 : unused $4000 here - ; hidden
 : .free unused u. ; hidden
@@ -635,7 +642,8 @@ when it does )
 : -csp csp 1-! ; hidden
 : ?compile state @ 0= if -14 throw then ; hidden ( fail if not compiling )
 : ?unique dup find if drop redefined print cr else drop then ; hidden ( a -- a )
-: ":" align save !csp here last address ,  =bl word ?unique count + aligned cp ! pwd ! ] ;
+: ?nul count 0= if -16 throw then 1- ; hidden ( b -- : check for zero length strings )
+: ":" align save !csp here last address ,  =bl word ?nul ?unique count + aligned cp ! pwd ! ] ;
 : "'" token find if cfa else -13 throw then ; immediate
 : ";" ?compile ?csp =exit , save [ ; immediate
 : jumpz, 2/ $2000 or , ; hidden
@@ -652,9 +660,9 @@ when it does )
 : recurse ?compile last address cfa compile, ; immediate
 : tail ?compile last address cfa jump, ; immediate
 : create call ":" ' doVar compile, [ ; ( @todo does> )
-: >body cell+ ;
+: >body ( dup @ $4000 or <> if -31 throw then ) cell+ ;
 : doDoes r> 2/ here 2/ last address cfa dup cell+ doLit ! , ; hidden 
-: does> ' doDoes compile, nop ; immediate
+: does> ?compile ' doDoes compile, nop ; immediate
 : "variable" create 0 , ;
 \ : doConst r> @ ; hidden
 \ : "constant" create , ' doConst make-callable last address cfa ! ;
@@ -958,7 +966,7 @@ perhaps it could be a vectored word )
 : led!      oLeds ! ; ( n -- : write to LED lights )
 : switches  iSwitches  @ ;
 : timer!    oTimerCtrl ! ;
-: timer@    iTimerDin  @ ;
+: timer     iTimerDin  @ ;
 
 : ps2? ( -- c -1 | 0 : like "rx?" but for the PS/2 keyboard )
 	iPs2 @ dup $ff and swap $0100 and if [-1] else drop 0 then ;
@@ -1111,7 +1119,7 @@ location .editor 0
 
 start:
 .set entry start
-	vgaInit oVgaCtrl !
+	!io
 	page
 	hi
 	cpu-id segments!
