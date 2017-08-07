@@ -13,6 +13,8 @@
 --|  CPU (such as interrupts and ALU operations) could be made to be optional.
 --|  * Turn this component into a package
 --|  * Turn this into a literate file, describing the CPU
+--|  * Look into the newer version of the J1 cores at
+--|    https://github.com/jamesbowman/swapforth for possible improvements
 --|
 -------------------------------------------------------------------------------
 
@@ -146,14 +148,6 @@ begin
 	-- I/O assignments
 	pco    <=  pc_n;
 
-	-- @note The loading and read timings really need looking at and
-	-- comparing with previous versions of this file, and with the original
-	-- j1.v source.
-	-- @note The lowest bit is not used for reading and writing to BRAM,
-	-- this is so it can be used for character addressing within
-	-- applications. All RAM I/O is 16-bit aligned however. The lowest bit
-	-- can be used by any external I/O. If the lowest bit is set this
-	-- should really raise a bus error, but this is not implemented.
 	dout   <=  nos;
 	daddr  <=  tos_c(13 downto 1) when is_ram_write = '1' else tos_n(13 downto 1);
 	dwe    <=  '1' when is_ram_write = '1' and tos_c(15 downto 14) = "00" else '0';
@@ -162,7 +156,6 @@ begin
 	io_dout   <=  nos;
 	io_daddr  <=  tos_c(15 downto 0);
 	io_wr     <= '1' when is_ram_write = '1' and tos_c(15 downto 14) /= "00" else '0';
-	-- @note io_re is handled in the ALU
 
 	pc_plus_one <= std_logic_vector(unsigned(pc_c) + 1);
 
@@ -221,7 +214,9 @@ begin
 		-- @todo Experiment with these instructions to see if removing
 		-- some or rearranging them speeds things up, the instructions
 		-- really should be rationalized to be in an order that makes
-		-- more sense.
+		-- more sense. Perhaps peripheral I/O and Memory reads and
+		-- writes could also be separated out into two sets of
+		-- instructions?
 		case aluop is -- ALU operation, 12 downto 8
 		when "00000" => tos_n <= tos_c;
 		when "00001" => tos_n <= nos;
