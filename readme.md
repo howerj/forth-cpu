@@ -66,7 +66,7 @@ You will require:
 
 Hardware:
 
-* VGA Monitor 
+* VGA Monitor
 * USB Keyboard (plugs into the Nexys3 USB to PS/2 bridge)
 * [Nexys3][] development board
 
@@ -80,7 +80,7 @@ registration. ISE needs to be on your path:
 
 To make the [C][] based toolchain:
 
-	make h2      
+	make h2
 
 To make a bit file that can be flashed to the target board:
 
@@ -452,8 +452,8 @@ counting, which can be supplied with iLfsr.
 This register contains the control registers for the onboard memory on the
 [Nexys3][] board. The board contains three memory devices, two non-volatile
 memory devices and a volatile RAM based device. The two devices accessible by a
-simple SRAM interface (one volatile M45W8MW16, one non-volatile - a 
-NP8P128A13T1760E) are both accessible, the third is an SPI based memory device, 
+simple SRAM interface (one volatile M45W8MW16, one non-volatile - a
+NP8P128A13T1760E) are both accessible, the third is an SPI based memory device,
 NP5Q128A13ESFC0E) and is currently not accessible.
 
 	+-------------------------------------------------------------------------------+
@@ -666,7 +666,7 @@ program (see [h2.c][]). This simulator complements the [VHDL][] test bench
 To build it a [C][] compiler is needed, the build target "h2" will build the
 executable:
 
-	make h2     
+	make h2
 
 And it can be run on the source file [h2.fth][] with the make target:
 
@@ -749,7 +749,7 @@ A rough [EBNF][] grammar for the language is as follows:
 	String      := '"' SChar* '"'
 	Char        := "[char]" ASCII ","
 	Number      := Hex | Decimal
-	Decimal     := "0" ... "9" ("0" ... "9")* 
+	Decimal     := "0" ... "9" ("0" ... "9")*
 	Hex         := "$" HexDigit HexDigit*
 	HexDigit    := ( "a" ... "f" | "A" ... "F" )
 	SChar       := Any character except quote
@@ -878,7 +878,7 @@ The simulator in C implements the H2 core and most of the SoC. The IO for the
 simulator is not cycle accurate (and most likely will never be), but can be
 used for running and debugging programs with results that are very similar to
 how the hardware behaves. This is much faster than rebuilding the bit file used
-to flash the [FPGA][]. 
+to flash the [FPGA][].
 
 ## Debugger
 
@@ -1016,7 +1016,7 @@ Below is an image of a running session in the GUI simulator:
 
 Building can be done with
 
-	make gui     
+	make gui
 
 And running:
 

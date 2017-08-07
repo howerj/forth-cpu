@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 --| @file h2.vhd
---| @brief The H2 Processor: J1 processor translation and extension. 
+--| @brief The H2 Processor: J1 processor translation and extension.
 --| Moved bit 12 to bit 4 to allow for more ALU instructions.
 --|
 --| @author         Richard James Howe.

@@ -7,7 +7,7 @@
  * a simulator, a disassembler and a debugger. The H2 is written in VHDL and
  * is based on the J1 processor (see http://excamera.com/sphinx/fpga-j1.html).
  *
- * The processor has been tested on an FPGA and is working. 
+ * The processor has been tested on an FPGA and is working.
  * The project can be found at: https://github.com/howerj/forth-cpu */
 
 /* ========================== Preamble: Types, Macros, Globals ============= */
@@ -883,7 +883,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	case iVgaTxtDout:   return 0;
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
-	case iMemDin:       
+	case iMemDin:
 		/**@todo Select nvram/vram, improve memory simulation */
 		if((soc->mem_control & PCM_MEMORY_OE) && !(soc->mem_control & PCM_MEMORY_WE))
 			return soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
@@ -918,9 +918,9 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	case o8SegLED:    soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
-	case oMemControl: 
+	case oMemControl:
 		/**@todo Select nvram/vram, improve memory simulation */
-		soc->mem_control    = value; 
+		soc->mem_control    = value;
 		if(!(soc->mem_control & PCM_MEMORY_OE) && (soc->mem_control & PCM_MEMORY_WE))
 			soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
 		break;
@@ -2096,7 +2096,7 @@ static void use(lexer_t *l, node_t *n)
 }
 
 static int token_enum_print(token_e sym, FILE *output)
-{ 
+{
 	assert(output);
 	assert(sym < LEX_ERROR);
 	const char *s = keywords[sym];
@@ -2737,7 +2737,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		}
 		/* fall through */
 	case SYM_LOCATION:
-		here(h, a); 
+		here(h, a);
 
 		if(n->o[0]->token->type == LEX_LITERAL) {
 			hole1 = hole(h, a);

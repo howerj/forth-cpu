@@ -11,7 +11,7 @@
 --|
 --| @note Non portable components could be put in a wrapper around this
 --| top level module, to make a top level synthesizeable component, this
---| could include things like a Digital Clock Manager (DCM), which is easy 
+--| could include things like a Digital Clock Manager (DCM), which is easy
 --| enough to simulate.
 ---------------------------------------------------------------------------------
 
@@ -63,7 +63,7 @@ entity top is
 		-- PS/2 Interface
 		ps2_keyboard_data:  in std_logic           := '0';
 		ps2_keyboard_clk:   in std_logic           := '0';
-	
+
 		-- Memory Interface
 		RamCS:    out   std_logic := '1';
 		--QuadSpiFlashCS: out   std_logic := '1';
@@ -298,7 +298,7 @@ begin
 
 		timer_control_o,
 		timer_counter_o,
-	
+
 		mem_data_o)
 	begin
 
@@ -349,7 +349,7 @@ begin
 				io_din(12)         <= tx_fifo_full;
 			when "001" => -- Switches and buttons
 				io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
-			when "010" => 
+			when "010" =>
 				-- @todo remove this register
 				io_din <= timer_control_o;
 			when "011" => -- Timer in
@@ -581,20 +581,20 @@ begin
 
 	--- Buttons -------------------------------------------------------
 
-	btnu_d0: entity work.debounce_us 
-		generic map(clock_frequency => clock_frequency, timer_period_us => 20000) 
+	btnu_d0: entity work.debounce_us
+		generic map(clock_frequency => clock_frequency, timer_period_us => 20000)
 		port map(clk => clk, di => btnu, do => btnu_d);
-	btnd_d0: entity work.debounce_us 
-		generic map(clock_frequency => clock_frequency, timer_period_us => 20000) 
+	btnd_d0: entity work.debounce_us
+		generic map(clock_frequency => clock_frequency, timer_period_us => 20000)
 		port map(clk => clk, di => btnd, do => btnd_d);
-	btnc_d0: entity work.debounce_us 
-		generic map(clock_frequency => clock_frequency, timer_period_us => 20000) 
+	btnc_d0: entity work.debounce_us
+		generic map(clock_frequency => clock_frequency, timer_period_us => 20000)
 		port map(clk => clk, di => btnc, do => btnc_d);
-	btnl_d0: entity work.debounce_us 
-		generic map(clock_frequency => clock_frequency, timer_period_us => 20000) 
+	btnl_d0: entity work.debounce_us
+		generic map(clock_frequency => clock_frequency, timer_period_us => 20000)
 		port map(clk => clk, di => btnl, do => btnl_d);
-	btnr_d0: entity work.debounce_us 
-		generic map(clock_frequency => clock_frequency, timer_period_us => 20000) 
+	btnr_d0: entity work.debounce_us
+		generic map(clock_frequency => clock_frequency, timer_period_us => 20000)
 		port map(clk => clk, di => btnr, do => btnr_d);
 
 	--- Buttons -------------------------------------------------------
@@ -602,10 +602,10 @@ begin
 	--- Switches ------------------------------------------------------
 
 	sw_debouncer: for i in sw'range generate
-		sw_d_instance: entity work.debounce_us 
+		sw_d_instance: entity work.debounce_us
 			generic map(
 				clock_frequency => clock_frequency,
-				timer_period_us => 20000) 
+				timer_period_us => 20000)
 			port map(clk => clk, di => sw(i), do => sw_d(i));
 	end generate;
 
@@ -617,39 +617,39 @@ begin
 	-- SRAM memory interface module so the timing is guaranteed to
 	-- be correct.
 
-	mem_addr_16_1_reg: entity work.reg 
-		generic map(N => 16) 
+	mem_addr_16_1_reg: entity work.reg
+		generic map(N => 16)
 		port map(
-			clk => clk, 
-			rst => rst, 
-			we  => mem_addr_16_1_we, 
+			clk => clk,
+			rst => rst,
+			we  => mem_addr_16_1_we,
 			di  => mem_addr_16_1,
 			do  => MemAdr(16 downto 1));
 
-	mem_addr_26_17_reg: entity work.reg 
-		generic map(N => 10) 
+	mem_addr_26_17_reg: entity work.reg
+		generic map(N => 10)
 		port map(
-			clk => clk, 
-			rst => rst, 
-			we  => mem_addr_26_17_we, 
+			clk => clk,
+			rst => rst,
+			we  => mem_addr_26_17_we,
 			di  => mem_addr_26_17,
 			do  => MemAdr(26 downto 17));
 
-	mem_control_reg: entity work.reg 
-		generic map(N => 6) 
+	mem_control_reg: entity work.reg
+		generic map(N => 6)
 		port map(
-			clk => clk, 
-			rst => rst, 
-			we  => mem_control_we, 
+			clk => clk,
+			rst => rst,
+			we  => mem_control_we,
 			di  => mem_control_i,
 			do  => mem_control_o);
 
-	mem_data_i_reg: entity work.reg 
-		generic map(N => 16) 
+	mem_data_i_reg: entity work.reg
+		generic map(N => 16)
 		port map(
-			clk => clk, 
-			rst => rst, 
-			we  => mem_data_i_we, 
+			clk => clk,
+			rst => rst,
+			we  => mem_data_i_we,
 			di  => mem_data_i,
 			do  => mem_data_buf_i);
 

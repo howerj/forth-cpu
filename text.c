@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 	for(ia = 1; ia < argc && argv[ia][0] == '-'; ia++) {
 		switch(argv[ia][1]) {
 		case '\0': goto done; /* stop processing options */
-		case 'h':  usage(argv[0]); 
+		case 'h':  usage(argv[0]);
 			   return -1;
 		case 'g':  gen = 1; break;
 		default:

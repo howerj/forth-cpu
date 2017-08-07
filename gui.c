@@ -16,6 +16,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <GL/glut.h>
 #include <GL/freeglut_ext.h> /* for glutStrokeHeight */
 #include <stdarg.h>
@@ -849,7 +850,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			return (char_arrived << PS2_NEW_CHAR_BIT) | c;
 		}
 	case iLfsr:     return soc->lfsr;
-	case iMemDin:       
+	case iMemDin:
 		if((soc->mem_control & PCM_MEMORY_OE) && !(soc->mem_control & PCM_MEMORY_WE))
 			return soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
 		return 0;
@@ -905,15 +906,15 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 			  soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
-	case oMemControl: 
-		soc->mem_control    = value; 
+	case oMemControl:
+		soc->mem_control    = value;
 		if(!(soc->mem_control & PCM_MEMORY_OE) && (soc->mem_control & PCM_MEMORY_WE))
 			soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
 		break;
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
 	default:
-		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value); 
+		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 		break;
 	}
 }
@@ -1020,7 +1021,7 @@ static void keyboard_special_handler(int key, int x, int y)
 	case GLUT_KEY_F6:    switches[5].on = !(switches[5].on); break;
 	case GLUT_KEY_F7:    switches[6].on = !(switches[6].on); break;
 	case GLUT_KEY_F8:    switches[7].on = !(switches[7].on); break;
-	case GLUT_KEY_F9:    world.step       = true;                              
+	case GLUT_KEY_F9:    world.step       = true;
 			     world.debug_mode = true;
 			     break;
 	case GLUT_KEY_F10:   world.debug_mode     = !(world.debug_mode);     break;
@@ -1163,7 +1164,7 @@ static void draw_scene(void)
 			increment = 1;
 		else if(!(world.debug_mode))
 			increment = RUN_FOR;
-		
+
 		if(increment)
 			if(h2_run(h, h2_io, stderr, increment, NULL, false) < 0)
 				world.halt_simulation = true;
@@ -1175,7 +1176,7 @@ static void draw_scene(void)
 	if(world.debug_extra) {
 		draw_debug_h2(h, X_MIN + X_MAX/40., Y_MAX*0.70);
 	} else {
-		
+
 		draw_vga(&world, &vga);
 	}
 
@@ -1241,7 +1242,7 @@ int main(int argc, char **argv)
 	FILE *hexfile = NULL;
 	FILE *nvram_fh = NULL;
 	int r = 0;
-	
+
 	assert(Y_MAX > 0. && Y_MIN < Y_MAX && Y_MIN >= 0.);
 	assert(X_MAX > 0. && X_MIN < X_MAX && X_MIN >= 0.);
 

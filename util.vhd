@@ -2062,7 +2062,7 @@ entity restoring_divider is
 		c:     out unsigned(N - 1 downto 0));
 end entity;
 
-architecture rtl of restoring_divider is 
+architecture rtl of restoring_divider is
 	signal a_c, a_n: unsigned(a'range) := (others => '0');
 	signal b_c, b_n: unsigned(b'range) := (others => '0');
 	signal m_c, m_n: unsigned(b'range) := (others => '0');
@@ -2109,7 +2109,7 @@ begin
 			o_n   <= (others => '0');
 			count_n <= (others => '0');
 		elsif e_c = '1' then
-			if count_c(count_c'high) = '1' then 
+			if count_c(count_c'high) = '1' then
 				done  <= '1';
 				e_n   <= '0';
 				o_n   <= a_c;
@@ -2159,7 +2159,7 @@ begin
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
 		port map(stop => stop, clk => clk, rst => rst);
 
-	uut: entity work.restoring_divider 
+	uut: entity work.restoring_divider
 		generic map(N => N)
 		port map(
 			clk   => clk,
@@ -2211,13 +2211,13 @@ entity debounce_us is
 		do:    out std_logic := '0');
 end entity;
 
-architecture rtl of debounce_us is 
+architecture rtl of debounce_us is
 	signal ff: std_logic_vector(1 downto 0) := (others => '0');
 	signal rst, done: std_logic             := '0';
 begin
 	timer: work.util.timer_us
 		generic map(
-			clock_frequency => clock_frequency, 
+			clock_frequency => clock_frequency,
 			timer_period_us => timer_period_us)
 		port map(
 			clk => clk,
