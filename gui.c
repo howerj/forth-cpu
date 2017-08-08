@@ -34,7 +34,7 @@
 #define Y_MAX         (100.0)
 #define Y_MIN         (0.0)
 #define LINE_WIDTH    (0.5)
-#define RUN_FOR       (5000)
+#define RUN_FOR       (100000)
 
 typedef struct {
 	double window_height;
@@ -1282,8 +1282,8 @@ int main(int argc, char **argv)
 	}
 
 	uart_rx_fifo = fifo_new(UART_FIFO_DEPTH);
-	uart_tx_fifo = fifo_new(UART_FIFO_DEPTH);
-	ps2_rx_fifo  = fifo_new(8 /* should be 1 - but this does not work */);
+	uart_tx_fifo = fifo_new(UART_FIFO_DEPTH * 100); /** @note x100 to speed things up */
+	ps2_rx_fifo  = fifo_new(8 /** @bug should be 1 - but this does not work, FIFO implementation needs correcting */);
 
 	errno = 0;
 	if((nvram_fh = fopen(nvram_file, "rb"))) {

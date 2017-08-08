@@ -242,8 +242,8 @@ location hi-string        "eFORTH V"
 hardware, something must be broken, it works fine in the simulation
 and speeds things up greatly )
 : tx! ( c -- : write a character to UART )
-	\ begin iUart @ $1000 and 0= until ( Wait until TX FIFO is not full )
-	begin iUart @ $0800 and until ( Wait until TX FIFO is empty )
+	begin iUart @ $1000 and 0= until ( Wait until TX FIFO is not full )
+	\ begin iUart @ $0800 and until ( Wait until TX FIFO is empty )
 	$2000 or oUart ! ;            ( Write character out )
 
 : um+ ( w w -- w carry )
@@ -932,20 +932,17 @@ they are exactly the same apart from the direction of the read/write )
 
 ( ======================== Password/Users =================== )
 
-\ \ @todo modify emit/ktap to transmit '*' instead of password characters,
-\ \ and make a password cracker 
-\ 
+\ @todo modify emit/ktap to transmit '*' instead of password characters,
+\ and make a password cracker 
+
 \ location user>     "user> "
 \ location password> "password> "
-\ 
 \ location user0.prev 0      
 \ location user0.pass $576F    ( guest )
 \ location user0.name "guest"
-\ 
 \ location user1.prev 0        .set user1.prev user0.prev
 \ location user1.pass $89CD    ( dangerzone )
 \ location user1.name "archer"
-\ 
 \ location user2.prev 0        .set user2.prev user1.prev
 \ location user2.pass $8E60    ( sterling )
 \ location user2.name "lana"
@@ -989,15 +986,11 @@ they are exactly the same apart from the direction of the read/write )
 \ 	until rdrop ; hidden
 \ 
 \ : fake.password password> print query token drop cr ( 1000 ms ) ; hidden
-\ 
 \ : _user? begin user> print query token cr find.user ?dup until ; hidden
-\ 
 \ : retry >r begin r@ catch 0= until rdrop ; ( xt -- )
-\ 
 \ : user?     ' _user?     retry ; hidden
 \ : password? ' _password? retry ; hidden
-\ 
-\ : login cr user? cell+ @ password? ;
+\ : login cr user? cell+ @ password? .ok ;
  
 ( ======================== Password/Users =================== )
 
@@ -1084,7 +1077,6 @@ irq:
 	$0040 oIrcMask !
 	$ffff oTimerCtrl !
 	1 ien drop ;
-
 
 ( ======================== Miscellaneous ==================== )
 

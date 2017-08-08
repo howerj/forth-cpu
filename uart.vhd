@@ -189,7 +189,11 @@ begin
 			empty => tx_fifo_empty_internal);
 
 	tx_fifo_empty <= tx_fifo_empty_internal;
-	tx_fifo_full  <= tx_fifo_full_internal;
+	-- @bug This is a hack, it should be just 'tx_fifo_full_internal', but 
+	-- it does not work correctly, so as a temporary hack the busy signal
+	-- is or'd in so the data source can block until the FIFO is 'not full' 
+	-- and not lose any data thinking it has been transmitted.
+	tx_fifo_full  <= '1' when tx_fifo_full_internal = '1' or din_busy = '1' else '0';
 
 	uart: work.uart_pkg.uart_core
 		generic map(
@@ -220,22 +224,22 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity uart_core is
-	generic (baud_rate: positive; clock_frequency: positive);
-	port (
-	        clk:       in      std_logic;
-	        rst:       in      std_logic;
-	        din:       in      std_logic_vector(7 downto 0);
-	        din_stb:   in      std_logic;
-	        din_ack:   out     std_logic := '0';
+	generic(baud_rate: positive; clock_frequency: positive);
+	port(
+		clk:       in      std_logic;
+		rst:       in      std_logic;
+		din:       in      std_logic_vector(7 downto 0);
+		din_stb:   in      std_logic;
+		din_ack:   out     std_logic := '0';
 		din_busy:  out     std_logic;
 
-	        dout:      out     std_logic_vector(7 downto 0);
-	        dout_stb:  out     std_logic;
-	        dout_ack:  in      std_logic;
+		dout:      out     std_logic_vector(7 downto 0);
+		dout_stb:  out     std_logic;
+		dout_ack:  in      std_logic;
 		dout_busy: out     std_logic;
 
-	        tx:        out     std_logic;
-	        rx:        in      std_logic);
+		tx:        out     std_logic;
+		rx:        in      std_logic);
 end entity;
 
 architecture behav of uart_core is
@@ -306,13 +310,13 @@ begin
 			baud_counter <= 0;
 			baud_tick    <= '0';
 		elsif rising_edge (clk) then
-				if baud_counter = c_tx_divider_val then
-					baud_counter <= 0;
-					baud_tick    <= '1';
-				else
-					baud_counter <= baud_counter + 1;
-					baud_tick    <= '0';
-				end if;
+			if baud_counter = c_tx_divider_val then
+				baud_counter <= 0;
+				baud_tick    <= '1';
+			else
+				baud_counter <= baud_counter + 1;
+				baud_tick    <= '0';
+			end if;
 		end if;
 	end process;
 
