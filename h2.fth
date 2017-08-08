@@ -25,6 +25,10 @@ some take pointers to the CFA of a word, other the PWD field
 then be used for some primitive games
 * Vectored words use @execute, which does nothing if the value to execute is
 zero, this can cause problems with words that drop or produce values.
+* Memory allocator, simple block based file system and utilities,
+soft floating point or fixed pointer library, elementary math functions, ...
+ - http://www.drdobbs.com/cpp/optimizing-math-intensive-applications-w/207000448
+ - https://stackoverflow.com/questions/2187379/floating-point-library-for-embedded-application
 
 * For tiny math routines, look at:
 http://files.righto.com/calculator/sinclair_scientific_simulator.html
@@ -67,6 +71,7 @@ constant =lf           10    ( line feed )
 constant =bs           8     ( back space )
 
 constant c/l           64    ( characters per line in a block )
+constant l/b           16    ( lines in a block )
 
 constant tib-length    80    ( size of terminal input buffer )
 constant pad-length    80    ( pad area begins HERE + pad-length )
@@ -138,7 +143,7 @@ location rendezvous 0  ( saved cp and pwd )
 .allocate cell
 location seed       1  ( seed used for the PRNG )
 location cursor     0  ( index into VGA text memory )
-variable handler    0  ( current handler for throw/catch )
+location handler    0  ( current handler for throw/catch )
 location version $666  ( eForth version information )
 variable >in        0  ( Hold character pointer when parsing input )
 variable state      0  ( compiler state variable )
@@ -218,7 +223,7 @@ location hi-string        "eFORTH V"
 	>r over xor r> and xor swap ( -2 and ) store drop ;
 \ : c, cp @ c! cp 1+! ;    ( c -- )
 
-: !io vgaInit oVgaCtrl ! 0 seti 0 oIrcMask ! ; ( -- : initialize I/O )
+: !io vgaInit oVgaCtrl ! 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
 
 : rx? ( -- c -1 | 0 : read in a character of input from UART )
 	iUart @ $0100 and 0=
@@ -332,15 +337,16 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		handler @ rp! ( exc# : restore prev return stack )
 		r> handler !  ( exc# : restore prev handler )
 		r> swap >r    ( saved-sp : exc# on return stack )
-		.break
 		sp@ swap - ndrop r>   ( exc# : restore stack )
 		( return to the caller of catch because return )
 		( stack is restored to the state that existed )
 		( when catch began execution )
 	then ;
 
+: -throw negate throw ; hidden ( space saving measure )
+
 : um/mod ( ud u -- ur uq )
-	?dup 0= if -10 throw then
+	?dup 0= if 10 -throw then
 	2dup u<
 	if negate 15
 		for >r dup um+ >r >r dup um+ r> + dup
@@ -373,11 +379,11 @@ be available. "doList" and "doLit" do not need to be implemented. )
 \ : */  */mod nip ;          ( n n n -- q )
 \ : s>d dup 0< ;             ( n -- d : single to double )
 
-: radix base @ dup 2 - 34 u> if 10 base ! -40 throw then ; hidden
+: radix base @ dup 2 - 34 u> if 10 base ! 40 -throw then ; hidden
 : digit  9 over < 7 and + 48 + ; hidden      ( u -- c )
 : extract  0 swap um/mod swap digit ; hidden ( n base -- n c )
 : <#  pad hld ! ;                            ( -- )
-: ?hold hld @ cp @ u< if -17 throw then ; hidden ( -- )
+: ?hold hld @ cp @ u< if 17 -throw then ; hidden ( -- )
 : hold  hld @ 1- dup hld ! ?hold c! ;        ( c -- )
 \ : holds begin dup while 1- 2dup + c@ hold repeat 2drop ; ( a u -- )
 : #  radix extract hold ;                    ( u -- u )
@@ -397,14 +403,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 \ : 2. swap . . ;                            ( n n -- )
 \ : .base  radix decimal dup . base  ! ;    ( -- )
 
-\ : -trailing ( b u -- b u : remove trailing spaces )
-\	for
-\		aft =bl over r@ + c@ <
-\			if r> 1+ exit then
-\		then
-\	next 0 ;
-
-: ?dictionary dup $3f00 u> if -8 throw then ; hidden
+: ?dictionary dup $3f00 u> if 8 -throw then ; hidden
 : , here dup cell+ ?dictionary cp ! ! ; ( u -- )
 
 : pack$ ( b u a -- a ) \ null fill
@@ -432,7 +431,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	begin
 		2dup xor
 	while
-		key  dup =bl -  95 u<
+		key  dup =bl - 95 u<
 		if tap else _tap @execute then
 	repeat drop over - ;
 
@@ -553,7 +552,7 @@ not consumed in the previous parse )
 : "(" 41 parse 2drop ; immediate
 : ) ; immediate
 : "\" #tib @ >in ! ; immediate
-: ?length dup word-length u> if -19 throw then ; hidden
+: ?length dup word-length u> if 19 -throw then ; hidden
 : word parse ?length here pack$ ;          ( c -- a ; <string> )
 : token =bl parse ?length word-buf pack$ ; ( -- a ; <string> )
 : char token count drop c@ ;               ( -- c; <string> )
@@ -610,7 +609,7 @@ not consumed in the previous parse )
 			nip
 			state @ if literal then
 		else
-			drop space print -13 throw
+			drop space print 13 -throw
 		then
 	then ;
 
@@ -637,14 +636,14 @@ instead
 when it does )
 
 : !csp sp@ csp ! ; hidden
-: ?csp sp@ csp @ xor if -22 throw then ; hidden
+: ?csp sp@ csp @ xor if 22 -throw then ; hidden
 : +csp csp 1+! ; hidden
 : -csp csp 1-! ; hidden
-: ?compile state @ 0= if -14 throw then ; hidden ( fail if not compiling )
+: ?compile state @ 0= if 14 -throw then ; hidden ( fail if not compiling )
 : ?unique dup find if drop redefined print cr else drop then ; hidden ( a -- a )
-: ?nul count 0= if -16 throw then 1- ; hidden ( b -- : check for zero length strings )
+: ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
 : ":" align save !csp here last address ,  =bl word ?nul ?unique count + aligned cp ! pwd ! ] ;
-: "'" token find if cfa else -13 throw then ; immediate
+: "'" token find if cfa else 13 -throw then ; immediate
 : ";" ?compile ?csp =exit , save [ ; immediate
 : jumpz, 2/ $2000 or , ; hidden
 : jump, 2/ ( $0000 or ) , ; hidden
@@ -660,7 +659,7 @@ when it does )
 : recurse ?compile last address cfa compile, ; immediate
 : tail ?compile last address cfa jump, ; immediate
 : create call ":" ' doVar compile, [ ; ( @todo does> )
-: >body ( dup @ $4000 or <> if -31 throw then ) cell+ ;
+: >body ( dup @ $4000 or <> if 31 -throw then ) cell+ ;
 : doDoes r> 2/ here 2/ last address cfa dup cell+ doLit ! , ; hidden 
 : does> ?compile ' doDoes compile, nop ; immediate
 : "variable" create 0 , ;
@@ -730,6 +729,16 @@ source-id word can be used by words to modify their behavior )
 : blank =bl fill ;
 \ : blank-thru over - for dup block b/buf blank update 1+ next drop flush ;
 
+: -trailing ( b u -- b u : remove trailing spaces )
+	for
+		aft =bl over r@ + c@ <
+			if r> 1+ exit then
+		then
+	next 0 ;
+
+( display a message from a line within a block )
+: msg dup 4 rshift block swap 15 and c/l * + c/l -trailing $type cr ; ( u -- )
+
 : ccitt ( crc c -- crc : calculate polynomial $1021 AKA "x16 + x12 + x5 + 1" )
  	over 256/ xor               ( crc x )
  	dup  4  rshift xor          ( crc x )
@@ -742,7 +751,7 @@ source-id word can be used by words to modify their behavior )
 	begin
 		dup
 	while
-		r> over c@ ccitt >r 1 /string
+		over c@ r> swap ccitt >r 1 /string
 	repeat 2drop r> ;
 
 : random seed @ dup 15 lshift ccitt dup seed ! ; ( -- u )
@@ -839,7 +848,7 @@ i.end:   5u.r rdrop exit
 	drop ; hidden
 
 : see
-	token find 0= if -11 throw then
+	token find 0= if 11 -throw then
 	cr 58 emit space dup .id
 	dup inline?    if see.inline    print then
 	dup immediate? if see.immediate print then
@@ -893,7 +902,7 @@ constant mwin-max $1ff
 : r1+ r> r> 1+ >r >r ; hidden ( R: n -- n : increment first return stack value )
 
 : minvalid ( k -- k : is 'k' a valid block number, throw on error )
-	dup block-invalid = if -35 throw then ; hidden
+	dup block-invalid = if 35 -throw then ; hidden
 
 ( @note msave and mload could be factored into a single word with MAKE/DOER,
 they are exactly the same apart from the direction of the read/write )
@@ -920,6 +929,77 @@ they are exactly the same apart from the direction of the read/write )
 	rdrop 2drop 0 ; hidden
 
 ( ======================== Memory Interface ================= )
+
+( ======================== Password/Users =================== )
+
+\ \ @todo modify emit/ktap to transmit '*' instead of password characters,
+\ \ and make a password cracker 
+\ 
+\ location user>     "user> "
+\ location password> "password> "
+\ 
+\ location user0.prev 0      
+\ location user0.pass $576F    ( guest )
+\ location user0.name "guest"
+\ 
+\ location user1.prev 0        .set user1.prev user0.prev
+\ location user1.pass $89CD    ( dangerzone )
+\ location user1.name "archer"
+\ 
+\ location user2.prev 0        .set user2.prev user1.prev
+\ location user2.pass $8E60    ( sterling )
+\ location user2.name "lana"
+\ 
+\ location user.pwd  0 .set user.pwd user2.prev
+\ 
+\ : generate count dup >r crc r> ccitt ; hidden ( a -- u )
+\ 
+\ : mk.user ( -- ; <string1> <string2> : make a new user with a password  )
+\ 	here user.pwd @ , user.pwd !
+\ 	here 0 , 
+\ 	=bl word count 1+ allot align drop
+\ 	token generate swap ! ;
+\ 
+\ : ls.user ( -- : list all users )
+\ 	cr
+\ 	user.pwd @
+\ 	begin
+\ 		dup
+\ 	while
+\ 		dup 2 cells + space print cr
+\ 		@
+\ 	repeat drop cr ;
+\ 
+\ : find.user ( a -- u | 0 : find a user )
+\ 	>r
+\ 	user.pwd @
+\ 	begin
+\ 		dup
+\ 	while
+\ 		dup 2 cells + count r@ count =string if rdrop exit then
+\ 		@
+\ 	repeat rdrop drop 0 ;
+\ 
+\ : _password? ( u -- : <string> )
+\ 	>r
+\ 	begin 
+\ 		password> print 
+\ 		query 
+\ 		token cr generate r@ =  ( 1000 ms )
+\ 	until rdrop ; hidden
+\ 
+\ : fake.password password> print query token drop cr ( 1000 ms ) ; hidden
+\ 
+\ : _user? begin user> print query token cr find.user ?dup until ; hidden
+\ 
+\ : retry >r begin r@ catch 0= until rdrop ; ( xt -- )
+\ 
+\ : user?     ' _user?     retry ; hidden
+\ : password? ' _password? retry ; hidden
+\ 
+\ : login cr user? cell+ @ password? ;
+ 
+( ======================== Password/Users =================== )
 
 ( ======================== Miscellaneous ==================== )
 
@@ -989,20 +1069,22 @@ perhaps it could be a vectored word )
 
 \ Testing for the interrupt mechanism, interrupts do not
 \ work correctly at the moment
-(
+
+variable icount 0
+
 irq:
-	.break
-	0 seti
+	0 ien drop
 	switches led!
-	1 seti
+	icount 1+!
+	1 ien drop
 	exit
 
 .set 12 irq
 : irqTest
-	$ffff oIrcMask !
+	$0040 oIrcMask !
 	$ffff oTimerCtrl !
-	1 seti ;
-)
+	1 ien drop ;
+
 
 ( ======================== Miscellaneous ==================== )
 
@@ -1080,7 +1162,7 @@ manipulating a terminal )
       s    save block and write it out
       u    update block )
 
-(
+( 
 location .forth 0
 location .editor 0
 : forth .forth @ pwd ! ;
@@ -1090,7 +1172,7 @@ location .editor 0
 \ @todo implement vocabularies and put these words in the editor vocabulary,
 \ also make an insert mode that reads up to 15 lines of text
 : [block] blk @ block ; hidden
-: [check] dup b/buf c/l / u>= if -24 throw then ; hidden
+: [check] dup b/buf c/l / u>= if 24 -throw then ; hidden
 : [line] [check] c/l * [block] + ; hidden
 : [clean] ; hidden \ @todo call >char on modified line
 : n  1 +block block drop ;
@@ -1114,7 +1196,6 @@ location .editor 0
 .set .editor $pwd
 )
 
-
 ( ======================== Starting Code ==================== )
 
 start:
@@ -1123,7 +1204,7 @@ start:
 	page
 	hi
 	cpu-id segments!
-
+	\ login
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
 

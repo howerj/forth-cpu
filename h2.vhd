@@ -243,6 +243,7 @@ begin
 				tos_n(vstkp_c'range) <= vstkp_c;
 		when "01111" => tos_n    <= (others => compare.umore);
 		when "10000" => int_en_n <= tos_c(0);
+				-- tos_n    <= nos;
 		when "10001" => tos_n    <= (others => int_en_c);
 		when "10010" => tos_n(15 downto 0) <= (others => '0');
 				tos_n(rstkp_c'range) <= rstkp_c;

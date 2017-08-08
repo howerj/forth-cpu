@@ -136,8 +136,8 @@ typedef enum {
 	X(OR,     "or",     (OP_ALU_OP | MK_CODE(ALU_OP_T_OR_N)                 | MK_DSTACK(DELTA_N1)))\
 	X(DEPTH,  "sp@",    (OP_ALU_OP | MK_CODE(ALU_OP_DEPTH)   | T_TO_N       | MK_DSTACK(DELTA_1)))\
 	X(T_N1,   "1-",     (OP_ALU_OP | MK_CODE(ALU_OP_T_DECREMENT)))\
-	X(IEN,    "seti",   (OP_ALU_OP | MK_CODE(ALU_OP_ENABLE_INTERRUPTS)      | MK_DSTACK(DELTA_N1)))\
-	X(ISIEN,  "iset?",  (OP_ALU_OP | MK_CODE(ALU_OP_INTERRUPTS_ENABLED)     | MK_DSTACK(DELTA_1)))\
+	X(IEN,    "ien",    (OP_ALU_OP | MK_CODE(ALU_OP_ENABLE_INTERRUPTS)     /* | MK_DSTACK(DELTA_N1) */))\
+	X(ISIEN,  "ien?",   (OP_ALU_OP | MK_CODE(ALU_OP_INTERRUPTS_ENABLED) | T_TO_N  | MK_DSTACK(DELTA_1)))\
 	X(RDEPTH, "rp@",    (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)  | T_TO_N       | MK_DSTACK(DELTA_1)))\
 	X(TE0,    "0=",     (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
 	X(NOP,    "nop",    (OP_ALU_OP | MK_CODE(ALU_OP_T)))\
@@ -672,8 +672,8 @@ static const char *alu_op_to_string(uint16_t instruction)
 	case ALU_OP_N_LSHIFT_T:         return "N<<T";
 	case ALU_OP_DEPTH:              return "depth";
 	case ALU_OP_N_ULESS_T:          return "Tu>N";
-	case ALU_OP_ENABLE_INTERRUPTS:  return "seti";
-	case ALU_OP_INTERRUPTS_ENABLED: return "iset?";
+	case ALU_OP_ENABLE_INTERRUPTS:  return "ien";
+	case ALU_OP_INTERRUPTS_ENABLED: return "ien?";
 	case ALU_OP_RDEPTH:             return "rdepth";
 	case ALU_OP_T_EQUAL_0:          return "0=";
 	case ALU_OP_CPU_ID:             return "cpu-id";
@@ -1531,7 +1531,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			case ALU_OP_N_LSHIFT_T: tos = nos << tos;           break;
 			case ALU_OP_DEPTH:      tos = h->sp;                break;
 			case ALU_OP_N_ULESS_T:  tos = -(nos < tos);         break;
-			case ALU_OP_ENABLE_INTERRUPTS: h->ie = tos & 1;     break;
+			case ALU_OP_ENABLE_INTERRUPTS: h->ie = tos & 1; /*tos = nos;*/ break;
 			case ALU_OP_INTERRUPTS_ENABLED: tos = -h->ie;       break;
 			case ALU_OP_RDEPTH:     tos = h->rp;                break;
 			case ALU_OP_T_EQUAL_0:  tos = -(tos == 0);          break;
@@ -2539,11 +2539,13 @@ static void generate_jump(h2_t *h, assembler_t *a, symbol_table_t *t, token_t *t
 	assert(a);
 
 	if(tok->type == LEX_IDENTIFIER || tok->type == LEX_STRING) {
+		/** @todo if not found add to a patch list, allowing forward branches */
 		s = symbol_table_lookup(t, tok->p.id);
 		if(!s)
 			assembly_error(e, "undefined symbol: %s", tok->p.id);
 		addr = s->value;
 
+		/** @todo Get rid of this? */
 		if(s->type == SYMBOL_TYPE_CALL && type != SYM_CALL)
 			assembly_error(e, "cannot branch/0branch to call: %s", tok->p.id);
 
