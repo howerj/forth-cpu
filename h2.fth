@@ -509,7 +509,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : number? 0 -rot >number nip 0= ; ( b u -- n f : is number? )
 
 : 5u.r 5 u.r ; hidden
-: dm+ 2/ for aft dup @ space 6 u.r cell+ then next ; ( a u -- a )
+: dm+ 2/ for aft dup @ space 5 u.r cell+ then next ; ( a u -- a )
 
 constant dump-length 16
 
@@ -1025,9 +1025,11 @@ perhaps it could be a vectored word )
 
 : at-xy 256* or oVgaCursor ! ; ( x y -- : set terminal cursor to x-y position )
 
-: vgaX*  dup  6 lshift swap 4 lshift + ; hidden ( n -- n : 80* )
+: vgaX* dup 6 lshift swap 4 lshift + ; hidden ( n -- n : 80* )
 : vgaTextSizeMod dup vgaTextSize u> if vgaTextSize - then ; hidden
 
+( @todo This does not handle transitions between screen correctly, it appears
+a character is dropped somewhere )
 : terminal ( n a -- a : act like a terminal )
 	swap
 	dup =lf = if drop 0 vgaX um/mod nip 1+ dup 0 swap at-xy vgaX* exit then
