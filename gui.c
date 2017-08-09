@@ -1,10 +1,7 @@
 /**@file      h2.c
  * @brief     Simulate the H2 SoC peripherals visually
  * @copyright Richard James Howe (2017)
- * @license   MIT
- *
- * @todo Print debugging information for the H2 CPU to the screen, and make a
- * graphical debugger (simulation can be paused, single step through, etcetera)*/
+ * @license   MIT */
 
 #include "h2.h"
 #include <assert.h>
@@ -34,6 +31,8 @@
 #define Y_MAX         (100.0)
 #define Y_MIN         (0.0)
 #define LINE_WIDTH    (0.5)
+/** @todo make configurable, or automatically adjust rate depending on how
+ * much free time there is after rendering */
 #define RUN_FOR       (100000)
 
 typedef struct {

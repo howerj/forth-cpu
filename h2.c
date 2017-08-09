@@ -1636,6 +1636,7 @@ typedef enum {
 	LEX_INLINE,
 	LEX_QUOTE,
 
+	LEX_PWD,
 	LEX_SET,
 	LEX_PC,
 	LEX_BREAK,
@@ -1684,6 +1685,7 @@ static const char *keywords[] =
 	[LEX_HIDDEN]     =  "hidden",
 	[LEX_INLINE]     =  "inline",
 	[LEX_QUOTE]      =  "'",
+	[LEX_PWD]        =  ".pwd",
 	[LEX_SET]        =  ".set",
 	[LEX_PC]         =  ".pc",
 	[LEX_BREAK]      =  ".break",
@@ -1996,6 +1998,7 @@ again:
 	X(SYM_DEFINITION,          "definition")\
 	X(SYM_CHAR,                "[char]")\
 	X(SYM_QUOTE,               "'")\
+	X(SYM_PWD,                 "pwd")\
 	X(SYM_SET,                 "set")\
 	X(SYM_PC,                  "pc")\
 	X(SYM_BREAK,               "break")\
@@ -2299,6 +2302,17 @@ static node_t *pc(lexer_t *l)
 	return r;
 }
 
+static node_t *pwd(lexer_t *l)
+{
+	node_t *r;
+	assert(l);
+	r = node_new(l, SYM_PWD, 0);
+	if(!accept(l, LEX_LITERAL))
+		expect(l, LEX_IDENTIFIER);
+	use(l, r);
+	return r;
+}
+
 static node_t *set(lexer_t *l)
 {
 	node_t *r;
@@ -2388,6 +2402,9 @@ again:
 		goto again;
 	} else if(accept(l, LEX_IDENTIFIER)) {
 		r->o[i++] = defined_by_token(l, SYM_CALL_DEFINITION);
+		goto again;
+	} else if(accept(l, LEX_PWD)) {
+		r->o[i++] = pwd(l);
 		goto again;
 	} else if(accept(l, LEX_SET)) {
 		r->o[i++] = set(l);
@@ -2876,6 +2893,9 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		fix(h, location >> 1, value);
 		break;
 	}
+	case SYM_PWD:
+		a->pwd = literal_or_symbol_lookup(n->token, t, e);
+		break;
 	case SYM_PC:
 		h->pc = literal_or_symbol_lookup(n->token, t, e);
 		update_fence(a, h->pc);

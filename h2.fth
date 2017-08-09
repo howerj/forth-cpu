@@ -18,7 +18,8 @@ some take pointers to the CFA of a word, other the PWD field
 * Load initial VGA screen from NVRAM?
 * Reimplement 'hide'
 * Implement user variables, and copy variables to user area on cold boot
-* Display contents of first block on the screen at start up
+* Display contents of first block on the screen at start up? Or use as
+boot block?
 * Fix interrupts
 * A peephole optimizer and a super optimizer for the CPU could be created.
 * A quasi-graphics mode using the block characters could be made, it could
@@ -135,7 +136,6 @@ location _bsave     0  ( a u k -- f : save block )
 location _binvalid  0  ( k -- k : throws error if k invalid )
 location _page      0  ( -- : clear screen )
 
-location pwd        0  ( Present Word Variable: Set at end of file )
 location cp         0  ( Dictionary Pointer: Set at end of file )
 location csp        0  ( current data stack pointer - for error checking )
 location _id        0  ( used for source id )
@@ -150,6 +150,10 @@ variable state      0  ( compiler state variable )
 variable hld        0  ( Pointer into hold area for numeric output )
 variable base       10 ( Current output radix )
 variable span       0  ( Hold character count received by expect   )
+
+location forth-voc  0 ( set at the end near the end of the file )
+variable context    0  ( holds current context for vocabulary search order )
+.allocate 14
 variable #tib       0  ( Current count of terminal input buffer    )
 location tib-buf    0  ( ... and address )
 .set tib-buf $pc       ( set tib-buf to current dictionary location )
@@ -185,6 +189,12 @@ location hi-string        "eFORTH V"
 ( ======================== System Variables ================= )
 
 ( ======================== Forth Kernel ===================== )
+
+( @todo an assembly only and an editor vocabulary need adding, this might
+require a compiler directive to set the $pwd variable )
+
+forthPwd:
+: forth forth-voc @ context store drop 0 context 2 + store drop ;
 
 : [-1] -1 ; hidden
 : ! store drop ;           ( n a -- )
@@ -296,7 +306,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : key begin key? until ;                  ( -- c )
 : allot cp +! ;                           ( u -- )
 : /string over min rot over + -rot - ;    ( b u1 u2 -- b u : advance a string u2 characters )
-: last pwd @ ;                            ( -- pwd )
+: last context @ ;                            ( -- pwd )
 : emit _emit @execute ;                   ( c -- : write out a char )
 : toggle over @ xor swap ! ;              ( a u -- : xor value at addr with u )
 : cr =cr emit =lf emit ;                  ( -- )
@@ -381,12 +391,12 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : radix base @ dup 2 - 34 u> if 10 base ! 40 -throw then ; hidden
 : digit  9 over < 7 and + 48 + ; hidden      ( u -- c )
-: extract  0 swap um/mod swap digit ; hidden ( n base -- n c )
+: extract  0 swap um/mod swap ; hidden       ( n base -- n c )
 : <#  pad hld ! ;                            ( -- )
 : ?hold hld @ cp @ u< if 17 -throw then ; hidden ( -- )
 : hold  hld @ 1- dup hld ! ?hold c! ;        ( c -- )
 \ : holds begin dup while 1- 2dup + c@ hold repeat 2drop ; ( a u -- )
-: #  radix extract hold ;                    ( u -- u )
+: #  radix extract digit hold ;              ( u -- u )
 : #s begin # dup while repeat ;              ( u -- 0 )
 : sign  0< if [char] - hold then ;           ( n -- )
 : #>  drop hld @ pad over - ;                ( w -- b u )
@@ -438,6 +448,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : expect ( b u -- ) _expect @execute span ! drop ;
 : query tib tib-length _expect @execute #tib !  drop 0 >in ! ; ( -- )
 
+( @todo The 2dupxor instruction would be useful here )
 : =string ( a1 u2 a1 u2 -- f : string equality )
 	>r swap r> ( a1 a2 u1 u2 )
 	over xor if 3drop  0 exit then
@@ -448,6 +459,15 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		then
 	next 2drop [-1] ; hidden
 
+\ : same? ( a a -- a a f )
+\ 	for 
+\ 		aft 
+\ 			over r@ cells + @
+\ 			over r@ cells + @ -  ?dup
+\ 			if r> drop exit then 
+\ 		then
+\         next 0 ;
+ 
 : address $3fff and ; hidden ( a -- a : mask off address bits )
 : nfa address cell+ ; ( pwd -- nfa : move to name field address)
 : cfa nfa dup count nip + cell + $fffe and ; ( pwd -- cfa : move to code field address )
@@ -457,9 +477,11 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : immediate? @ $4000 and logical ; hidden ( pwd -- f : is immediate? )
 : inline?    @ $8000 and logical ; hidden ( pwd -- f : is inline? )
 
-: find ( a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
+location current 0
+
+: search ( a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
 	>r
-	last address
+	current @ address
 	begin
 		dup
 	while
@@ -471,6 +493,17 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		@ address
 	repeat
 	drop r> 0 ;
+
+( @todo Get this working, this is a version of find which uses vocabularies )
+: find
+	>r
+	context
+	begin
+		dup @
+	while
+		dup @ current ! r@ search ?dup if >r >r drop r> r> rdrop exit else drop then
+		cell+
+	repeat drop r> 0 ;
 
 : words ( -- : list all the words in the dictionary )
 	space last address begin dup while dup .id @ address repeat drop cr ;
@@ -522,6 +555,13 @@ constant dump-length 16
 		2 spaces $type
 	next drop ;
 
+: -trailing ( b u -- b u : remove trailing spaces )
+	for
+		aft =bl over r@ + c@ <
+			if r> 1+ exit then
+		then
+	next 0 ;
+
 : lookfor ( b u c -- b u : skip until _test succeeds )
 	>r
 	begin
@@ -564,13 +604,14 @@ not consumed in the previous parse )
 : ] [-1] state ! ;
 
 : save last cp @ rendezvous 2! ; hidden
-: restore rendezvous 2@ cp ! pwd ! ; hidden
+( @todo Fix restore to be vocabulary friendly )
+: restore rendezvous 2@ cp ! context ! ; hidden
 
 : on-error ( n -- : perform actions on error )
 	?dup if
 		[char] ? emit ( print error message )
 		. [char] # cr ( print error number )
-		restore       ( restore dictionary to point before error )
+		\ restore     ( restore dictionary to point before error )
 		preset        ( reset machine )
 		[             ( back into interpret mode )
 	then ; hidden
@@ -630,10 +671,13 @@ does not modify the return stack pointer or set the R->PC flag. Alternatively
 if last word called in a function is a call, this can be replaced with a branch
 instead
 
-@bug It is possible to create words that are empty strings
+)
 
-@todo Make sure the dictionary pointer does not overflow, or issue diagnostic
-when it does )
+( ==================== Control Structures ============================ )
+
+( The following section implements the control structures and high level
+words used for interpreting Forth. As much error checking is done
+as possible so the Forth environment is easy to use. )
 
 : !csp sp@ csp ! ; hidden
 : ?csp sp@ csp @ xor if 22 -throw then ; hidden
@@ -642,7 +686,7 @@ when it does )
 : ?compile state @ 0= if 14 -throw then ; hidden ( fail if not compiling )
 : ?unique dup find if drop redefined print cr else drop then ; hidden ( a -- a )
 : ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
-: ":" align save !csp here last address ,  =bl word ?nul ?unique count + aligned cp ! pwd ! ] ;
+: ":" align save !csp here last address ,  =bl word ?nul ?unique count + aligned cp ! context ! ] ;
 : "'" token find if cfa else 13 -throw then ; immediate
 : ";" ?compile ?csp =exit , save [ ; immediate
 : jumpz, 2/ $2000 or , ; hidden
@@ -673,14 +717,41 @@ when it does )
 \ : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
 \ : compile ( -- ) r> dup @ , cell+ >r ;
 
+
+
+( Error recovery can be quite difficult when sending Forth large programs
+over a serial port. One of the problems is if an error occurs in between a
+colon definition the Forth interpreter would signal an error and go back into
+command mode, subsequently words which are meant to be compiled are instead
+executed which can cause the system to become unstable. There are potential
+ways of getting around this:
+
+1. The sender stops upon encountering an error
+2. The receiver discards all input until the end of the file [if it can work
+out when that is].
+3. A third interpreter state in which words are discarded until a closing
+';' is encountered.
+
+To keep things simple non of these methods are used, but they highlight ways
+in which the problem could be solved. )
+
+( ==================== Control Structures ============================ )
+
+( ==================== Strings ======================================= )
+
 : do$ r> r@ r> count + aligned >r swap >r ; hidden ( -- a )
 : $"| do$ nop ; hidden                             ( -- a : do string NB. nop needed to fool optimizer )
 : ."| do$ print ; hidden                           ( -- : print string )
 : $,' 34 word count + aligned cp ! ; hidden        ( -- )
 : $"  ?compile ' $"| compile, $,' ; immediate      ( -- ; <string> )
 : ."  ?compile ' ."| compile, $,' ; immediate      ( -- ; <string> )
-: abort 0 rp! quit ;
+: abort 0 rp! quit ;                               ( --, R: ??? --- ??? : Abort! )
 : abort" ?compile ." ' abort compile, ; immediate
+
+
+( ==================== Strings ======================================= )
+
+( ==================== Block Word Set ================================ )
 
 : updated? block-dirty @ ; ( -- f )
 : update [-1] block-dirty ! ; ( -- )
@@ -729,15 +800,14 @@ source-id word can be used by words to modify their behavior )
 : blank =bl fill ;
 \ : blank-thru over - for dup block b/buf blank update 1+ next drop flush ;
 
-: -trailing ( b u -- b u : remove trailing spaces )
-	for
-		aft =bl over r@ + c@ <
-			if r> 1+ exit then
-		then
-	next 0 ;
-
 ( display a message from a line within a block )
-: msg dup 4 rshift block swap 15 and c/l * + c/l -trailing $type cr ; ( u -- )
+: msg 16 extract swap block swap c/l * + c/l -trailing $type cr ; ( u -- )
+
+( all words before this are now in the forth vocabulary, it is also set
+later on )
+.set forth-voc $pwd 
+
+( ==================== Block Word Set ================================ )
 
 : ccitt ( crc c -- crc : calculate polynomial $1021 AKA "x16 + x12 + x5 + 1" )
  	over 256/ xor               ( crc x )
@@ -822,6 +892,8 @@ i.end2t: 2*
 i.end:   5u.r rdrop exit
 : i.print print abits ; hidden
 
+( @note A recursive version of 'see' that decompiled no-name words would complicate
+things, the 'decompiler' word could be called manually on an address if desired )
 : instruction ( decode instruction )
 	over >r
 	$8000 mask-off if see.lit     print $7fff and      branch i.end then
@@ -829,7 +901,6 @@ i.end:   5u.r rdrop exit
 	$4000 mask-off if see.call    i.print dup 2*       5u.r rdrop space .name exit then
 	$2000 mask-off if see.0branch i.print r@ bcounter! branch i.end2t then
 	                  see.branch  i.print r@ bcounter! branch i.end2t ; hidden
-
 : continue? ( u a -- f )
 	bcount @ if 2drop [-1] exit then
 	over $e000 and 0= if u> exit else drop then
@@ -1140,6 +1211,8 @@ manipulating a terminal )
 \
 ( ======================== ANSI SYSTEM   ==================== )
 
+
+
 ( ======================== Block Editor  ==================== )
 
 ( Block Editor Help
@@ -1156,15 +1229,13 @@ manipulating a terminal )
       s    save block and write it out
       u    update block )
 
-( 
-location .forth 0
-location .editor 0
-: forth .forth @ pwd ! ;
-: editor .editor @ pwd ! ;
-.set .forth $pwd
 
-\ @todo implement vocabularies and put these words in the editor vocabulary,
-\ also make an insert mode that reads up to 15 lines of text
+location editor-voc 0
+: editor editor-voc @ context ! forth-voc context cell+ ! 0 context cell+ cell+ ! ;
+.set context $pwd
+.set forth-voc $pwd
+.pwd 0
+
 : [block] blk @ block ; hidden
 : [check] dup b/buf c/l / u>= if 24 -throw then ; hidden
 : [line] [check] c/l * [block] + ; hidden
@@ -1187,8 +1258,7 @@ location .editor 0
 : ct swap y c ; \ n1 n2 -- copy line n1 to n2
 : ea [line] c/l evaluate ;
 : sw 2dup y [line] swap [line] swap c/l cmove c ;
-.set .editor $pwd
-)
+.set editor-voc $pwd
 
 ( ======================== Starting Code ==================== )
 
@@ -1204,7 +1274,6 @@ start:
 
 ( ======================== User Code ======================== )
 
-.set pwd $pwd
 .set cp  $pc
 
 .set _key?     input      ( execution vector of ?key,   default to input. )
