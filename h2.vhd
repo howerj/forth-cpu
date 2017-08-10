@@ -126,7 +126,7 @@ begin
 	dwe              <= '1' when is_ram_write = '1' and tos_c(15 downto 14) = "00" else '0';
 	dre              <= '1' when tos_n(15 downto 14) = "00" else '0';
 	io_dout          <= nos;
-	io_daddr         <= tos_c(15 downto 0);
+	io_daddr         <= tos_c;
 	io_wr            <= '1' when is_ram_write = '1' and tos_c(15 downto 14) /= "00" else '0';
 	dd               <= (0 => insn(0), others => insn(1)); -- sign extend
 	rd               <= (0 => insn(2), others => insn(3)); -- sign extend
@@ -136,7 +136,7 @@ begin
 	begin
 		if rising_edge(clk) then
 			if dstk_we = '1' then
-				vstk_ram(to_integer(vstkp_n)) <= tos_c(15 downto 0);
+				vstk_ram(to_integer(vstkp_n)) <= tos_c;
 			end if;
 			if rstk_we = '1' then
 				rstk_ram(to_integer(rstkp_n)) <= rstk_data;
@@ -175,25 +175,24 @@ begin
 	elsif is_instr.lit = '1' then
 		tos_n   <=  "0" & insn(14 downto 0);
 	else
-		-- @todo Experiment with these instructions to see if removing
-		-- some or rearranging them speeds things up, the instructions
-		-- really should be rationalized to be in an order that makes
-		-- more sense. Perhaps peripheral I/O and Memory reads and
-		-- writes could also be separated out into two sets of
-		-- instructions?
-		case aluop is -- ALU operation, 12 downto 8
+		case aluop is 
 		when "00000" => tos_n <= tos_c;
 		when "00001" => tos_n <= nos;
+		when "01011" => tos_n <= rtos_c;
 		when "00010" => tos_n <= std_logic_vector(unsigned(nos) + unsigned(tos_c));
+		when "01010" => tos_n <= std_logic_vector(unsigned(tos_c) - 1);
 		when "00011" => tos_n <= tos_c and nos;
 		when "00100" => tos_n <= tos_c or nos;
 		when "00101" => tos_n <= tos_c xor nos;
 		when "00110" => tos_n <= not tos_c;
 		when "00111" => tos_n <= (others => compare.equal);
 		when "01000" => tos_n <= (others => compare.more);
+		when "01111" => tos_n <= (others => compare.umore);
+		when "10011" => tos_n <= (others => compare.zero);
 		when "01001" => tos_n <= std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
-		when "01010" => tos_n <= std_logic_vector(unsigned(tos_c) - 1);
-		when "01011" => tos_n <= rtos_c;
+		when "01101" => tos_n <= std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
+		when "10001" => tos_n    <= (others => int_en_c);
+		when "10000" => int_en_n <= tos_c(0);
 		when "01100" =>
 			-- input: 0x4000 - 0x7FFF is external input
 			if tos_c(15 downto 14) /= "00" then
@@ -202,17 +201,11 @@ begin
 			else
 				tos_n <= din;
 			end if;
-		when "01101" => tos_n <=  std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-		when "01110" => tos_n(15 downto 0) <= (others => '0');
+		when "01110" => tos_n <= (others => '0');
 				tos_n(vstkp_c'range) <= std_logic_vector(vstkp_c);
-		when "01111" => tos_n    <= (others => compare.umore);
-		when "10000" => int_en_n <= tos_c(0);
-				-- tos_n    <= nos;
-		when "10001" => tos_n    <= (others => int_en_c);
-		when "10010" => tos_n(15 downto 0) <= (others => '0');
+		when "10010" => tos_n <= (others => '0');
 				tos_n(rstkp_c'range) <= std_logic_vector(rstkp_c);
-		when "10011" => tos_n    <= (others => compare.zero);
-		when "10100" => tos_n    <= cpu_id;
+		when "10100" => tos_n <= cpu_id;
 		when others  => tos_n <= tos_c;
 				report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
 		end case;
