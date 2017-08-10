@@ -1,7 +1,12 @@
 /**@file      h2.c
  * @brief     Simulate the H2 SoC peripherals visually
  * @copyright Richard James Howe (2017)
- * @license   MIT */
+ * @license   MIT 
+ *
+ * @todo Indicate if we are in step or continue mode, and display
+ * help on the screen if requested. Also the return stack should be
+ * printed when viewing the registers.
+ */
 
 #include "h2.h"
 #include <assert.h>
@@ -31,9 +36,13 @@
 #define Y_MAX         (100.0)
 #define Y_MIN         (0.0)
 #define LINE_WIDTH    (0.5)
-/** @todo make configurable, or automatically adjust rate depending on how
- * much free time there is after rendering */
-#define RUN_FOR       (100000)
+#define CYCLE_MODE_FIXED (false)
+#define CYCLE_INITIAL    (100000)
+#define CYCLE_INCREMENT  (10000)
+#define CYCLE_DECREMENT  (500)
+#define CYCLE_MINIMUM    (1000)
+#define CYCLE_HYSTERESIS (2.0)
+#define TARGET_FPS       (30.0)
 
 typedef struct {
 	double window_height;
@@ -50,6 +59,7 @@ typedef struct {
 	bool step;
 	bool debug_mode;
 	uint64_t cycle_count;
+	uint64_t cycles;
 	void *font_scaled;
 } world_t;
 
@@ -68,6 +78,7 @@ static world_t world = {
 	.step                        = false,
 	.debug_mode                  = false,
 	.cycle_count                 = 0,
+	.cycles                      = CYCLE_INITIAL,
 	.font_scaled                 = GLUT_STROKE_MONO_ROMAN
 };
 
@@ -936,7 +947,7 @@ static double fps(void)
 	return fps;
 }
 
-static void draw_debug_info(const world_t *world)
+static void draw_debug_info(const world_t *world, double fps)
 {
 	textbox_t t = { .x = X_MIN + X_MAX/40, .y = Y_MAX - Y_MAX/40, .draw_border = true, .color_text = WHITE };
 	assert(world);
@@ -946,7 +957,7 @@ static void draw_debug_info(const world_t *world)
 
 	fill_textbox(&t, "tick:               %u", world->tick);
 	//fill_textbox(&t, "seconds:         %f", ticks_to_seconds(world->tick));
-	fill_textbox(&t, "fps:                %f", fps());
+	fill_textbox(&t, "fps:                %f", fps);
 
 	if(world->debug_extra) {
 		fill_textbox(&t, "Mode:               %s", world->debug_mode ? "step" : "continue");
@@ -959,6 +970,7 @@ static void draw_debug_info(const world_t *world)
 
 		sprintf(buf, "%08lu", (unsigned long)(world->cycle_count));
 		fill_textbox(&t, "cycles:             %s", buf);
+		fill_textbox(&t, "cycles/tick         %u", (unsigned)(world->cycles));
 	}
 	draw_textbox(&t);
 }
@@ -1147,6 +1159,7 @@ static void timer_callback(int value)
 static void draw_scene(void)
 {
 	static uint64_t next = 0;
+	double f = fps();
 	if(world.halt_simulation)
 		exit(EXIT_SUCCESS);
 
@@ -1162,7 +1175,16 @@ static void draw_scene(void)
 		if(world.debug_mode && world.step)
 			increment = 1;
 		else if(!(world.debug_mode))
-			increment = RUN_FOR;
+			increment = world.cycles;
+
+		if(!CYCLE_MODE_FIXED && increment) {
+			uint64_t n = world.cycles + (f > TARGET_FPS ? CYCLE_INCREMENT : -CYCLE_DECREMENT);
+			if(f > (TARGET_FPS + CYCLE_HYSTERESIS)) {
+				world.cycles = MIN(((uint64_t)-1), n);
+			} else if(f < (TARGET_FPS - CYCLE_HYSTERESIS)) {
+				world.cycles = MAX(CYCLE_MINIMUM, n);
+			}
+		}
 
 		if(increment)
 			if(h2_run(h, h2_io, stderr, increment, NULL, false) < 0)
@@ -1171,7 +1193,7 @@ static void draw_scene(void)
 		world.step = false;
 		world.cycle_count += increment;
 	}
-	draw_debug_info(&world);
+	draw_debug_info(&world, f);
 	if(world.debug_extra) {
 		draw_debug_h2(h, X_MIN + X_MAX/40., Y_MAX*0.70);
 	} else {
@@ -1191,8 +1213,21 @@ static void draw_scene(void)
 	draw_dpad(&dpad);
 	draw_terminal(&world, &terminal);
 
-	//fill_textbox(&t, arena_paused, "PAUSED: PRESS 'R' TO CONTINUE");
-	//fill_textbox(&t, arena_paused, "        PRESS 'S' TO SINGLE STEP");
+	{
+		textbox_t t = { .x = X_MAX-50, .y = Y_MAX-2, .draw_border = false, .color_text = WHITE };
+		fill_textbox(&t, "EXIT/QUIT     ESCAPE");
+		fill_textbox(&t, "SWITCHES     F-1...8");
+		fill_textbox(&t, "SINGLE STEP      F-9");
+
+	}
+	{
+		textbox_t t = { .x = X_MAX-25, .y = Y_MAX-2, .draw_border = false, .color_text = WHITE };
+		fill_textbox(&t, "CPU PAUSE/RESUME F-10");
+		fill_textbox(&t, "SWITCH INPUT     F-11");
+		fill_textbox(&t, "CHANGE DISPLAY   F-12");
+	}
+
+
 	glFlush();
 	glutSwapBuffers();
 	glutPostRedisplay();

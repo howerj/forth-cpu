@@ -8,14 +8,6 @@
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
---| TODO:
---|  * Use more generics: The instruction width and even features of this
---|  CPU (such as interrupts and ALU operations) could be made to be optional.
---|  * Turn this component into a package
---|  * Turn this into a literate file, describing the CPU
---|  * Look into the newer version of the J1 cores at
---|    https://github.com/jamesbowman/swapforth for possible improvements
---|
 -------------------------------------------------------------------------------
 
 library ieee,work,std;
