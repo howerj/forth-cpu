@@ -726,13 +726,14 @@ A rough [EBNF][] grammar for the language is as follows:
 	Program     := Statement* EOF
 	Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
 		       | Identifier | Constant | Variable | Location | Definition | If
-		       | Begin | Char | Set | Pc | Break | Mode | String | BuiltIn
+		       | Begin | Char | Set | Pc | Pwd | Break | Mode | String | BuiltIn
 	Label       := Identifier ";"
 	Branch      := "branch"  ( Identifier | Literal )
 	0Branch     := "0branch" ( Identifier | Literal )
 	Call        := "call"    ( Identifier | Literal )
 	Set         := ".set"    ( Identifier | Literal ) ( Identifier | Literal )
 	Pc          := ".pc"     ( Identifier | Literal )
+	Pwd         := ".pwd"    ( Identifier | Literal )
 	Break       := ".break"
 	BuiltIn     := ".built-in"
 	Mode        := ".mode"      Literal
@@ -762,7 +763,8 @@ lexer to prevent this.
 
 The assembler the following directives:
 
-	.pc        Set the program counter
+	.pc        Set the program counter 
+	.pwd       Set the previous word pointer
 	.allocate  Increment the program counter
 	.set       Set location in memory
 	.mode      Change compiler mode

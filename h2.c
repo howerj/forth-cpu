@@ -2683,20 +2683,21 @@ typedef struct {
 	char *name;
 	size_t len;
 	bool inline_bit;
+	bool hidden;
 	uint16_t code[32];
 } built_in_words_t;
 
 static built_in_words_t built_in_words[] = {
-#define X(NAME, STRING, INSTRUCTION) { .name = STRING, .len = 1, .inline_bit = true, .code = { INSTRUCTION } },
+#define X(NAME, STRING, INSTRUCTION) { .name = STRING, .len = 1, .inline_bit = true, .hidden = false, .code = { INSTRUCTION } },
 	X_MACRO_INSTRUCTIONS
 #undef X
 	/**@note We might want to compile these words, even if we are not
 	 * compiling the other in-line-able, so the compiler can use them for
 	 * variable declaration and for...next loops */
 	/**@warning 1 lshift used, in the original j1.v it is not needed */
-	{ .name = "doVar", .inline_bit = false, .len = 1, .code = {CODE_FROMR} },
-	{ .name = "r1-",   .inline_bit = false, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
-	{ .name = NULL,    .inline_bit = false, .len = 0, .code = {0} }
+	{ .name = "doVar", .inline_bit = false, .hidden = true, .len = 1, .code = {CODE_FROMR} },
+	{ .name = "r1-",   .inline_bit = false, .hidden = true, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
+	{ .name = NULL,    .inline_bit = false, .hidden = true, .len = 0, .code = {0} }
 };
 
 
@@ -2920,13 +2921,15 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		a->built_in_words_defined = true;
 
 		for(unsigned i = 0; built_in_words[i].name; i++) {
-			uint16_t pwd = a->pwd;
-			hole1 = hole(h, a);
-			if(built_in_words[i].inline_bit)
-				pwd |= (DEFINE_INLINE << 13);
-			fix(h, hole1, pwd);
-			a->pwd = hole1 << 1;
-			pack_string(h, a, built_in_words[i].name, e);
+			if(!built_in_words[i].hidden) {
+				uint16_t pwd = a->pwd;
+				hole1 = hole(h, a);
+				if(built_in_words[i].inline_bit)
+					pwd |= (DEFINE_INLINE << 13);
+				fix(h, hole1, pwd);
+				a->pwd = hole1 << 1;
+				pack_string(h, a, built_in_words[i].name, e);
+			}
 			symbol_table_add(t, SYMBOL_TYPE_CALL, built_in_words[i].name, here(h, a), e);
 			for(size_t j = 0; j < built_in_words[i].len; j++)
 				generate(h, a, built_in_words[i].code[j]);
@@ -2936,6 +2939,15 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	default:
 		fatal("Invalid or unknown type: %u", n->type);
 	}
+}
+
+static bool assembler(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e)
+{
+	assert(h && a && n && t && e);
+	if(setjmp(e->j))
+		return false;
+	assemble(h, a, n, t, e);
+	return true;
 }
 
 static h2_t *code(node_t *n, symbol_table_t *symbols)
@@ -2952,14 +2964,12 @@ static h2_t *code(node_t *n, symbol_table_t *symbols)
 	a.fence = h->pc;
 
 	e.jmp_buf_valid = 1;
-	if(setjmp(e.j)) {
+	if(!assembler(h, &a, n, t, &e)) {
 		h2_free(h);
 		if(!symbols)
 			symbol_table_free(t);
 		return NULL;
 	}
-
-	assemble(h, &a, n, t, &e);
 
 	if(log_level >= LOG_DEBUG)
 		symbol_table_print(t, stderr);

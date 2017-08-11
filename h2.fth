@@ -12,7 +12,8 @@ Execution begins at a label called "start".
 
 TODO:
 * Turn this into a literate file
-* Fix interrupt code
+* Fix interrupt code, it works in simulation but not in the
+hardware.
 * There is a bit of confusion over what words accept as execution tokens,
 some take pointers to the CFA of a word, other the PWD field
 * Load initial VGA screen from NVRAM?
@@ -39,7 +40,7 @@ https://groups.google.com/forum/#!topic/comp.lang.forth/_bx4dJFb9R0
 http://www.figuk.plus.com/build/arith.htm
 
 Forth To Do:
-* vocabularies, make/doer, ...
+* make/doer, ...
 * Fix PARSE )
 
 ( ======================== System Constants ================= )
@@ -70,6 +71,7 @@ constant =bl           32    ( blank, or space )
 constant =cr           13    ( carriage return )
 constant =lf           10    ( line feed )
 constant =bs           8     ( back space )
+constant =escape       27    ( escape character )
 
 constant c/l           64    ( characters per line in a block )
 constant l/b           16    ( lines in a block )
@@ -492,7 +494,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	repeat
 	drop r> 0 ;
 
-( @todo Get this working, this is a version of find which uses vocabularies )
 : find
 	>r
 	context
@@ -538,19 +539,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	r> base ! ; hidden
 
 : number? 0 -rot >number nip 0= ; ( b u -- n f : is number? )
-
-: 5u.r 5 u.r ; hidden
-: dm+ 2/ for aft dup @ space 5u.r cell+ then next ; ( a u -- a )
-
-
-: dump ( a u -- )
-	dump-width /
-	for
-		cr dump-width 2dup
-		over 5u.r 58 emit space
-		dm+ -rot
-		2 spaces $type
-	next drop ;
 
 : -trailing ( b u -- b u : remove trailing spaces )
 	for
@@ -693,8 +681,25 @@ not consumed in the previous parse )
 
 : random seed @ dup 15 lshift ccitt dup seed ! ; ( -- u )
 
+: 5u.r 5 u.r ; hidden
+: dm+ 2/ for aft dup @ space 5u.r cell+ then next ; ( a u -- a )
+
+
+: dump ( a u -- )
+	dump-width /
+	for
+		cr dump-width 2dup
+		over 5u.r 58 emit space
+		dm+ -rot
+		2 spaces $type
+	next drop ;
+
+
+
 : ver version @ ;
 : hi !io ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr ;
+
+( ==================== Extra Words =================================== a
 
 \ : square dup * ;
 \ : limit rot min max ;
@@ -723,6 +728,61 @@ not consumed in the previous parse )
 \ : log  >r 0 swap begin swap 1+ swap r@ / dup 0= until drop 1- rdrop ; ( u base -- u )
 \ : log2    0 swap begin swap 1+ swap   2/ dup 0= until drop 1- ; ( u -- u )
 \ : factorial dup 2 < if drop 1 exit then 1 swap for aft r@ 1+ * then next ;
+
+( ==================== Extra Words =================================== )
+
+( ==================== Advanced I/O Control ========================== )
+
+( @todo Only emit characters over the UART, it causes problems otherwise )
+: CSI =escape emit [char] [ emit ; hidden
+: 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( n -- : print a number in decimal )
+: ansi.at-xy CSI 10u. 59 emit 10u. [char] H emit ; hidden ( x y -- : set ANSI terminal cursor position to x y )
+: ansi.page CSI 2 10u. [char] J emit 1 1 ansi.at-xy ; hidden ( -- : clear ANSI terminal screen and move cursor to beginning )
+
+: vga! ( vga.screen @ if 4096 + then ) $C000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
+: segments! o8SegLED ! ;   ( u -- : display a number on the LED 7/8 segment display )
+: led!      oLeds ! ;      ( u -- : write to LED lights )
+: switches  iSwitches  @ ; ( -- u : get the state of the switches)
+: timer!    oTimerCtrl ! ; ( u -- )
+: timer     iTimerDin  @ ; ( -- u )
+: ps2? iPs2 @ dup $ff and swap $100 and if [-1] else drop 0 then ; ( -- c -1 | 0 : PS/2 version of rx? )
+: input rx? if [-1] else ps2? then ; ( -- c -1 | 0 : UART and PS/2 Input )
+: vga.at-xy 256* or oVgaCursor ! ; hidden ( x y -- : set terminal cursor to x-y position )
+: vgaX* dup 6 lshift swap 4 lshift + ; hidden ( n -- n : 80* )
+: vgaTextSizeMod dup vgaTextSize u> if vgaTextSize - then ; hidden
+
+: vga.page ( -- : clear the VGA display )
+	0 cursor !
+	vgaTextSize
+	begin
+		dup
+	while
+		dup =bl swap vga! 1-
+	repeat drop ; hidden
+
+( @todo Vector these words, or look at the state of _emit, _echo and _key
+and take appropriate action 
+@bug ansi.page and ansi.at-xy should only write over the UART, otherwise
+this causes major problems and blows up the return stack )
+: page   ( ansi.page ) vga.page ; ( -- : clear screen )
+: at-xy  ( 2dup ansi.at-xy )  vga.at-xy ;
+
+( @todo This does not handle transitions between screen correctly, it appears
+a character is dropped somewhere )
+: terminal ( n a -- a : act like a terminal )
+	swap
+	dup =lf = if drop 0 vgaX um/mod nip 1+ dup 0 swap vga.at-xy vgaX* exit then
+	dup =cr = if drop exit then
+	dup =bs = if drop 1- exit then
+	swap vgaTextSizeMod tuck dup 1+ 0 vgaX um/mod vga.at-xy vga! 1+ ; hidden
+
+: output ( c -- : write to UART and VGA display )
+	dup tx!
+	( drop exit \ @note The rest of this word is responsible for the large return stack usage )
+	cursor @ terminal
+	dup 1+ cursor @ u< if drop page else cursor ! then ;
+
+( ==================== Advanced I/O Control ========================== )
 
 ( ==================== Control Structures ============================ )
 
@@ -849,9 +909,8 @@ later on )
 
 ( ==================== Block Word Set ================================ )
 
-( ======================== Word Set ========================= )
 
-( ======================== See ============================== )
+( ==================== See =========================================== )
 
 ( @warning This disassembler is experimental, and liable not
 to work / break everything it touches )
@@ -919,9 +978,9 @@ things, the 'decompiler' word could be called manually on an address if desired 
 	cr
 	cfa decompiler space 59 emit cr ;
 
-( ======================== See ============================== )
+( ==================== See =========================================== )
 
-( ======================== Memory Interface ================= )
+( ==================== Memory Interface ============================== )
 
 ( @note Flash is word addressable, the RAM is bit addressable? )
 
@@ -985,9 +1044,9 @@ location _blockop 0
 : msave ' c>m _blockop ! mblock ; hidden
 : mload ' m>c _blockop ! mblock ; hidden
 
-( ======================== Memory Interface ================= )
+( ==================== Memory Interface ============================== )
 
-( ======================== Password/Users =================== )
+( ==================== Users and Passwords =========================== )
 
 \ @todo modify emit/ktap to transmit '*' instead of password characters,
 \ and make a password cracker 
@@ -1049,50 +1108,9 @@ location _blockop 0
 \ : password? ' _password? retry ; hidden
 \ : login cr user? cell+ @ password? .ok ;
  
-( ======================== Password/Users =================== )
+( ==================== Users and Passwords =========================== )
 
-( ======================== Miscellaneous ==================== )
-
-: vga! ( vga.screen @ if 4096 + then ) $C000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
-: segments! o8SegLED ! ;   ( u -- : display a number on the LED 7/8 segment display )
-: led!      oLeds ! ;      ( u -- : write to LED lights )
-: switches  iSwitches  @ ; ( -- u : get the state of the switches)
-: timer!    oTimerCtrl ! ; ( u -- )
-: timer     iTimerDin  @ ; ( -- u )
-: ps2? iPs2 @ dup $ff and swap $100 and if [-1] else drop 0 then ; ( -- c -1 | 0 : PS/2 version of rx? )
-: input rx? if [-1] else ps2? then ; ( -- c -1 | 0 : UART and PS/2 Input )
-: at-xy 256* or oVgaCursor ! ; ( x y -- : set terminal cursor to x-y position )
-: vgaX* dup 6 lshift swap 4 lshift + ; hidden ( n -- n : 80* )
-: vgaTextSizeMod dup vgaTextSize u> if vgaTextSize - then ; hidden
-
-( This should also emit the ANSI Terminal codes for paging as well,
-perhaps it could be a vectored word )
-: page ( -- : clear VGA screen )
-	0 cursor !
-	vgaTextSize
-	begin
-		dup
-	while
-		dup =bl swap vga! 1-
-	repeat drop ;
-
-
-
-( @todo This does not handle transitions between screen correctly, it appears
-a character is dropped somewhere )
-: terminal ( n a -- a : act like a terminal )
-	swap
-	dup =lf = if drop 0 vgaX um/mod nip 1+ dup 0 swap at-xy vgaX* exit then
-	dup =cr = if drop exit then
-	dup =bs = if drop 1- exit then
-	swap vgaTextSizeMod tuck dup 1+ 0 vgaX um/mod at-xy vga! 1+ ; hidden
-
-: output ( c -- : write to UART and VGA display )
-	dup tx!
-	( drop exit \ @note The rest of this word is responsible for the large return stack usage )
-	cursor @ terminal
-	dup 1+ cursor @ u< if drop page else cursor ! then ;
-
+( ==================== Miscellaneous ================================= )
 ( Initial value of timer
   BIT     MEANING
   15   -  Enable Timer
@@ -1119,23 +1137,20 @@ irq:
 	$ffff oTimerCtrl !
 	1 ien drop ;
 
-( ======================== Miscellaneous ==================== )
+( ==================== Miscellaneous ================================= )
 
-( ======================== ANSI SYSTEM   ==================== )
+( ==================== ANSI Colors =================================== )
 
 ( Terminal colorization module, via ANSI Escape Codes
 
 see: https://en.wikipedia.org/wiki/ANSI_escape_code
 These codes will provide a relatively portable means of
 manipulating a terminal )
-\
-\ constant escape 27
+\ 
 \ variable colorize 0 ( set to 'drop' to disable, 'tx!' turn on )
 \ .set colorize tx!
-\
-\ : CSI escape emit [char] [ emit ; hidden
-\ : 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( n -- : print a number in decimal )
-\
+\ 
+\ 
 \ ( Colors can be used for the lower VGA control bits, as well as for ANSI
 \ Terminal escape sequences )
 \ : black    0 ;
@@ -1150,9 +1165,9 @@ manipulating a terminal )
 \ : bright   1 ;
 \ : ansi.foreground ;
 \ : ansi.background 10 + ;
-\
+\ 
 \ ( usage:
-\
+\ 
 \ 	dark red foreground color
 \ 	bright blue background color
 \ )
@@ -1166,19 +1181,17 @@ manipulating a terminal )
 \ 	then
 \ 	[char] m emit
 \ 	_emit colorize switch ;
-\
-\ : ansi.at-xy CSI 10u. 59 emit 10u. [char] H emit ; ( x y -- : set ANSI terminal cursor position to x y )
-\ : ansi.page CSI 2 10u. [char] J emit 1 1 ansi.at-xy ; ( -- : clear ANSI terminal screen and move cursor to beginning )
-\
+\ 
+\ 
 \ location HIDE_CURSOR "?25l" : ansi.hide-cursor CSI HIDE_CURSOR print ; ( -- : hide cursor )
 \ location SHOW_CURSOR "?25h" : ansi.show-cursor CSI SHOW_CURSOR print ; ( -- : show the cursor )
 \ : ansi.save-cursor CSI [char] s emit ; ( -- : save cursor position )
 \ : ansi.restore-cursor CSI [char] u emit ; ( -- : restore saved cursor position )
 \ : ansi.reset-color colorize @ 0= if exit then CSI 0 10u. [char] m emit ; ( -- : reset terminal color to its default value)
-\
-( ======================== ANSI SYSTEM   ==================== )
+\ 
+( ==================== ANSI Colors =================================== )
 
-( ======================== Block Editor  ==================== )
+( ==================== Block Editor ================================== )
 
 ( Block Editor Help
 
@@ -1224,7 +1237,9 @@ location editor-voc 0
 : sw 2dup y [line] swap [line] swap c/l cmove c ;
 .set editor-voc $pwd
 
-( ======================== Starting Code ==================== )
+( ==================== Block Editor ================================== )
+
+( ==================== Startup Code ================================== )
 
 start:
 .set entry start
@@ -1236,7 +1251,7 @@ start:
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
 
-( ======================== User Code ======================== )
+( ==================== Startup Code ================================== )
 
 .set cp  $pc
 
