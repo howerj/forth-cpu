@@ -19,10 +19,8 @@ some take pointers to the CFA of a word, other the PWD field
 * Load initial VGA screen from NVRAM?
 * Reimplement 'hide'
 * Implement user variables, and copy variables to user area on cold boot
-* Display contents of first block on the screen at start up? Or use as
-boot block?
-* Fix interrupts
-* A peephole optimizer and a super optimizer for the CPU could be created.
+* Fix interrupts, perhaps an interrupt exchange could replace the interrupt
+set and clear instruction as well.
 * A quasi-graphics mode using the block characters could be made, it could
 then be used for some primitive games
 * Vectored words use @execute, which does nothing if the value to execute is
@@ -1028,6 +1026,23 @@ constant mwin-max $1ff
 
 : c>m swap @ swap m! ; hidden      ( a a --  )
 : m>c m@ swap ! ; hidden ( a a -- )
+
+( Word set for interacting with the PCM Non-Volatile RAM, this is a work in
+progress. The simulator for this also does not work correctly, it will need
+to replicate the memory controllers logic. In the simulator, the volatile
+and non-volatile RAM overlap - and both behave as the volatile RAM does - write
+to a location and read from it, this is then loaded and saved by the simulator 
+at start up and exit, this will need fixing. )
+
+: status 0 $70 m! 0 m@ ; ( -- status )
+: read   $ff 0 m! ;      ( -- )
+: pcm    1 mram ! mrst ;      ( -- )
+: bwrite dup $42 swap m! m! begin status $80 and until ; ( u a -- )
+: write  dup $40 swap m! m! begin status $80 and until ; ( u a -- )
+: clear $50 0 m! ; ( -- clear status )
+\ : rid   $90 0 m! ; ( -- read id mode )
+: unlock dup $60 swap m! $d0 swap m! ; ( ba -- )
+: merase dup $20 swap m! $d0 swap m! ; ( ba -- )
 
 location _blockop 0
 	
