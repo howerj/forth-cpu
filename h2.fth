@@ -989,29 +989,30 @@ variable mram     0
 constant mwin-max $1ff
 
 : mcontrol! ( u -- : write to memory control register )
-	mram @ if $400 or then   ( select correct memory device )
-	mwin-max invert    and   ( mask off control bits )
-	mwindow @ mwindow and or ( or in higher address bits )
-	oMemControl ! ;          ( and finally write in control )
+	$f3ff and
+	mram @ if $400 else $800 then or  ( select correct memory device )
+	mwin-max invert    and            ( mask off control bits )
+	mwindow @ mwin-max and or         ( or in higher address bits )
+	oMemControl ! ;                   ( and finally write in control )
 
 : m! ( n a -- : write to non-volatile memory )
 	oMemAddrLow !
 	oMemDout !
-	20 40ns
-	$8800 mcontrol!
-	20 40ns
+	5 40ns
+	$8000 mcontrol!
+	5 40ns
 	$0000 mcontrol! ;
 
 : m@ ( a -- n : read from non-volatile memory )
 	oMemAddrLow !
-	$4800 mcontrol! ( read enable mode )
-	20 40ns
+	$4000 mcontrol! ( read enable mode )
+	5 40ns
 	iMemDin @        ( get input )
 	$0000 mcontrol! ;
 
 : mrst ( -- : reset non-volatile memory )
 	$2000 mcontrol!
-	20 40ns
+	5 40ns
 	$0000 mcontrol! ;
 
 : mdump ( a u -- : dump non-volatile memory )

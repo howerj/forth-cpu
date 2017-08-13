@@ -1761,7 +1761,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use std.textio.all;
-use work.util.dual_port_block_ram;
+use work.util.hex_char_to_std_logic_vector;
 
 entity single_port_block_ram is
 	generic(addr_length: positive := 12;
@@ -1778,26 +1778,60 @@ entity single_port_block_ram is
 end entity;
 
 architecture behav of single_port_block_ram is
-begin
-	ram: work.util.dual_port_block_ram
-		generic map(
-			addr_length => addr_length,
-			data_length => data_length,
-			file_name   => file_name,
-			file_type   => file_type)
-		port map(
-			a_clk  => clk,
-			a_addr => addr,
-			a_dwe  => dwe,
-			a_dre  => dre,
-			a_din  => din,
-			a_dout => dout,
+	constant ram_size: positive := 2 ** addr_length;
 
-			b_clk  => '0',
-			b_addr => (others => '0'),
-			b_dwe  => '0',
-			b_dre  => '0',
-			b_din  => (others => '0'));
+	type ram_type is array ((ram_size - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
+
+	impure function initialize_ram(file_name, file_type: in string) return ram_type is
+		variable ram_data:   ram_type;
+		file     in_file:    text is in file_name;
+		variable input_line: line;
+		variable tmp:        bit_vector(data_length - 1 downto 0);
+		variable c:          character;
+		variable slv:        std_logic_vector(data_length - 1 downto 0);
+	begin
+		for i in 0 to ram_size - 1 loop
+			if file_type = "nil" then
+				ram_data(i):=(others => '0');
+			elsif not endfile(in_file) then
+				readline(in_file,input_line);
+				if file_type = "bin" then -- binary
+					read(input_line, tmp);
+					ram_data(i) := to_stdlogicvector(tmp);
+				elsif file_type = "hex" then -- hexadecimal
+					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
+					for j in 1 to (data_length/4) loop
+						c:= input_line((data_length/4) - j + 1);
+						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_logic_vector(c);
+					end loop;
+					ram_data(i) := slv;
+				else
+					report "Incorrect file type given: " & file_type severity failure;
+				end if;
+			else
+				ram_data(i) := (others => '0');
+			end if;
+		end loop;
+		file_close(in_file);
+		return ram_data;
+	end function;
+
+	shared variable ram: ram_type := initialize_ram(file_name, file_type);
+begin
+	block_ram: process(clk)
+	begin
+		if rising_edge(clk) then
+			if dwe = '1' then
+				ram(to_integer(unsigned(addr))) := din;
+			end if;
+
+			if dre = '1' then
+				dout <= ram(to_integer(unsigned(addr)));
+			else
+				dout <= (others => '0');
+			end if;
+		end if;
+	end process;
 end architecture;
 
 ------------------------- Single and Dual Port Block RAM ----------------------------

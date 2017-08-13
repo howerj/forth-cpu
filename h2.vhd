@@ -41,7 +41,7 @@ entity h2 is
 		irq_addr: in  std_logic_vector(interrupt_address_length - 1 downto 0);
 
 		-- RAM interface, Dual port
-		pco:      out std_logic_vector(12 downto 0); -- program counter
+		pc:       out std_logic_vector(12 downto 0); -- program counter
 		insn:     in  std_logic_vector(15 downto 0); -- instruction
 
 		dwe:      out std_logic; -- data write enable
@@ -119,7 +119,7 @@ begin
 	compare.zero     <= '1' when unsigned(tos_c(15 downto 0)) = 0 else '0';
 	nos              <= vstk_ram(to_integer(vstkp_c));
 	rtos_c           <= rstk_ram(to_integer(rstkp_c));
-	pco              <= pc_n;
+	pc               <= pc_n;
 	pc_plus_one      <= std_logic_vector(unsigned(pc_c) + 1);
 	dout             <= nos;
 	daddr            <= tos_c(13 downto 1) when is_ram_write = '1' else tos_n(13 downto 1);
@@ -179,20 +179,23 @@ begin
 		when "00000" => tos_n <= tos_c;
 		when "00001" => tos_n <= nos;
 		when "01011" => tos_n <= rtos_c;
-		when "00010" => tos_n <= std_logic_vector(unsigned(nos) + unsigned(tos_c));
-		when "01010" => tos_n <= std_logic_vector(unsigned(tos_c) - 1);
+		when "10100" => tos_n <= cpu_id;
+
 		when "00011" => tos_n <= tos_c and nos;
 		when "00100" => tos_n <= tos_c or nos;
 		when "00101" => tos_n <= tos_c xor nos;
 		when "00110" => tos_n <= not tos_c;
+
 		when "00111" => tos_n <= (others => compare.equal);
 		when "01000" => tos_n <= (others => compare.more);
 		when "01111" => tos_n <= (others => compare.umore);
 		when "10011" => tos_n <= (others => compare.zero);
+
 		when "01001" => tos_n <= std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
 		when "01101" => tos_n <= std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-		when "10001" => tos_n    <= (others => int_en_c);
-		when "10000" => int_en_n <= tos_c(0);
+		when "00010" => tos_n <= std_logic_vector(unsigned(nos) + unsigned(tos_c));
+		when "01010" => tos_n <= std_logic_vector(unsigned(tos_c) - 1);
+
 		when "01100" =>
 			-- input: 0x4000 - 0x7FFF is external input
 			if tos_c(15 downto 14) /= "00" then
@@ -205,7 +208,10 @@ begin
 				tos_n(vstkp_c'range) <= std_logic_vector(vstkp_c);
 		when "10010" => tos_n <= (others => '0');
 				tos_n(rstkp_c'range) <= std_logic_vector(rstkp_c);
-		when "10100" => tos_n <= cpu_id;
+
+		when "10001" => tos_n    <= (others => int_en_c);
+		when "10000" => int_en_n <= tos_c(0);
+
 		when others  => tos_n <= tos_c;
 				report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
 		end case;

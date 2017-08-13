@@ -116,7 +116,7 @@ begin
 		irq_addr  =>  h2_irq_addr,
 
 		-- Instruction and instruction address to CPU
-		pco       =>  pc,
+		pc        =>  pc,
 		insn      =>  insn,
 		-- Fetch/Store
 		dwe       =>  dwe,

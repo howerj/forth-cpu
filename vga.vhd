@@ -71,9 +71,9 @@ package vga_pkg is
 		rst:      in  std_logic;
 		clk25MHz: in  std_logic;
 		text_a:   out std_logic_vector(11 downto 0); -- text buffer
-		text_d:   in  std_logic_vector(7 downto 0);
+		text_d:   in  std_logic_vector( 7 downto 0);
 		font_a:   out std_logic_vector(11 downto 0); -- font buffer
-		font_d:   in  std_logic_vector(7 downto 0);
+		font_d:   in  std_logic_vector( 7 downto 0);
 		 --
 		ocrx:     in  std_logic_vector(6 downto 0);
 		ocry:     in  std_logic_vector(5 downto 0);
@@ -175,9 +175,16 @@ architecture behav of vga_top is
 	signal  addr_c, addr_n:  std_logic_vector(12 downto 0) := (others => '0');
 begin
 	-- Output assignments, syncs elsewhere
-	o_vga.red   <=  (others => R_internal);
-	o_vga.green <=  (others => G_internal);
-	o_vga.blue  <=  (others => B_internal);
+	-- o_vga.red   <= (others => R_internal);
+	-- o_vga.green <= (others => G_internal);
+	-- o_vga.blue  <= (others => B_internal);
+	--
+	-- @note This is an experimental interface, that allows coloring of individual 
+	-- characters, it is not usable at the moment
+	--
+	o_vga.red   <= text_dout(10 downto 8)  when R_internal = '1' and text_dout(10 downto  8) /= "000" else (others => R_internal);
+	o_vga.green <= text_dout(13 downto 11) when G_internal = '1' and text_dout(13 downto 11) /= "000" else (others => G_internal);
+	o_vga.blue  <= text_dout(15 downto 14) when B_internal = '1' and text_dout(15 downto 14) /=  "00" else (others => B_internal);
 
 	-- Internal control registers
 	-- Next state on clk edge rising
@@ -298,9 +305,9 @@ entity vga_core is
 		rst:      in  std_logic;
 		clk25MHz: in  std_logic;
 		text_a:   out std_logic_vector(11 downto 0); -- text buffer
-		text_d:   in  std_logic_vector(7 downto 0);
+		text_d:   in  std_logic_vector( 7 downto 0);
 		font_a:   out std_logic_vector(11 downto 0); -- font buffer
-		font_d:   in  std_logic_vector(7 downto 0);
+		font_d:   in  std_logic_vector( 7 downto 0);
 		 --
 		ocrx:     in  std_logic_vector(6 downto 0);
 		ocry:     in  std_logic_vector(5 downto 0);
