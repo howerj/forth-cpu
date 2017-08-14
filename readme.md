@@ -1433,6 +1433,8 @@ description and flashy GIFs
 * Put a help file, and extra source, in some Forth blocks, which could then be
   loaded onto the Nexys3.
 * Add notes about picocom, and setting up the hardware:
+* Add a [Wishbone interface][] for each component
+* Put the project up on [opencores][]
 
 <!-- -->
 
@@ -1504,6 +1506,7 @@ description and flashy GIFs
 [pandoc]: https://pandoc.org
 [picocom]: https://github.com/npat-efault/picocom
 [Gforth]: https://www.gnu.org/software/gforth/
+[opencores]: https://opencores.org
 
 <!--
 

@@ -1014,10 +1014,11 @@ constant mwin-max $1ff
 	$0000 mcontrol! ;
 
 : mdump ( a u -- : dump non-volatile memory )
+	cr
 	begin
 		dup
 	while
-		over . 58 emit over m@ . cr
+		over 5u.r 40 emit over m@ 4 u.r 41 emit over 1+ $7 and 0= if cr then
 		1 /string
 	repeat 2drop cr ;
 
@@ -1037,12 +1038,17 @@ at start up and exit, this will need fixing. )
 : status 0 $70 m! 0 m@ ; ( -- status )
 : read   $ff 0 m! ;      ( -- )
 : pcm    1 mram ! mrst ;      ( -- )
-: bwrite dup $42 swap m! m! begin status $80 and until ; ( u a -- )
-: write  dup $40 swap m! m! begin status $80 and until ; ( u a -- )
+: wait begin status $80 and until ;
+: bwrite dup $42 swap m! m! wait ; ( u a -- )
+: write  dup $40 swap m! m! wait ; ( u a -- )
 : clear $50 0 m! ; ( -- clear status )
-\ : rid   $90 0 m! ; ( -- read id mode )
+: rid   $90 0 m! ; ( -- read id mode )
 : unlock dup $60 swap m! $d0 swap m! ; ( ba -- )
+: unlocker 2047 for r@ unlock clear next ; ( -- )
 : merase dup $20 swap m! $d0 swap m! ; ( ba -- )
+: mquery $98 0 m! ; ( -- : query mode )
+\ : bwrite2 $ea over m! 1 over m! tuck m! $d0 swap m! ;
+
 
 location _blockop 0
 	
