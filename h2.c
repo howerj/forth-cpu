@@ -883,7 +883,10 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
 	case iMemDin:
-		/**@todo Select nvram/vram, improve memory simulation */
+		/**@todo Select NVRAM/SRAM, improve memory simulation, the
+		 * Common Flash Interface for the NVRAM will need to be
+		 * simulated as a state machine that interacts with the NVRAM
+		 * memory block */
 		if((soc->mem_control & PCM_MEMORY_OE) && !(soc->mem_control & PCM_MEMORY_WE))
 			return soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
 		return 0;

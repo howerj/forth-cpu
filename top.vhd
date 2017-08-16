@@ -46,7 +46,7 @@ entity top is
 		sw:       in  std_logic_vector(7 downto 0) := (others => 'X'); -- switches
 		-- Simple LED outputs
 		an:       out std_logic_vector(3 downto 0) := (others => '0'); -- anodes   7 segment display
-		ka:       out std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 7 segment display
+		ka:       out std_logic_vector(7 downto 0) := (others => '0'); -- cathodes 7 segment display
 
 		ld:       out std_logic_vector(7 downto 0) := (others => '0'); -- leds
 
@@ -134,6 +134,7 @@ architecture behav of top is
 	---- Timer
 	signal timer_control_we: std_logic := '0';
 	signal timer_control_i:  std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
+	-- @todo Remove timer_control_o, it is a pointless signal
 	signal timer_control_o:  std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
 	signal timer_counter_o:  std_logic_vector(timer_length - 4 downto 0) := (others =>'0');
 	signal timer_irq:        std_logic;
@@ -302,6 +303,7 @@ begin
 		mem_data_o)
 	begin
 
+		-- @todo Move this into the PS/2 module
 		if kbd_new_edge = '1' then
 			kbd_new_n  <= '1';
 			kbd_char_n <= kbd_char;
@@ -458,7 +460,8 @@ begin
 	--- VGA -----------------------------------------------------------
 
 	-- @todo The interface for reading from the VGA needs sorting
-	-- it is currently unusable, writing works fine.
+	-- it is currently unusable for reading, writing works fine. Perhaps
+	-- a wishbone interface could be made for this component
 	vga: block
 		signal vga_din_we_d: std_logic := '0';
 		signal vga_we_ram:   std_logic := '0';
@@ -507,7 +510,8 @@ begin
 	--- PS/2 ----------------------------------------------------------
 
 	-- Process a kbd_new into a single edge for the rest of the
-	-- system
+	-- system. 
+	-- @todo Move into PS/2 component
 	ps2_edge_new_character_0: entity work.edge
 	port map(
 		clk    => clk,
@@ -553,7 +557,9 @@ begin
 				di(0) => leds_reg_we,
 				do(0) => leds_reg_we_o);
 
-		-- @todo change led interface, records are a bad idea for them
+		-- @todo change led interface, records are a bad idea for them, provide
+		-- a wishbone interface, this component could be used for testing the
+		-- wishbone concept out in this project.
 		leds(0).display <= leds_reg_o(15 downto 12);
 		leds(0).we      <= leds_reg_we_o;
 		leds(1).display <= leds_reg_o(11 downto 8);
