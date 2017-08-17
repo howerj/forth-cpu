@@ -5,6 +5,7 @@
 *_bitgen.xwbt
 *.bld
 *.blk
+block
 *.cmd_log
 core
 design.bit

@@ -120,6 +120,7 @@ typedef struct {
 	uint8_t leds;
 	uint16_t vga_cursor;
 	uint16_t vga_control;
+	uint16_t vga_addr;
 	uint16_t vga[VGA_BUFFER_LENGTH];
 
 	uint16_t timer_control;
@@ -180,6 +181,7 @@ typedef enum {
 	oMemControl   = 0x4008,
 	oMemAddrLow   = 0x4009,
 	oMemDout      = 0x400A,
+	oVgaAddr      = 0x400B,
 } h2_output_addr_t;
 
 typedef enum {

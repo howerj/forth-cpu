@@ -1435,6 +1435,12 @@ description and flashy GIFs
 * Add notes about picocom, and setting up the hardware:
 * Add a [Wishbone interface][] for each component
 * Put the project up on [opencores][]
+* It should be possible to turn [h2.c][] into a Forth interpreter usable in
+a hosted environment. Some of the remaining instructions could be used for
+function calls and floating point operations and the "uint16\_t" would have to
+be changed to "uintptr\_t". As the interpreter is so small a Forth to "C"
+compiler could just spit out a copy of the interpreter. It should make for
+a very compact system. 
 
 <!-- -->
 

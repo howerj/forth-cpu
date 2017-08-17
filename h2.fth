@@ -92,6 +92,7 @@ constant oLfsr         $4007 ( Seed value of LFSR )
 constant oMemControl   $4008 ( Memory control and high address bits )
 constant oMemAddrLow   $4009 ( Lower memory address bits )
 constant oMemDout      $400A ( Memory output for writes )
+constant oVgaAddr      $400B ( VGA memory address output )
 
 ( Inputs: $6000 - $7FFF )
 constant iUart         $4000 ( Matching registers for iUart )
@@ -126,13 +127,13 @@ constant vgaTextSize   3200  ( vgaX * vgaY )
 
 ( Execution vectors for changing the behaviour of the program,
 they are set at the end of this file )
-variable _key?      0  ( -- c -1 | 0 : new character available? )
-variable _emit      0  ( c -- : emit character )
-variable _expect    0  ( "accept" vector )
-variable _tap       0  ( "tap" vector, for terminal handling )
-variable _echo      0  ( c -- : emit character )
-variable _prompt    0  ( -- : display prompt )
-variable _boot      0  ( -- : execute program at startup )
+location _key?      0  ( -- c -1 | 0 : new character available? )
+location _emit      0  ( c -- : emit character )
+location _expect    0  ( "accept" vector )
+location _tap       0  ( "tap" vector, for terminal handling )
+location _echo      0  ( c -- : emit character )
+location _prompt    0  ( -- : display prompt )
+location _boot      0  ( -- : execute program at startup )
 location _bload     0  ( a u k -- f : load block )
 location _bsave     0  ( a u k -- f : save block )
 location _binvalid  0  ( k -- k : throws error if k invalid )
@@ -230,7 +231,6 @@ location hi-string        "eFORTH V"    ( used by "hi" )
 	>r over xor r> and xor swap ( -2 and ) store drop ;
 \ : c, cp @ c! cp 1+! ;    ( c -- )
 
-: !io vgaInit oVgaCtrl ! 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
 
 : rx? ( -- c -1 | 0 : read in a character of input from UART )
 	iUart @ $0100 and 0=
@@ -238,7 +238,7 @@ location hi-string        "eFORTH V"    ( used by "hi" )
 		$0400 oUart ! iUart @ $ff and [-1]
 	else
 		0
-	then ;
+	then ; hidden
 
 : 40ns begin dup while 1- repeat drop ; hidden ( n -- : wait for 'n'*40ns + 30us )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
@@ -251,7 +251,7 @@ and speeds things up greatly )
 : tx! ( c -- : write a character to UART )
 	begin iUart @ $1000 and 0= until ( Wait until TX FIFO is not full )
 	\ begin iUart @ $0800 and until ( Wait until TX FIFO is empty )
-	$2000 or oUart ! ;            ( Write character out )
+	$2000 or oUart ! ; hidden     ( Write character out )
 
 : um+ ( w w -- w carry )
 	over over + >r
@@ -259,10 +259,10 @@ and speeds things up greatly )
 	over over and
 	0 < r> or >r
 	or 0 < r> and invert 1 +
-	r> swap ;
+	r> swap ; hidden
 
 : rp! ( n -- , R: ??? -- ??? : set the return stack pointer )
-	r> swap begin dup rp@ = 0= while rdrop repeat drop >r ;
+	r> swap begin dup rp@ = 0= while rdrop repeat drop >r ; hidden
 
 ( With the built in words defined in the assembler, and the words
 defined so far, all of the primitive words needed by eForth should
@@ -419,16 +419,16 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	>r over r@ < dup
 	if
 		=bs dup echo =bl echo echo
-	then r> + ;
+	then r> + ; hidden
 
-: tap dup echo over c! 1+ ; ( bot eot cur c -- bot eot cur )
+: tap dup echo over c! 1+ ; hidden ( bot eot cur c -- bot eot cur )
 
 : ktap ( bot eot cur c -- bot eot cur )
 	dup =cr xor
 	if =bs xor
 		if =bl tap else ^h then
 		exit
-	then drop nip dup ;
+	then drop nip dup ; hidden
 
 : accept ( b u -- b u )
 	over + over
@@ -463,9 +463,9 @@ be available. "doList" and "doLit" do not need to be implemented. )
 \         next 0 ;
  
 : address $3fff and ; hidden ( a -- a : mask off address bits )
-: nfa address cell+ ; ( pwd -- nfa : move to name field address)
-: cfa nfa dup count nip + cell + $fffe and ; ( pwd -- cfa : move to code field address )
-: .id nfa print space ; ( pwd -- : print out a word )
+: nfa address cell+ ; hidden ( pwd -- nfa : move to name field address)
+: cfa nfa dup count nip + cell + $fffe and ; hidden ( pwd -- cfa : move to code field address )
+: .id nfa print space ; hidden ( pwd -- : print out a word )
 
 : logical 0= 0= ; hidden ( n -- f )
 : immediate? @ $4000 and logical ; hidden ( pwd -- f : is immediate? )
@@ -536,7 +536,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 		aft =bl over r@ + c@ <
 			if r> 1+ exit then
 		then
-	next 0 ;
+	next 0 ; hidden
 
 : lookfor ( b u c -- b u : skip until _test succeeds )
 	>r
@@ -604,6 +604,7 @@ not consumed in the previous parse )
 
 : make-callable 2/ $4000 or ; hidden ( cfa -- instruction )
 : compile, make-callable , ;         ( cfa -- : compile a code field address )
+: $compile dup inline? if cfa @ , else cfa compile, then ; hidden ( pwd -- )
 
 : interpret ( ??? a -- ??? : The command/compiler loop )
 	find ?dup if
@@ -612,12 +613,7 @@ not consumed in the previous parse )
 			0> if \ immediate
 				cfa execute
 			else
-				dup inline?
-				if
-					cfa @ , ( @todo copy until exit? )
-				else
-					cfa compile,
-				then
+				$compile exit
 			then
 		else
 			drop cfa execute
@@ -635,12 +631,6 @@ not consumed in the previous parse )
 : .ok state @ 0= if space OK print space then cr ;
 : eval begin token dup count nip while interpret repeat drop _prompt @execute ; hidden
 : quit quitLoop: preset [ begin query ' eval catch on-error again ;
-
-: pace 11 emit ;
-: xio  ' accept _expect ! _tap ! _echo ! _prompt ! ;
-: file ' pace ' "drop" ' ktap xio ;
-: hand ' .ok  '  emit  ' ktap xio ;
-: console ' rx? _key? ! ' tx! _emit ! hand ;
 
 : evaluate ( a u -- )
 	_prompt @ >r  0 _prompt !
@@ -684,9 +674,6 @@ not consumed in the previous parse )
 		2 spaces $type
 	next drop ;
 
-: ver version @ ;
-: hi !io ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr ;
-
 ( ==================== Extra Words =================================== a
 
 \ : square dup * ;
@@ -728,13 +715,14 @@ not consumed in the previous parse )
 : ansi.page CSI 2 10u. [char] J emit 1 1 ansi.at-xy ; hidden ( -- : clear ANSI terminal screen and move cursor to beginning )
 
 : vga! ( vga.screen @ if 4096 + then ) $C000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
+: vga@ oVgaAddr ! iVgaTxtDout @ ; ( a -- u : read VGA value at address )
 : segments! o8SegLED ! ;   ( u -- : display a number on the LED 7/8 segment display )
 : led!      oLeds ! ;      ( u -- : write to LED lights )
 : switches  iSwitches  @ ; ( -- u : get the state of the switches)
 : timer!    oTimerCtrl ! ; ( u -- )
 : timer     iTimerDin  @ ; ( -- u )
-: ps2? iPs2 @ dup $ff and swap $100 and if [-1] else drop 0 then ; ( -- c -1 | 0 : PS/2 version of rx? )
-: input rx? if [-1] else ps2? then ; ( -- c -1 | 0 : UART and PS/2 Input )
+: ps2? iPs2 @ dup $ff and swap $100 and if [-1] else drop 0 then ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
+: input rx? if [-1] else ps2? then ; hidden ( -- c -1 | 0 : UART and PS/2 Input )
 : vga.at-xy 256* or oVgaCursor ! ; hidden ( x y -- : set terminal cursor to x-y position )
 : vgaX* dup 6 lshift swap 4 lshift + ; hidden ( n -- n : 80* )
 : vgaTextSizeMod dup vgaTextSize u> if vgaTextSize - then ; hidden
@@ -768,7 +756,17 @@ a character is dropped somewhere )
 	dup tx!
 	( drop exit \ @note The rest of this word is responsible for the large return stack usage )
 	cursor @ terminal
-	dup 1+ cursor @ u< if drop page else cursor ! then ;
+	dup 1+ cursor @ u< if drop page else cursor ! then ; hidden
+
+: pace 11 emit ; hidden
+: xio  ' accept _expect ! _tap ! _echo ! _prompt ! ; hidden
+: file ' pace ' "drop" ' ktap xio ;
+: hand ' .ok  '  emit  ' ktap xio ;
+: console ' rx? _key? ! ' tx! _emit ! hand ;
+: interactive ' input _key? ! ' output _emit ! hand ; hidden
+: io! interactive vgaInit oVgaCtrl ! 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
+: ver version @ ;
+: hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr ;
 
 ( ==================== Advanced I/O Control ========================== )
 
@@ -782,7 +780,11 @@ as possible so the Forth environment is easy to use. )
 instruction it might be possible to merge the exit into it, if the instruction
 does not modify the return stack pointer or set the R->PC flag. Alternatively
 if last word called in a function is a call, this can be replaced with a branch
-instead )
+instead
+
+@bug ":" links the word in, allowing it to be found in the dictionary,
+instead, ";" should do this so previous definitions of a word with the
+same name can be used within word being currently defined )
 
 : !csp sp@ csp ! ; hidden
 : ?csp sp@ csp @ xor if 22 -throw then ; hidden
@@ -818,6 +820,9 @@ instead )
 : "for" ?compile =>r , here -csp ; immediate
 : doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
 : "next" ?compile ' doNext compile, , +csp ; immediate
+\ : noop ; hidden
+\ : doer create does> drop noop ;
+\ : make call "'" call "'" make-callable swap state @ if literal literal ' ! compile, else ! then ; immediate
 
 \ : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
 \ : compile ( -- ) r> dup @ , cell+ >r ;
@@ -842,10 +847,11 @@ in which the problem could be solved. )
 
 ( ==================== Vocabulary Words ============================== )
 
+: find-empty-cell begin dup @ while cell+ repeat ; hidden ( a -- a )
 
 : get-order ( -- widn ... wid1 n : )
 	context 
-	begin dup @ while cell+ repeat
+	find-empty-cell
 	dup cell- swap
 	context - 2/ dup >r 1- dup 0< if 50 -throw then
 	for aft dup @ swap cell- then next @ r> ;
@@ -855,9 +861,9 @@ in which the problem could be solved. )
 	dup #vocs > if 49 -throw then
 	context swap for aft tuck ! cell+ then next 0 swap ! ;
 
-: only [-1] set-order ;
-: also get-order over swap 1+ set-order ;
-: previous get-order  swap drop 1- set-order ;
+\ : only [-1] set-order ;
+\ : also get-order over swap 1+ set-order ;
+\ : previous get-order swap drop 1- set-order ;
 
 : forth -1 set-order ;
 : assembler forth-wordlist assembler-voc 2 set-order ;
@@ -911,9 +917,7 @@ source-id word can be used by words to modify their behavior )
 : thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
 : blank =bl fill ;
 \ : blank-thru over - for dup block b/buf blank update 1+ next drop flush ;
-
-( display a message from a line within a block )
-: msg 16 extract swap block swap c/l * + c/l -trailing $type cr ; ( u -- )
+: message 16 extract swap block swap c/l * + c/l -trailing $type cr ; ( u -- )
 
 ( all words before this are now in the forth vocabulary, it is also set
 later on )
@@ -999,7 +1003,11 @@ mechanism for doing bit alterable writes which is not working at the
 moment, normal flash like writes are, although the PCM memory should
 allow bit alterable writes. A possible solution would be to just
 use the SRAM, which works, then using the flash mask like writes
-and block erase, copy the contents of SRAM to the NVRAM )
+and block erase, copy the contents of SRAM to the NVRAM
+
+@todo Map the SRAM and NVRAM into different parts of the block
+number range, 65536 block numbers and index 64MB of memory, the
+SRAM and NVRAM are both 16MB in size)
 
 variable mwindow  0
 variable mram     0
@@ -1250,8 +1258,12 @@ manipulating a terminal )
       w    list editor commands
       q    back to Forth interpreter )
 
+( @todo Two modes would make the editor more useful, one that would
+allow the user to type lines in freely, and one that would automatically
+save modified blocks )
+
 location editor-voc 0
-: editor editor-voc 1 set-order ; 
+: editor decimal editor-voc 1 set-order ; 
 .set context forth-wordlist
 .set forth-wordlist $pwd
 .pwd 0
@@ -1260,19 +1272,19 @@ location editor-voc 0
 : [check] dup b/buf c/l / u>= if 24 -throw then ; hidden
 : [line] [check] c/l * [block] + ; hidden
 : [clean] ; hidden \ @todo call >char on modified line
-: w words ;
 : n  1 +block block drop ;
 : p [-1] +block block drop ;
 : d [line] c/l =bl fill ;
 : x [block] b/buf =bl fill ;
 : s update save-buffers ;
 : q forth save-buffers ;
-: e blk @ load char drop ;
+: e forth blk @ load editor ;
 : ia c/l * + [block] + tib >in @ + swap #tib @ >in @ - cmove  call "\" ;
 : i 0 swap ia ;
 : u update ;
-: b block ;
+: b block drop ;
 : l blk @ list ;
+: w words ;
 : yank pad c/l ; hidden
 : c [line] yank >r swap r> cmove ; \ n -- yank line number to buffer
 : y [line] yank cmove ; \ n -- copy yank buffer to line
@@ -1287,7 +1299,7 @@ location editor-voc 0
 
 start:
 .set entry start
-	!io
+	io!
 	page
 	hi
 	cpu-id segments!

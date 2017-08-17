@@ -115,8 +115,8 @@ architecture behav of top is
 	---- VGA
 	signal vga_control:    vga_control_registers_interface    := vga_control_registers_initialize;
 	signal vga_control_we: vga_control_registers_we_interface := vga_control_registers_we_initialize;
-
-	signal vga_dout:    std_logic_vector(15 downto 0) := (others => '0');
+	signal vga_dout:            std_logic_vector(15 downto 0) := (others => '0');
+	signal vga_update_address : std_logic                     := '0';
 
 	---- UART
 	signal rx_data:        std_logic_vector(7 downto 0) := (others => '0');
@@ -232,21 +232,20 @@ begin
 	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 -- synthesis translate_off
-	debug            => debug,
+		debug            => debug,
 -- synthesis translate_on
-
-	clk              => clk,
-	rst              => rst,
-	stop             => cpu_wait,
-	io_wr            => io_wr,
-	io_re            => io_re,
-	io_din           => io_din,
-	io_dout          => io_dout,
-	io_daddr         => io_daddr,
-	cpu_irq          => cpu_irq,
-	cpu_irc          => cpu_irc,
-	cpu_irc_mask     => cpu_irc_mask,
-	cpu_irc_mask_we  => cpu_irc_mask_we);
+		clk              => clk,
+		rst              => rst,
+		stop             => cpu_wait,
+		io_wr            => io_wr,
+		io_re            => io_re,
+		io_din           => io_din,
+		io_dout          => io_dout,
+		io_daddr         => io_daddr,
+		cpu_irq          => cpu_irq,
+		cpu_irc          => cpu_irc,
+		cpu_irc_mask     => cpu_irc_mask,
+		cpu_irc_mask_we  => cpu_irc_mask_we);
 
 -------------------------------------------------------------------------------
 -- IO
@@ -260,7 +259,6 @@ begin
 
 	---- Clock divider /2. Pixel clock is 25MHz
 	clk25MHz <= '0' when rst = '1' else not clk25MHz when rising_edge(clk50MHz);
-	---- End note.
 
 	io_nextState: process(clk, rst)
 	begin
@@ -279,9 +277,49 @@ begin
 		end if;
 	end process;
 
-	io_select: process(
-		io_wr, io_re, io_dout, io_daddr,
-		ld_c,
+	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
+
+	cpu_irc_mask      <= io_dout(number_of_interrupts - 1 downto 0);
+	timer_control_i   <= io_dout;
+	vga_control.crx   <= io_dout(6 downto 0);
+	vga_control.cry   <= io_dout(13 downto 8);
+	vga_control.ctl   <= io_dout(vga_control.ctl'range);
+	leds_reg          <= io_dout;
+	tx_data           <= io_dout(tx_data'range);
+	lfsr_i            <= io_dout;
+	mem_addr_16_1     <= io_dout;
+	mem_addr_26_17    <= io_dout(9 downto 0);
+	mem_control_i     <= io_dout(15 downto 10);
+	mem_data_i        <= io_dout;
+
+	ld                <= ld_c;
+
+	io_write: block
+		signal selector: std_logic_vector(3 downto 0) := (others => '0');
+		signal is_write: boolean := false;
+	begin 
+		selector <= io_daddr(3 downto 0);
+		is_write <= true when io_wr = '1' and io_daddr(15) = '0' else false;
+
+		tx_data_we         <= io_dout(13)         when is_write and selector = "0000" else '0';
+		rx_data_re         <= io_dout(10)         when is_write and selector = "0000" else '0';
+		ld_n               <= io_dout(7 downto 0) when is_write and selector = "0001" else ld_c;
+		timer_control_we   <= '1'                 when is_write and selector = "0010" else '0';
+		vga_control_we.crx <= '1'                 when is_write and selector = "0011" else '0';
+		vga_control_we.cry <= '1'                 when is_write and selector = "0011" else '0';
+		vga_control_we.ctl <= '1'                 when is_write and selector = "0100" else '0';
+		leds_reg_we        <= '1'                 when is_write and selector = "0101" else '0';
+		cpu_irc_mask_we    <= '1'                 when is_write and selector = "0110" else '0';
+		lfsr_i_we          <= '1'                 when is_write and selector = "0111" else '0';
+		mem_addr_26_17_we  <= '1'                 when is_write and selector = "1000" else '0';
+		mem_control_we     <= '1'                 when is_write and selector = "1000" else '0';
+		mem_addr_16_1_we   <= '1'                 when is_write and selector = "1001" else '0';
+		mem_data_i_we      <= '1'                 when is_write and selector = "1010" else '0';
+		vga_update_address <= '1'                 when is_write and selector = "1011" else '0';
+	end block;
+
+	io_read: process(
+		io_wr, io_re, io_daddr,
 		sw_d, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
 		kbd_char, kbd_new_c, kbd_char_c,
 		kbd_new_edge,
@@ -302,7 +340,6 @@ begin
 
 		mem_data_o)
 	begin
-
 		-- @todo Move this into the PS/2 module
 		if kbd_new_edge = '1' then
 			kbd_new_n  <= '1';
@@ -313,33 +350,6 @@ begin
 		end if;
 
 		io_din             <= (others => '0');
-
-		ld                 <= ld_c;
-		ld_n               <= ld_c;
-		tx_data_we         <= '0';
-		rx_data_re         <= '0';
-		vga_control_we     <= vga_control_registers_we_initialize;
-		timer_control_we   <= '0';
-		cpu_irc_mask_we    <= '0';
-		leds_reg_we        <= '0';
-		mem_addr_26_17_we  <= '0';
-		mem_addr_16_1_we   <= '0';
-		mem_control_we     <= '0';
-		mem_data_i_we      <= '0';
-
-		cpu_irc_mask      <= io_dout(number_of_interrupts - 1 downto 0);
-		timer_control_i   <= io_dout;
-		vga_control.crx   <= io_dout(6 downto 0);
-		vga_control.cry   <= io_dout(13 downto 8);
-		vga_control.ctl   <= io_dout(vga_control.ctl'range);
-		leds_reg          <= io_dout;
-		tx_data           <= io_dout(tx_data'range);
-		lfsr_i            <= io_dout;
-		lfsr_i_we         <= '0';
-		mem_addr_16_1     <= io_dout;
-		mem_addr_26_17    <= io_dout(9 downto 0);
-		mem_control_i     <= io_dout(15 downto 10);
-		mem_data_i        <= io_dout;
 
 		if io_re = '1' and io_daddr(15) = '0' then
 			case io_daddr(2 downto 0) is
@@ -367,36 +377,6 @@ begin
 			when "111" =>
 				io_din             <= mem_data_o;
 			when others => io_din <= (others => '0');
-			end case;
-		elsif io_wr = '1' and io_daddr(15) = '0' then
-			case io_daddr(3 downto 0) is
-			when "0000" => -- UART
-				tx_data_we <= io_dout(13);
-				rx_data_re <= io_dout(10);
-			when "0001" => -- LEDs, next to switches.
-				ld_n <= io_dout(7 downto 0);
-			when "0010" => -- General purpose timer
-				timer_control_we <= '1';
-			when "0011" => -- VGA, cursor registers.
-				vga_control_we.crx <= '1';
-				vga_control_we.cry <= '1';
-			when "0100" => -- VGA, control register.
-				vga_control_we.ctl <= '1';
-			when "0101" => -- LEDs
-				leds_reg_we <= '1';
-			when "0110" => -- CPU Mask
-				cpu_irc_mask_we <= '1';
-			when "0111" =>
-				lfsr_i <= io_dout;
-				lfsr_i_we <= '1';
-			when "1000" =>
-				mem_addr_26_17_we <= '1';
-				mem_control_we    <= '1';
-			when "1001" =>
-				mem_addr_16_1_we  <= '1';
-			when "1010" =>
-				mem_data_i_we     <= '1';
-			when others =>
 			end case;
 		end if;
 	end process;
@@ -459,9 +439,11 @@ begin
 
 	--- VGA -----------------------------------------------------------
 
-	-- @todo The interface for reading from the VGA needs sorting
-	-- it is currently unusable for reading, writing works fine. Perhaps
-	-- a wishbone interface could be made for this component
+	-- @note Writes to the VGA memory are memory mapped, reads however
+	-- have to go through a special register, for timing related reasons,
+	-- this makes the interface odd and does not buy us much in the
+	-- way of functionality. It might be better going back to the old
+	-- interface.
 	vga: block
 		signal vga_din_we_d: std_logic := '0';
 		signal vga_we_ram:   std_logic := '0';
@@ -470,9 +452,10 @@ begin
 		signal vga_addr:     std_logic_vector(12 downto 0) := (others => '0');
 		signal vga_din:      std_logic_vector(15 downto 0) := (others => '0');
 	begin
-		-- vga_din_we   <= '1' when io_wr = '1' and io_re = '0' and io_daddr(15) = '1' else '0';
 		vga_din_we   <= '1' when io_wr = '1' and io_daddr(15) = '1' else '0';
-		vga_addr_we  <= vga_din_we;
+
+
+		vga_addr_we  <= '1' when vga_din_we = '1' or vga_update_address = '1' else '0';
 		vga_din_we_d <= vga_din_we;
 		vga_addr     <= io_daddr(12 downto 0);
 		vga_din      <= io_dout;

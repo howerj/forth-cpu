@@ -878,8 +878,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	case iSwitches:     return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
-	/** @bug reading from VGA memory is broken in the hardware for the moment */
-	case iVgaTxtDout:   return 0;
+	case iVgaTxtDout:   return soc->vga[soc->vga_addr & 0x1FFF];
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
 	case iMemDin:
@@ -903,6 +902,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 
 	if(addr & 0x8000) {
 		soc->vga[addr & 0x1FFF] = value;
+		soc->vga_addr = value & 0x1FFF;
 		return;
 	}
 
@@ -928,6 +928,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 		break;
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
+	case oVgaAddr:    soc->vga_addr       = value & 0x1FFF; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 	}

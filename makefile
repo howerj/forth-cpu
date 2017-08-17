@@ -25,11 +25,12 @@ GUI_LDFLAGS = -lfreeglut -lopengl32 -lm
 DF=
 EXE=.exe
 
-.PHONY: h2 gui 
+.PHONY: h2 gui text block
 
-h2:    h2.exe
-gui:   gui.exe
-text:  text.exe
+h2:     h2.exe
+gui:    gui.exe
+text:   text.exe
+block:  block.exe
 
 else # assume unixen
 GUI_LDFLAGS = -lglut -lGL -lm 
@@ -126,6 +127,9 @@ text${EXE}: text.c
 
 text.bin: text${EXE}
 	${DF}$< -g > $@
+
+%.blk: %.txt block${EXE}
+	${DF}block${EXE} < $< > $@
 
 ## Simulation ==============================================================
 

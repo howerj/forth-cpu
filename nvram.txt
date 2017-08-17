@@ -1,0 +1,256 @@
+ABORT ( Forth Error Messages )
+  -1 ABORT
+  -2 ABORT"
+  -3 stack overflow
+  -4 stack underflow
+  -5 return stack overflow
+  -6 return stack underflow
+  -7 do-loops nested too deeply during execution
+  -8 dictionary overflow
+  -9 invalid memory address
+ -10 division by zero
+ -11 result out of range
+ -12 argument type mismatch
+ -13 undefined word
+ -14 interpreting a compile-only word
+ -15 invalid FORGET
+ -16 attempt to use zero-length string as a name
+ -17 pictured numeric output string overflow
+ -18 parsed string overflow
+ -19 definition name too long
+ -20 write to a read-only location
+ -21 unsupported operation 
+ -22 control structure mismatch
+ -23 address alignment exception
+ -24 invalid numeric argument
+ -25 return stack imbalance
+ -26 loop parameters unavailable
+ -27 invalid recursion
+ -28 user interrupt
+ -29 compiler nesting
+ -30 obsolescent feature
+ -31 >BODY used on non-CREATEd definition
+ -32 invalid name argument [e.g., TO xxx]
+ -33 block read exception
+ -34 block write exception
+ -35 invalid block number
+ -36 invalid file position
+ -37 file I/O exception
+ -38 non-existent file
+ -39 unexpected end of file
+ -40 invalid BASE for floating point conversion
+ -41 loss of precision
+ -42 floating-point divide by zero
+ -43 floating-point result out of range
+ -44 floating-point stack overflow
+ -45 floating-point stack underflow
+ -46 floating-point invalid argument
+ -47 compilation word list deleted
+ -48 invalid POSTPONE
+ -49 search-order overflow
+ -50 search-order underflow
+ -51 compilation word list changed
+ -52 control-flow stack overflow
+ -53 exception stack overflow
+ -54 floating-point underflow
+ -55 floating-point unidentified fault
+ -56 QUIT
+ -57 exception in sending or receiving a character
+ -58 [IF], [ELSE], or [THEN] exception
+
+The previous lines are used for printing error messages, the
+Forth word 'message' is used to index into this document.
+
+@todo Turn this into a markdown file, use as main documentation
+=================== eForth v6.66 ==============================
+eForth v6.66 Help System
+
+This Forth is modeled after eForth, described in a book by
+C.H. Ting called "eForth Overview", or "The Zen of eForth". It
+implements most of the eForth model with some changes expected
+from a more modern Forth system.
+
+The processor targeted is called the H2, a rewrite of the
+J1 processor (http://www.excamera.com/sphinx/fpga-j1.html). It
+has been extended with a few more instructions and with
+interrupts. The system resides on an FPGA Nexys 3 board from
+Digilent, with words and peripherals tailored to it.
+
+This project is hosted at: https://github.com/howerj/forth-cpu
+
+================== Introduction ================================
+Forth is a simple, imperative, stack based language that mixes
+elements of a high level language with a low level language. It
+is possible to fit a small Forth system in a few kilobytes of
+RAM complete with an interactive read-evaluate-print loop, an
+editor, an assembler and a disassembler.
+
+It is also a language that has fallen out of favor in recent
+times (after the micro-computer era) as it is not a very safe
+language, nor is it one that allows the programmer to easily
+create reusable and maintainable software components.
+
+However it is still suitable for a number of purposes; for 
+assemblers, to bring up hardware and test it, in memory
+constrained systems, as a boot loader, and for fun.
+
+================== Introduction ================================
+Forth itself has its own philosophy, one in which the programmer
+should have a complete understanding of the system, from the
+problem that needs to be solved, the algorithms needed to solve
+it, the hardware and the software. As the latter two, the 
+hardware and software are usually very simple in Forth systems
+it is possible to optimize the problem across multiple domains,
+tailoring each to come up with a solution. Forth eschews
+complexity, preferring one off, bespoke solutions. Another
+reason it has not seen widespread use.
+
+Advocates of the language are usually quite passionate about
+it (as with Lisp, and other niche systems) so it is important
+to be pragmatic about Forth. Forth is simply a tool and when
+used correctly can be used productively.
+
+================== Tutorial ====================================
+A Forth system contains an interactive interpreter that parses
+text and either compiles or executes functions, called 'words'
+in Forth terminology. The system uses Reverse Polish Notation
+(RPN) and provides the user with two stacks and a 'dictionary'
+(a big block of memory containing 'words' and other data).
+
+The interpreter reads from an input device, such as a keyboard
+or a serial port, and writes output to the screen or back
+over the serial port. Words and number input are space 
+delimited and are either compiled into the dictionary
+depending on the interpreter mode and whether the word
+read in is 'immediate' or not.
+
+
+
+================== Block Editor ================================
+The traditional way to store Forth source code and data is as
+Forth blocks, a block is a contiguous array of 1024 characters,
+which can be saved to non-volatile storage with the 'block'
+word set. On more modern Forth systems, especially hosted ones,
+the file access word set is used instead. 
+
+A Forth that does not have a file system, such as this one,
+usually has a primitive block editor. An editor can be defined
+in just a handful of (non-standard) words.
+
+By default the editor words are not in the Forth search order,
+the words in the editor vocabulary would conflict with Forth
+words (and with hexadecimal numbers). To load the block editor
+execute the 'editor' Forth word. Load initial block with '0 b'.
+
+================== Block Editor ================================
+The block editor is a prime example of Forth simplicity, it
+both simplifies the problem of editing text and reuses the
+Forth interpreter to define a new command language. Each command
+in the block editor simply a Forth word which takes its
+arguments off the stack, and a line is a fixed width 64 
+character array, a block can contain 16 lines of text. An empty
+line consists entirely of spaces, which the interpreter will
+ignore if it were to evaluate the block.
+
+The 'editor' word replaces the current vocabulary with the
+editor vocabulary and switches the number base for input and
+output to decimal. The commands are terse words one or two
+characters in length.
+
+
+================== Block Editor ================================
+The third element of the block editor is the elegant, if some-
+what limited, block word set. It completely abstracts aways the
+task of retrieving data from mass storage and saving modified
+data back to it. The mass storage is divided into blocks which
+can be loaded by their block number. Block numbers in this
+system start at 0 and go to $FFFE, $FFFF is an invalid block
+number. 
+
+The block word set is quite small, and the editor uses the 
+words; 'block', 'update', 'save-buffers', 'list', 'load',
+and '+block'. The variable 'blk', which contains the last
+block loaded (and listed) is also used. Most editor commands
+are minor modifications on the behavior of these words.
+
+
+================== Block Editor ================================
+The workhorse of the word set is 'block', it takes a block
+number and if that block number is not currently loaded into a
+block buffer (this system only has one block buffer available)
+it checks to see if the current block is marked as dirty (with
+the 'update' word). If it has been it first flushes the dirty
+block to mass storage, then loads the desired block from it. It
+then returns a pointer to the beginning of the block buffer. It
+also updates the 'blk' variable to contain the block number
+just loaded.
+
+
+
+
+
+
+================== Block Editor Commands 1/2 ===================
+'#' indicates a numeric argument the command takes:
+      n    move to next block
+      p    move to previous block
+    # d    delete line in current block
+      x    erase current block (overwrite with spaces)
+      e    evaluate current block
+    # i    insert line
+ # #2 ia   insert at line #2 at column #
+      q    quit editor loop
+    # b    load block number
+      s    save block and write it out
+      u    update block 
+      w    list editor commands
+      q    back to Forth interpreter 
+
+================== Block Editor Commands 2/2 ===================
+
+      l    re-list current block
+    # c    paste copy buffer to line #
+    # y    yank line # into copy buffer
+ # #2 ct   copy line # to line #2
+    # ea   evaluate line #
+ # #2 sw   swap lines # and #2
+
+The editor is simple to use and understand, but for large
+documents and programs can quite difficult to use.
+
+
+
+
+
+================== TO DO =======================================
+
+* Describe the Nexys 3 system, the system on a chip, the
+* List the instruction set
+* Document the registers used
+* Write a full tutorial and description of the system
+
+
+
+
+
+
+
+
+
+
+===============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
