@@ -2032,10 +2032,9 @@ typedef struct node_t  {
 	struct node_t *o[];
 } node_t;
 
-static node_t *node_new(lexer_t *l, parse_e type, size_t size)
+static node_t *node_new(parse_e type, size_t size)
 {
 	node_t *r = allocate_or_die(sizeof(*r) + sizeof(r->o[0]) * size);
-	assert(l);
 	if(log_level >= LOG_DEBUG)
 		fprintf(stderr, "node> %s\n", names[type]);
 	r->length = size;
@@ -2043,10 +2042,9 @@ static node_t *node_new(lexer_t *l, parse_e type, size_t size)
 	return r;
 }
 
-static node_t *node_grow(lexer_t *l, node_t *n)
+static node_t *node_grow(node_t *n)
 {
 	node_t *r = NULL;
-	assert(l);
 	assert(n);
 	errno = 0;
 	r = realloc(n, sizeof(*n) + (sizeof(n->o[0]) * (n->length + 1)));
@@ -2106,7 +2104,7 @@ static int token_enum_print(token_e sym, FILE *output)
 	assert(output);
 	assert(sym < LEX_ERROR);
 	const char *s = keywords[sym];
-	return fprintf(stderr, "%s(%u)", s ? s : "???", sym);
+	return fprintf(output, "%s(%u)", s ? s : "???", sym);
 }
 
 static void node_print(FILE *output, node_t *n, bool shallow, unsigned depth)
@@ -2149,7 +2147,7 @@ static node_t *defined_by_token(lexer_t *l, parse_e type)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, type, 0);
+	r = node_new(type, 0);
 	use(l, r);
 	return r;
 }
@@ -2159,7 +2157,7 @@ static node_t *variable_or_constant(lexer_t *l, bool variable)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, variable ? SYM_VARIABLE : SYM_CONSTANT, 1);
+	r = node_new(variable ? SYM_VARIABLE : SYM_CONSTANT, 1);
 	expect(l, LEX_IDENTIFIER);
 	use(l, r);
 	if(accept(l, LEX_LITERAL)) {
@@ -2175,7 +2173,7 @@ static node_t *jump(lexer_t *l, parse_e type)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, type, 0);
+	r = node_new(type, 0);
 	(void)(accept(l, LEX_LITERAL) || accept(l, LEX_STRING) || expect(l, LEX_IDENTIFIER));
 	use(l, r);
 	return r;
@@ -2187,13 +2185,13 @@ static node_t *for_next(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_FOR_NEXT, 1);
+	r = node_new(SYM_FOR_NEXT, 1);
 	r->o[0] = statements(l);
 	if(accept(l, LEX_AFT)) {
 		r->type = SYM_FOR_AFT_THEN_NEXT;
-		r = node_grow(l, r);
+		r = node_grow(r);
 		r->o[1] = statements(l);
-		r = node_grow(l, r);
+		r = node_grow(r);
 		expect(l, LEX_THEN);
 		r->o[2] = statements(l);
 	}
@@ -2205,13 +2203,13 @@ static node_t *begin(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_BEGIN_UNTIL, 1);
+	r = node_new(SYM_BEGIN_UNTIL, 1);
 	r->o[0] = statements(l);
 	if(accept(l, LEX_AGAIN)) {
 		r->type = SYM_BEGIN_AGAIN;
 	} else if(accept(l, LEX_WHILE)) {
 		r->type = SYM_BEGIN_WHILE_REPEAT;
-		r = node_grow(l, r);
+		r = node_grow(r);
 		r->o[1] = statements(l);
 		expect(l, LEX_REPEAT);
 	} else {
@@ -2224,7 +2222,7 @@ static node_t *if1(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_IF1, 2);
+	r = node_new(SYM_IF1, 2);
 	r->o[0] = statements(l);
 	if(accept(l, LEX_ELSE))
 		r->o[1] = statements(l);
@@ -2242,7 +2240,7 @@ static node_t *define(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_DEFINITION, 1);
+	r = node_new(SYM_DEFINITION, 1);
 	if(accept(l, LEX_IDENTIFIER))
 		;
 	else
@@ -2277,7 +2275,7 @@ static node_t *char_compile(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_CHAR, 0);
+	r = node_new(SYM_CHAR, 0);
 	expect(l, LEX_IDENTIFIER);
 	use(l, r);
 	if(strlen(r->token->p.id) > 1)
@@ -2289,7 +2287,7 @@ static node_t *mode(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_MODE, 0);
+	r = node_new(SYM_MODE, 0);
 	expect(l, LEX_LITERAL);
 	use(l, r);
 	return r;
@@ -2299,7 +2297,7 @@ static node_t *pc(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_PC, 0);
+	r = node_new(SYM_PC, 0);
 	if(!accept(l, LEX_LITERAL))
 		expect(l, LEX_IDENTIFIER);
 	use(l, r);
@@ -2310,7 +2308,7 @@ static node_t *pwd(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_PWD, 0);
+	r = node_new(SYM_PWD, 0);
 	if(!accept(l, LEX_LITERAL))
 		expect(l, LEX_IDENTIFIER);
 	use(l, r);
@@ -2321,7 +2319,7 @@ static node_t *set(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_SET, 0);
+	r = node_new(SYM_SET, 0);
 	if(!accept(l, LEX_IDENTIFIER))
 		expect(l, LEX_LITERAL);
 	use(l, r);
@@ -2335,7 +2333,7 @@ static node_t *allocate(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_ALLOCATE, 0);
+	r = node_new(SYM_ALLOCATE, 0);
 	if(!accept(l, LEX_IDENTIFIER))
 		expect(l, LEX_LITERAL);
 	use(l, r);
@@ -2346,7 +2344,7 @@ static node_t *quote(lexer_t *l)
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_QUOTE, 0);
+	r = node_new(SYM_QUOTE, 0);
 	if(!accept(l, LEX_IDENTIFIER))
 		expect(l, LEX_STRING);
 	use(l, r);
@@ -2358,9 +2356,9 @@ static node_t *statements(lexer_t *l)
 	node_t *r;
 	size_t i = 0;
 	assert(l);
-	r = node_new(l, SYM_STATEMENTS, 2);
+	r = node_new(SYM_STATEMENTS, 2);
 again:
-	r = node_grow(l, r);
+	r = node_grow(r);
 	if(accept(l, LEX_CALL)) {
 		r->o[i++] = jump(l, SYM_CALL);
 		goto again;
@@ -2441,7 +2439,7 @@ static node_t *program(lexer_t *l) /* block ( "." | EOF ) */
 {
 	node_t *r;
 	assert(l);
-	r = node_new(l, SYM_PROGRAM, 1);
+	r = node_new(SYM_PROGRAM, 1);
 	lexer(l);
 	r->o[0] = statements(l);
 	expect(l, LEX_EOI);
