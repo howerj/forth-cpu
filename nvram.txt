@@ -1,4 +1,20 @@
-ABORT ( Forth Error Messages )
+( Boot Screen: Specially formatted document - Do not edit!    )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+abort ( Forth Error Messages )
   -1 ABORT
   -2 ABORT"
   -3 stack overflow
@@ -61,7 +77,7 @@ ABORT ( Forth Error Messages )
 The previous lines are used for printing error messages, the
 Forth word 'message' is used to index into this document.
 
-@todo Turn this into a markdown file, use as main documentation
+
 =================== eForth v6.66 ==============================
 eForth v6.66 Help System
 
@@ -71,13 +87,13 @@ implements most of the eForth model with some changes expected
 from a more modern Forth system.
 
 The processor targeted is called the H2, a rewrite of the
-J1 processor (http://www.excamera.com/sphinx/fpga-j1.html). It
-has been extended with a few more instructions and with
+J1 processor (<http://www.excamera.com/sphinx/fpga-j1.html>).
+It has been extended with a few more instructions and with
 interrupts. The system resides on an FPGA Nexys 3 board from
 Digilent, with words and peripherals tailored to it.
 
-This project is hosted at: https://github.com/howerj/forth-cpu
-
+This project is hosted at: 
+<https://github.com/howerj/forth-cpu>
 ================== Introduction ================================
 Forth is a simple, imperative, stack based language that mixes
 elements of a high level language with a low level language. It
@@ -126,7 +142,7 @@ read in is 'immediate' or not.
 
 
 
-================== Block Editor ================================
+## Block Editor 
 The traditional way to store Forth source code and data is as
 Forth blocks, a block is a contiguous array of 1024 characters,
 which can be saved to non-volatile storage with the 'block'
@@ -142,7 +158,6 @@ the words in the editor vocabulary would conflict with Forth
 words (and with hexadecimal numbers). To load the block editor
 execute the 'editor' Forth word. Load initial block with '0 b'.
 
-================== Block Editor ================================
 The block editor is a prime example of Forth simplicity, it
 both simplifies the problem of editing text and reuses the
 Forth interpreter to define a new command language. Each command
@@ -157,8 +172,8 @@ editor vocabulary and switches the number base for input and
 output to decimal. The commands are terse words one or two
 characters in length.
 
+
 
-================== Block Editor ================================
 The third element of the block editor is the elegant, if some-
 what limited, block word set. It completely abstracts aways the
 task of retrieving data from mass storage and saving modified
@@ -173,8 +188,8 @@ and '+block'. The variable 'blk', which contains the last
 block loaded (and listed) is also used. Most editor commands
 are minor modifications on the behavior of these words.
 
+
 
-================== Block Editor ================================
 The workhorse of the word set is 'block', it takes a block
 number and if that block number is not currently loaded into a
 block buffer (this system only has one block buffer available)
@@ -184,6 +199,23 @@ block to mass storage, then loads the desired block from it. It
 then returns a pointer to the beginning of the block buffer. It
 also updates the 'blk' variable to contain the block number
 just loaded.
+
+The 'save-buffers' saves all buffers to disk and deallocates
+any blocks (by storing $FFFF in 'blk'). 'list' displays the
+contents of a block, 'load' evaluates a block and '+block'
+moves to a block relative to the currently loaded one.
+
+
+A quick recap of the block words:
+
+block        ( k -- u : load block into buffer )
+blk          ( -- a : last loaded block )
++block       ( k -- : load block relative to 'blk' )
+save-buffers ( -- : flush block to disk, put -1 in 'blk' )
+list         ( k -- : display block )
+load         ( k -- : evaluate a block )
+
+
 
 
 
@@ -216,9 +248,9 @@ just loaded.
  # #2 sw   swap lines # and #2
 
 The editor is simple to use and understand, but for large
-documents and programs can quite difficult to use.
-
-
+documents and programs can quite difficult to use. This block
+editor was derived from the Retro Forth block editor, available
+at: <http://retroforth.org/pages/?PortsOfRetroEditor>
 
 
 
@@ -228,15 +260,15 @@ documents and programs can quite difficult to use.
 * List the instruction set
 * Document the registers used
 * Write a full tutorial and description of the system
-
-
-
-
-
-
-
-
-
+* Add source code for everything to this block file
+* Add a program listing, perhaps in the first block, it could
+set variables relating to this document
+* Turn this into a markdown document, or further process this
+file. It could be used as the primary source of documentation
+as well as being on line help for the board
+* Extra words could be stored in these blocks, freeing up
+space for the user
+* Better tools for editing this file would help a lot.
 
 ===============================================================
 
