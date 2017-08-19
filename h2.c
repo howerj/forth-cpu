@@ -2702,7 +2702,6 @@ static built_in_words_t built_in_words[] = {
 	{ .name = NULL,    .inline_bit = false, .hidden = true, .len = 0, .code = {0} }
 };
 
-
 static void generate_loop_decrement(h2_t *h, assembler_t *a, symbol_table_t *t)
 {
 	a->do_next = a->do_next ? a->do_next : symbol_table_lookup(t, "r1-");

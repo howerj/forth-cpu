@@ -36,7 +36,8 @@ https://groups.google.com/forum/#!topic/comp.lang.forth/_bx4dJFb9R0
 http://www.figuk.plus.com/build/arith.htm
 
 Forth To Do:
-* Fix PARSE )
+* Fix PARSE
+* Add do...loop, case statements )
 
 ( ======================== System Constants ================= )
 
@@ -146,7 +147,6 @@ location rendezvous 0  ( saved cp and pwd )
 location seed       1  ( seed used for the PRNG )
 location cursor     0  ( index into VGA text memory )
 location handler    0  ( current handler for throw/catch )
-location version $666  ( eForth version information )
 variable >in        0  ( Hold character pointer when parsing input )
 variable state      0  ( compiler state variable )
 variable hld        0  ( Pointer into hold area for numeric output )
@@ -186,7 +186,6 @@ location see.immediate    " immediate " ( used by "see", for immediate words )
 location see.inline       " inline "    ( used by "see", for inline words )
 location OK               "ok"          ( used by "prompt" )
 location redefined        " redefined"  ( used by ":" when a word has been redefined )
-location border-string    "+---|---"    ( used by list for border )
 location hi-string        "eFORTH V"    ( used by "hi" ) 
 
 ( ======================== System Variables ================= )
@@ -206,7 +205,7 @@ location hi-string        "eFORTH V"    ( used by "hi" )
 : 2* 1 lshift ;            ( n -- n )
 : cell- cell - ;           ( a -- a )
 : cell+ cell + ;           ( a -- a )
-\ : cells 2* ;               ( n -- n )
+: cells 2* ;               ( n -- n )
 : ?dup dup if dup then ;   ( n -- | n n  )
 \ : >= < invert ;            ( n n -- f )
 : >  swap < ;              ( n n -- f )
@@ -229,7 +228,6 @@ location hi-string        "eFORTH V"    ( used by "hi" )
 	swap over dup ( -2 and ) @ swap 1 and 0 = $ff xor
 	>r over xor r> and xor swap ( -2 and ) store drop ;
 \ : c, cp @ c! cp 1+! ;    ( c -- )
-
 
 : rx? ( -- c -1 | 0 : read in a character of input from UART )
 	iUart @ $0100 and 0=
@@ -761,7 +759,7 @@ a character is dropped somewhere )
 : console ' rx? _key? ! ' tx! _emit ! hand ;
 : interactive ' input _key? ! ' output _emit ! hand ; hidden
 : io! interactive vgaInit oVgaCtrl ! 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
-: ver version @ ;
+: ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr ;
 
 ( ==================== Advanced I/O Control ========================== )
@@ -772,16 +770,10 @@ a character is dropped somewhere )
 words used for interpreting Forth. As much error checking is done
 as possible so the Forth environment is easy to use. )
 
-( @todo ";" could perform a few optimizations, if the previous word is an ALU
-instruction it might be possible to merge the exit into it, if the instruction
-does not modify the return stack pointer or set the R->PC flag. Alternatively
-if last word called in a function is a call, this can be replaced with a branch
-instead. 
-
+( @todo built in version of 'exit' should perform compile-exit? 
 @bug ":" links the word in, allowing it to be found in the dictionary,
 instead, ";" should do this so previous definitions of a word with the
 same name can be used within word being currently defined )
-
 : !csp sp@ csp ! ; hidden
 : ?csp sp@ csp @ xor if 22 -throw then ; hidden
 : +csp csp 1+! ; hidden
@@ -804,7 +796,6 @@ same name can be used within word being currently defined )
 : "while" ?compile call "if" ; immediate
 : "repeat" ?compile swap call "again" call "then" ; immediate
 : recurse ?compile last address cfa compile, ; immediate
-: tail ?compile last address cfa jump, ; immediate
 : create call ":" ' doVar compile, [ ; ( @todo does> )
 : >body ( dup @ $4000 or <> if 31 -throw then ) cell+ ;
 : doDoes r> 2/ here 2/ last address cfa dup cell+ doLit ! , ; hidden 
@@ -826,6 +817,14 @@ same name can be used within word being currently defined )
 		swap ! 
 	then ; immediate
 
+\ : back here cell- @ ; hidden ( a -- : get previous cell )
+\ : call? back $e000 and $4000 = ; hidden ( -- f : is call )
+\ : merge? back dup $e000 and $6000 = swap $1c and 0= and ; hidden ( -- f : safe to merge exit )
+\ : redo [-1] cells allot here ! ; hidden
+\ : merge back $1c or redo ; hidden
+\ : tail-call back $1fff and redo ; ( -- : turn previously compiled call into tail call )
+\ : compile-exit ( call? if tail-call else merge? if merge else )  =exit , ( then then ) ; hidden
+\ : exit compile-exit ; immediate
 \ : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
 \ : compile ( -- ) r> dup @ , cell+ >r ;
 
@@ -887,7 +886,7 @@ in which the problem could be solved. )
 
 ( ==================== Block Word Set ================================ )
 
-: updated? block-dirty @ ;             ( -- f )
+: updated? block-dirty @ ; hidden      ( -- f )
 : update [-1] block-dirty ! ;          ( -- )
 : +block blk @ + ;                     ( -- )
 : b/buf block-size ;                   ( -- u )
@@ -914,7 +913,7 @@ source-id word can be used by words to modify their behavior )
 : --> 1 +block load ;
 : scr blk ;
 : pipe 124 emit ; hidden
-: border 3 spaces 7 for border-string print next cr ; hidden
+: border 3 spaces 64 45 nchars cr ; hidden
 : list _page @execute block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
 : thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
 : blank =bl fill ;
@@ -954,8 +953,7 @@ location bcount 0
 	repeat rdrop ; hidden
 
 : .name name ?dup 0= if see.unknown then print ; hidden
-
-: mask-off 2dup and = ; hidden ( u u -- u f )
+: mask-off 2dup and = ; ( u u -- u f )
 
 i.end2t: 2*
 i.end:   5u.r rdrop exit

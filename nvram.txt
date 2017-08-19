@@ -106,7 +106,7 @@ The processor targeted is called the H2, a rewrite of the
 J1 processor (<http://www.excamera.com/sphinx/fpga-j1.html>).
 It has been extended with a few more instructions and with
 interrupts. The system resides on an FPGA Nexys 3 board from
-Digilent, with words and peripherals tailored to it.
+Digilent, with words and peripherals designed for it.
 
 For more see: <https://github.com/howerj/forth-cpu>
 
@@ -270,6 +270,22 @@ Negative numbers can be input by prefixing the number with
   -2 4 * . ( Display -8 )
 
 
+The word '.' pops a value off the stack before displaying it,
+if we want to examine the stack without popping the value we
+can print out the entire contents of the stack with '.s': 
+
+  1 2 3 .s ( prints "1 2 3 <sp")
+  .        ( prints "3" )
+  .s       ( prints "1 2 <sp" ) 
+
+"<sp" marks the element which is currently on the top of the
+stack. Other useful words for debugging include '?' that
+prints the contents at a memory address and 'dump', which
+prints a memory dump of a region of memory.
+
+  dump ( a u -- )
+  ?    ( a -- )
+
 Hexadecimal numbers can be entered if the base input and output
 base is 16, or by prefixing the number with '$'.
 
@@ -404,10 +420,170 @@ The word 'abs' is then defined as:
 
 'if' takes an argument off the stack at run time and jumps to
 after the 'then' if it is false (zero), if it is true (non-
-zero) the negate is performed.
+zero) the negate is performed. From now if a word is shown in 
+a definition that has not been previously mentioned please 
+refer to the glossary. We can can use the definition of the
+word 'abs' as soon as we terminate the definition with ";":
 
-From now if a word is shown in a definition that has not been
-previously mentioned please refer to the glossary.
+  -9 abs . ( displays 9 )
+   4 abs . ( displays 4 )
+
+This Forth uses two complements to represent negative numbers.
+
+A number can be negated in twos compliment form by performing
+a bitwise not on the number and adding one to it, this is what
+the word 'negate' does.
+
+"if...else...then" control structures can be created:
+
+  : min 2dup < if drop else nip then ; ( n n -- n )
+  : max 2dup > if drop else nip then ; ( n n -- n )
+
+These words get the minimum (min) and the maximum (max) of
+two numbers.
+
+   4 3 min . ( prints 3 )
+   4 3 max . ( prints 4 )
+
+
+Whilst control structures can be nested very deeply it is
+considered very bad practice to do, instead the definition
+should be refactored so it consists of short (preferably one
+line) word definitions.
+
+There are two mains ways of looping, either by recursion or
+with the several looping mechanisms. One of the simplest is
+"begin...until". This continues looping until a variable popped
+off the stack when the "until" word is reach is non-zero. Like
+the "if" control structure this can only be used within a word
+definition. An example is the definition of "key", which gets
+a single character from the input device, it blocks until there
+is input. It uses a word called "key?" which returns a variable
+number of items on the stack depending on whether there is
+new input from the user.
+
+The stack comments for "key?" and "key" are:
+
+  key? ( -- c -1 | 0 )
+  key  ( -- c )
+
+Key returns the new character and "-1" (in Forth -1 is true,
+and 0 is false), or "0" if there is no new input. The pipe
+system "|" is used to separate the possible return values in
+the stack comment. We can use "begin...until" to define "key"
+in terms of "key?" with:
+
+  : key begin key? until ;
+
+This simply loops until there is a new character of input.
+
+
+Some contrived examples, using the standard metasyntactic 
+variable name "foo":
+
+  : foo begin 1- dup . cr dup 0= until drop ; ( u -- )
+
+  4 foo ( <-- type this ) 3 ( <-- prints '3' )
+  2  ( <-- then '2' )
+  1  ( ... )
+  0  ( ... )
+  ok ( then ok prompt )
+
+If zero is given this will underflow and wrap around to $FFFF
+and continue the loop 65536 times which is probably not 
+intended.
+
+
+Indefinite loops can be make with "begin...again", the
+following word "bar" simply repeatedly prints out "1":
+
+  : bar begin 1 . cr again ;
+  bar 1 1 1 1 1 1 ( ... ad infinitum ... )
+
+
+
+
+
+
+
+
+
+
+
+===============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+===============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+===============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+===============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+===============================================================
+
+
+
+
+
+
+
+
+
 
 
 
@@ -544,19 +720,19 @@ at: <http://retroforth.org/pages/?PortsOfRetroEditor>
 
 ## TO DO 
 * Describe the Nexys 3 system, the system on a chip, the
-* List the instruction set, registers, words defined
-* Write a full tutorial and description of the system
+* List the instruction set, registers, words defined, eForth
+* Write full tutorial and description of the system
 * Add source code for everything to this block file
 * Add a program listing, perhaps in the first block, it could
 set variables relating to this document
-* Turn this into a markdown document, or further process this
-file. It could be used as the primary source of documentation
-as well as being on line help for the board
+* Turn this into a markdown document, 
+* The eForth primitives should be described.
+
 * Extra words could be stored in these blocks, freeing up
 space for the user
 * Better tools for editing this file would help a lot.
 * Move the block editor to this file
-
+* Full glossary: 1 block per word definition
 
 ===============================================================
 
@@ -778,11 +954,10 @@ state     ( -- a, V : state 0 = command, -1 compiling )
 store     ( u a -- u, A : store 'u' at 'a' )
 swap      ( n1 n2 -- n2 n1, A )
 switches  ( -- u, IO : get the state of the onboard switches )
-tail      ( --, C,H,T : tail recursion )
 then      ( C,T : if...then, for...aft...then...next )
 throw     ( n --, R: ??? --- ???, T: throw if n non zero )
+thru      ( k1 k2 -- ,T, K : list blocks from k1 to k2 )
 
-thru     ( k1 k2 -- ,T, K : list blocks from k1 to k2 )
 tib      ( -- a, V : terminal input buffer address )
 timer    ( -- u, IO : get current timer value )
 timer!   ( u --, IO : set timer compare and control )
@@ -797,9 +972,8 @@ u>       ( u1 u2 -- f, : u1 greater than u2? )
 um*      ( u u -- ud : unsigned multiply )
 um/mod   ( ud u -- ur uq, T: ur=ud/u, uq=ud%u ) 
 until    ( C,I,T,H : begin...until )
-
 update   ( --, K : make loaded block as dirty )
-updated? ( -- f, K: is loaded block dirty? )
+
 variable ( --, <string> : create new variable )
 ver      ( -- a, V : version information )
 vga!     ( u a --, IO : store cell on VGA screen )
@@ -809,6 +983,9 @@ within   ( n lo hi -- f : n within lo and hi? )
 word     ( c -- a : parse and )
 words    ( -- : list words in current vocabulary )
 xor      ( n n -- n, A : bitwise exclusive or )
+
+
+
 
 
 
