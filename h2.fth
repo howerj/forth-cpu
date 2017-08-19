@@ -27,6 +27,8 @@ then be used for some primitive games
 zero, this can cause problems with words that drop or produce values.
 * Add "user", and "assembler" vocabularies. Also fix vocabularies to retain
 words added after the vocabulary has been fixed. 
+* Reformat this document to be 64 characters wide maximum, this
+is so it could be stored in block memory.
 
 * For tiny math routines, look at:
 http://files.righto.com/calculator/sinclair_scientific_simulator.html
@@ -998,19 +1000,23 @@ things, the 'decompiler' word could be called manually on an address if desired 
 
 ( ==================== Memory Interface ============================== )
 
-( @todo The NVRAM interface still needs working on, specifically a
-mechanism for doing bit alterable writes which is not working at the
-moment, normal flash like writes are, although the PCM memory should
-allow bit alterable writes. A possible solution would be to just
-use the SRAM, which works, then using the flash mask like writes
-and block erase, copy the contents of SRAM to the NVRAM
+( @note The manual for the Nexys 3 board specifies that there is a PCM 
+memory device called the NP8P128A13T1760E, this is a device behaves like
+normal flash with the addition that individual cells can be written to
+without first erasing the block, this is accomplished with an extension
+to the Common Flash Interface that most flash devices support. However,
+there are boards the PC28F128P33BF60 on in lieu of this, which is a
+normal flash device without the "bit alterable write" extension. Normal
+flash memory works by erasing a block of data, setting all bits set,
+writing the memory works by masking in a value, bits can be cleared
+in a memory cell but not set, the can only be set by erasing a block.
 
 @todo Map the SRAM and NVRAM into different parts of the block
 number range, 65536 block numbers and index 64MB of memory, the
 SRAM and NVRAM are both 16MB in size)
 
-variable mwindow  0
-variable mram     0
+location mwindow  0
+location mram     0
 constant mwin-max $1ff
 
 : mcontrol! ( u -- : write to memory control register )
@@ -1018,7 +1024,7 @@ constant mwin-max $1ff
 	mram @ if $400 else $800 then or  ( select correct memory device )
 	mwin-max invert    and            ( mask off control bits )
 	mwindow @ mwin-max and or         ( or in higher address bits )
-	oMemControl ! ;                   ( and finally write in control )
+	oMemControl ! ; hidden            ( and finally write in control )
 
 : m! ( n a -- : write to non-volatile memory )
 	oMemAddrLow !
@@ -1026,58 +1032,60 @@ constant mwin-max $1ff
 	5 40ns
 	$8000 mcontrol!
 	5 40ns
-	$0000 mcontrol! ;
+	$0000 mcontrol! ; hidden
 
 : m@ ( a -- n : read from non-volatile memory )
 	oMemAddrLow !
 	$4000 mcontrol! ( read enable mode )
 	5 40ns
 	iMemDin @        ( get input )
-	$0000 mcontrol! ;
+	$0000 mcontrol! ; hidden
 
-: mrst ( -- : reset non-volatile memory )
-	$2000 mcontrol!
-	5 40ns
-	$0000 mcontrol! ;
-
-: mdump ( a u -- : dump non-volatile memory )
-	cr
-	begin
-		dup
-	while
-		over 5u.r 40 emit over m@ 4 u.r 41 emit over 1+ $7 and 0= if cr then
-		1 /string
-	repeat 2drop cr ;
-
+\ : mdump ( a u -- : dump non-volatile memory )
+\ 	cr
+\ 	begin
+\ 		dup
+\ 	while
+\ 		over 5u.r 40 emit over m@ 4 u.r 41 emit over 1+ $7 and 0= if cr then
+\ 		1 /string
+\ 	repeat 2drop cr ;
+ 
 : minvalid ( k -- k : is 'k' a valid block number, throw on error )
 	dup block-invalid = if 35 -throw then ; hidden
 
-: c>m swap @ swap m! ; hidden      ( a a --  )
-: m>c m@ swap ! ; hidden ( a a -- )
+: flash-reset ( -- : reset non-volatile memory )
+	$2000 mcontrol!
+	5 40ns
+	$0000 mcontrol! ; hidden
+: flash-status 0 $70 m! 0 m@ ; ( -- status )
+: flash-read   $ff 0 m! ;      ( -- )
+: flash  flush 1 mram ! flash-reset ;      ( -- )
+: flash-wait begin flash-status $80 and until ; hidden
+: flash-clear $50 0 m! ; ( -- clear status )
+: flash-write dup $40 swap m! m! flash-wait ; ( u a -- )
+: flash-read-id   $90 0 m! ; ( -- read id mode )
+: flash-unlock dup $60 swap m! $d0 swap m! ; ( ba -- )
+: flash-erase dup $20 swap m! $d0 swap m! ; ( ba -- )
+: flash-query $98 0 m! ; ( -- : query mode )
 
-( Word set for interacting with the PCM Non-Volatile RAM, this is a work in
-progress. The simulator for this also does not work correctly, it will need
-to replicate the memory controllers logic. In the simulator, the volatile
-and non-volatile RAM overlap - and both behave as the volatile RAM does - write
-to a location and read from it, this is then loaded and saved by the simulator 
-at start up and exit, this will need fixing. )
+: flash>sram ( a a )
+	1 mram ! flash-clear flash-read 
+	m@ 0 mram ! swap m! ; hidden
 
-: status 0 $70 m! 0 m@ ; ( -- status )
-: read   $ff 0 m! ;      ( -- )
-: pcm    1 mram ! mrst ;      ( -- )
-: wait begin status $80 and until ;
-: bwrite dup $42 swap m! m! wait ; ( u a -- )
-: write  dup $40 swap m! m! wait ; ( u a -- )
-: clear $50 0 m! ; ( -- clear status )
-: rid   $90 0 m! ; ( -- read id mode )
-: unlock dup $60 swap m! $d0 swap m! ; ( ba -- )
-: unlocker 2047 for r@ unlock clear next ; ( -- )
-: merase dup $20 swap m! $d0 swap m! ; ( ba -- )
-: mquery $98 0 m! ; ( -- : query mode )
-\ : bwrite2 $ea over m! 1 over m! tuck m! $d0 swap m! ;
+: transfer ( a a u -- )
+	?dup 0= if 2drop exit then
+	1-
+	for 
+		2dup
+		flash>sram
+		1+ swap 1+ swap
+	next 2drop ;
 
 location _blockop 0
 	
+: c>m swap @ swap m! ; hidden      ( a a --  )
+: m>c m@ swap ! ; hidden ( a a -- )
+
 : mblock ( a u k -- f )
 	minvalid
 	512 um* mwindow ! >r
@@ -1281,8 +1289,9 @@ location editor-voc 0
 : [line] [check] c/l * [block] + ; hidden
 : [clean] ; hidden \ @todo call >char on modified line
 : b block drop ;
-: n  1 +block b ;
-: p [-1] +block b ;
+: l blk @ list ;
+: n  1 +block b l ;
+: p [-1] +block b l ;
 : d [line] c/l blank ;
 : x [block] b/buf blank ;
 : s update save-buffers ;
@@ -1291,7 +1300,6 @@ location editor-voc 0
 : ia c/l * + [block] + tib >in @ + swap #tib @ >in @ - cmove  call "\" ;
 : i 0 swap ia ;
 : u update ;
-: l blk @ list ;
 : w words ;
 : yank pad c/l ; hidden
 : c [line] yank >r swap r> cmove ; \ n -- yank line number to buffer

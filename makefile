@@ -98,7 +98,7 @@ documentation: readme.pdf readme.htm
 
 ## Virtual Machine and UART communications =================================
 
-CFLAGS=-Wall -Wextra -O2
+CFLAGS=-Wall -Wextra -O2 -g
 
 h2${EXE}: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 $^ -o $@

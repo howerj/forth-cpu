@@ -8,7 +8,10 @@
  * is based on the J1 processor (see http://excamera.com/sphinx/fpga-j1.html).
  *
  * The processor has been tested on an FPGA and is working.
- * The project can be found at: https://github.com/howerj/forth-cpu */
+ * The project can be found at: https://github.com/howerj/forth-cpu 
+ *
+ * @todo Simulate the Common Flash Interface so the Flash device
+ * can be correctly used */
 
 /* ========================== Preamble: Types, Macros, Globals ============= */
 
@@ -868,27 +871,207 @@ void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 	}
 }
 
+#define FLASH_WRITE_CYCLES (20)  /* x10ns */
+#define FLASH_ERASE_CYCLES (200) /* x10ns */
+
+typedef enum {
+	FLASH_STATUS_RESERVED         = 1u << 0,
+	FLASH_STATUS_BLOCK_LOCKED     = 1u << 1,
+	FLASH_STATUS_PROGRAM_SUSPEND  = 1u << 2,
+	FLASH_STATUS_VPP              = 1u << 3,
+	FLASH_STATUS_PROGRAM          = 1u << 4,
+	FLASH_STATUS_ERASE_BLANK      = 1u << 5,
+	FLASH_STATUS_ERASE_SUSPEND    = 1u << 6,
+	FLASH_STATUS_DEVICE_READY     = 1u << 7,
+} flash_status_register_t;
+
+typedef enum {
+	FLASH_READ_ARRAY,
+	FLASH_QUERY,
+	FLASH_READ_DEVICE_IDENTIFIER,
+	FLASH_READ_STATUS_REGISTER,
+	FLASH_WORD_PROGRAM,
+	FLASH_WORD_PROGRAMMING,
+	FLASH_LOCK_OPERATION,
+	FLASH_BLOCK_ERASE,
+	FLASH_BLOCK_ERASING,
+} flash_state_t;
+
+static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bool rst)
+{
+	if(rst)
+		return 0;
+
+	if(oe && we) {
+		warning("OE and WE set at the same time");
+		return 0;
+	}
+	
+	if(!oe) {
+		warning("flash read with OE not selected");
+		return 0;
+	}
+
+	switch(f->mode) {
+	case FLASH_READ_ARRAY:             return f->nvram[0x1ffffff & addr];
+	/**@todo make array with status information in it for the PC28F128P33BF60 */
+	case FLASH_QUERY:                  return 0;
+	case FLASH_READ_DEVICE_IDENTIFIER: return 0;
+	case FLASH_READ_STATUS_REGISTER:   return f->status;
+
+	case FLASH_WORD_PROGRAMMING: 
+	case FLASH_WORD_PROGRAM:           return f->status;
+
+	case FLASH_BLOCK_ERASING:
+	case FLASH_BLOCK_ERASE:            return f->status;
+
+	case FLASH_LOCK_OPERATION:         return f->status; /* return what? */
+	default:
+		fatal("invalid flash state: %u", f->mode);
+	}
+	
+	return 0;
+}
+
+static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe, bool we, bool rst, bool cs)
+{
+	assert(f);
+	if(oe && we)
+		warning("OE and WE set at the same time");
+
+	if(rst) {
+		f->mode = FLASH_READ_ARRAY;
+		return;
+	}
+
+	switch(f->mode) {
+	case FLASH_READ_ARRAY:
+	case FLASH_READ_STATUS_REGISTER:
+	case FLASH_QUERY:
+	case FLASH_READ_DEVICE_IDENTIFIER:
+		f->arg1_address = addr;
+		f->cycle = 0;
+		f->status |= FLASH_STATUS_DEVICE_READY;
+
+		if(!we && f->we && cs) {
+			switch(f->data) {
+			case 0x00: break;
+			case 0xff: f->mode = FLASH_READ_ARRAY;             break;
+			case 0x90: f->mode = FLASH_READ_DEVICE_IDENTIFIER; break;
+			/*case 0x98: READ CSI not implemented              break; */
+			case 0x70: f->mode = FLASH_READ_STATUS_REGISTER;   break;
+			case 0x50: f->status = FLASH_STATUS_DEVICE_READY;  break; /* changes state? */
+			case 0x10:
+			case 0x40: f->mode = FLASH_WORD_PROGRAM;           break;
+			/*case 0xE8: BUFFERED PROGRAM NOT IMPLEMENTED;     break; */
+			case 0x20: f->mode = FLASH_BLOCK_ERASE;            break;
+			/*case 0xB0: SUSPEND NOT IMPLEMENTED;              break; */
+			/*case 0xD0: RESUME NOT IMPLEMENTED;               break; */
+			case 0x60: f->mode = FLASH_LOCK_OPERATION;         break;
+			default:
+				warning("Common Flash Interface command not implemented: %x", (unsigned)(f->data));
+				f->mode = FLASH_READ_ARRAY;
+			}
+		}
+		break;
+	case FLASH_WORD_PROGRAM:
+		if(!we && f->we && cs) {
+			f->nvram[addr] &= f->data; /**@todo default ram to all set */
+			f->cycle = 0;
+			f->status &= ~FLASH_STATUS_DEVICE_READY;
+			f->mode = FLASH_WORD_PROGRAMMING;
+		} 		
+		break;
+	case FLASH_WORD_PROGRAMMING: 
+		if(f->cycle++ > FLASH_WRITE_CYCLES) {
+			f->mode    = FLASH_READ_STATUS_REGISTER;
+			f->cycle   = 0;
+			f->status |= FLASH_STATUS_DEVICE_READY;
+		}
+		break;
+	case FLASH_LOCK_OPERATION:
+		if(we)
+			break;
+
+		/**@todo implement locking */
+		switch(f->data) {
+		case 0xD0: break;
+		case 0x01: /* lock */
+		case 0x2F: /* lock down */
+		default:
+			warning("Unknown/Unimplemented Common Flash Interface Lock Operation: %x", (unsigned)(f->data));
+		}
+		f->mode = FLASH_READ_STATUS_REGISTER;
+		break;
+	case FLASH_BLOCK_ERASE:
+		if(!we && f->we && cs) {
+			if(f->data != 0xd0) /* erase confirm */
+				f->mode = FLASH_READ_STATUS_REGISTER;
+			else 
+				f->mode = FLASH_BLOCK_ERASING;
+		}
+		f->cycle = 0;
+		break;
+	case FLASH_BLOCK_ERASING:
+		f->status &= ~FLASH_STATUS_DEVICE_READY;
+		if(f->cycle++ > FLASH_ERASE_CYCLES) {
+			size_t i = 0;
+			addr /= (1 << 6); /* assume block size is 64 Kilo-Word for now */
+			for(i = 0; i < (1 << 6); i++)
+				f->nvram[addr*(1 << 6) + i] = 0xFFFFu;
+			f->cycle = 0;
+			f->mode = FLASH_READ_STATUS_REGISTER;
+			f->status |= FLASH_STATUS_DEVICE_READY;
+		}
+		break;
+	default:
+		fatal("invalid flash state: %u", f->mode);
+		return;
+	}
+	if(we && !oe)
+		f->data = data;
+	f->we = we;
+	f->cs = cs;
+}
+
+uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc)
+{
+	assert(soc);
+	uint32_t flash_addr = ((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low;
+	bool flash_rst = soc->mem_control & FLASH_MEMORY_RESET;
+	bool flash_cs  = soc->mem_control & FLASH_CHIP_SELECT;
+	bool sram_cs   = soc->mem_control & SRAM_CHIP_SELECT;
+	bool oe        = soc->mem_control & FLASH_MEMORY_OE;
+	bool we        = soc->mem_control & FLASH_MEMORY_WE;
+
+	if(oe && we)
+		return 0;
+
+	if(flash_cs && sram_cs)
+		warning("SRAM and Flash Chip selects both high!");
+
+	if(flash_cs)
+		return h2_io_flash_read(&soc->flash, flash_addr, oe, we, flash_rst);
+
+	if(sram_cs && oe && !we)
+		return soc->vram[flash_addr];
+	return 0;
+}
+
 static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debug_on)
 {
 	assert(soc);
 	debug("IO read addr: %"PRIx16, addr);
 
 	switch(addr) {
-	case iUart:         return UART_TX_FIFO_EMPTY | soc->uart_getchar_register; /** @bug This does not reflect accurate timing */
+	case iUart:         return UART_TX_FIFO_EMPTY | soc->uart_getchar_register; 
 	case iSwitches:     return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
 	case iVgaTxtDout:   return soc->vga[soc->vga_addr & 0x1FFF];
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
-	case iMemDin:
-		/**@todo Select NVRAM/SRAM, improve memory simulation, the
-		 * Common Flash Interface for the NVRAM will need to be
-		 * simulated as a state machine that interacts with the NVRAM
-		 * memory block */
-		if((soc->mem_control & PCM_MEMORY_OE) && !(soc->mem_control & PCM_MEMORY_WE))
-			return soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
-		return 0;
+	case iMemDin:       return h2_io_memory_read_operation(soc);
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 	}
@@ -921,11 +1104,17 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
 	case oMemControl:
-		/**@todo Select nvram/vram, improve memory simulation */
+	{
 		soc->mem_control    = value;
-		if(!(soc->mem_control & PCM_MEMORY_OE) && (soc->mem_control & PCM_MEMORY_WE))
-			soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
+
+		bool sram_cs   = soc->mem_control & SRAM_CHIP_SELECT;
+		bool oe        = soc->mem_control & FLASH_MEMORY_OE;
+		bool we        = soc->mem_control & FLASH_MEMORY_WE;
+
+		if(sram_cs && !oe && we)
+			soc->vram[((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
 		break;
+	}
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
 	case oVgaAddr:    soc->vga_addr       = value & 0x1FFF; break;
@@ -959,6 +1148,15 @@ static void h2_io_update_default(h2_soc_state_t *soc)
 				soc->timer = 0;
 			}
 		}
+	}
+
+	{
+		uint32_t flash_addr = ((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low;
+		bool flash_rst = soc->mem_control & FLASH_MEMORY_RESET;
+		bool flash_cs  = soc->mem_control & FLASH_CHIP_SELECT;
+		bool oe        = soc->mem_control & FLASH_MEMORY_OE;
+		bool we        = soc->mem_control & FLASH_MEMORY_WE;
+		h2_io_flash_update(&soc->flash, flash_addr, soc->mem_dout, oe, we, flash_rst, flash_cs);
 	}
 }
 
@@ -2558,13 +2756,11 @@ static void generate_jump(h2_t *h, assembler_t *a, symbol_table_t *t, token_t *t
 	assert(a);
 
 	if(tok->type == LEX_IDENTIFIER || tok->type == LEX_STRING) {
-		/** @todo if not found add to a patch list, allowing forward branches */
 		s = symbol_table_lookup(t, tok->p.id);
 		if(!s)
 			assembly_error(e, "undefined symbol: %s", tok->p.id);
 		addr = s->value;
 
-		/** @todo Get rid of this? */
 		if(s->type == SYMBOL_TYPE_CALL && type != SYM_CALL)
 			assembly_error(e, "cannot branch/0branch to call: %s", tok->p.id);
 
@@ -3099,7 +3295,7 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 	/**@todo Endian agnostic serialization of block for read and write */
 	errno = 0;
 	if((nvram_fh = fopen(cmd->nvram, "rb"))) {
-		fread(io->soc->nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
+		fread(io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
 		fclose(nvram_fh);
 	} else {
 		debug("nvram file read (from %s) failed: %s", cmd->nvram, strerror(errno));
@@ -3111,7 +3307,7 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 
 	errno = 0;
 	if((nvram_fh = fopen(cmd->nvram, "wb"))) {
-		fwrite(io->soc->nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
+		fwrite(io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
 		/*memory_save(nvram_fh, io->soc->nvram, CHIP_MEMORY_SIZE);*/
 		fclose(nvram_fh);
 	} else {

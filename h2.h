@@ -7,7 +7,8 @@
 #include <stdio.h>
 
 /**@note STK_SIZE is fixed to 64, but h2.vhd allows for the instantiation of
- * CPUs with different stack sizes (so long as they are a power of 2) */
+ * CPUs with different stack sizes, within reasonable limits, so long as they 
+ * are a power of 2. */
 
 #define MAX_CORE             (8192u)
 #define STK_SIZE             (64u)
@@ -108,13 +109,32 @@ typedef struct {
 #define PS2_NEW_CHAR               (1 << PS2_NEW_CHAR_BIT)
 
 #define CHIP_MEMORY_SIZE           (16*1024*1024)
-#define PCM_MASK_ADDR_UPPER_MASK   (0x3ff)
+#define FLASH_MASK_ADDR_UPPER_MASK (0x1ff)
 
-#define PCM_MEMORY_OE_BIT          (14)
-#define PCM_MEMORY_WE_BIT          (15)
+#define FLASH_CHIP_SELECT_BIT      (10)
+#define SRAM_CHIP_SELECT_BIT       (11)
+#define FLASH_MEMORY_WAIT_BIT      (12)
+#define FLASH_MEMORY_RESET_BIT     (13)
+#define FLASH_MEMORY_OE_BIT        (14)
+#define FLASH_MEMORY_WE_BIT        (15)
 
-#define PCM_MEMORY_OE              (1 << PCM_MEMORY_OE_BIT)
-#define PCM_MEMORY_WE              (1 << PCM_MEMORY_WE_BIT)
+#define FLASH_CHIP_SELECT          (1 << FLASH_CHIP_SELECT_BIT)
+#define SRAM_CHIP_SELECT           (1 << SRAM_CHIP_SELECT_BIT)
+#define FLASH_MEMORY_WAIT          (1 << FLASH_MEMORY_WAIT_BIT)
+#define FLASH_MEMORY_RESET         (1 << FLASH_MEMORY_RESET_BIT)
+#define FLASH_MEMORY_OE            (1 << FLASH_MEMORY_OE_BIT)
+#define FLASH_MEMORY_WE            (1 << FLASH_MEMORY_WE_BIT)
+
+typedef struct {
+	unsigned cycle;
+	unsigned mode;
+	unsigned we;
+	unsigned cs;
+	uint8_t  status;
+	uint32_t arg1_address;
+	uint16_t data;
+	uint16_t nvram[CHIP_MEMORY_SIZE];
+} flash_t;
 
 typedef struct {
 	uint8_t leds;
@@ -136,11 +156,11 @@ typedef struct {
 
 	uint16_t lfsr;
 
-	uint16_t nvram[CHIP_MEMORY_SIZE];
-	uint16_t vram[CHIP_MEMORY_SIZE];
+	uint16_t vram[CHIP_MEMORY_SIZE]; /**@todo move to SRAM peripheral */
 	uint16_t mem_control;
 	uint16_t mem_addr_low;
 	uint16_t mem_dout;
+	flash_t flash;
 
 	bool wait;
 	bool interrupt;
@@ -204,6 +224,7 @@ int h2_load(h2_t *h, FILE *hexfile);
 int h2_save(h2_t *h, FILE *output, bool full);
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger);
 
+uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc);
 void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose);
 h2_soc_state_t *h2_soc_state_new(void);
 void h2_soc_state_free(h2_soc_state_t *soc);

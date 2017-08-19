@@ -859,10 +859,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			return (char_arrived << PS2_NEW_CHAR_BIT) | c;
 		}
 	case iLfsr:     return soc->lfsr;
-	case iMemDin:
-		if((soc->mem_control & PCM_MEMORY_OE) && !(soc->mem_control & PCM_MEMORY_WE))
-			return soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low];
-		return 0;
+	case iMemDin:   return h2_io_memory_read_operation(soc);
 	default:
 		warning("invalid read from %04"PRIx16, addr);
 		break;
@@ -918,8 +915,8 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oLfsr:       soc->lfsr           = value; break;
 	case oMemControl:
 		soc->mem_control    = value;
-		if(!(soc->mem_control & PCM_MEMORY_OE) && (soc->mem_control & PCM_MEMORY_WE))
-			soc->nvram[((uint32_t)(soc->mem_control & PCM_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
+		if(!(soc->mem_control & FLASH_MEMORY_OE) && (soc->mem_control & FLASH_MEMORY_WE))
+			soc->vram[((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
 		break;
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
@@ -1260,7 +1257,7 @@ void finalize(void)
 	FILE *nvram_fh = NULL;
 	errno = 0;
 	if((nvram_fh = fopen(nvram_file, "wb"))) {
-		fwrite(h2_io->soc->nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
+		fwrite(h2_io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
 		fclose(nvram_fh);
 	} else {
 		error("nvram file write (to %s) failed: %s", nvram_file, strerror(errno));
@@ -1322,7 +1319,7 @@ int main(int argc, char **argv)
 
 	errno = 0;
 	if((nvram_fh = fopen(nvram_file, "rb"))) {
-		fread(h2_io->soc->nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
+		fread(h2_io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
 		fclose(nvram_fh);
 	} else {
 		debug("nvram file read (from %s) failed: %s", nvram_file, strerror(errno));
