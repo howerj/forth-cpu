@@ -6,7 +6,7 @@ A lot of the code has been taken verbatim from "The Zen of eForth by
 C. H. Ting". Some routines have been adapted from the j1eforth implementation
 available at https://github.com/samawati/j1eforth.
 
-For a grammar of the language look into the file "h2.c".
+For a grammar of the language look into the file "h2.c", or "readme.md".
 
 Execution begins at a label called "start".
 
@@ -36,7 +36,6 @@ https://groups.google.com/forum/#!topic/comp.lang.forth/_bx4dJFb9R0
 http://www.figuk.plus.com/build/arith.htm
 
 Forth To Do:
-* make/doer, ...
 * Fix PARSE )
 
 ( ======================== System Constants ================= )
@@ -207,12 +206,12 @@ location hi-string        "eFORTH V"    ( used by "hi" )
 : 2* 1 lshift ;            ( n -- n )
 : cell- cell - ;           ( a -- a )
 : cell+ cell + ;           ( a -- a )
-: cells 2* ;               ( n -- n )
+\ : cells 2* ;               ( n -- n )
 : ?dup dup if dup then ;   ( n -- | n n  )
-: >= < invert ;            ( n n -- f )
+\ : >= < invert ;            ( n n -- f )
 : >  swap < ;              ( n n -- f )
 : u> swap u< ;             ( u u -- f )
-: u>= u< invert ;          ( u u -- f )
+: u>= u< invert ; hidden   ( u u -- f )
 : <> = invert ;            ( n n -- f )
 : 0<> 0= invert ;          ( n n -- f )
 : 0> 0 > ;                 ( n -- f )
@@ -245,12 +244,8 @@ location hi-string        "eFORTH V"    ( used by "hi" )
 
 \ : simulation? cpu-id $dead = ; ( -- f : are we in the matrix? )
 
-( @bug Waiting until the TX FIFO is not full does not work in the
-hardware, something must be broken, it works fine in the simulation
-and speeds things up greatly )
 : tx! ( c -- : write a character to UART )
 	begin iUart @ $1000 and 0= until ( Wait until TX FIFO is not full )
-	\ begin iUart @ $0800 and until ( Wait until TX FIFO is empty )
 	$2000 or oUart ! ; hidden     ( Write character out )
 
 : um+ ( w w -- w carry )
@@ -296,7 +291,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : -rot swap >r swap r> ;                  ( n1 n2 n3 -- n3 n1 n2 )
 : min over over < if drop else nip then ; ( n n -- n )
 : max over over > if drop else nip then ; ( n n -- n )
-: >char $7f and dup 127 =bl within if drop [char] _ then ; ( c -- c )
+: >char $7f and dup 127 =bl within if drop [char] _ then ; hidden ( c -- c )
 : tib #tib cell+ @ ;                      ( -- a )
 : echo _echo @execute ;                   ( c -- )
 : key? _key? @execute ;                   ( -- c -1 | 0 )
@@ -310,11 +305,12 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : space =bl emit ;                        ( -- )
 : pick ?dup if swap >r 1- pick r> swap exit then dup ; ( @bug does not work for high stack depths - mashes the return stack )
 \ : roll  dup 0> if swap >r 1- roll r> swap else drop then ;
-: ndrop for aft drop then next ;          ( n1 ... nu u -- )
+: ndrop for aft drop then next ; hidden   ( n1 ... nu u -- )
 : type begin dup while swap count emit swap 1- repeat 2drop ; ( b u -- : print a string )
 : $type begin dup while swap count >char emit swap 1- repeat 2drop ; hidden ( b u -- : print a string )
 : print count type ; hidden               ( b -- )
-: nuf? ( -- f ) key? if =cr = else 0 then ; ( -- f )
+\ : nuf? ( -- f ) key? if =cr = else 0 then ; ( -- f : true if 'cr' pressed, non-blocking, original behavior )
+: nuf? ( -- f ) key =cr = ;  ( -- f : true if 'cr' pressed, blocking )
 \ : ?exit if rdrop then ;                   ( n --, R: n -- n | )
 \ : 2rdrop r> rdrop rdrop >r ;              ( R n n -- )
 : decimal? 48 58 within ; hidden            ( c -- f : decimal char? )
@@ -471,7 +467,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : immediate? @ $4000 and logical ; hidden ( pwd -- f : is immediate? )
 : inline?    @ $8000 and logical ; hidden ( pwd -- f : is inline? )
 
-: search ( a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
+: search ( a a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
 	swap >r
 	begin
 		dup
@@ -485,7 +481,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	repeat
 	drop r> 0 ; hidden
 
-: find
+: find ( a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
 	>r
 	context
 	begin
@@ -761,7 +757,7 @@ a character is dropped somewhere )
 : pace 11 emit ; hidden
 : xio  ' accept _expect ! _tap ! _echo ! _prompt ! ; hidden
 : file ' pace ' "drop" ' ktap xio ;
-: hand ' .ok  '  emit  ' ktap xio ;
+: hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? _key? ! ' tx! _emit ! hand ;
 : interactive ' input _key? ! ' output _emit ! hand ; hidden
 : io! interactive vgaInit oVgaCtrl ! 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
@@ -780,7 +776,7 @@ as possible so the Forth environment is easy to use. )
 instruction it might be possible to merge the exit into it, if the instruction
 does not modify the return stack pointer or set the R->PC flag. Alternatively
 if last word called in a function is a call, this can be replaced with a branch
-instead
+instead. 
 
 @bug ":" links the word in, allowing it to be found in the dictionary,
 instead, ";" should do this so previous definitions of a word with the
@@ -820,9 +816,15 @@ same name can be used within word being currently defined )
 : "for" ?compile =>r , here -csp ; immediate
 : doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
 : "next" ?compile ' doNext compile, , +csp ; immediate
-\ : noop ; hidden
-\ : doer create does> drop noop ;
-\ : make call "'" call "'" make-callable swap state @ if literal literal ' ! compile, else ! then ; immediate
+: doer create =exit last cfa ! =exit ,  ;
+: make 
+	call "'" call "'" make-callable 
+	state @ 
+	if 
+		literal literal ' ! compile, 
+	else 
+		swap ! 
+	then ; immediate
 
 \ : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
 \ : compile ( -- ) r> dup @ , cell+ >r ;
@@ -1076,7 +1078,6 @@ at start up and exit, this will need fixing. )
 : mquery $98 0 m! ; ( -- : query mode )
 \ : bwrite2 $ea over m! 1 over m! tuck m! $d0 swap m! ;
 
-
 location _blockop 0
 	
 : mblock ( a u k -- f )
@@ -1099,6 +1100,7 @@ location _blockop 0
 
 \ @todo modify emit/ktap to transmit '*' instead of password characters,
 \ and make a password cracker 
+\ @todo Move to block storage
 
 \ location user>     "user> "
 \ location password> "password> "
@@ -1194,7 +1196,9 @@ irq:
 
 see: https://en.wikipedia.org/wiki/ANSI_escape_code
 These codes will provide a relatively portable means of
-manipulating a terminal )
+manipulating a terminal
+
+@todo Move to block storage )
 \ 
 \ variable colorize 0 ( set to 'drop' to disable, 'tx!' turn on )
 \ .set colorize tx!
@@ -1260,7 +1264,13 @@ manipulating a terminal )
 
 ( @todo Two modes would make the editor more useful, one that would
 allow the user to type lines in freely, and one that would automatically
-save modified blocks )
+save modified blocks
+
+@todo A read only mode, for use with a help system, would be
+useful
+
+@todo Move this word set into block storage, it is only really
+needed if we have access to the block system anyway )
 
 location editor-voc 0
 : editor decimal editor-voc 1 set-order ; 
@@ -1272,17 +1282,17 @@ location editor-voc 0
 : [check] dup b/buf c/l / u>= if 24 -throw then ; hidden
 : [line] [check] c/l * [block] + ; hidden
 : [clean] ; hidden \ @todo call >char on modified line
-: n  1 +block block drop ;
-: p [-1] +block block drop ;
-: d [line] c/l =bl fill ;
-: x [block] b/buf =bl fill ;
+: b block drop ;
+: n  1 +block b ;
+: p [-1] +block b ;
+: d [line] c/l blank ;
+: x [block] b/buf blank ;
 : s update save-buffers ;
 : q forth save-buffers ;
 : e forth blk @ load editor ;
 : ia c/l * + [block] + tib >in @ + swap #tib @ >in @ - cmove  call "\" ;
 : i 0 swap ia ;
 : u update ;
-: b block drop ;
 : l blk @ list ;
 : w words ;
 : yank pad c/l ; hidden
@@ -1299,11 +1309,9 @@ location editor-voc 0
 
 start:
 .set entry start
-	io!
-	page
 	hi
 	cpu-id segments!
-	\ login
+	\ login 0 load 1 list
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
 

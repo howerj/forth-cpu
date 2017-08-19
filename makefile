@@ -125,7 +125,10 @@ gui-run: gui${EXE} h2.hex
 text${EXE}: text.c
 	${CC} ${CFLAGS} -std=c99 $< -o $@
 
-text.bin: text${EXE}
+block${EXE}: block.c
+	${CC} ${CFLAGS} -std=c99 $< -o $@
+
+text.hex: text${EXE}
 	${DF}$< -g > $@
 
 %.blk: %.txt block${EXE}
@@ -138,7 +141,7 @@ text.bin: text${EXE}
 
 irqh.o: util.o
 led.o: util.o led.vhd
-vga.o: util.o vga.vhd text.bin font.bin
+vga.o: util.o vga.vhd text.hex font.bin
 cpu.o: util.o h2.o irqh.o cpu.vhd h2.hex
 uart.o: util.o uart.vhd
 top.o: util.o timer.o cpu.o uart.o vga.o kbd.o led.o top.vhd 

@@ -160,8 +160,8 @@ begin
 		generic map(
 			addr_length  =>  13,
 			data_length  =>  16,
-			file_name    =>  "text.bin",
-			file_type    =>  "bin")
+			file_name    =>  "text.hex",
+			file_type    =>  "hex")
 		port map(
 			clk          =>  clk,
 			rst          =>  rst,

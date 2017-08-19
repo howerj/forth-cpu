@@ -25,7 +25,7 @@
 
 /* ====================================== Utility Functions ==================================== */
 
-#define VGA_INIT_FILE ("text.bin")
+#define VGA_INIT_FILE ("text.hex")
 #define PI            (3.1415926535897932384626433832795)
 #define MAX(X, Y)     ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y)     ((X) < (Y) ? (X) : (Y))
@@ -1307,7 +1307,7 @@ int main(int argc, char **argv)
 			for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++) {
 				if(!fgets(line, sizeof(line), vga_init))
 					break;
-				long m = strtol(line, NULL, 2);
+				long m = strtol(line, NULL, 16);
 				h2_io->soc->vga[i] = m;
 				vga.m[i] = m;
 			}

@@ -144,8 +144,8 @@ architecture behav of vga_top is
 	-- Setup for text buffer memory
 	constant text_addr_length: positive := 13;
 	constant text_data_length: positive := 16;
-	constant text_file_name:   string   := "text.bin";
-	constant text_file_type:   string   := "bin";
+	constant text_file_name:   string   := "text.hex";
+	constant text_file_type:   string   := "hex";
 
 	-- Setup for font buffer memory
 	constant font_addr_length: positive := 12;

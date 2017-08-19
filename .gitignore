@@ -84,6 +84,7 @@ tb
 test_bench
 text
 text.bin
+text.hex
 tmp/
 tmp/*
 top_level.bld
