@@ -11,8 +11,8 @@
 --|
 --|
 --| The control register contains both the value to compare the timer against
---| as well as three control bits. In this example a counter of 8 bits will
---| explained.
+--| as well as three control bits. Given a "timer_length" value of eight the
+--| control bits are:
 --|
 --| Bit     Input Description
 --| 7       Clock enable
@@ -107,7 +107,7 @@ begin
 		control_n      <= control_c;
 		timer_reset <= '0';
 
-		control_n(timer_reset_bit)  <= '0'; -- reset!
+		control_n(timer_reset_bit)  <= '0'; -- reset
 
 		if we = '1' then
 			control_n <= control_i;

@@ -94,6 +94,54 @@ The previous lines are used for printing error messages, the
 Forth word 'message' is used to index into this document.
 
 
+===============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+: logical 0= 0= ;     ( n -- f )
+: square dup * ;      ( n -- )
+: limit rot min max ; ( n lo hi -- n )
+: odd 1 and logical ; ( n -- )
+: even odd invert ;   ( n -- )
+: nor or invert ;     ( u u -- u )
+: nand and invert ;   ( u u -- u )
+: bell 7 emit ;       ( -- )
+: under >r dup r> ;   ( n1 n2 -- n1 n1 n2 )
+: 2nip >r >r 2drop r> r> ; ( n1 n2 n3 n4 -- n3 n4 )
+( n1 n2 n3 n4 -- n1 n2 n3 n4 n1 n2 )
+: 2over >r >r 2dup r> swap >r swap r> r> -rot ; 
+: 2swap >r -rot r> -rot ; ( n1 n2 n3 n4 -- n3 n4 n1 n2 )
+: 2tuck 2swap 2over ; ( n1 n2 n3 n4 -- n3 n4 n1 n2 n3 n4 )
+: 4drop 2drop 2drop ; ( n1 n2 n3 n4 -- )
+
+: trip dup dup ; ( n -- n n n )
+: log  >r 0 swap ( u base -- u )
+  begin swap 1+ swap r@ / dup 0= until 
+  drop 1- rdrop ; 
+: log2 0 swap ( u -- u )
+  begin swap 1+ swap   2/ dup 0= until 
+  drop 1- ; 
+: average um+ 2 um/mod nip ;
+: <=> 2dup > if 2drop -1 exit then < ; 
+: bounds over + swap ;
+
+
+
+
+
+
 ## eForth v6.66
 Help System And Tutorial
 

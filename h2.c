@@ -116,40 +116,40 @@ typedef enum {
  * their T_TO_R bit set in their instruction description tables, this
  * appears to be incorrect */
 #define X_MACRO_INSTRUCTIONS \
-	X(DUP,    "dup",    (OP_ALU_OP | MK_CODE(ALU_OP_T)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
-	X(OVER,   "over",   (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
-	X(INVERT, "invert", (OP_ALU_OP | MK_CODE(ALU_OP_T_INVERT)))\
-	X(ADD,    "+",      (OP_ALU_OP | MK_CODE(ALU_OP_T_PLUS_N)               | MK_DSTACK(DELTA_N1)))\
-	X(SWAP,   "swap",   (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N))\
-	X(NIP,    "nip",    (OP_ALU_OP | MK_CODE(ALU_OP_T)                      | MK_DSTACK(DELTA_N1)))\
-	X(DROP,   "drop",   (OP_ALU_OP | MK_CODE(ALU_OP_N)                      | MK_DSTACK(DELTA_N1)))\
-	X(EXIT,   "exit",   (OP_ALU_OP | MK_CODE(ALU_OP_T)        | R_TO_PC | MK_RSTACK(DELTA_N1)))\
-	X(TOR,    ">r",     (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_R  | MK_DSTACK(DELTA_N1) | MK_RSTACK(DELTA_1)))\
-	X(FROMR,  "r>",     (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)  | MK_RSTACK(DELTA_N1)))\
-	X(RAT,    "r@",     (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
-	X(LOAD,   "@",      (OP_ALU_OP | MK_CODE(ALU_OP_T_LOAD)))\
-	X(STORE,  "store",  (OP_ALU_OP | MK_CODE(ALU_OP_N)        | N_TO_ADDR_T | MK_DSTACK(DELTA_N1)))\
-	X(RSHIFT, "rshift", (OP_ALU_OP | MK_CODE(ALU_OP_N_RSHIFT_T)             | MK_DSTACK(DELTA_N1)))\
-	X(LSHIFT, "lshift", (OP_ALU_OP | MK_CODE(ALU_OP_N_LSHIFT_T)             | MK_DSTACK(DELTA_N1)))\
-	X(EQUAL,  "=",      (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_N)              | MK_DSTACK(DELTA_N1)))\
-	X(ULESS,  "u<",     (OP_ALU_OP | MK_CODE(ALU_OP_N_ULESS_T)              | MK_DSTACK(DELTA_N1)))\
-	X(LESS,   "<",      (OP_ALU_OP | MK_CODE(ALU_OP_N_LESS_T)               | MK_DSTACK(DELTA_N1)))\
-	X(AND,    "and",    (OP_ALU_OP | MK_CODE(ALU_OP_T_AND_N)                | MK_DSTACK(DELTA_N1)))\
-	X(XOR,    "xor",    (OP_ALU_OP | MK_CODE(ALU_OP_T_XOR_N)                | MK_DSTACK(DELTA_N1)))\
-	X(OR,     "or",     (OP_ALU_OP | MK_CODE(ALU_OP_T_OR_N)                 | MK_DSTACK(DELTA_N1)))\
-	X(DEPTH,  "sp@",    (OP_ALU_OP | MK_CODE(ALU_OP_DEPTH)   | T_TO_N       | MK_DSTACK(DELTA_1)))\
-	X(T_N1,   "1-",     (OP_ALU_OP | MK_CODE(ALU_OP_T_DECREMENT)))\
-	X(IEN,    "ien",    (OP_ALU_OP | MK_CODE(ALU_OP_ENABLE_INTERRUPTS)     /* | MK_DSTACK(DELTA_N1) */))\
-	X(ISIEN,  "ien?",   (OP_ALU_OP | MK_CODE(ALU_OP_INTERRUPTS_ENABLED) | T_TO_N  | MK_DSTACK(DELTA_1)))\
-	X(RDEPTH, "rp@",    (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)  | T_TO_N       | MK_DSTACK(DELTA_1)))\
-	X(TE0,    "0=",     (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
-	X(NOP,    "nop",    (OP_ALU_OP | MK_CODE(ALU_OP_T)))\
-	X(CPU_ID, "cpu-id", (OP_ALU_OP | MK_CODE(ALU_OP_CPU_ID))                | MK_DSTACK(DELTA_1))\
-	X(RDROP,  "rdrop",  (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_RSTACK(DELTA_N1)))
+	X(DUP,    "dup",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_T)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
+	X(OVER,   "over",   true,  (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
+	X(INVERT, "invert", true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_INVERT)))\
+	X(ADD,    "+",      true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_PLUS_N)               | MK_DSTACK(DELTA_N1)))\
+	X(SWAP,   "swap",   true,  (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_N))\
+	X(NIP,    "nip",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_T)                      | MK_DSTACK(DELTA_N1)))\
+	X(DROP,   "drop",   true,  (OP_ALU_OP | MK_CODE(ALU_OP_N)                      | MK_DSTACK(DELTA_N1)))\
+	X(EXIT,   "exit",   true,  (OP_ALU_OP | MK_CODE(ALU_OP_T)        | R_TO_PC | MK_RSTACK(DELTA_N1)))\
+	X(TOR,    ">r",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_N)        | T_TO_R  | MK_DSTACK(DELTA_N1) | MK_RSTACK(DELTA_1)))\
+	X(FROMR,  "r>",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)  | MK_RSTACK(DELTA_N1)))\
+	X(RAT,    "r@",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
+	X(LOAD,   "@",      true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_LOAD)))\
+	X(STORE,  "store",  true,  (OP_ALU_OP | MK_CODE(ALU_OP_N)        | N_TO_ADDR_T | MK_DSTACK(DELTA_N1)))\
+	X(RSHIFT, "rshift", true,  (OP_ALU_OP | MK_CODE(ALU_OP_N_RSHIFT_T)             | MK_DSTACK(DELTA_N1)))\
+	X(LSHIFT, "lshift", true,  (OP_ALU_OP | MK_CODE(ALU_OP_N_LSHIFT_T)             | MK_DSTACK(DELTA_N1)))\
+	X(EQUAL,  "=",      true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_N)              | MK_DSTACK(DELTA_N1)))\
+	X(ULESS,  "u<",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_N_ULESS_T)              | MK_DSTACK(DELTA_N1)))\
+	X(LESS,   "<",      true,  (OP_ALU_OP | MK_CODE(ALU_OP_N_LESS_T)               | MK_DSTACK(DELTA_N1)))\
+	X(AND,    "and",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_AND_N)                | MK_DSTACK(DELTA_N1)))\
+	X(XOR,    "xor",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_XOR_N)                | MK_DSTACK(DELTA_N1)))\
+	X(OR,     "or",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_OR_N)                 | MK_DSTACK(DELTA_N1)))\
+	X(DEPTH,  "sp@",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_DEPTH)   | T_TO_N       | MK_DSTACK(DELTA_1)))\
+	X(T_N1,   "1-",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_DECREMENT)))\
+	X(IEN,    "ien",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_ENABLE_INTERRUPTS)     /* | MK_DSTACK(DELTA_N1) */))\
+	X(ISIEN,  "ien?",   true,  (OP_ALU_OP | MK_CODE(ALU_OP_INTERRUPTS_ENABLED) | T_TO_N  | MK_DSTACK(DELTA_1)))\
+	X(RDEPTH, "rp@",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)  | T_TO_N       | MK_DSTACK(DELTA_1)))\
+	X(TE0,    "0=",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
+	X(NOP,    "nop",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_T)))\
+	X(CPU_ID, "cpu-id", true,  (OP_ALU_OP | MK_CODE(ALU_OP_CPU_ID))                | MK_DSTACK(DELTA_1))\
+	X(RDROP,  "rdrop",  true,  (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_RSTACK(DELTA_N1)))
 
 
 typedef enum {
-#define X(NAME, STRING, INSTRUCTION) CODE_ ## NAME = INSTRUCTION,
+#define X(NAME, STRING, DEFINE, INSTRUCTION) CODE_ ## NAME = INSTRUCTION,
 	X_MACRO_INSTRUCTIONS
 #undef X
 } forth_word_codes_e;
@@ -648,7 +648,7 @@ fail:
 static const char *instruction_to_string(uint16_t i)
 {
 	switch(i) {
-#define X(NAME, STRING, INSTRUCTION) case CODE_ ## NAME : return STRING ;
+#define X(NAME, STRING, DEFINE, INSTRUCTION) case CODE_ ## NAME : return STRING ;
 	X_MACRO_INSTRUCTIONS
 #undef X
 	default:          break;
@@ -1048,7 +1048,7 @@ uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc)
 		return 0;
 
 	if(flash_cs && sram_cs)
-		warning("SRAM and Flash Chip selects both high!");
+		warning("SRAM and Flash Chip selects both high");
 
 	if(flash_cs)
 		return h2_io_flash_read(&soc->flash, flash_addr, oe, we, flash_rst);
@@ -1847,7 +1847,7 @@ typedef enum {
 	LEX_BUILT_IN,
 
 	/* start of instructions */
-#define X(NAME, STRING, INSTRUCTION) LEX_ ## NAME,
+#define X(NAME, STRING, DEFINE, INSTRUCTION) LEX_ ## NAME,
 	X_MACRO_INSTRUCTIONS
 #undef X
 	/* end of named tokens and instructions */
@@ -1896,7 +1896,7 @@ static const char *keywords[] =
 	[LEX_BUILT_IN]   =  ".built-in",
 
 	/* start of instructions */
-#define X(NAME, STRING, INSTRUCTION) [ LEX_ ## NAME ] = STRING,
+#define X(NAME, STRING, DEFINE, INSTRUCTION) [ LEX_ ## NAME ] = STRING,
 	X_MACRO_INSTRUCTIONS
 #undef X
 	/* end of named tokens and instructions */
@@ -2798,7 +2798,7 @@ static uint16_t lexer_to_alu_op(token_e t)
 {
 	assert(t >= LEX_DUP && t <= LEX_RDROP);
 	switch(t) {
-#define X(NAME, STRING, INSTRUCTION) case LEX_ ## NAME : return CODE_ ## NAME ;
+#define X(NAME, STRING, DEFINE, INSTRUCTION) case LEX_ ## NAME : return CODE_ ## NAME ;
 	X_MACRO_INSTRUCTIONS
 #undef X
 	default: fatal("invalid ALU operation: %u", t);
@@ -2882,20 +2882,29 @@ typedef struct {
 	size_t len;
 	bool inline_bit;
 	bool hidden;
+	bool compile;
 	uint16_t code[32];
 } built_in_words_t;
 
 static built_in_words_t built_in_words[] = {
-#define X(NAME, STRING, INSTRUCTION) { .name = STRING, .len = 1, .inline_bit = true, .hidden = false, .code = { INSTRUCTION } },
+#define X(NAME, STRING, DEFINE, INSTRUCTION) \
+	{\
+		.name = STRING,\
+		.compile = DEFINE,\
+		.len = 1,\
+		.inline_bit = true,\
+		.hidden = false,\
+		.code = { INSTRUCTION }\
+	},
 	X_MACRO_INSTRUCTIONS
 #undef X
 	/**@note We might want to compile these words, even if we are not
 	 * compiling the other in-line-able, so the compiler can use them for
 	 * variable declaration and for...next loops */
 	/**@warning 1 lshift used, in the original j1.v it is not needed */
-	{ .name = "doVar", .inline_bit = false, .hidden = true, .len = 1, .code = {CODE_FROMR} },
-	{ .name = "r1-",   .inline_bit = false, .hidden = true, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
-	{ .name = NULL,    .inline_bit = false, .hidden = true, .len = 0, .code = {0} }
+	{ .name = "doVar", .compile = true, .inline_bit = false, .hidden = true, .len = 1, .code = {CODE_FROMR} },
+	{ .name = "r1-",   .compile = true, .inline_bit = false, .hidden = true, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
+	{ .name = NULL,    .compile = true, .inline_bit = false, .hidden = true, .len = 0, .code = {0} }
 };
 
 static void generate_loop_decrement(h2_t *h, assembler_t *a, symbol_table_t *t)
@@ -2945,6 +2954,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	case SYM_VARIABLE:
 		if(a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined) {
 			a->do_var = a->do_var ? a->do_var : symbol_table_lookup(t, "doVar");
+			assert(a->do_var);
 			hole1 = hole(h, a);
 			fix(h, hole1, a->pwd);
 			a->pwd = hole1 << 1;
@@ -3114,10 +3124,13 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			break;
 
 		if(a->built_in_words_defined)
-			assembly_error(e, "Built in words already defined!");
+			assembly_error(e, "built in words already defined");
 		a->built_in_words_defined = true;
 
 		for(unsigned i = 0; built_in_words[i].name; i++) {
+			if(!(built_in_words[i].compile))
+				continue;
+
 			if(!built_in_words[i].hidden) {
 				uint16_t pwd = a->pwd;
 				hole1 = hole(h, a);

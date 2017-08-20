@@ -47,7 +47,6 @@ SOURCES = \
 	uart.vhd \
 	kbd.vhd \
 	vga.vhd \
-	irqh.vhd \
 	h2.vhd \
 	cpu.vhd \
 	led.vhd 
@@ -139,10 +138,9 @@ text.hex: text${EXE}
 %.o: %.vhd
 	ghdl -a $<
 
-irqh.o: util.o
 led.o: util.o led.vhd
 vga.o: util.o vga.vhd text.hex font.bin
-cpu.o: util.o h2.o irqh.o cpu.vhd h2.hex
+cpu.o: util.o h2.o cpu.vhd h2.hex
 uart.o: util.o uart.vhd
 top.o: util.o timer.o cpu.o uart.o vga.o kbd.o led.o top.vhd 
 tb.o: top.o tb.vhd 

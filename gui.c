@@ -25,22 +25,23 @@
 
 /* ====================================== Utility Functions ==================================== */
 
-#define VGA_INIT_FILE ("text.hex")
-#define PI            (3.1415926535897932384626433832795)
-#define MAX(X, Y)     ((X) > (Y) ? (X) : (Y))
-#define MIN(X, Y)     ((X) < (Y) ? (X) : (Y))
-#define ESC           (27)
-#define UNUSED(X)     ((void)(X))
-#define X_MAX         (100.0)
-#define X_MIN         (0.0)
-#define Y_MAX         (100.0)
-#define Y_MIN         (0.0)
-#define LINE_WIDTH    (0.5)
+#define VGA_INIT_FILE    ("text.hex")
+#define PI               (3.1415926535897932384626433832795)
+#define MAX(X, Y)        ((X) > (Y) ? (X) : (Y))
+#define MIN(X, Y)        ((X) < (Y) ? (X) : (Y))
+#define ESCAPE           (27)
+#define BACKSPACE        (8)
+#define UNUSED(X)        ((void)(X))
+#define X_MAX            (100.0)
+#define X_MIN            (0.0)
+#define Y_MAX            (100.0)
+#define Y_MIN            (0.0)
+#define LINE_WIDTH       (0.5)
 #define CYCLE_MODE_FIXED (false)
 #define CYCLE_INITIAL    (100000)
 #define CYCLE_INCREMENT  (10000)
 #define CYCLE_DECREMENT  (500)
-#define CYCLE_MINIMUM    (1000)
+#define CYCLE_MINIMUM    (10000)
 #define CYCLE_HYSTERESIS (2.0)
 #define TARGET_FPS       (30.0)
 
@@ -706,8 +707,8 @@ void update_terminal(terminal_t *t, fifo_t *f)
 				break;
 			case '\r':
 				break;
-			case 8: /* backspace */
-				if((t->cursor / TERMINAL_WIDTH) == ((t->cursor -1) / TERMINAL_WIDTH))
+			case BACKSPACE: 
+				if((t->cursor / TERMINAL_WIDTH) == ((t->cursor - 1) / TERMINAL_WIDTH))
 					t->cursor--;
 				break;
 			default:
@@ -884,33 +885,37 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 
 	switch(addr) {
 	case oUart:
-			if(value & UART_TX_WE) {
-				fifo_push(uart_tx_fifo, value);
-				/*putchar(value);
-				fflush(stdout);*/
-			}
-			if(value & UART_RX_RE) {
-				uint8_t c = 0;
-				fifo_pop(uart_rx_fifo, &c);
-				soc->uart_getchar_register = c;
-			}
+		if(value & UART_TX_WE) {
+			fifo_push(uart_tx_fifo, value);
+			/*putchar(value);
+			fflush(stdout);*/
+		}
+		if(value & UART_RX_RE) {
+			uint8_t c = 0;
+			fifo_pop(uart_rx_fifo, &c);
+			soc->uart_getchar_register = c;
+		}
+		break;
+	case oLeds:       
+			soc->leds           = value;
+			for(size_t i = 0; i < LEDS_COUNT; i++)
+				leds[i].on = value & (1 << i);
 			break;
-	case oLeds:       soc->leds           = value;
-			  for(size_t i = 0; i < LEDS_COUNT; i++)
-				  leds[i].on = value & (1 << i);
-			  break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
-	case oVgaCtrl:    soc->vga_control    = value;
+	case oVgaCtrl:    
+			soc->vga_control    = value;
 			  vga.control         = value;
 			  break;
-	case oVgaCursor:  soc->vga_cursor     = value;
-			  vga.cursor_x        = value & 0x7f;
-			  vga.cursor_y        = (value >> 8) & 0x3f;
-			  break;
-	case o8SegLED:    for(size_t i = 0; i < SEGMENT_COUNT; i++)
-				  segments[i].segment = (value >> ((SEGMENT_COUNT - i - 1) * 4)) & 0xf;
-
-			  soc->led_8_segments = value; break;
+	case oVgaCursor:  
+		soc->vga_cursor     = value;
+		vga.cursor_x        = value & 0x7f;
+		vga.cursor_y        = (value >> 8) & 0x3f;
+		break;
+	case o8SegLED:    
+		for(size_t i = 0; i < SEGMENT_COUNT; i++)
+			segments[i].segment = (value >> ((SEGMENT_COUNT - i - 1) * 4)) & 0xf;
+		soc->led_8_segments = value; 
+		break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
 	case oMemControl:
@@ -1003,7 +1008,7 @@ static void keyboard_handler(unsigned char key, int x, int y)
 	UNUSED(y);
 	assert(uart_tx_fifo);
 	assert(ps2_rx_fifo);
-	if(key == ESC) {
+	if(key == ESCAPE) {
 		world.halt_simulation = true;
 	} else {
 		if(world.use_uart_input)
