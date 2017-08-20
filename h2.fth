@@ -268,7 +268,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : /string over min rot over + -rot - ;    ( b u1 u2 -- b u : advance a string u2 characters )
 : last context @ @ ;                      ( -- pwd )
 : emit _emit @execute ;                   ( c -- : write out a char )
-: toggle over @ xor swap ! ;              ( a u -- : xor value at addr with u )
+: toggle over @ xor swap ! ; hidden       ( a u -- : xor value at addr with u )
 : cr =cr emit =lf emit ;                  ( -- )
 : space =bl emit ;                        ( -- )
 : pick ?dup if swap >r 1- pick r> swap exit then dup ; ( @bug does not work for high stack depths - mashes the return stack )
@@ -837,11 +837,12 @@ in which the problem could be solved. )
 : update [-1] block-dirty ! ;          ( -- )
 : +block blk @ + ;                     ( -- )
 : b/buf block-size ;                   ( -- u )
-: empty-buffers block-invalid blk ! ;  ( -- )
+: clean-buffers 0 block-dirty ! ; hidden
+: empty-buffers clean-buffers block-invalid blk ! ;  ( -- )
 : save-buffers                         ( -- )
 	blk @ block-invalid = updated? 0= or if exit then
 	block-buffer b/buf blk @ _bsave @execute throw
-	0 block-dirty ! ;
+	clean-buffers ;
 : flush save-buffers empty-buffers ;
 
 ( @todo extend various words like '\' to work with blocks, the

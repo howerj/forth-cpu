@@ -567,7 +567,7 @@ static symbol_t *symbol_table_reverse_lookup(symbol_table_t *t, symbol_type_e ty
 	return NULL;
 }
 
-static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *id, uint16_t value, error_t *e)
+static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *id, uint16_t value, error_t *e, bool hidden)
 {
 	symbol_t *s = symbol_new(type, id, value);
 	symbol_t **xs = NULL;
@@ -580,6 +580,7 @@ static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *i
 		else
 			return -1;
 	}
+	s->hidden = hidden;
 
 	t->length++;
 	errno = 0;
@@ -597,7 +598,8 @@ static int symbol_table_print(symbol_table_t *t, FILE *output)
 	assert(t);
 	for(size_t i = 0; i < t->length; i++) {
 		symbol_t *s = t->symbols[i];
-		if(fprintf(output, "%s %s %"PRId16"\n", symbol_names[s->type], s->id, s->value) < 0)
+		char *visibility = s->hidden ? "hidden" : "visible";
+		if(fprintf(output, "%s %s %"PRId16" %s\n", symbol_names[s->type], s->id, s->value, visibility) < 0)
 			return -1;
 	}
 	return 0;
@@ -609,24 +611,34 @@ static symbol_table_t *symbol_table_load(FILE *input)
 	assert(input);
 	char symbol[80];
 	char id[256];
+	char visibility[80];
 	uint16_t value;
 
 	while(!feof(input)) {
 		int r = 0;
-		memset(symbol, 0, sizeof(symbol));
-		memset(id,     0, sizeof(id));
+		memset(symbol,     0, sizeof(symbol));
+		memset(id,         0, sizeof(id));
+		memset(visibility, 0, sizeof(visibility));
 		value = 0;
-		r = fscanf(input, "%79s%255s%"SCNd16, symbol, id, &value);
-		if(r != 3 && r > 0) {
+		r = fscanf(input, "%79s%255s%"SCNd16"%79s", symbol, id, &value, visibility);
+		if(r != 4 && r > 0) {
 			error("invalid symbol table: %d", r);
 			goto fail;
 		}
-		if(r == 3) {
+		if(r == 4) {
 			size_t i = 0;
+			bool hidden = false;
+			if(!strcmp(visibility, "hidden")) {
+				hidden = true;
+			}else if(!strcmp(visibility, "visible")) {
+				error("invalid visibility value: %s", visibility);
+				goto fail;
+			}
+
 			for(i = 0; symbol_names[i] && strcmp(symbol_names[i], symbol); i++)
 				/*do nothing*/;
 			if(symbol_names[i]) {
-				if(symbol_table_add(t, i, id, value, NULL) < 0)
+				if(symbol_table_add(t, i, id, value, NULL, hidden) < 0)
 					goto fail;
 			} else {
 				error("invalid symbol: %s", symbol);
@@ -2941,7 +2953,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			assemble(h, a, n->o[i], t, e);
 		break;
 	case SYM_LABEL:
-		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h, a), e);
+		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h, a), e, false);
 		break;
 	case SYM_BRANCH:
 	case SYM_0BRANCH:
@@ -2949,7 +2961,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate_jump(h, a, t, n->token, n->type, e);
 		break;
 	case SYM_CONSTANT:
-		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e);
+		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e, false);
 		break;
 	case SYM_VARIABLE:
 		if(a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined) {
@@ -2975,7 +2987,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 
 		/**@note The lowest bit of the address for memory loads is
 		 * discarded. */
-		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e);
+		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e, n->type == SYM_LOCATION ? true : false);
 		break;
 	case SYM_QUOTE:
 	{
@@ -3068,7 +3080,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			a->pwd = hole1 << 1;
 			pack_string(h, a, n->token->p.id, e);
 		}
-		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h, a), e);
+		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h, a), e, n->bits & DEFINE_HIDDEN);
 		if(a->in_definition)
 			assembly_error(e, "nested word definition is not allowed");
 		a->in_definition = true;
@@ -3140,7 +3152,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 				a->pwd = hole1 << 1;
 				pack_string(h, a, built_in_words[i].name, e);
 			}
-			symbol_table_add(t, SYMBOL_TYPE_CALL, built_in_words[i].name, here(h, a), e);
+			symbol_table_add(t, SYMBOL_TYPE_CALL, built_in_words[i].name, here(h, a), e, built_in_words[i].hidden);
 			for(size_t j = 0; j < built_in_words[i].len; j++)
 				generate(h, a, built_in_words[i].code[j]);
 			generate(h, a, CODE_EXIT);

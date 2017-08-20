@@ -48,6 +48,7 @@ typedef struct {
 	symbol_type_e type;
 	char *id;
 	uint16_t value;
+	bool hidden;
 } symbol_t;
 
 typedef struct {

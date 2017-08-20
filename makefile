@@ -105,8 +105,14 @@ disassemble: h2${EXE} h2.fth
 block${EXE}: block.c
 	${CC} ${CFLAGS} -std=c99 $< -o $@
 
-%.blk: %.txt block${EXE}
-	${DF}block${EXE} < $< > $@
+h2.sym: h2.hex
+
+nvram.blk: nvram.txt h2.sym block${EXE} 
+	${DF}block${EXE} < nvram.txt >  $@
+	${DF}block${EXE} < h2.sym    >> $@
+
+# %.blk: %.txt block${EXE}
+#	${DF}block${EXE} < $< > $@
 
 run: h2${EXE} h2.fth nvram.blk
 	${DF}h2 -s 0 -R h2.fth
