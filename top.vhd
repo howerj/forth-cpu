@@ -656,8 +656,8 @@ begin
 
 	--- LFSR ----------------------------------------------------------
 
-	lfsr_0: entity work.lfsr 
-		generic map(tap => lfsr_tap) 
+	lfsr_0: entity work.lfsr
+		generic map(tap => lfsr_tap)
 		port map(clk => clk, rst => rst, ce => '1', di => lfsr_i, we => lfsr_i_we, do => lfsr_o);
 
 	--- LFSR ----------------------------------------------------------

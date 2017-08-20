@@ -168,8 +168,8 @@ location see.immediate    " immediate " ( used by "see", for immediate words )
 location see.inline       " inline "    ( used by "see", for inline words )
 location OK               "ok"          ( used by "prompt" )
 location redefined        " redefined"  ( used by ":" when a word has been redefined )
-location hi-string        "eFORTH V"    ( used by "hi" ) 
-location loading-string   "loading..."  
+location hi-string        "eFORTH V"    ( used by "hi" )
+location loading-string   "loading..."
 
 ( ======================== System Variables ================= )
 
@@ -229,7 +229,7 @@ location loading-string   "loading..."
 	over over and
 	0 < r> or >r
 	or 0 < r> and invert 1 +
-	r> swap ; 
+	r> swap ;
 
 : rp! ( n -- , R: ??? -- ??? : set the return stack pointer )
 	r> swap begin dup rp@ = 0= while rdrop repeat drop >r ; hidden
@@ -404,14 +404,14 @@ be available. "doList" and "doLit" do not need to be implemented. )
 	next 2drop [-1] ; hidden
 
 \ : same? ( a a -- a a f )
-\ 	for 
-\ 		aft 
+\ 	for
+\ 		aft
 \ 			over r@ cells + @
 \ 			over r@ cells + @ -  ?dup
-\ 			if r> drop exit then 
+\ 			if r> drop exit then
 \ 		then
 \ 	next 0 ;
- 
+
 : address $3fff and ; hidden ( a -- a : mask off address bits )
 : nfa address cell+ ; hidden ( pwd -- nfa : move to name field address)
 : cfa nfa dup count nip + cell + $fffe and ; hidden ( pwd -- cfa : move to code field address )
@@ -628,8 +628,8 @@ not consumed in the previous parse )
 \ : ?dup-if ' "?dup" compile, call "if" ; immediate
 \ : gcd gcdStart: dup if tuck mod branch gcdStart then drop ; ( u1 u2 -- u : greatest common divisor )
 \ : lcm 2dup gcd / * ; ( u1 u2 -- u : lowest common multiple of u1 and u2 )
-( : factorial 0 
-   dup 2 < if drop 1 exit then 
+( : factorial 0
+   dup 2 < if drop 1 exit then
    1 swap for aft r@ 1+ * then next ; )
 \ : ?\ 0= if call "\" then ;
 \ : ?( 0= if call "(" then ;
@@ -666,7 +666,7 @@ not consumed in the previous parse )
 	repeat drop ; hidden
 
 ( @todo Vector these words, or look at the state of _emit, _echo and _key
-and take appropriate action 
+and take appropriate action
 @bug ansi.page and ansi.at-xy should only write over the UART, otherwise
 this causes major problems and blows up the return stack )
 : page   ( ansi.page ) vga.page ; ( -- : clear screen )
@@ -705,7 +705,7 @@ a character is dropped somewhere )
 words used for interpreting Forth. As much error checking is done
 as possible so the Forth environment is easy to use. )
 
-( @todo built in version of 'exit' should perform compile-exit? 
+( @todo built in version of 'exit' should perform compile-exit?
 @bug ":" links the word in, allowing it to be found in the dictionary,
 instead, ";" should do this so previous definitions of a word with the
 same name can be used within word being currently defined )
@@ -731,9 +731,9 @@ same name can be used within word being currently defined )
 : "while" ?compile call "if" ; immediate
 : "repeat" ?compile swap call "again" call "then" ; immediate
 : recurse ?compile last address cfa compile, ; immediate
-: create call ":" ' doVar compile, context @ ! [ ; 
+: create call ":" ' doVar compile, context @ ! [ ;
 : >body ( dup @ $4000 or <> if 31 -throw then ) cell+ ;
-: doDoes r> 2/ here 2/ last address cfa dup cell+ doLit ! , ; hidden 
+: doDoes r> 2/ here 2/ last address cfa dup cell+ doLit ! , ; hidden
 : does> ?compile ' doDoes compile, nop ; immediate
 : "variable" create 0 , ;
 : ":noname" here ] !csp ;
@@ -742,13 +742,13 @@ same name can be used within word being currently defined )
 : "next" ?compile ' doNext compile, , +csp ; immediate
 : "aft" ?compile drop here 0 jump, call "begin" swap ; immediate
 : doer create =exit last cfa ! =exit ,  ;
-: make 
-	call "'" call "'" make-callable 
-	state @ 
-	if 
-		literal literal ' ! compile, 
-	else 
-		swap ! 
+: make
+	call "'" call "'" make-callable
+	state @
+	if
+		literal literal ' ! compile,
+	else
+		swap !
 	then ; immediate
 : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
 : compile ( -- ) r> dup @ , cell+ >r ;
@@ -799,7 +799,7 @@ in which the problem could be solved. )
 : find-empty-cell begin dup @ while cell+ repeat ; hidden ( a -- a )
 
 : get-order ( -- widn ... wid1 n : )
-	context 
+	context
 	find-empty-cell
 	dup cell- swap
 	context - 2/ dup >r 1- dup 0< if 50 -throw then
@@ -868,7 +868,7 @@ source-id word can be used by words to modify their behavior )
 
 ( all words before this are now in the forth vocabulary, it is also set
 later on )
-.set forth-wordlist $pwd 
+.set forth-wordlist $pwd
 
 ( ==================== Block Word Set ================================ )
 
@@ -938,7 +938,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 	cr
 	cfa decompiler space 59 emit cr ;
 
-.set forth-wordlist $pwd 
+.set forth-wordlist $pwd
 ( ==================== See =========================================== )
 
 ( ==================== Miscellaneous ================================= )
@@ -1029,14 +1029,14 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 	5 40ns
 	$8000 mcontrol!
 	5 40ns
-	$0000 mcontrol! ; 
+	$0000 mcontrol! ;
 
 : m@ ( a -- n : read from non-volatile memory )
 	oMemAddrLow !
 	$4000 mcontrol! ( read enable mode )
 	5 40ns
 	iMemDin @        ( get input )
-	$0000 mcontrol! ; 
+	$0000 mcontrol! ;
 
 : memory-dump ( a u -- : dump non-volatile memory )
  	cr
@@ -1046,7 +1046,9 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
  		over 5u.r 40 emit over m@ 4 u.r 41 emit over 1+ $7 and 0= if cr then
  		1 /string
  	repeat 2drop cr ;
- 
+
+( @todo flash-status should throw if an error has been encountered, also
+the simulator in "h2.c" should be improved so it can simulate random errors )
 : sram 0 memory-select ! ;
 : flash-reset ( -- : reset non-volatile memory )
 	$2000 mcontrol!
@@ -1064,19 +1066,22 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 : flash-query $98 0 m! ; ( -- : query mode )
 
 : flash->sram ( a a : transfer flash memory cell to SRAM )
-	[-1] memory-select ! flash-clear flash-read 
+	[-1] memory-select ! flash-clear flash-read
 	m@ 0 memory-select ! swap m! ; hidden
 
+( @todo This should accept to double width address and a double width
+length, so large sections of memory can be transfered, also a transfer
+in the opposite direction should be programmed )
 : transfer ( a a u -- : transfer memory block from Flash to SRAM )
 	?dup 0= if 2drop exit then
 	1-
-	for 
+	for
 		2dup
 		flash->sram
 		1+ swap 1+ swap
 	next 2drop ;
 .set flash-voc $pwd
-	
+
 : minvalid ( k -- k : is 'k' a valid block number, throw on error )
 	dup block-invalid = if 35 -throw then ; hidden
 
@@ -1102,12 +1107,12 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 ( ==================== Users and Passwords =========================== )
 
 \ @todo modify emit/ktap to transmit '*' instead of password characters,
-\ and make a password cracker 
+\ and make a password cracker
 \ @todo Move to block storage
 
 \ location user>     "user> "
 \ location password> "password> "
-\ location user0.prev 0      
+\ location user0.prev 0
 \ location user0.pass $576F    ( guest )
 \ location user0.name "guest"
 \ location user1.prev 0        .set user1.prev user0.prev
@@ -1116,17 +1121,17 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 \ location user2.prev 0        .set user2.prev user1.prev
 \ location user2.pass $8E60    ( sterling )
 \ location user2.name "lana"
-\ 
+\
 \ location user.pwd  0 .set user.pwd user2.prev
-\ 
+\
 \ : generate count dup >r crc r> ccitt ; hidden ( a -- u )
-\ 
+\
 \ : mk.user ( -- ; <string1> <string2> : make a new user with a password  )
 \ 	here user.pwd @ , user.pwd !
-\ 	here 0 , 
+\ 	here 0 ,
 \ 	=bl word count 1+ allot align drop
 \ 	token generate swap ! ;
-\ 
+\
 \ : ls.user ( -- : list all users )
 \ 	cr
 \ 	user.pwd @
@@ -1136,7 +1141,7 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 \ 		dup 2 cells + space print cr
 \ 		@
 \ 	repeat drop cr ;
-\ 
+\
 \ : find.user ( a -- u | 0 : find a user )
 \ 	>r
 \ 	user.pwd @
@@ -1146,22 +1151,22 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 \ 		dup 2 cells + count r@ count =string if rdrop exit then
 \ 		@
 \ 	repeat rdrop drop 0 ;
-\ 
+\
 \ : _password? ( u -- : <string> )
 \ 	>r
-\ 	begin 
-\ 		password> print 
-\ 		query 
+\ 	begin
+\ 		password> print
+\ 		query
 \ 		token cr generate r@ =  ( 1000 ms )
 \ 	until rdrop ; hidden
-\ 
+\
 \ : fake.password password> print query token drop cr ( 1000 ms ) ; hidden
 \ : _user? begin user> print query token cr find.user ?dup until ; hidden
 \ : retry >r begin r@ catch 0= until rdrop ; ( xt -- )
 \ : user?     ' _user?     retry ; hidden
 \ : password? ' _password? retry ; hidden
 \ : login cr user? cell+ @ password? .ok ;
- 
+
 ( ==================== Users and Passwords =========================== )
 
 ( ==================== ANSI Colors =================================== )
@@ -1173,11 +1178,11 @@ These codes will provide a relatively portable means of
 manipulating a terminal
 
 @todo Move to block storage )
-\ 
+\
 \ variable colorize 0 ( set to 'drop' to disable, 'tx!' turn on )
 \ .set colorize tx!
-\ 
-\ 
+\
+\
 \ ( Colors can be used for the lower VGA control bits, as well as for ANSI
 \ Terminal escape sequences )
 \ : black    0 ;
@@ -1192,9 +1197,9 @@ manipulating a terminal
 \ : bright   1 ;
 \ : ansi.foreground ;
 \ : ansi.background 10 + ;
-\ 
+\
 \ ( usage:
-\ 
+\
 \ 	dark red foreground color
 \ 	bright blue background color
 \ )
@@ -1208,14 +1213,14 @@ manipulating a terminal
 \ 	then
 \ 	[char] m emit
 \ 	_emit colorize switch ;
-\ 
-\ 
+\
+\
 \ location HIDE_CURSOR "?25l" : ansi.hide-cursor CSI HIDE_CURSOR print ; ( -- : hide cursor )
 \ location SHOW_CURSOR "?25h" : ansi.show-cursor CSI SHOW_CURSOR print ; ( -- : show the cursor )
 \ : ansi.save-cursor CSI [char] s emit ; ( -- : save cursor position )
 \ : ansi.restore-cursor CSI [char] u emit ; ( -- : restore saved cursor position )
 \ : ansi.reset-color colorize @ 0= if exit then CSI 0 10u. [char] m emit ; ( -- : reset terminal color to its default value)
-\ 
+\
 ( ==================== ANSI Colors =================================== )
 
 ( ==================== Startup Code ================================== )

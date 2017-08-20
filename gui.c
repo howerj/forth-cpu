@@ -707,7 +707,7 @@ void update_terminal(terminal_t *t, fifo_t *f)
 				break;
 			case '\r':
 				break;
-			case BACKSPACE: 
+			case BACKSPACE:
 				if((t->cursor / TERMINAL_WIDTH) == ((t->cursor - 1) / TERMINAL_WIDTH))
 					t->cursor--;
 				break;
@@ -896,25 +896,25 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 			soc->uart_getchar_register = c;
 		}
 		break;
-	case oLeds:       
+	case oLeds:
 			soc->leds           = value;
 			for(size_t i = 0; i < LEDS_COUNT; i++)
 				leds[i].on = value & (1 << i);
 			break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
-	case oVgaCtrl:    
+	case oVgaCtrl:
 			soc->vga_control    = value;
 			  vga.control         = value;
 			  break;
-	case oVgaCursor:  
+	case oVgaCursor:
 		soc->vga_cursor     = value;
 		vga.cursor_x        = value & 0x7f;
 		vga.cursor_y        = (value >> 8) & 0x3f;
 		break;
-	case o8SegLED:    
+	case o8SegLED:
 		for(size_t i = 0; i < SEGMENT_COUNT; i++)
 			segments[i].segment = (value >> ((SEGMENT_COUNT - i - 1) * 4)) & 0xf;
-		soc->led_8_segments = value; 
+		soc->led_8_segments = value;
 		break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
