@@ -1,5 +1,4 @@
-/**@brief Turn a text file into a Forth block file
- * @todo Do the reverse operation, turn a block file into a text file */
+/**@brief Turn a text file into a Forth block file */
 
 #include <stdio.h>
 #include <string.h>

@@ -186,15 +186,12 @@ location loading-string   "loading..."
 : 1+ 1 + ;                 ( n -- n )
 : negate invert 1 + ;      ( n -- n )
 : - invert 1 + + ;         ( n n -- n )
-\ : 2+ 2 + ;               ( n -- n )
-\ : 2- 2 - ;               ( n -- n )
 : 2/ 1 rshift ;            ( n -- n )
 : 2* 1 lshift ;            ( n -- n )
 : cell- cell - ;           ( a -- a )
 : cell+ cell + ;           ( a -- a )
 : cells 2* ;               ( n -- n )
 : ?dup dup if dup then ;   ( n -- | n n  )
-\ : >= < invert ;            ( n n -- f )
 : >  swap < ;              ( n n -- f )
 : u> swap u< ;             ( u u -- f )
 : u>= u< invert ; hidden   ( u u -- f )
@@ -227,8 +224,6 @@ location loading-string   "loading..."
 : 40ns begin dup while 1- repeat drop ; hidden ( n -- : wait for 'n'*40ns + 30us )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
 
-\ : simulation? cpu-id $dead = ; ( -- f : are we in the matrix? )
-
 : tx! ( c -- : write a character to UART )
 	begin iUart @ $1000 and 0= until ( Wait until TX FIFO is not full )
 	$2000 or oUart ! ; hidden     ( Write character out )
@@ -252,8 +247,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 ( ======================== Word Set ========================= )
 
-\ : 0<= 0> 0= ;                           ( n n -- f )
-\ : 0>= 0< 0= ;                           ( n n -- f )
 : 2! ( d a -- ) tuck ! cell+ ! ;          ( n n a -- )
 : 2@ ( a -- d ) dup cell+ @ swap @ ;      ( a -- n n )
 : here cp @ ;                             ( -- a )
@@ -264,12 +257,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : 3drop 2drop drop ; hidden               ( n n n -- )
 : bl =bl ;                                ( -- c )
 : within over - >r - r> u< ;              ( u lo hi -- t )
-\ : not -1 xor ;                          ( n -- n )
 : dnegate invert >r invert 1 um+ r> + ;   ( d -- d )
-\ : dabs dup 0< if dnegate then ;         ( d -- d )
-\ : d+  >r swap >r um+ r> r> + + ;        ( d d -- d )
-\ : d=  >r swap r> = >r = r> and ;        ( d d -- f )
-\ : d<> d= 0= ;                           ( d d -- f )
 : abs dup 0< if negate then ;             ( n -- u )
 : count  dup 1+ swap c@ ;                 ( cs -- b u )
 : rot >r swap r> swap ;                   ( n1 n2 n3 -- n2 n3 n1 )
@@ -289,15 +277,11 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : cr =cr emit =lf emit ;                  ( -- )
 : space =bl emit ;                        ( -- )
 : pick ?dup if swap >r 1- pick r> swap exit then dup ; ( @bug does not work for high stack depths - mashes the return stack )
-\ : roll  dup 0> if swap >r 1- roll r> swap else drop then ;
 : ndrop for aft drop then next ; hidden   ( n1 ... nu u -- )
 : type begin dup while swap count emit swap 1- repeat 2drop ; ( b u -- : print a string )
 : $type begin dup while swap count >char emit swap 1- repeat 2drop ; hidden ( b u -- : print a string )
 : print count type ; hidden               ( b -- )
-\ : nuf? ( -- f ) key? if =cr = else 0 then ; ( -- f : true if 'cr' pressed, non-blocking, original behavior )
 : nuf? ( -- f ) key =cr = ;  ( -- f : true if 'cr' pressed, blocking )
-\ : ?exit if rdrop then ;                   ( n --, R: n -- n | )
-\ : 2rdrop r> rdrop rdrop >r ;              ( R n n -- )
 : decimal? 48 58 within ; hidden            ( c -- f : decimal char? )
 : lowercase? [char] a [char] { within ; hidden  ( c -- f : is character lower case? )
 : uppercase? [char] A [char] [ within ; hidden  ( c -- f : is character upper case? )
@@ -362,24 +346,16 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : mod  /mod drop ;           ( n n -- r )
 : /    /mod nip ;            ( n n -- q )
 : *    um* drop ;            ( n n -- n )
-\ : m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ; ( n n -- d )
-\ : */mod  >r m* r> m/mod ;  ( n n n -- r q )
-\ : */  */mod nip ;          ( n n n -- q )
-\ : s>d dup 0< ;             ( n -- d : single to double )
-
 : radix base @ dup 2 - 34 u> if 10 base ! 40 -throw then ; hidden
 : digit  9 over < 7 and + 48 + ; hidden      ( u -- c )
 : extract  0 swap um/mod swap ; hidden       ( n base -- n c )
 : <#  pad hld ! ;                            ( -- )
 : ?hold hld @ cp @ u< if 17 -throw then ; hidden ( -- )
 : hold  hld @ 1- dup hld ! ?hold c! ;        ( c -- )
-\ : holds begin dup while 1- 2dup + c@ hold repeat 2drop ; ( a u -- )
 : #  radix extract digit hold ;              ( u -- u )
 : #s begin # dup while repeat ;              ( u -- 0 )
 : sign  0< if [char] - hold then ;           ( n -- )
 : #>  drop hld @ pad over - ;                ( w -- b u )
-\ : binary  2 base ! ;                       ( -- )
-\ : octal  8 base ! ;                        ( -- )
 : decimal  10 base ! ;                       ( -- )
 : hex  16 base ! ;                           ( -- )
 : str dup >r abs <# #s r> sign #> ; hidden   ( n -- b u : convert a signed integer to a numeric string )
@@ -388,8 +364,6 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : u.  <# #s #> space type ;                  ( u -- : print unsigned number )
 :  .  radix 10 xor if u. exit then str space type ; ( n -- print space, signed number )
 : ? @ . ;                                    ( a -- : display the contents in a memory cell )
-\ : 2. swap . . ;                            ( n n -- )
-\ : .base  radix decimal dup . base  ! ;     ( -- )
 
 : pack$ ( b u a -- a ) \ null fill
 	aligned dup >r over
@@ -767,8 +741,6 @@ same name can be used within word being currently defined )
 : doDoes r> 2/ here 2/ last address cfa dup cell+ doLit ! , ; hidden 
 : does> ?compile ' doDoes compile, nop ; immediate
 : "variable" create 0 , ;
-\ : doConst r> @ ; hidden
-\ : "constant" create , ' doConst make-callable last address cfa ! ;
 : ":noname" here ] !csp ;
 : "for" ?compile =>r , here -csp ; immediate
 : doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
@@ -830,10 +802,6 @@ in which the problem could be solved. )
 	dup #vocs > if 49 -throw then
 	context swap for aft tuck ! cell+ then next 0 swap ! ;
 
-\ : only [-1] set-order ;
-\ : also get-order over swap 1+ set-order ;
-\ : previous get-order swap drop 1- set-order ;
-
 : forth -1 set-order ;
 : assembler forth-wordlist assembler-voc 2 set-order ;
 : editor decimal editor-voc 1 set-order ; 
@@ -885,7 +853,6 @@ source-id word can be used by words to modify their behavior )
 	blk !
 	block-buffer ;
 
-\ : buffer block ; ( k -- a )
 : load block b/buf evaluate ;
 : --> 1 +block load ;
 : scr blk ;
@@ -901,7 +868,6 @@ later on )
 .set forth-wordlist $pwd 
 
 ( ==================== Block Word Set ================================ )
-
 
 ( ==================== See =========================================== )
 
@@ -928,7 +894,7 @@ to work / break everything it touches )
 	repeat rdrop ; hidden
 
 : .name name ?dup 0= if see.unknown then print ; hidden
-: mask-off 2dup and = ; ( u u -- u f )
+: mask-off 2dup and = ; hidden ( u u -- u f )
 
 i.end2t: 2*
 i.end:   5u.r rdrop exit
@@ -1001,7 +967,7 @@ irq:
 
 ( ==================== Memory Interface ============================== )
 
-( @note The manual for the Nexys 3 board specifies that there is a PCM 
+( @note The manual for the Nexys 3 board specifies that there is a PCM
 memory device called the NP8P128A13T1760E, this is a device behaves like
 normal flash with the addition that individual cells can be written to
 without first erasing the block, this is accomplished with an extension
@@ -1009,12 +975,34 @@ to the Common Flash Interface that most flash devices support. However,
 there are boards the PC28F128P33BF60 on in lieu of this, which is a
 normal flash device without the "bit alterable write" extension. Normal
 flash memory works by erasing a block of data, setting all bits set,
-writing the memory works by masking in a value, bits can be cleared
-in a memory cell but not set, the can only be set by erasing a block.
+writing the memory works by masking in a value, bits can be cleared in
+a memory cell but not set, the can only be set by erasing a block.
 
 @todo Map the SRAM and NVRAM into different parts of the block
 number range, 65536 block numbers and index 64MB of memory, the
-SRAM and NVRAM are both 16MB in size)
+SRAM and NVRAM are both 16MB in size
+
+The Nexys 3 has three memory devices, two of which are accessed over
+a parallel interface. They share the same data and address bus, and
+can be selected with a chip select. The signals to be controlled
+are:
+
+	+-----+-------------------------+
+	| Bit | Description             |
+	|-----|-------------------------|
+	| 0-9 | Upper Memory Bits       |
+	| 10  | Flash chip select       |
+	| 11  | SRAM chip select        |
+	| 12  | Memory Wait [not used]  |
+	| 13  | Flash Reset             |
+	| 14  | Output Enable           |
+	| 15  | Write Enable            |
+	+-----+-------------------------+
+
+The usage of the output enable and write enable are mutually exclusive,
+as are both of the chip selects.
+
+)
 
 .set context forth-wordlist
 .set forth-wordlist $pwd
@@ -1046,14 +1034,14 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 	iMemDin @        ( get input )
 	$0000 mcontrol! ; 
 
-\ : mdump ( a u -- : dump non-volatile memory )
-\ 	cr
-\ 	begin
-\ 		dup
-\ 	while
-\ 		over 5u.r 40 emit over m@ 4 u.r 41 emit over 1+ $7 and 0= if cr then
-\ 		1 /string
-\ 	repeat 2drop cr ;
+: memory-dump ( a u -- : dump non-volatile memory )
+ 	cr
+ 	begin
+ 		dup
+ 	while
+ 		over 5u.r 40 emit over m@ 4 u.r 41 emit over 1+ $7 and 0= if cr then
+ 		1 /string
+ 	repeat 2drop cr ;
  
 : sram 0 memory-select ! ;
 : flash-reset ( -- : reset non-volatile memory )
@@ -1071,16 +1059,16 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 : flash-erase flash-clear dup $20 swap m! $d0 swap m! flash-wait ; ( ba -- )
 : flash-query $98 0 m! ; ( -- : query mode )
 
-: flash>sram ( a a )
+: flash->sram ( a a : transfer flash memory cell to SRAM )
 	[-1] memory-select ! flash-clear flash-read 
 	m@ 0 memory-select ! swap m! ; hidden
 
-: transfer ( a a u -- )
+: transfer ( a a u -- : transfer memory block from Flash to SRAM )
 	?dup 0= if 2drop exit then
 	1-
 	for 
 		2dup
-		flash>sram
+		flash->sram
 		1+ swap 1+ swap
 	next 2drop ;
 .set flash-voc $pwd
@@ -1102,8 +1090,8 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 	repeat
 	rdrop 2drop 0 ; hidden
 
-: msave ' c>m _blockop ! mblock ; hidden
-: mload ' m>c _blockop ! mblock ; hidden
+: memory-save ' c>m _blockop ! mblock ; hidden
+: memory-load ' m>c _blockop ! mblock ; hidden
 
 ( ==================== Memory Interface ============================== )
 
@@ -1292,15 +1280,15 @@ start:
 
 .set cp  $pc
 
-.set _key?     input      ( execution vector of ?key,   default to input. )
-.set _emit     output     ( execution vector of emit,   default to output )
-.set _expect   accept     ( execution vector of expect, default to 'accept'. )
-.set _tap      ktap       ( execution vector of tap,    default the ktap. )
-.set _echo     output     ( execution vector of echo,   default to output. )
-.set _prompt   .ok        ( execution vector of prompt, default to '.ok'. )
-.set _boot     0          ( @execute does nothing if zero )
-.set _bload    mload      ( execution vector of _bload, used in block )
-.set _bsave    msave      ( execution vector of _bsave, used in block )
-.set _binvalid minvalid   ( execution vector of _invalid, used in block )
-.set _page     page       ( execution vector of _page, used in list )
-.set _message  message    ( execution vector of _message, used in on-error)
+.set _key?     input       ( execution vector of ?key,   default to input. )
+.set _emit     output      ( execution vector of emit,   default to output )
+.set _expect   accept      ( execution vector of expect, default to 'accept'. )
+.set _tap      ktap        ( execution vector of tap,    default the ktap. )
+.set _echo     output      ( execution vector of echo,   default to output. )
+.set _prompt   .ok         ( execution vector of prompt, default to '.ok'. )
+.set _boot     0           ( @execute does nothing if zero )
+.set _bload    memory-load ( execution vector of _bload, used in block )
+.set _bsave    memory-save ( execution vector of _bsave, used in block )
+.set _binvalid minvalid    ( execution vector of _invalid, used in block )
+.set _page     page        ( execution vector of _page, used in list )
+.set _message  message     ( execution vector of _message, used in on-error)

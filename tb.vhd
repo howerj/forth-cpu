@@ -223,7 +223,6 @@ begin
 			element(l, true, name, slv);
 		end procedure;
 
-		-- @todo write numbers out as hexadecimal
 		function reportln(debug: cpu_debug_interface; cycles: integer) return line is
 			variable l: line;
 		begin

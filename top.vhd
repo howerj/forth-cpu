@@ -602,10 +602,6 @@ begin
 
 	--- Memory Interface ----------------------------------------------
 
-	-- @todo This memory interface really should be replaced with a
-	-- SRAM memory interface module so the timing is guaranteed to
-	-- be correct.
-
 	mem_addr_16_1_reg: entity work.reg
 		generic map(N => 16)
 		port map(
@@ -660,7 +656,9 @@ begin
 
 	--- LFSR ----------------------------------------------------------
 
-	lfsr_0: entity work.lfsr generic map(tap => lfsr_tap) port map(clk => clk, rst => rst, ce => '1', di => lfsr_i, we => lfsr_i_we, do => lfsr_o);
+	lfsr_0: entity work.lfsr 
+		generic map(tap => lfsr_tap) 
+		port map(clk => clk, rst => rst, ce => '1', di => lfsr_i, we => lfsr_i_we, do => lfsr_o);
 
 	--- LFSR ----------------------------------------------------------
 

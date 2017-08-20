@@ -110,6 +110,38 @@ Forth word 'message' is used to index into this document.
 
 
 
+: 2+ 2 + ;                       ( n -- n )
+: 2- 2 - ;                       ( n -- n )
+: >= < invert ;                  ( n n -- f )
+: simulation? cpu-id $dead = ; ( -- f : are we in the matrix? )
+: 0<= 0> 0= ;                    ( n n -- f )
+: 0>= 0< 0= ;                    ( n n -- f )
+: not -1 xor ;                   ( n -- n )
+: dabs dup 0< if dnegate then ;  ( d -- d )
+: d+  >r swap >r um+ r> r> + + ; ( d d -- d )
+: d=  >r swap r> = >r = r> and ; ( d d -- f )
+: d<> d= 0= ;                    ( d d -- f )
+: roll  dup 0> if swap >r 1- roll r> swap else drop then ;
+: ?exit if rdrop then ;                   ( n --, R: n -- n | )
+: 2rdrop r> rdrop rdrop >r ;              ( R n n -- )
+
+
+: m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ; 
+: */mod  >r m* r> m/mod ;  ( n n n -- r q )
+: */  */mod nip ;          ( n n n -- q )
+: s>d dup 0< ;             ( n -- d : single to double )
+: holds begin dup while 1- 2dup + c@ hold repeat 2drop ; 
+: binary  2 base ! ;                       ( -- )
+: octal  8 base ! ;                        ( -- )
+: 2. swap . . ;                            ( n n -- )
+: .base base @ dup decimal base ! ; ( -- )
+: constant create , does> @ ; ( --, <string> )
+: only -1 set-order ;
+: also get-order over swap 1+ set-order ;
+: previous get-order swap drop 1- set-order ;
+: buffer block ; ( k -- a )
+
+
 : logical 0= 0= ;     ( n -- f )
 : square dup * ;      ( n -- )
 : limit rot min max ; ( n lo hi -- n )
@@ -124,7 +156,7 @@ Forth word 'message' is used to index into this document.
 : 2over >r >r 2dup r> swap >r swap r> r> -rot ; 
 : 2swap >r -rot r> -rot ; ( n1 n2 n3 n4 -- n3 n4 n1 n2 )
 : 2tuck 2swap 2over ; ( n1 n2 n3 n4 -- n3 n4 n1 n2 n3 n4 )
-: 4drop 2drop 2drop ; ( n1 n2 n3 n4 -- )
+: 4drop 2drop 2drop ; ( n1 n2 n3 n4 -- ) 
 
 : trip dup dup ; ( n -- n n n )
 : log  >r 0 swap ( u base -- u )
@@ -136,6 +168,22 @@ Forth word 'message' is used to index into this document.
 : average um+ 2 um/mod nip ;
 : <=> 2dup > if 2drop -1 exit then < ; 
 : bounds over + swap ;
+: 2, , , ;
+: tab 9 emit ;
+: drup drop dup ;
+: lsb $ff and ;
+: nor or invert ;
+
+: signum ( n -- -1 | 0 | 1 : Signum function )
+	dup 0> if drop  1 exit then
+	    0< if      -1 exit then
+	0 ;
+: bye [ 0 , ] ;
+: enum dup constant 1+ ;
+: swap16 dup 8 rshift swap 8 lshift or ;
+: #digits dup 0= if 1+ exit then base @ log 1+ ;
+
+
 
 
 

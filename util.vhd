@@ -8,20 +8,6 @@
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
---| @todo Add mux, demux (X To N, IN/OUT), debouncer, serial to parallel (and
---| vice versa), pulse generator, population count, priority encoder, types,
---| gray codes, CORDIC, Manchester encoder/decoder and other generic functions
---| and components. Configurable Logic Block primitives could also be
---| provided. Debouncers and a UART of my own design would also be useful. As
---| would a Run Length Encoder compression/decompression core
---| @todo Some simple communications primitives could be added in here, such
---| as a SPI master. Another one would be a pin control module that can
---| be used to control physical pins on the FPGA with a pin direction register,
---| an input and an output register.
---| @todo Add a CRC module, and a XXTEA (https://en.wikipedia.org/wiki/XXTEA),
---| these should be customizable so a different number of rounds can be
---| selected per clock cycle.
---| @todo Document each component extensively, with timing diagrams.
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -818,12 +804,6 @@ end;
 ------------------------- Shift register --------------------------------------------
 
 ------------------------- Microsecond Timer -----------------------------------------
---| @todo There is a special case for the microsecond timer, one where we do
---| not have to use a comparator, but instead we can use the top bit of a
---| counter to signal the timer has elapsed. This special case could be
---| selected for with generics. The situation occurs when the cycles variable
---| is a power of two less one.
-
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -902,7 +882,6 @@ end;
 ------------------------- Microsecond Timer -----------------------------------------
 
 ------------------------- Edge Detector ---------------------------------------------
---| @todo have generic to decide whether it is on the rising or falling edge
 library ieee;
 use ieee.std_logic_1164.all;
 

@@ -9,10 +9,6 @@
 # file for the FPGA. Type "make help" at the command line for a
 # list of options
 #
-# @todo The options relating to building the bit file (synthesis,
-# implementation and bitfile) need improving in terms of their
-# dependencies.
-#
 
 NETLIST=top
 #TIME=time -p 
@@ -281,7 +277,9 @@ clean:
 	      top.unroutes top.xpi top_par.xrpt top.twx top.nlf design.bit top_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf h2${EXE} gui${EXE}
+	@rm -vrf h2${EXE} gui${EXE} block${EXE} text${EXE}
+	@rm -vrf text.bin h2.hex text.hex
+	@rm -vrf *.pdf *.htm
 	@rm -vrf *.blk
 	@rm -vf usage_statistics_webtalk.html
 	@rm -vf mem_h2.binary mem_h2.hexadecimal
