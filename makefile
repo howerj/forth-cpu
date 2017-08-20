@@ -38,7 +38,7 @@ DF=./
 EXE=
 endif
 
-.PHONY: simulation viewer synthesis bitfile upload clean run gui-run
+.PHONY: simulation viewer synthesis bitfile upload clean run gui-run 
 
 ## Remember to update the synthesis section as well
 SOURCES = \
@@ -107,7 +107,13 @@ disassemble: h2${EXE} h2.fth
 	${DF}h2 -S h2.sym -a h2.fth > h2.hex
 	${DF}h2 -L h2.sym h2.hex | awk '{printf "%04x %s\n", NR-1, $$0;}' | less -
 
-run: h2${EXE} h2.fth
+block${EXE}: block.c
+	${CC} ${CFLAGS} -std=c99 $< -o $@
+
+%.blk: %.txt block${EXE}
+	${DF}block${EXE} < $< > $@
+
+run: h2${EXE} h2.fth nvram.blk
 	${DF}h2 -s 0 -R h2.fth
 
 h2nomain.o: h2.c h2.h
@@ -119,20 +125,14 @@ gui.o: gui.c h2.h
 gui${EXE}: h2nomain.o gui.o
 	${CC} ${CFLAGS} $^ ${GUI_LDFLAGS} -o $@
 
-gui-run: gui${EXE} h2.hex
-	${DF}$^
+gui-run: gui${EXE} h2.hex nvram.blk
+	${DF}$< h2.hex
 
 text${EXE}: text.c
 	${CC} ${CFLAGS} -std=c99 $< -o $@
 
-block${EXE}: block.c
-	${CC} ${CFLAGS} -std=c99 $< -o $@
-
 text.hex: text${EXE}
 	${DF}$< -g > $@
-
-%.blk: %.txt block${EXE}
-	${DF}block${EXE} < $< > $@
 
 ## Simulation ==============================================================
 
@@ -284,6 +284,7 @@ clean:
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf h2${EXE} gui${EXE}
+	@rm -vrf *.blk
 	@rm -vf usage_statistics_webtalk.html
 	@rm -vf mem_h2.binary mem_h2.hexadecimal
 

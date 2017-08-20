@@ -63,6 +63,8 @@ isrBrnLeft:        .allocate cell ( Left button pressed )
 .built-in ( Add the built in words to the dictionary )
 
 location assembler-voc 0 ( assembler vocabulary contains only built in words )
+location editor-voc    0 ( editor vocabulary )
+location flash-voc     0 ( flash and memory word set )
 .set assembler-voc $pwd
 
 constant =exit         $601c ( op code for exit )
@@ -140,6 +142,7 @@ location _bload     0  ( a u k -- f : load block )
 location _bsave     0  ( a u k -- f : save block )
 location _binvalid  0  ( k -- k : throws error if k invalid )
 location _page      0  ( -- : clear screen )
+location _message   0  ( n -- : display an error message )
 
 location cp         0  ( Dictionary Pointer: Set at end of file )
 location csp        0  ( current data stack pointer - for error checking )
@@ -174,21 +177,23 @@ location block-dirty      0 ( -1 if loaded block buffer is modified )
 location block-buffer     0 ( block buffer starts here )
 .allocate block-size
 
-location _test            0 ( used in skip/test )
-location tmp              0 ( used in the parser )
-
-location .s-string        " <sp"      ( used by .s )
-location see.unknown      "(no-name)" ( used by 'see' for calls to anonymous words )
-location see.lit          "LIT"       ( decompilation -> literal )
-location see.alu          "ALU"       ( decompilation -> ALU operation )
-location see.call         "CAL"       ( decompilation -> Call )
-location see.branch       "BRN"       ( decompilation -> Branch )
-location see.0branch      "BRZ"       ( decompilation -> 0 Branch )
+location _blockop         0             ( used in 'mblock' )
+location bcount           0             ( instruction counter used in 'see' )
+location _test            0             ( used in skip/test )
+location tmp              0             ( used in the parser )
+location .s-string        " <sp"        ( used by .s )
+location see.unknown      "(no-name)"   ( used by 'see' for calls to anonymous words )
+location see.lit          "LIT"         ( decompilation -> literal )
+location see.alu          "ALU"         ( decompilation -> ALU operation )
+location see.call         "CAL"         ( decompilation -> Call )
+location see.branch       "BRN"         ( decompilation -> Branch )
+location see.0branch      "BRZ"         ( decompilation -> 0 Branch )
 location see.immediate    " immediate " ( used by "see", for immediate words )
 location see.inline       " inline "    ( used by "see", for inline words )
 location OK               "ok"          ( used by "prompt" )
 location redefined        " redefined"  ( used by ":" when a word has been redefined )
 location hi-string        "eFORTH V"    ( used by "hi" ) 
+location loading-string   "loading..."  
 
 ( ======================== System Variables ================= )
 
@@ -456,7 +461,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 \ 			over r@ cells + @ -  ?dup
 \ 			if r> drop exit then 
 \ 		then
-\         next 0 ;
+\ 	next 0 ;
  
 : address $3fff and ; hidden ( a -- a : mask off address bits )
 : nfa address cell+ ; hidden ( pwd -- nfa : move to name field address)
@@ -581,7 +586,8 @@ not consumed in the previous parse )
 : on-error ( n -- : perform actions on error )
 	?dup if
 		[char] ? emit ( print error message )
-		. [char] # cr ( print error number )
+		\ . [char] # cr ( print error number )
+		abs dup 60 < if 32 + _message @execute else negate . cr then
 		\ restore     ( restore dictionary to point before error )
 		preset        ( reset machine )
 		[             ( back into interpret mode )
@@ -642,11 +648,11 @@ not consumed in the previous parse )
 	throw ;
 
 : ccitt ( crc c -- crc : calculate polynomial $1021 AKA "x16 + x12 + x5 + 1" )
- 	over 256/ xor               ( crc x )
- 	dup  4  rshift xor          ( crc x )
- 	dup  5  lshift xor          ( crc x )
- 	dup  12 lshift xor          ( crc x )
- 	swap 8  lshift xor ; hidden ( crc )
+	over 256/ xor               ( crc x )
+	dup  4  rshift xor          ( crc x )
+	dup  5  lshift xor          ( crc x )
+	dup  12 lshift xor          ( crc x )
+	swap 8  lshift xor ; hidden ( crc )
 
 : crc ( b u -- u : calculate ccitt-ffff CRC )
 	$ffff >r
@@ -870,6 +876,8 @@ in which the problem could be solved. )
 
 : forth -1 set-order ;
 : assembler forth-wordlist assembler-voc 2 set-order ;
+: editor decimal editor-voc 1 set-order ; 
+: flash get-order flash-voc swap 1+ set-order ;
 
 ( ==================== Vocabulary Words ============================== )
 
@@ -919,7 +927,6 @@ source-id word can be used by words to modify their behavior )
 : list _page @execute block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
 : thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
 : blank =bl fill ;
-\ : blank-thru over - for dup block b/buf blank update 1+ next drop flush ;
 : message 16 extract swap block swap c/l * + c/l -trailing $type cr ; ( u -- )
 
 ( all words before this are now in the forth vocabulary, it is also set
@@ -934,9 +941,8 @@ later on )
 ( @warning This disassembler is experimental, and liable not
 to work / break everything it touches )
 
-location bcount 0
 : bcounter! bcount @ 0= if 2/ over swap -  bcount ! else drop then ; hidden ( u a -- u )
-: -bcount   bcount @ if ( bcount ? ) bcount   1-! then ; hidden ( -- )
+: -bcount   bcount @ if bcount 1-! then ; hidden ( -- )
 : abits $1fff and ; hidden
 
 : validate ( cfa pwd -- nfa | 0 )
@@ -998,6 +1004,34 @@ things, the 'decompiler' word could be called manually on an address if desired 
 
 ( ==================== See =========================================== )
 
+( ==================== Miscellaneous ================================= )
+( Initial value of timer
+  BIT     MEANING
+  15   -  Enable Timer
+  14   -  Reset Timer Value immediately
+  13   -  Interrupt Enable
+  12-0 -  Value to compare against )
+
+\ Testing for the interrupt mechanism, interrupts do not
+\ work correctly at the moment
+
+( @bug Interrupts work in simulation but not in hardware )
+variable icount 0
+
+irq:
+	switches led!
+	icount 1+!
+	exit
+
+.set 12 irq
+
+: irqTest
+	$0040 oIrcMask !
+	$ffff oTimerCtrl !
+	1 ien drop ;
+
+( ==================== Miscellaneous ================================= )
+
 ( ==================== Memory Interface ============================== )
 
 ( @note The manual for the Nexys 3 board specifies that there is a PCM 
@@ -1015,15 +1049,20 @@ in a memory cell but not set, the can only be set by erasing a block.
 number range, 65536 block numbers and index 64MB of memory, the
 SRAM and NVRAM are both 16MB in size)
 
-location mwindow  0
-location mram     0
-constant mwin-max $1ff
+
+.set context forth-wordlist
+.set forth-wordlist $pwd
+.pwd 0
+
+constant memory-upper-mask  $1ff
+variable memory-upper       0    ( upper bits of external memory address )
+variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 
 : mcontrol! ( u -- : write to memory control register )
 	$f3ff and
-	mram @ if $400 else $800 then or  ( select correct memory device )
-	mwin-max invert    and            ( mask off control bits )
-	mwindow @ mwin-max and or         ( or in higher address bits )
+	memory-select @ if $400 else $800 then or  ( select correct memory device )
+	memory-upper-mask invert    and            ( mask off control bits )
+	memory-upper @ memory-upper-mask and or         ( or in higher address bits )
 	oMemControl ! ; hidden            ( and finally write in control )
 
 : m! ( n a -- : write to non-volatile memory )
@@ -1032,14 +1071,14 @@ constant mwin-max $1ff
 	5 40ns
 	$8000 mcontrol!
 	5 40ns
-	$0000 mcontrol! ; hidden
+	$0000 mcontrol! ; 
 
 : m@ ( a -- n : read from non-volatile memory )
 	oMemAddrLow !
 	$4000 mcontrol! ( read enable mode )
 	5 40ns
 	iMemDin @        ( get input )
-	$0000 mcontrol! ; hidden
+	$0000 mcontrol! ; 
 
 \ : mdump ( a u -- : dump non-volatile memory )
 \ 	cr
@@ -1050,16 +1089,14 @@ constant mwin-max $1ff
 \ 		1 /string
 \ 	repeat 2drop cr ;
  
-: minvalid ( k -- k : is 'k' a valid block number, throw on error )
-	dup block-invalid = if 35 -throw then ; hidden
-
+: sram 0 memory-select ! ;
 : flash-reset ( -- : reset non-volatile memory )
 	$2000 mcontrol!
 	5 40ns
 	$0000 mcontrol! ; hidden
 : flash-status 0 $70 m! 0 m@ ; ( -- status )
 : flash-read   $ff 0 m! ;      ( -- )
-: flash  flush 1 mram ! flash-reset ;      ( -- )
+: flash-setup  flush [-1] memory-select ! flash-reset ;      ( -- )
 : flash-wait begin flash-status $80 and until ; hidden
 : flash-clear $50 0 m! ; ( -- clear status )
 : flash-write dup $40 swap m! m! flash-wait ; ( u a -- )
@@ -1069,8 +1106,8 @@ constant mwin-max $1ff
 : flash-query $98 0 m! ; ( -- : query mode )
 
 : flash>sram ( a a )
-	1 mram ! flash-clear flash-read 
-	m@ 0 mram ! swap m! ; hidden
+	[-1] memory-select ! flash-clear flash-read 
+	m@ 0 memory-select ! swap m! ; hidden
 
 : transfer ( a a u -- )
 	?dup 0= if 2drop exit then
@@ -1080,15 +1117,17 @@ constant mwin-max $1ff
 		flash>sram
 		1+ swap 1+ swap
 	next 2drop ;
-
-location _blockop 0
+.set flash-voc $pwd
 	
+: minvalid ( k -- k : is 'k' a valid block number, throw on error )
+	dup block-invalid = if 35 -throw then ; hidden
+
 : c>m swap @ swap m! ; hidden      ( a a --  )
 : m>c m@ swap ! ; hidden ( a a -- )
 
 : mblock ( a u k -- f )
 	minvalid
-	512 um* mwindow ! >r
+	512 um* memory-upper ! >r
 	begin
 		dup
 	while
@@ -1167,35 +1206,6 @@ location _blockop 0
  
 ( ==================== Users and Passwords =========================== )
 
-( ==================== Miscellaneous ================================= )
-( Initial value of timer
-  BIT     MEANING
-  15   -  Enable Timer
-  14   -  Reset Timer Value immediately
-  13   -  Interrupt Enable
-  12-0 -  Value to compare against )
-
-\ Testing for the interrupt mechanism, interrupts do not
-\ work correctly at the moment
-
-( @bug Interrupts work in simulation but not in hardware )
-variable icount 0
-
-irq:
-	0 ien drop
-	switches led!
-	icount 1+!
-	1 ien drop
-	exit
-
-.set 12 irq
-: irqTest
-	$0040 oIrcMask !
-	$ffff oTimerCtrl !
-	1 ien drop ;
-
-( ==================== Miscellaneous ================================= )
-
 ( ==================== ANSI Colors =================================== )
 
 ( Terminal colorization module, via ANSI Escape Codes
@@ -1268,22 +1278,10 @@ manipulating a terminal
       w    list editor commands
       q    back to Forth interpreter )
 
-( @todo Two modes would make the editor more useful, one that would
-allow the user to type lines in freely, and one that would automatically
-save modified blocks
-
-@todo A read only mode, for use with a help system, would be
-useful
-
-@todo Move this word set into block storage, it is only really
+( @todo Move this word set into block storage, it is only really
 needed if we have access to the block system anyway )
 
-location editor-voc 0
-: editor decimal editor-voc 1 set-order ; 
-.set context forth-wordlist
-.set forth-wordlist $pwd
 .pwd 0
-
 : [block] blk @ block ; hidden
 : [check] dup b/buf c/l / u>= if 24 -throw then ; hidden
 : [line] [check] c/l * [block] + ; hidden
@@ -1307,6 +1305,7 @@ location editor-voc 0
 : ct swap y c ; \ n1 n2 -- copy line n1 to n2
 : ea [line] c/l evaluate ;
 : sw 2dup y [line] swap [line] swap c/l cmove c ;
+: xt swap b for x u 1 +block b next u ;
 .set editor-voc $pwd
 
 ( ==================== Block Editor ================================== )
@@ -1317,6 +1316,9 @@ start:
 .set entry start
 	hi
 	cpu-id segments!
+	loading-string print
+	0 0 $1000 transfer
+	.ok
 	\ login 0 load 1 list
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
@@ -1336,3 +1338,4 @@ start:
 .set _bsave    msave      ( execution vector of _bsave, used in block )
 .set _binvalid minvalid   ( execution vector of _invalid, used in block )
 .set _page     page       ( execution vector of _page, used in list )
+.set _message  message    ( execution vector of _message, used in on-error)
