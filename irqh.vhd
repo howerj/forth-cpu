@@ -13,7 +13,7 @@
 --| order which can be set by a generic. If an interrupt occurs and then
 --| another interrupt of the same type occurs before it has been processed
 --| the second interrupt will be lost.
---| 
+--|
 --| @todo Move to cpu.vhd
 --------------------------------------------------------------------------------
 

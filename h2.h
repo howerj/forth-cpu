@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 /**@note STK_SIZE is fixed to 64, but h2.vhd allows for the instantiation of
- * CPUs with different stack sizes, within reasonable limits, so long as they 
+ * CPUs with different stack sizes, within reasonable limits, so long as they
  * are a power of 2. */
 
 #define MAX_CORE             (8192u)

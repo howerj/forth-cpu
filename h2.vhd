@@ -97,7 +97,7 @@ architecture rtl of h2 is
 	signal irq_c, irq_n:           std_logic :=  '0'; -- interrupt request
 	signal irq_addr_c, irq_addr_n: std_logic_vector(interrupt_address_length - 1 downto 0) :=  (others => '0');
 
-	signal tos_c, tos_n: std_logic_vector(15 downto 0) := (others => '0'); -- top of stack 
+	signal tos_c, tos_n: std_logic_vector(15 downto 0) := (others => '0'); -- top of stack
 	signal nos:          std_logic_vector(15 downto 0) := (others => '0'); -- next on stack
 	signal rtos_c:       std_logic_vector(15 downto 0) := (others => '0'); -- top of return stack
 	signal rstk_data:    std_logic_vector(15 downto 0) := (others => '0'); -- return stack input
@@ -175,7 +175,7 @@ begin
 	elsif is_instr.lit = '1' then
 		tos_n   <=  "0" & insn(14 downto 0);
 	else
-		case aluop is 
+		case aluop is
 		when "00000" => tos_n <= tos_c;
 		when "00001" => tos_n <= nos;
 		when "01011" => tos_n <= rtos_c;
@@ -301,7 +301,7 @@ begin
 
 		if irq = '1' then irq_addr_n <= irq_addr; end if;
 
-		if stop = '1' then 
+		if stop = '1' then
 			null;
 		elsif is_interrupt = '1' then -- Update PC on interrupt
 			irq_n      <= '0';

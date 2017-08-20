@@ -51,7 +51,7 @@ or hexadecimal. It is based on eForth.
  -18 parsed string overflow
  -19 definition name too long
  -20 write to a read-only location
- -21 unsupported operation 
+ -21 unsupported operation
  -22 control structure mismatch
  -23 address alignment exception
  -24 invalid numeric argument
@@ -94,7 +94,7 @@ The previous lines are used for printing error messages, the
 Forth word 'message' is used to index into this document.
 
 
-## eForth v6.66 
+## eForth v6.66
 Help System And Tutorial
 
 This Forth is modeled after eForth, described in a book by
@@ -110,7 +110,7 @@ Digilent, with words and peripherals designed for it.
 
 For more see: <https://github.com/howerj/forth-cpu>
 
-## Introduction 
+## Introduction
 Forth is a simple, imperative, stack based language that mixes
 elements of a high level language with a low level language. It
 is possible to fit a small Forth system in a few kilobytes of
@@ -122,14 +122,14 @@ times (after the micro-computer era) as it is not a very safe
 language, nor is it one that allows the programmer to easily
 create reusable and maintainable software components.
 
-However it is still suitable for a number of purposes; for 
+However it is still suitable for a number of purposes; for
 assemblers, to bring up hardware and test it, in memory
 constrained systems, as a boot loader, and for fun.
 
 Forth itself has its own philosophy, one in which the programmer
 should have a complete understanding of the system, from the
 problem that needs to be solved, the algorithms needed to solve
-it, the hardware and the software. As the latter two, the 
+it, the hardware and the software. As the latter two, the
 hardware and software are usually very simple in Forth systems
 it is possible to optimize the problem across multiple domains,
 tailoring each to come up with a solution. Forth eschews
@@ -149,26 +149,26 @@ in Forth terminology. The system uses Reverse Polish Notation
 (a big block of memory containing 'words' and other data).
 
 The interpreter reads from an input device, such as a keyboard
-or a serial port, and writes output to the screen or back over 
+or a serial port, and writes output to the screen or back over
 the serial port. Words and number input are space delimited and
-are either compiled into the dictionary depending on the 
-interpreter mode and whether the word read in is 'immediate' 
+are either compiled into the dictionary depending on the
+interpreter mode and whether the word read in is 'immediate'
 or not.
 
 This tutorial will describe how to use Forth and how the
 interpreter works internally.
 
-To start with, simple expressions can be entered and the 
-results displayed. A line is evaluated after the carriage 
+To start with, simple expressions can be entered and the
+results displayed. A line is evaluated after the carriage
 return is entered, code will be indented, this can be typed in.
 
 We will start off with a simple expression, adding two numbers
 together and displaying the result:
 
   ( Comments appear within brackets )
-  2 2 + . 
+  2 2 + .
 
-This prints out '4' and 'ok'. 'ok' is printed out after every 
+This prints out '4' and 'ok'. 'ok' is printed out after every
 line has been successfully compiled, unless we are in compile
 mode. '+' obviously does the addition, and '.' pops a value
 off the stack an prints it. Entering a number pushes it onto
@@ -176,13 +176,13 @@ the data stack.
 
 The data, or variable, stack is a general purpose stack that
 the programmer uses to pass data to functions, and to return
-data from functions. The stacks are an important concept 
+data from functions. The stacks are an important concept
 within Forth and stack management will take up a lot of a Forth
-programmers time. 
+programmers time.
 
 Numbers are entered in Reverse Polish Notation, this allows
 Forth interpreter to immediate process a word or a function as
-it is encountered instead of building up a parse tree. 
+it is encountered instead of building up a parse tree.
 
 When '2' is encountered it is pushed onto the variable stack,
 when the second '2' is input, it is also pushed onto the stack.
@@ -191,7 +191,7 @@ together and pushes the result back onto the stack. The word
 '.' pops a single number off the stack and prints it.
 
 Manipulating the stack will be difficult at first, but gets
-easier over time. There are standard words for stack 
+easier over time. There are standard words for stack
 manipulation and a standard methodology for describing
 stack effects called 'stack comments'.
 
@@ -203,8 +203,8 @@ is:
   + ( n n -- n : add two numbers together )
 
 All text between '(' and the ')' is discarded by the Forth
-system. This comment describes a word that accepts two 
-signed numbers "n n", and returns a signed number "n". 
+system. This comment describes a word that accepts two
+signed numbers "n n", and returns a signed number "n".
 
 The "--" divides the comment into what the stack looks like
 before execution of the word (to the left of "--") and what it
@@ -217,7 +217,7 @@ comments:
   dup  ( n -- n n : duplicate first item on the stack )
   swap ( n1 n2 -- n2 n1 : swap first two items on stack )
 
-Stack effects are sometimes numbered, which is used to 
+Stack effects are sometimes numbered, which is used to
 so the effects on specific arguments can be documented if
 the order of arguments and return values matter.
 
@@ -266,17 +266,17 @@ operators first.
 
 Negative numbers can be input by prefixing the number with
 '-':
-  
+
   -2 4 * . ( Display -8 )
 
 
 The word '.' pops a value off the stack before displaying it,
 if we want to examine the stack without popping the value we
-can print out the entire contents of the stack with '.s': 
+can print out the entire contents of the stack with '.s':
 
   1 2 3 .s ( prints "1 2 3 <sp")
   .        ( prints "3" )
-  .s       ( prints "1 2 <sp" ) 
+  .s       ( prints "1 2 <sp" )
 
 "<sp" marks the element which is currently on the top of the
 stack. Other useful words for debugging include '?' that
@@ -307,9 +307,9 @@ For example, "$10 base !" and "hex" are equivalent, as are
 
 For the moment we have not covered how words are defined and
 is a good time to do so, the word ":" is used to create a new
-word definition and the word ";" is used to terminate one. 
-Words once defined are added to the 'dictionary', which is 
-consists of a linked list of words, hence the name 
+word definition and the word ";" is used to terminate one.
+Words once defined are added to the 'dictionary', which is
+consists of a linked list of words, hence the name
 'dictionary'.
 
 We can define new words interactively like we can type
@@ -356,11 +356,11 @@ compiled into the dictionary it is executed, it compiles an
 exit instruction to terminate the word definition and it puts
 the Forth system back into command mode.
 
-Not only are control structures sets of words, like "if", 
+Not only are control structures sets of words, like "if",
 "else", "then", "begin", "until", but so are words like "("
 and "\" which are used to process comments. When executed
 they read from the input stream until the they find a ")" or
-end of line respectively. 
+end of line respectively.
 
 Variables, strings, and defining words (defining words are
 that create new words) are all simply Forth words that are
@@ -377,7 +377,7 @@ Start) Fetch a space delimited word, find it in the dictionary
           Yes) Is the system in compile mode?
                Yes) Compile the number
                No)  Push the number onto the stack
-          No)  Error! 
+          No)  Error!
 This simple loop is invoked by the work 'quit' which uses
 'query' to fetch and parse the input and 'interpreter' to
 perform the state dependent action.
@@ -404,7 +404,7 @@ described later (such as 'catch', 'throw' and manipulating the
 return stack).
 
 "if...then" will be described first. First a simple example,
-we will define a word called 'abs' that will return the 
+we will define a word called 'abs' that will return the
 absolute value of a number, that is negative numbers will be
 turned into positive numbers and positive numbers will stay
 the same. This will require the word 'negate' which changes
@@ -420,8 +420,8 @@ The word 'abs' is then defined as:
 
 'if' takes an argument off the stack at run time and jumps to
 after the 'then' if it is false (zero), if it is true (non-
-zero) the negate is performed. From now if a word is shown in 
-a definition that has not been previously mentioned please 
+zero) the negate is performed. From now if a word is shown in
+a definition that has not been previously mentioned please
 refer to the glossary. We can can use the definition of the
 word 'abs' as soon as we terminate the definition with ";":
 
@@ -478,7 +478,7 @@ in terms of "key?" with:
 This simply loops until there is a new character of input.
 
 
-Some contrived examples, using the standard metasyntactic 
+Some contrived examples, using the standard metasyntactic
 variable name "foo":
 
   : foo begin 1- dup . cr dup 0= until drop ; ( u -- )
@@ -490,7 +490,7 @@ variable name "foo":
   ok ( then ok prompt )
 
 If zero is given this will underflow and wrap around to $FFFF
-and continue the loop 65536 times which is probably not 
+and continue the loop 65536 times which is probably not
 intended.
 
 
@@ -606,12 +606,12 @@ following word "bar" simply repeatedly prints out "1":
 
 
 
-## Block Editor 
+## Block Editor
 The traditional way to store Forth source code and data is as
 Forth blocks, a block is a contiguous array of 1024 characters,
 which can be saved to non-volatile storage with the 'block'
 word set. On more modern Forth systems, especially hosted ones,
-the file access word set is used instead. 
+the file access word set is used instead.
 
 A Forth that does not have a file system, such as this one,
 usually has a primitive block editor. An editor can be defined
@@ -626,7 +626,7 @@ The block editor is a prime example of Forth simplicity, it
 both simplifies the problem of editing text and reuses the
 Forth interpreter to define a new command language. Each command
 in the block editor simply a Forth word which takes its
-arguments off the stack, and a line is a fixed width 64 
+arguments off the stack, and a line is a fixed width 64
 character array, a block can contain 16 lines of text. An empty
 line consists entirely of spaces, which the interpreter will
 ignore if it were to evaluate the block.
@@ -644,9 +644,9 @@ task of retrieving data from mass storage and saving modified
 data back to it. The mass storage is divided into blocks which
 can be loaded by their block number. Block numbers in this
 system start at 0 and go to $FFFE, $FFFF is an invalid block
-number. 
+number.
 
-The block word set is quite small, and the editor uses the 
+The block word set is quite small, and the editor uses the
 words; 'block', 'update', 'save-buffers', 'list', 'load',
 and '+block'. The variable 'blk', which contains the last
 block loaded (and listed) is also used. Most editor commands
@@ -686,7 +686,7 @@ These can be used to define simple editor commands, such as:
   : u update ;
 
 
-## Block Editor Commands 1/2 
+## Block Editor Commands 1/2
 '#' indicates a numeric argument the command takes:
       n    move to next block
       p    move to previous block
@@ -698,11 +698,11 @@ These can be used to define simple editor commands, such as:
       q    quit editor loop
     # b    load block number
       s    save block and write it out
-      u    update block 
+      u    update block
       w    list editor commands
-      q    back to Forth interpreter 
+      q    back to Forth interpreter
 
-## Block Editor Commands 2/2 
+## Block Editor Commands 2/2
 
       l    re-list current block
     # c    paste copy buffer to line #
@@ -718,14 +718,14 @@ at: <http://retroforth.org/pages/?PortsOfRetroEditor>
 
 
 
-## TO DO 
+## TO DO
 * Describe the Nexys 3 system, the system on a chip, the
 * List the instruction set, registers, words defined, eForth
 * Write full tutorial and description of the system
 * Add source code for everything to this block file
 * Add a program listing, perhaps in the first block, it could
 set variables relating to this document
-* Turn this into a markdown document, 
+* Turn this into a markdown document,
 * The eForth primitives should be described.
 
 * Extra words could be stored in these blocks, freeing up
@@ -767,7 +767,7 @@ letters describing them:
 
 
 !      ( u a -- : store 'u' at 'a' )
-#      ( u -- u, P : divide u by base, hold number )     
+#      ( u -- u, P : divide u by base, hold number )
 #>     ( u -- b u, P : return string in hold area )
 #s     ( u -- 0 : repeat # until u is zero )
 #tib   ( -- a, V: current input line length stored here )
@@ -790,7 +790,7 @@ $"     ( --,<string>,I,C : Compile string into word )
 .ok     ( -- : print ok prompt if in command mode )
 .s      ( --, P : print out variable stack contents )
 /       ( n1 n2 -- n, T : divide n1 by n2 )
-/mod    ( n1 n2 -- n1 n2, T : divide n1 by n2 ) 
+/mod    ( n1 n2 -- n1 n2, T : divide n1 by n2 )
 /string ( b u1 u2 -- b u : advance string by u2 )
 0<      ( n -- f : less than zero? )
 0<>     ( u -- f : not equal to zero? )
@@ -855,7 +855,7 @@ console  ( --, IO : UART only input/output )
 count    ( a -- a c : get char at 'a', advance 'a' )
 cpu-id   ( -- u,A : get CPU ID information )
 cr       ( -- : emit carriage return )
-crc      ( b u -- u : compute CCITT CRC over string ) 
+crc      ( b u -- u : compute CCITT CRC over string )
 create   ( --, <string>,D,T,H : create new word )
 decimal  ( -- : set input/output radix to decimal )
 dm+      ( a u --,K : print array of numbers 'u' long )
@@ -924,7 +924,7 @@ pack$   ( b u a -- a : pack string into 'a' )
 pad     ( -- a, P: return address into PAD area )
 page    ( --, IO : clear display )
 parse   ( b u c -- b u, <string> : parse word from query line )
-pick    ( nx...n1 ux -- nx...n1 nx ) 
+pick    ( nx...n1 ux -- nx...n1 nx )
 
 query        ( -- : get line of input )
 quit         ( -- : interpreter loop )
@@ -970,7 +970,7 @@ u.r      ( u1 u2 --, P : 'u.' for u1, u2 for right alignment )
 u<       ( u1 u2 -- f, A: u1 less than u2? )
 u>       ( u1 u2 -- f, : u1 greater than u2? )
 um*      ( u u -- ud : unsigned multiply )
-um/mod   ( ud u -- ur uq, T: ur=ud/u, uq=ud%u ) 
+um/mod   ( ud u -- ur uq, T: ur=ud/u, uq=ud%u )
 until    ( C,I,T,H : begin...until )
 update   ( --, K : make loaded block as dirty )
 

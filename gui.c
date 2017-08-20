@@ -1,7 +1,7 @@
 /**@file      h2.c
  * @brief     Simulate the H2 SoC peripherals visually
  * @copyright Richard James Howe (2017)
- * @license   MIT 
+ * @license   MIT
  *
  * @todo Indicate if we are in step or continue mode, and display
  * help on the screen if requested. Also the return stack should be

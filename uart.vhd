@@ -189,9 +189,9 @@ begin
 			empty => tx_fifo_empty_internal);
 
 	tx_fifo_empty <= tx_fifo_empty_internal;
-	-- @bug This is a hack, it should be just 'tx_fifo_full_internal', but 
+	-- @bug This is a hack, it should be just 'tx_fifo_full_internal', but
 	-- it does not work correctly, so as a temporary hack the busy signal
-	-- is or'd in so the data source can block until the FIFO is 'not full' 
+	-- is or'd in so the data source can block until the FIFO is 'not full'
 	-- and not lose any data thinking it has been transmitted.
 	tx_fifo_full  <= '1' when tx_fifo_full_internal = '1' or din_busy = '1' else '0';
 

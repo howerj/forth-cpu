@@ -8,7 +8,7 @@
  * is based on the J1 processor (see http://excamera.com/sphinx/fpga-j1.html).
  *
  * The processor has been tested on an FPGA and is working.
- * The project can be found at: https://github.com/howerj/forth-cpu 
+ * The project can be found at: https://github.com/howerj/forth-cpu
  *
  * @todo Simulate the Common Flash Interface so the Flash device
  * can be correctly used */
@@ -906,7 +906,7 @@ static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bo
 		warning("OE and WE set at the same time");
 		return 0;
 	}
-	
+
 	if(!oe) {
 		warning("flash read with OE not selected");
 		return 0;
@@ -919,7 +919,7 @@ static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bo
 	case FLASH_READ_DEVICE_IDENTIFIER: return 0;
 	case FLASH_READ_STATUS_REGISTER:   return f->status;
 
-	case FLASH_WORD_PROGRAMMING: 
+	case FLASH_WORD_PROGRAMMING:
 	case FLASH_WORD_PROGRAM:           return f->status;
 
 	case FLASH_BLOCK_ERASING:
@@ -929,7 +929,7 @@ static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bo
 	default:
 		fatal("invalid flash state: %u", f->mode);
 	}
-	
+
 	return 0;
 }
 
@@ -980,9 +980,9 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 			f->cycle = 0;
 			f->status &= ~FLASH_STATUS_DEVICE_READY;
 			f->mode = FLASH_WORD_PROGRAMMING;
-		} 		
+		}
 		break;
-	case FLASH_WORD_PROGRAMMING: 
+	case FLASH_WORD_PROGRAMMING:
 		if(f->cycle++ > FLASH_WRITE_CYCLES) {
 			f->mode    = FLASH_READ_STATUS_REGISTER;
 			f->cycle   = 0;
@@ -1007,7 +1007,7 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 		if(!we && f->we && cs) {
 			if(f->data != 0xd0) /* erase confirm */
 				f->mode = FLASH_READ_STATUS_REGISTER;
-			else 
+			else
 				f->mode = FLASH_BLOCK_ERASING;
 		}
 		f->cycle = 0;
@@ -1064,7 +1064,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	debug("IO read addr: %"PRIx16, addr);
 
 	switch(addr) {
-	case iUart:         return UART_TX_FIFO_EMPTY | soc->uart_getchar_register; 
+	case iUart:         return UART_TX_FIFO_EMPTY | soc->uart_getchar_register;
 	case iSwitches:     return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;

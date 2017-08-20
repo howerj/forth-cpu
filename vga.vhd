@@ -179,7 +179,7 @@ begin
 	-- o_vga.green <= (others => G_internal);
 	-- o_vga.blue  <= (others => B_internal);
 	--
-	-- @note This is an experimental interface, that allows coloring of individual 
+	-- @note This is an experimental interface, that allows coloring of individual
 	-- characters, it is not usable at the moment
 	--
 	o_vga.red   <= text_dout(10 downto 8)  when R_internal = '1' and text_dout(10 downto  8) /= "000" else (others => R_internal);

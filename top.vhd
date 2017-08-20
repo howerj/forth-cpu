@@ -297,7 +297,7 @@ begin
 	io_write: block
 		signal selector: std_logic_vector(3 downto 0) := (others => '0');
 		signal is_write: boolean := false;
-	begin 
+	begin
 		selector <= io_daddr(3 downto 0);
 		is_write <= true when io_wr = '1' and io_daddr(15) = '0' else false;
 
@@ -493,7 +493,7 @@ begin
 	--- PS/2 ----------------------------------------------------------
 
 	-- Process a kbd_new into a single edge for the rest of the
-	-- system. 
+	-- system.
 	-- @todo Move into PS/2 component
 	ps2_edge_new_character_0: entity work.edge
 	port map(
