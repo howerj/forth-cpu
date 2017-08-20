@@ -94,17 +94,65 @@ The previous lines are used for printing error messages, the
 Forth word 'message' is used to index into this document.
 
 
-===============================================================
+The next screens contain extra code that can be loaded into the
+interpreter if needed. Some of the standard Forth words are
+placed here instead of in the image to save on space.
 
+The blocks should be loaded in order unless otherwise stated.
 
+This file is first converted by a utility into a fixed width
+format, which can then be loaded onto the target board with
+the same utility used to uploaded the bitfile to the FPGA.
 
+Form feeds are used to mark the boundaries between blocks,
+this does not have any special significance and is only there
+to make editing easier. Line lengths are limited to 64
+characters wide, each block contains 16 lines.
 
-
-
-
-
-
-
+
+: constant create , does> @ ; ( Block Editor : block 7 )
+: u>= u< invert ; 
+variable editor-voc 0 editor-voc ! forth
+: editor decimal editor-voc 1 set-order ; 
+get-order editor-voc swap 1+ set-order
+$40 constant c/l $10 constant l/b
+: (block) blk @ block ; 
+: (check) dup b/buf c/l / u>= if -24 throw then ; 
+: (line) (check) c/l * (block) + ; 
+: b block drop ;
+: l blk @ list ;
+: n  1 +block b l ;
+: p -1 +block b l ;
+: d (line) c/l blank ; 
+: x (block) b/buf blank ; -->
+
+: s update save-buffers ;
+: q forth save-buffers ; 
+: e forth blk @ load editor ;
+: ia c/l * + (block) + tib >in @ + 
+  swap #tib @ >in @ - cmove [compile] \ ;
+: i 0 swap ia ;
+: u update ;
+: w words ;
+: yank pad c/l ; 
+: c (line) yank >r swap r> cmove ; 
+: y (line) yank cmove ; 
+: ct swap y c ; 
+: ea (line) c/l evaluate ;
+: sw 2dup y (line) swap (line) swap c/l cmove c ; 
+forth
+
+( Assembler word set )
+variable assembler-voc
+bl parse rdrop pad pack$ find drop assembler-voc !
+: assembler assembler-voc 1 set-order ;
+: ;code assembler ; immediate
+: code [compile] : assembler ;
+get-order assembler-voc swap 1+ set-order
+: end-code forth [compile] ; ; immediate
+: words words ;
+: forth forth ;
+forth
 
 
 
@@ -124,7 +172,7 @@ Forth word 'message' is used to index into this document.
 : roll  dup 0> if swap >r 1- roll r> swap else drop then ;
 : ?exit if rdrop then ;                   ( n --, R: n -- n | )
 : 2rdrop r> rdrop rdrop >r ;              ( R n n -- )
-
+: 2. swap . . ;                            ( n n -- )
 
 : m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ; 
 : */mod  >r m* r> m/mod ;  ( n n n -- r q )
@@ -133,13 +181,13 @@ Forth word 'message' is used to index into this document.
 : holds begin dup while 1- 2dup + c@ hold repeat 2drop ; 
 : binary  2 base ! ;                       ( -- )
 : octal  8 base ! ;                        ( -- )
-: 2. swap . . ;                            ( n n -- )
 : .base base @ dup decimal base ! ; ( -- )
-: constant create , does> @ ; ( --, <string> )
 : only -1 set-order ;
 : also get-order over swap 1+ set-order ;
 : previous get-order swap drop 1- set-order ;
 : buffer block ; ( k -- a )
+
+
 
 
 : logical 0= 0= ;     ( n -- f )

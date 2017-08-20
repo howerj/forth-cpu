@@ -45,11 +45,6 @@ isrBrnLeft:        .allocate cell ( Left button pressed )
 .mode 3   ( Turn word header compilation and optimization on )
 .built-in ( Add the built in words to the dictionary )
 
-location assembler-voc 0     ( assembler vocabulary contains only built in words )
-location editor-voc    0     ( editor vocabulary )
-location flash-voc     0     ( flash and memory word set )
-.set assembler-voc     $pwd
-
 constant =exit         $601c ( op code for exit )
 constant =invert       $6600 ( op code for invert )
 constant =>r           $6147 ( op code for >r )
@@ -127,6 +122,7 @@ location _binvalid  0  ( k -- k : throws error if k invalid )
 location _page      0  ( -- : clear screen )
 location _message   0  ( n -- : display an error message )
 
+location flash-voc  0     ( flash and memory word set )
 location cp         0  ( Dictionary Pointer: Set at end of file )
 location csp        0  ( current data stack pointer - for error checking )
 location _id        0  ( used for source id )
@@ -194,7 +190,6 @@ location loading-string   "loading..."
 : ?dup dup if dup then ;   ( n -- | n n  )
 : >  swap < ;              ( n n -- f )
 : u> swap u< ;             ( u u -- f )
-: u>= u< invert ; hidden   ( u u -- f )
 : <> = invert ;            ( n n -- f )
 : 0<> 0= invert ;          ( n n -- f )
 : 0> 0 > ;                 ( n -- f )
@@ -719,11 +714,11 @@ same name can be used within word being currently defined )
 : +csp csp 1+! ; hidden
 : -csp csp 1-! ; hidden
 : ?compile state @ 0= if 14 -throw then ; hidden ( fail if not compiling )
-: ?unique dup find if drop redefined print cr else drop then ; hidden ( a -- a )
+: ?unique dup last search if drop redefined print cr else drop then ; hidden ( a -- a )
 : ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
-: ":" align ( save ) !csp here last address ,  token ?nul ?unique count + aligned cp ! context @ ! ] ;
+: ":" align ( save ) !csp here last address ,  token ?nul ?unique count + aligned cp ! ] ;
 : "'" token find if cfa else 13 -throw then ; immediate
-: ";" ?compile ?csp =exit , ( save ) [ ; immediate
+: ";" ?compile context @ ! ?csp =exit , ( save )  [ ; immediate
 : jumpz, 2/ $2000 or , ; hidden
 : jump, 2/ ( $0000 or ) , ; hidden
 : "begin" ?compile here -csp ; immediate
@@ -736,7 +731,7 @@ same name can be used within word being currently defined )
 : "while" ?compile call "if" ; immediate
 : "repeat" ?compile swap call "again" call "then" ; immediate
 : recurse ?compile last address cfa compile, ; immediate
-: create call ":" ' doVar compile, [ ; ( @todo does> )
+: create call ":" ' doVar compile, context @ ! [ ; 
 : >body ( dup @ $4000 or <> if 31 -throw then ) cell+ ;
 : doDoes r> 2/ here 2/ last address cfa dup cell+ doLit ! , ; hidden 
 : does> ?compile ' doDoes compile, nop ; immediate
@@ -745,6 +740,7 @@ same name can be used within word being currently defined )
 : "for" ?compile =>r , here -csp ; immediate
 : doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
 : "next" ?compile ' doNext compile, , +csp ; immediate
+: "aft" ?compile drop here 0 jump, call "begin" swap ; immediate
 : doer create =exit last cfa ! =exit ,  ;
 : make 
 	call "'" call "'" make-callable 
@@ -754,6 +750,20 @@ same name can be used within word being currently defined )
 	else 
 		swap ! 
 	then ; immediate
+: [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
+: compile ( -- ) r> dup @ , cell+ >r ;
+
+\ : [leave] rdrop rdrop rdrop ; hidden
+\ : leave ?compile ' [leave] compile, ; immediate
+\ : [do] r> dup >r swap rot >r >r cell+ >r ; hidden
+\ : do ?compile ' [do] compile, 0 , here ; immediate
+\ : [loop]
+\    r> r> 1+ r> 2dup <> if >r >r @ >r exit then
+\    >r 1- >r cell+ >r ; hidden
+\ : [unloop] r> rdrop rdrop rdrop >r ; hidden
+\ : loop ' [loop] compile, dup , ' [unloop] compile, cell- here 2/ swap ! ; immediate
+\ : [i] r> r> tuck >r >r ; hidden
+\ : i ?compile ' [i] compile, ; immediate
 
 \ : back here cell- @ ; hidden ( a -- : get previous cell )
 \ : call? back $e000 and $4000 = ; hidden ( -- f : is call )
@@ -765,8 +775,6 @@ same name can be used within word being currently defined )
 \ : compile-exit call? if tail-call else merge? if merge then then =exit , ; hidden
 \ : "exit" compile-exit ; immediate
 \ : "exit" =exit , ; immediate
-\ : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
-\ : compile ( -- ) r> dup @ , cell+ >r ;
 
 ( Error recovery can be quite difficult when sending Forth large programs
 over a serial port. One of the problems is if an error occurs in between a
@@ -803,13 +811,7 @@ in which the problem could be solved. )
 	context swap for aft tuck ! cell+ then next 0 swap ! ;
 
 : forth -1 set-order ;
-: assembler forth-wordlist assembler-voc 2 set-order ;
-: editor decimal editor-voc 1 set-order ; 
 : flash get-order flash-voc swap 1+ set-order ;
-
-\ : ;code assembler ; immediate
-\ : code assembler call ":" ;
-\ : end-code forth call ";" ; immediate
 
 : .words space begin dup while dup .id space @ address repeat drop cr ; hidden
 : words get-order begin ?dup while swap dup cr u. 58 emit @ .words 1- repeat ;
@@ -935,6 +937,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 	cr
 	cfa decompiler space 59 emit cr ;
 
+.set forth-wordlist $pwd 
 ( ==================== See =========================================== )
 
 ( ==================== Miscellaneous ================================= )
@@ -1213,55 +1216,6 @@ manipulating a terminal
 \ : ansi.reset-color colorize @ 0= if exit then CSI 0 10u. [char] m emit ; ( -- : reset terminal color to its default value)
 \ 
 ( ==================== ANSI Colors =================================== )
-
-( ==================== Block Editor ================================== )
-
-( Block Editor Help
-
-      n    move to next block
-      p    move to previous block
-    # d    delete line in current block
-      x    erase current block
-      e    evaluate current block
-    # i    insert line
- # #2 ia   insert at line #2 at column #
-      q    quit editor loop
-    # b    set block number
-      s    save block and write it out
-      u    update block 
-      w    list editor commands
-      q    back to Forth interpreter )
-
-( @todo Move this word set into block storage, it is only really
-needed if we have access to the block system anyway )
-
-.pwd 0
-: [block] blk @ block ; hidden
-: [check] dup b/buf c/l / u>= if 24 -throw then ; hidden
-: [line] [check] c/l * [block] + ; hidden
-: b block drop ;
-: l blk @ list ;
-: n  1 +block b l ;
-: p [-1] +block b l ;
-: d [line] c/l blank ;
-: x [block] b/buf blank ;
-: s update save-buffers ;
-: q forth save-buffers ;
-: e forth blk @ load editor ;
-: ia c/l * + [block] + tib >in @ + swap #tib @ >in @ - cmove  call "\" ;
-: i 0 swap ia ;
-: u update ;
-: w words ;
-: yank pad c/l ; hidden
-: c [line] yank >r swap r> cmove ; \ n -- yank line number to buffer
-: y [line] yank cmove ; \ n -- copy yank buffer to line
-: ct swap y c ; \ n1 n2 -- copy line n1 to n2
-: ea [line] c/l evaluate ;
-: sw 2dup y [line] swap [line] swap c/l cmove c ;
-\ : xt swap b for x u 1 +block b next u ;
-.set editor-voc $pwd
-
-( ==================== Block Editor ================================== )
 
 ( ==================== Startup Code ================================== )
 
