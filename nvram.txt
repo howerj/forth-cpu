@@ -1,9 +1,9 @@
-( Boot Screen : Loaded at start up )
-variable error-block  2 error-block !
-: help 6 15 thru ;
-page
+( Reserved for boot block )
 
-( Place your boot code here! )
+
+
+
+
 
 
 
@@ -110,8 +110,23 @@ to make editing easier. Line lengths are limited to 64
 characters wide, each block contains 16 lines.
 
 
-: constant create , does> @ ; ( Block Editor : block 7 )
+: constant create , does> @ ; 
 : u>= u< invert ;
+: [char] char [compile] literal ; immediate
+
+
+
+
+
+
+
+
+
+
+
+
+
+ ( Block Editor : block $8 )
 variable editor-voc 0 editor-voc ! forth
 : editor decimal editor-voc 1 set-order ;
 get-order editor-voc swap 1+ set-order
@@ -124,9 +139,9 @@ $40 constant c/l $10 constant l/b
 : n  1 +block b l ;
 : p -1 +block b l ;
 : d (line) c/l blank ;
-: x (block) b/buf blank ; -->
+: x (block) b/buf blank ; 
+: s update save-buffers ; -->
 
-: s update save-buffers ;
 : q forth save-buffers ;
 : e forth blk @ load editor ;
 : ia c/l * + (block) + tib >in @ +
@@ -141,8 +156,9 @@ $40 constant c/l $10 constant l/b
 : ea (line) c/l evaluate ;
 : sw 2dup y (line) swap (line) swap c/l cmove c ;
 forth
+
 
-( Assembler word set )
+( Assembler word set : Block $A )
 variable assembler-voc
 bl parse rdrop pad pack$ find drop assembler-voc !
 : assembler assembler-voc 1 set-order ;
@@ -153,6 +169,38 @@ get-order assembler-voc swap 1+ set-order
 : words words ;
 : forth forth ;
 forth
+
+
+
+
+
+( ANSI Terminal Escape Codes : Block $B )
+( See: https://en.wikipedia.org/wiki/ANSI_escape_code )
+console 
+0 constant black  1 constant red   2 constant green 
+3 constant yellow 4 constant blue  5 constant magenta
+6 constant cyan   7 constant white 
+0 constant dark   1 constant bright
+: CSI $1b emit [char] [ emit ;
+: 10u. base @ >r decimal <# #s #> type r> base ! ; ( u -- )
+: at-xy CSI 10u. $3b emit 10u. [char] H emit ; ( x y -- )
+: page CSI 2 10u. [char] J emit 1 1 at-xy ; ( -- )
+: foreground ; ( u -- u) : background $a + ; ( u -- u )
+: color $1E + CSI 10u.
+  if $3b emit $31 emit then ( ." ;1" )
+  [char] m emit ; ( brightness color -- )
+
+( Extra ANSI Terminal Words )
+: save-cursor CSI [char] s emit ;
+: restore-cursor CSI [char] u emit ;
+: hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
+: show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
+
+
+
+
+
+
 
 
 
@@ -169,7 +217,7 @@ forth
 : d+  >r swap >r um+ r> r> + + ; ( d d -- d )
 : d=  >r swap r> = >r = r> and ; ( d d -- f )
 : d<> d= 0= ;                    ( d d -- f )
-: roll  dup 0> if swap >r 1- roll r> swap else drop then ;
+: roll  dup 0> if swap >r 1- recurse r> swap else drop then ;
 : ?exit if rdrop then ;                   ( n --, R: n -- n | )
 : 2rdrop r> rdrop rdrop >r ;              ( R n n -- )
 : 2. swap . . ;                            ( n n -- )
@@ -186,8 +234,8 @@ forth
 : also get-order over swap 1+ set-order ;
 : previous get-order swap drop 1- set-order ;
 : buffer block ; ( k -- a )
-
-
+: bye [ 0 , ] ;
+: enum dup constant 1+ ; ( n --, <string> )
 
 
 : logical 0= 0= ;     ( n -- f )
@@ -213,23 +261,39 @@ forth
 : log2 0 swap ( u -- u )
   begin swap 1+ swap   2/ dup 0= until
   drop 1- ;
-: average um+ 2 um/mod nip ;
+: average um+ 2 um/mod nip ; ( u u -- u )
 : <=> 2dup > if 2drop -1 exit then < ;
 : bounds over + swap ;
-: 2, , , ;
-: tab 9 emit ;
-: drup drop dup ;
-: lsb $ff and ;
-: nor or invert ;
+: 2, , , ; ( n n -- )
+: tab 9 emit ; ( -- )
+: drup drop dup ; ( n1 n2 -- n1 n1 )
+: lsb $ff and ; ( u -- u )
+
 
 : signum ( n -- -1 | 0 | 1 : Signum function )
 	dup 0> if drop  1 exit then
 	    0< if      -1 exit then
 	0 ;
-: bye [ 0 , ] ;
-: enum dup constant 1+ ;
-: swap16 dup 8 rshift swap 8 lshift or ;
+: >< dup 8 rshift swap 8 lshift or ; ( u -- u : swap bytes )
 : #digits dup 0= if 1+ exit then base @ log 1+ ;
+: ** ( n u -- n )
+  ?dup if 
+    over >r 
+    begin 
+      dup 1 > 
+    while 
+      swap r@ * swap 1- 
+    repeat rdrop drop
+  else logical 1 and then ; 
+
+: b. base @ swap 2 base ! u. base ! ; ( u -- )
+: h. base @ swap hex u. base ! ;      ( u -- )
+: o. base @ swap 8 base ! u. base ! ; ( u -- )
+: d. base @ swap decimal . base ! ;   ( n -- )
+: @bits swap @ and ;                  ( a u -- u )
+
+
+
 
 
 
@@ -638,15 +702,15 @@ and continue the loop 65536 times which is probably not
 intended.
 
 
-Indefinite loops can be make with "begin...again", the
+Infine loops can be make with "begin...again", the
 following word "bar" simply repeatedly prints out "1":
 
   : bar begin 1 . cr again ;
   bar 1 1 1 1 1 1 ( ... ad infinitum ... )
 
-
-
-
+A looping mechanism that is easier to use is the 
+"begin...while...repeat" loop, this continues an operation
+until a variable is not true:
 
 
 

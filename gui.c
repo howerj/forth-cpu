@@ -636,18 +636,36 @@ static dpad_collision_e dpad_collision(dpad_t *d, double x, double y, double rad
 	return DPAN_COL_NONE;
 }
 
-#define TERMINAL_WIDTH  (80)
-#define TERMINAL_HEIGHT (10)
-#define TERMINAL_SIZE   (TERMINAL_WIDTH*TERMINAL_HEIGHT)
+#define TERMINAL_WIDTH       (80)
+#define TERMINAL_HEIGHT      (10)
+#define TERMINAL_SIZE        (TERMINAL_WIDTH*TERMINAL_HEIGHT)
+#define TERMINAL_COMMAND_LEN (256+1)
+
+typedef enum {
+	TERMINAL_NORMAL_MODE,
+	TERMINAL_CSI,
+	TERMINAL_COMMAND,
+	TERMINAL_NUMBER_1,
+	TERMINAL_NUMBER_2,
+	TERMINAL_DECTCEM,
+	TERMINAL_STATE_END,
+} terminal_state_t;
 
 typedef struct {
 	uint64_t blink_count;
-	size_t cursor;
 	double x;
 	double y;
-
+	size_t cursor;
+	size_t cursor_saved;
+	terminal_state_t state;
 	bool blink_on;
+	bool cursor_on;
+	uint16_t attributes[TERMINAL_SIZE];
+	uint16_t attribute;
+	uint8_t command[TERMINAL_COMMAND_LEN];
 	uint8_t m[TERMINAL_SIZE];
+	uint8_t command_index;
+	uint8_t n1, n2;
 } terminal_t;
 
 void draw_terminal(const world_t *world, terminal_t *t)
@@ -681,12 +699,202 @@ void draw_terminal(const world_t *world, terminal_t *t)
 	}
 
 	/**@note the cursor is deliberately in a different position compared to draw_vga(), due to how the VGA cursor behaves in hardware */
-	if(t->blink_on) /* fudge factor of 1.10? */
+	if(t->blink_on && t->cursor_on) /* fudge factor of 1.10? */
 		draw_rectangle_filled(t->x + (char_width * 1.10 * (cursor_x)) , t->y - (char_height * cursor_y), char_width, char_height, WHITE);
 
 	glPopMatrix();
 
 	draw_rectangle_line(t->x, t->y - (char_height * (TERMINAL_HEIGHT-1.0)), char_width * TERMINAL_WIDTH * 1.10, char_height * TERMINAL_HEIGHT, LINE_WIDTH, color);
+}
+
+void terminal_default_command_sequence(terminal_t *t)
+{
+	assert(t);
+	t->n1 = 1;
+	t->n2 = 1;
+	t->command_index = 0;
+	memset(t->command, 0, TERMINAL_COMMAND_LEN);
+}
+
+static void terminal_at_xy(terminal_t *t, unsigned x, unsigned y, bool limit_not_wrap)
+{
+	assert(t);
+	if(limit_not_wrap) {
+		x = MAX(x, 0);
+		y = MAX(y, 0);
+		x = MIN(x, TERMINAL_WIDTH - 1);
+		y = MIN(y, TERMINAL_HEIGHT - 1);
+	} else {
+		x %= TERMINAL_WIDTH;
+		y %= TERMINAL_HEIGHT;
+
+	}
+	t->cursor = (y * TERMINAL_WIDTH) + x;
+}
+
+static int terminal_x_current(terminal_t *t)
+{
+	return t->cursor % TERMINAL_WIDTH;
+}
+
+static int terminal_y_current(terminal_t *t)
+{
+	return t->cursor / TERMINAL_WIDTH;
+}
+
+static void terminal_at_xy_relative(terminal_t *t, int x, int y, bool limit_not_wrap)
+{
+	assert(t);
+	int x_current = terminal_x_current(t);
+	int y_current = terminal_y_current(t);
+	terminal_at_xy(t, x_current + x, y_current + y, limit_not_wrap);
+}
+
+/**@note it might be a good idea to add a time out as commands really should be
+ * sent quite close together */
+int terminal_escape_sequences(terminal_t *t, uint8_t c)
+{
+	assert(t);
+	assert(t->state != TERMINAL_NORMAL_MODE);
+	switch(t->state) {
+	case TERMINAL_CSI:
+		if(c == '[')
+			t->state = TERMINAL_COMMAND;
+		else
+			goto fail;
+		break;
+	case TERMINAL_COMMAND:
+		switch(c) {
+		case 's': 
+			t->cursor_saved = t->cursor; 
+			goto success;
+		case 'n': 
+			t->cursor = t->cursor_saved;
+			goto success;
+		case '?': 
+			t->state = TERMINAL_DECTCEM; 
+			terminal_default_command_sequence(t);
+			break;
+		case ';':
+			terminal_default_command_sequence(t);
+			t->state = TERMINAL_NUMBER_2;
+			break;
+		default:
+			if(isdigit(c)) {
+				terminal_default_command_sequence(t);
+				t->command[t->command_index++] = c;
+				t->state = TERMINAL_NUMBER_1;
+			} else {
+				goto fail;
+			}
+		}
+		break;
+	case TERMINAL_NUMBER_1:
+		if(isdigit(c)) {
+			if(t->command_index > 3)
+				goto fail;
+			t->command[t->command_index++] = c;
+			t->n1 = atoi((char*)(t->command));
+			break;
+		}
+
+		switch(c) {
+		case 'A': terminal_at_xy_relative(t,  0,     -t->n1, true); goto success;/* relative cursor up */
+		case 'B': terminal_at_xy_relative(t,  0,      t->n1, true); goto success;/* relative cursor down */
+		case 'C': terminal_at_xy_relative(t,  t->n1,  0,     true); goto success;/* relative cursor forward */
+		case 'D': terminal_at_xy_relative(t, -t->n1,  0,     true); goto success;/* relative cursor back */
+		case 'E': terminal_at_xy(t, 0,  t->n1, false); goto success; /* relative cursor down, beginning of line */
+		case 'F': terminal_at_xy(t, 0, -t->n1, false); goto success; /* relative cursor up, beginning of line */
+		case 'G': terminal_at_xy(t, t->n1, terminal_y_current(t), true); goto success; /* move the cursor to column n */
+		case 'm': /* set attribute, CSI number m */
+			t->attributes[t->cursor] = (t->attributes[t->cursor] & 0xff00) | t->n1;
+			goto success;
+		case 'i': /* AUX Port On == 5, AUX Port Off == 4 */
+			if(t->n1 == 5 || t->n1 == 4)
+				goto success;
+			goto fail;
+		case 'n': /* Device Status Report */
+			/** @note This should transmit to the H2 system the
+			 * following "ESC[n;mR", where n is the row and m is the column,
+			 * we're not going to do this, although fifo_push() on
+			 * uart_rx_fifo could be called to do this */
+			if(t->n1 == 6)
+				goto success;
+			goto fail;
+		case 'J': /* reset */
+			switch(t->n1) {
+			case 3:
+			case 2: t->cursor = 0; /* with cursor */
+			case 1: 
+				if(t->command[0]) {
+					memset(t->m, ' ', TERMINAL_SIZE);
+					memset(t->attributes, t->attribute, sizeof(t->attributes[0]) * TERMINAL_SIZE);
+					goto success;
+				} /* fall through if number not supplied */
+			case 0:
+				memset(t->m, ' ', t->cursor);
+				memset(t->attributes, t->attribute, sizeof(t->attributes[0]) * t->cursor);
+				goto success;
+			}
+			goto fail;
+		case ';':
+			memset(t->command, 0, TERMINAL_COMMAND_LEN);
+			t->state = TERMINAL_NUMBER_2;
+			break;
+		default:
+			goto fail;
+		}
+		break;
+	case TERMINAL_NUMBER_2:
+		if(isdigit(c)) {
+			if(t->command_index > 3)
+				goto fail;
+			t->command[t->command_index++] = c;
+			t->n1 = atoi((char*)(t->command));
+		} else {
+			switch(c) {
+			case 'm':
+				t->attributes[t->cursor] = (t->attributes[t->cursor] >> 8) | (((uint16_t)t->n1) << 8);
+				goto success;
+			case 'H':
+			case 'f':
+				terminal_at_xy(t, t->n1, t->n2, true);
+				goto success;
+			}
+			goto fail;
+		}
+		break;
+	case TERMINAL_DECTCEM:
+		if(isdigit(c)) {
+			if(t->command_index > 1)
+				goto fail;
+			t->command[t->command_index++] = c;
+			t->n1 = atoi((char*)(t->command));
+			break;
+		}
+
+		if(t->n1 != 25)
+			goto fail;
+		switch(c) {
+		case 'l': t->cursor_on = false; goto success;
+		case 'h': t->cursor_on = true;  goto success;
+		default:
+			goto fail;
+		}
+	case TERMINAL_STATE_END:
+		t->state = TERMINAL_NORMAL_MODE;
+		break;
+	default:
+		fatal("invalid terminal state: %u", (unsigned)t->state);
+	}
+
+	return 0;
+success:
+	t->state = TERMINAL_NORMAL_MODE;
+	return 0;
+fail:
+	t->state = TERMINAL_NORMAL_MODE;
+	return -1;
 }
 
 void update_terminal(terminal_t *t, fifo_t *f)
@@ -696,10 +904,19 @@ void update_terminal(terminal_t *t, fifo_t *f)
 	for(;!fifo_is_empty(f);) {
 		uint8_t c = 0;
 		bool r = fifo_pop(f, &c);
-		if(r) {
+		if(t->state != TERMINAL_NORMAL_MODE) {
+			if(terminal_escape_sequences(t, c)) {
+				t->state = TERMINAL_NORMAL_MODE;
+				/*warning("invalid ANSI command sequence");*/
+			}
+		} else if(r) {
 			switch(c) {
+			case ESCAPE:
+				t->state = TERMINAL_CSI;
+				break;
 			case '\t':
 				t->cursor += 8;
+				t->cursor &= ~0x7;
 				break;
 			case '\n':
 				t->cursor += TERMINAL_WIDTH;
@@ -708,16 +925,17 @@ void update_terminal(terminal_t *t, fifo_t *f)
 			case '\r':
 				break;
 			case BACKSPACE:
-				if((t->cursor / TERMINAL_WIDTH) == ((t->cursor - 1) / TERMINAL_WIDTH))
-					t->cursor--;
+				terminal_at_xy_relative(t, -1, 0, true);
 				break;
 			default:
 				assert(t->cursor < TERMINAL_SIZE);
 				t->m[t->cursor] = c;
 				t->cursor++;
 			}
-			if(t->cursor >= TERMINAL_SIZE)
+			if(t->cursor >= TERMINAL_SIZE) {
+				memset(t->attributes, t->attribute, sizeof(t->attributes[0]) * TERMINAL_SIZE);
 				memset(t->m, ' ', TERMINAL_SIZE);
+			}
 			t->cursor %= TERMINAL_SIZE;
 		}
 	}
@@ -788,6 +1006,7 @@ static vga_t vga = {
 
 	.blink_count = 0,
 	.blink_on    = false,
+	
 
 	.m = { 0 }
 };
@@ -809,11 +1028,17 @@ static led_8_segment_t segments[SEGMENT_COUNT] = {
 static terminal_t terminal = {
 	.blink_count = 0,
 	.cursor = 0,
+	.cursor_saved = 0,
+	.state = TERMINAL_NORMAL_MODE,
+	.command = { 0 },
 	.x = X_MIN + 2.0,
 	.y = Y_MIN + 28.5,
-
+	.cursor_on   = true,
+	.n1 = 1, .n2 = 1,
 	.blink_on = false,
-	.m = { 0 }
+	.m = { 0 },
+	.attribute  = 0,
+	.attributes = { 0 }
 };
 
 static h2_t *h = NULL;

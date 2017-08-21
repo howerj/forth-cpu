@@ -137,15 +137,15 @@ variable hld        0  ( Pointer into hold area for numeric output )
 variable base       10 ( Current output radix )
 variable span       0  ( Hold character count received by expect   )
 
-constant #vocs      8
-location forth-wordlist  0  ( set at the end near the end of the file )
-location context    0  ( holds current context for vocabulary search order )
-.allocate 14           ( ... space for context )
-variable #tib       0  ( Current count of terminal input buffer    )
-location tib-buf    0  ( ... and address )
-.set tib-buf $pc       ( set tib-buf to current dictionary location )
-.allocate tib-length   ( allocate enough for the terminal input buffer )
-.allocate cell         ( plus one extra cell for safety )
+constant #vocs            8 ( number of vocabularies in allowed )
+variable forth-wordlist   0 ( set at the end near the end of the file )
+location context          0 ( holds current context for vocabulary search order )
+.allocate 14                ( ... space for context )
+location #tib             0 ( Current count of terminal input buffer    )
+location tib-buf          0 ( ... and address )
+.set tib-buf $pc            ( set tib-buf to current dictionary location )
+.allocate tib-length        ( allocate enough for the terminal input buffer )
+.allocate cell              ( plus one extra cell for safety )
 constant block-invalid   -1 ( block invalid number )
 constant block-size    1024 ( size of a block )
 variable blk             -1 ( current blk loaded )
@@ -260,7 +260,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : min over over < if drop else nip then ; ( n n -- n )
 : max over over > if drop else nip then ; ( n n -- n )
 : >char $7f and dup 127 =bl within if drop [char] _ then ; hidden ( c -- c )
-: tib #tib cell+ @ ;                      ( -- a )
+: tib #tib cell+ @ ; hidden               ( -- a )
 : echo _echo @execute ; hidden            ( c -- )
 : key? _key? @execute ;                   ( -- c -1 | 0 )
 : key begin key? until ;                  ( -- c )
@@ -584,7 +584,7 @@ not consumed in the previous parse )
 	_prompt @ >r  0 _prompt !
 	_id     @ >r [-1] _id !
 	>in     @ >r  0 >in !
-	#tib 2@ >r >r
+	source >r >r
 	#tib 2!
 	' eval catch
 	r> r> #tib 2!
@@ -636,12 +636,6 @@ not consumed in the previous parse )
 ( ==================== Extra Words =================================== )
 
 ( ==================== Advanced I/O Control ========================== )
-
-( @todo Only emit characters over the UART, it causes problems otherwise )
-\ : CSI =escape emit [char] [ emit ; hidden
-\ : 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( n -- : print a number in decimal )
-\ : ansi.at-xy CSI 10u. 59 emit 10u. [char] H emit ; hidden ( x y -- : set ANSI terminal cursor position to x y )
-\ : ansi.page CSI 2 10u. [char] J emit 1 1 ansi.at-xy ; hidden ( -- : clear ANSI terminal screen and move cursor to beginning )
 
 : vga! ( vga.screen @ if 4096 + then ) $C000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
 : vga@ oVgaAddr ! iVgaTxtDout @ ; ( a -- u : read VGA value at address )
@@ -705,14 +699,11 @@ a character is dropped somewhere )
 words used for interpreting Forth. As much error checking is done
 as possible so the Forth environment is easy to use. )
 
-( @todo built in version of 'exit' should perform compile-exit?
-@bug ":" links the word in, allowing it to be found in the dictionary,
-instead, ";" should do this so previous definitions of a word with the
-same name can be used within word being currently defined )
 : !csp sp@ csp ! ; hidden
 : ?csp sp@ csp @ xor if 22 -throw then ; hidden
 : +csp csp 1+! ; hidden
 : -csp csp 1-! ; hidden
+\ : ?depth dup 0= if drop exit then sp@ 1- u> if 4 -throw then ; ( u -- )
 : ?compile state @ 0= if 14 -throw then ; hidden ( fail if not compiling )
 : ?unique dup last search if drop redefined print cr else drop then ; hidden ( a -- a )
 : ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
@@ -816,6 +807,7 @@ in which the problem could be solved. )
 : .words space begin dup while dup .id space @ address repeat drop cr ; hidden
 : words get-order begin ?dup while swap dup cr u. 58 emit @ .words 1- repeat ;
 
+
 ( ==================== Vocabulary Words ============================== )
 
 ( ==================== Strings ======================================= )
@@ -856,6 +848,7 @@ source-id word can be used by words to modify their behavior )
 	blk !
 	block-buffer ;
 
+\ : loadline block swap c/l * + c/l evaluate ; ( u k -- )
 : load block b/buf evaluate ;
 : --> 1 +block load ;
 : scr blk ;
@@ -895,6 +888,8 @@ to work / break everything it touches )
 		if @ address r@ swap validate rdrop exit then
 		address @
 	repeat rdrop ; hidden
+
+( : vocs get-order begin ?dup while swap @ space name print 1- repeat cr ; )
 
 : .name name ?dup 0= if see.unknown then print ; hidden
 : mask-off 2dup and = ; hidden ( u u -- u f )
@@ -966,6 +961,9 @@ irq:
 	$0040 oIrcMask !
 	$ffff oTimerCtrl !
 	1 ien drop ;
+
+
+
 
 ( ==================== Miscellaneous ================================= )
 
@@ -1185,35 +1183,7 @@ manipulating a terminal
 \
 \ ( Colors can be used for the lower VGA control bits, as well as for ANSI
 \ Terminal escape sequences )
-\ : black    0 ;
-\ : red      1 ;
-\ : green    2 ;
-\ : yellow   3 ;
-\ : blue     4 ;
-\ : magenta  5 ;
-\ : cyan     6 ;
-\ : white    7 ;
-\ : dark     0 ;
-\ : bright   1 ;
-\ : ansi.foreground ;
-\ : ansi.background 10 + ;
-\
-\ ( usage:
-\
-\ 	dark red foreground color
-\ 	bright blue background color
-\ )
-\ : ansi.color ( brightness color-code -- : set the color on an ANSI terminal )
-\ 	colorize @ 0= if 2drop exit then
-\ 	_emit colorize switch
-\ 	30 +
-\ 	CSI 10u.
-\ 	if
-\ 		59 emit  49 emit ( ." ;1" )
-\ 	then
-\ 	[char] m emit
-\ 	_emit colorize switch ;
-\
+
 \
 \ location HIDE_CURSOR "?25l" : ansi.hide-cursor CSI HIDE_CURSOR print ; ( -- : hide cursor )
 \ location SHOW_CURSOR "?25h" : ansi.show-cursor CSI SHOW_CURSOR print ; ( -- : show the cursor )

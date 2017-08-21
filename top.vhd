@@ -457,7 +457,7 @@ begin
 
 		vga_addr_we  <= '1' when vga_din_we = '1' or vga_update_address = '1' else '0';
 		vga_din_we_d <= vga_din_we;
-		vga_addr     <= io_daddr(12 downto 0);
+		vga_addr     <= io_daddr(12 downto 0); -- @todo 13 downto 1 ??
 		vga_din      <= io_dout;
 
 		delay: process(clk, rst)
