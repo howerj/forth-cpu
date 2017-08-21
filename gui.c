@@ -6,6 +6,8 @@
  * @todo Indicate if we are in step or continue mode, and display
  * help on the screen if requested. Also the return stack should be
  * printed when viewing the registers.
+ * @todo Allow the setting of the foreground and background color
+ * of a text string.
  */
 
 #include "h2.h"
@@ -658,6 +660,7 @@ typedef struct {
 	size_t cursor;
 	size_t cursor_saved;
 	terminal_state_t state;
+	unsigned n1, n2;
 	bool blink_on;
 	bool cursor_on;
 	uint16_t attributes[TERMINAL_SIZE];
@@ -665,7 +668,6 @@ typedef struct {
 	uint8_t command[TERMINAL_COMMAND_LEN];
 	uint8_t m[TERMINAL_SIZE];
 	uint8_t command_index;
-	uint8_t n1, n2;
 } terminal_t;
 
 void draw_terminal(const world_t *world, terminal_t *t)
@@ -751,7 +753,10 @@ static void terminal_at_xy_relative(terminal_t *t, int x, int y, bool limit_not_
 }
 
 /**@note it might be a good idea to add a time out as commands really should be
- * sent quite close together */
+ * sent quite close together 
+ *
+ * @todo Replace atoi with "10*n + (c-'0')", and hence eliminate the need for a command
+ * buffer. Also attributes should be properly parsed into a structure. */
 int terminal_escape_sequences(terminal_t *t, uint8_t c)
 {
 	assert(t);
@@ -772,8 +777,8 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 			t->cursor = t->cursor_saved;
 			goto success;
 		case '?': 
-			t->state = TERMINAL_DECTCEM; 
 			terminal_default_command_sequence(t);
+			t->state = TERMINAL_DECTCEM; 
 			break;
 		case ';':
 			terminal_default_command_sequence(t);
@@ -783,6 +788,7 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 			if(isdigit(c)) {
 				terminal_default_command_sequence(t);
 				t->command[t->command_index++] = c;
+				t->n1 = atoi((char*)(t->command));
 				t->state = TERMINAL_NUMBER_1;
 			} else {
 				goto fail;
@@ -839,6 +845,7 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 			goto fail;
 		case ';':
 			memset(t->command, 0, TERMINAL_COMMAND_LEN);
+			t->command_index = 0;
 			t->state = TERMINAL_NUMBER_2;
 			break;
 		default:
@@ -850,7 +857,7 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 			if(t->command_index > 3)
 				goto fail;
 			t->command[t->command_index++] = c;
-			t->n1 = atoi((char*)(t->command));
+			t->n2 = atoi((char*)(t->command));
 		} else {
 			switch(c) {
 			case 'm':
@@ -858,7 +865,7 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 				goto success;
 			case 'H':
 			case 'f':
-				terminal_at_xy(t, t->n1, t->n2, true);
+				terminal_at_xy(t, t->n2, t->n1, true);
 				goto success;
 			}
 			goto fail;
@@ -904,7 +911,7 @@ void update_terminal(terminal_t *t, fifo_t *f)
 	for(;!fifo_is_empty(f);) {
 		uint8_t c = 0;
 		bool r = fifo_pop(f, &c);
-		if(t->state != TERMINAL_NORMAL_MODE) {
+		if(r && t->state != TERMINAL_NORMAL_MODE) {
 			if(terminal_escape_sequences(t, c)) {
 				t->state = TERMINAL_NORMAL_MODE;
 				/*warning("invalid ANSI command sequence");*/
@@ -919,8 +926,8 @@ void update_terminal(terminal_t *t, fifo_t *f)
 				t->cursor &= ~0x7;
 				break;
 			case '\n':
-				t->cursor += TERMINAL_WIDTH;
-				t->cursor = (t->cursor / TERMINAL_WIDTH) * TERMINAL_WIDTH;
+				terminal_at_xy_relative(t, 0,  1, false);
+				terminal_at_xy(t, 0, terminal_y_current(t), true);
 				break;
 			case '\r':
 				break;

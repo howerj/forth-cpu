@@ -206,6 +206,22 @@ console
 
 
 
+( Requires ANSI Terminal Blocks )
+: screen-saver
+  begin 
+    random 80 mod random 40 mod at-xy
+    random 127 and emit
+    random 1 and 
+    random 7 and 
+    random 1 and if background then
+    color
+  again ;
+
+
+
+
+
+
 : 2+ 2 + ;                       ( n -- n )
 : 2- 2 - ;                       ( n -- n )
 : >= < invert ;                  ( n n -- f )

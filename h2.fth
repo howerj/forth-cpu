@@ -344,13 +344,13 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : radix base @ dup 2 - 34 u> if 10 base ! 40 -throw then ; hidden
 : digit  9 over < 7 and + 48 + ; hidden      ( u -- c )
 : extract  0 swap um/mod swap ; hidden       ( n base -- n c )
-: <#  pad hld ! ;                            ( -- )
 : ?hold hld @ cp @ u< if 17 -throw then ; hidden ( -- )
 : hold  hld @ 1- dup hld ! ?hold c! ;        ( c -- )
-: #  radix extract digit hold ;              ( u -- u )
-: #s begin # dup while repeat ;              ( u -- 0 )
 : sign  0< if [char] - hold then ;           ( n -- )
 : #>  drop hld @ pad over - ;                ( w -- b u )
+: #  radix extract digit hold ;              ( u -- u )
+: #s begin # dup while repeat ;              ( u -- 0 )
+: <#  pad hld ! ;                            ( -- )
 : decimal  10 base ! ;                       ( -- )
 : hex  16 base ! ;                           ( -- )
 : str dup >r abs <# #s r> sign #> ; hidden   ( n -- b u : convert a signed integer to a numeric string )
@@ -511,9 +511,9 @@ not consumed in the previous parse )
 	; hidden
 
 : parse >r tib >in @ + #tib @ >in @ - r> parser >in +! ; ( c -- b u ; <string> )
-: .( 41 parse type ; immediate
-: "(" 41 parse 2drop ; immediate
 : ) ; immediate
+: "(" 41 parse 2drop ; immediate
+: .( 41 parse type ; immediate
 : "\" #tib @ >in ! ; immediate
 : ?length dup word-length u> if 19 -throw then ; hidden
 : word parse ?length here pack$ ;          ( c -- a ; <string> )
@@ -523,8 +523,8 @@ not consumed in the previous parse )
 : unused $4000 here - ; hidden
 : .free unused u. ; hidden
 : preset sp@ ndrop tib #tib cell+ ! 0 >in ! 0 _id ! ; hidden
-: [  0 state ! ; immediate
 : ] [-1] state ! ;
+: [  0 state ! ; immediate
 
 \ : save last cp @ rendezvous 2! ; hidden
 \ : restore rendezvous 2@ cp ! context ! ; hidden ( @todo Fix restore to be vocabulary friendly )
@@ -963,8 +963,6 @@ irq:
 	1 ien drop ;
 
 
-
-
 ( ==================== Miscellaneous ================================= )
 
 ( ==================== Memory Interface ============================== )
@@ -1201,6 +1199,8 @@ start:
 	cpu-id segments!
 	loading-string print
 	0 0 $2000 transfer
+	\ 7 load $b load $c load decimal
+	
 	.ok
 	\ login 0 load 1 list
 	_boot @execute  ( _boot contains zero by default, does nothing )
