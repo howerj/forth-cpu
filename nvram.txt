@@ -196,7 +196,7 @@ console
 : hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
 : show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
 
-
+( @todo reset color )
 
 
 

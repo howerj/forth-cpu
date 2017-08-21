@@ -1165,32 +1165,6 @@ in the opposite direction should be programmed )
 
 ( ==================== Users and Passwords =========================== )
 
-( ==================== ANSI Colors =================================== )
-
-( Terminal colorization module, via ANSI Escape Codes
-
-see: https://en.wikipedia.org/wiki/ANSI_escape_code
-These codes will provide a relatively portable means of
-manipulating a terminal
-
-@todo Move to block storage )
-\
-\ variable colorize 0 ( set to 'drop' to disable, 'tx!' turn on )
-\ .set colorize tx!
-\
-\
-\ ( Colors can be used for the lower VGA control bits, as well as for ANSI
-\ Terminal escape sequences )
-
-\
-\ location HIDE_CURSOR "?25l" : ansi.hide-cursor CSI HIDE_CURSOR print ; ( -- : hide cursor )
-\ location SHOW_CURSOR "?25h" : ansi.show-cursor CSI SHOW_CURSOR print ; ( -- : show the cursor )
-\ : ansi.save-cursor CSI [char] s emit ; ( -- : save cursor position )
-\ : ansi.restore-cursor CSI [char] u emit ; ( -- : restore saved cursor position )
-\ : ansi.reset-color colorize @ 0= if exit then CSI 0 10u. [char] m emit ; ( -- : reset terminal color to its default value)
-\
-( ==================== ANSI Colors =================================== )
-
 ( ==================== Startup Code ================================== )
 
 start:
