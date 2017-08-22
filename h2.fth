@@ -943,6 +943,7 @@ irq:
 
 ( ==================== CORDIC ======================================== )
 
+( @todo Transfer to block storage )
 location cordic_0 0 .set cordic_0 $3243
 location cordic_1 0 .set cordic_1 $1DAC
 location cordic_2 0 .set cordic_2 $0FAD
@@ -974,19 +975,23 @@ location z  0
 location d  0
 location k  0
 
-\ : arshift for aft dup 2/ swap $8000 and or then next ; ( n u -- )
-: arshift begin ?dup while swap dup 2/ swap $8000 and or swap 1- repeat ;
+\ : arshift for aft dup 2/ swap $8000 and or then next ; ( n u -- n )
+\ : arshift begin ?dup while swap dup 2/ swap $8000 and or swap 1- repeat ;
+
+: arshift ( n u -- n : arithmetic right shift )
+	2dup      
+	rshift >r swap
+	$8000 and if 16 swap - -1 swap lshift else drop 0 then r> or ;
 
 ( valid in range -pi/2 to pi/2, arguments are in fixed point format
 with 1 = 16384, angle is given in radians.  )
-
 : cordic ( angle -- sine cosine )
 	z !
 	cordic_1K x !
 	0 y !
 	0 k !
 
-	15 for
+	16 begin ?dup while
 		z @ 0< d !
 		x @ y @ k @ arshift d @ xor d @ - - tx !
 		y @ x @ k @ arshift d @ xor d @ - + ty !
@@ -995,12 +1000,14 @@ with 1 = 16384, angle is given in radians.  )
 		ty @ y !
 		tz @ z !
 		k 1+!
-	next 
+		1-
+	repeat
 	y @ x @ ;
 
 : 2. swap . . ;
 : cordic.test
-decimal cr
+decimal cr 
+                          (   sine    cosine )
 25771  dup . cordic 2. cr (  16381,   -36    )
 24482  dup . cordic 2. cr (  16338,   1252   )
 23193  dup . cordic 2. cr (  16187,   2531   )
