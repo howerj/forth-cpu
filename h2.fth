@@ -22,7 +22,9 @@ http://www.figuk.plus.com/build/arith.htm
 
 Forth To Do:
 * Fix PARSE
-* Add do...loop, case statements )
+* Add do...loop, case statements
+* Implement some words from the C library, like all of "ctype.h" and
+put them in block storage. )
 
 ( ======================== System Constants ================= )
 
@@ -608,7 +610,7 @@ not consumed in the previous parse )
 		over c@ r> swap ccitt >r 1 /string
 	repeat 2drop r> ;
 
-: random seed @ dup 15 lshift ccitt dup seed ! ; ( -- u )
+: random seed @ dup 15 lshift ccitt dup seed ! iLfsr @ invert xor 1- ; ( -- u )
 
 : 5u.r 5 u.r ; hidden
 : dm+ 2/ for aft dup @ space 5u.r cell+ then next ; ( a u -- a )
@@ -631,8 +633,6 @@ not consumed in the previous parse )
 ( : factorial 0
    dup 2 < if drop 1 exit then
    1 swap for aft r@ 1+ * then next ; )
-\ : ?\ 0= if call "\" then ;
-\ : ?( 0= if call "(" then ;
 ( ==================== Extra Words =================================== )
 
 ( ==================== Advanced I/O Control ========================== )
@@ -687,7 +687,7 @@ a character is dropped somewhere )
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? _key? ! ' tx! _emit ! hand ;
 : interactive ' input _key? ! ' output _emit ! hand ; hidden
-: io! interactive vgaInit oVgaCtrl ! 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
+: io! 1 oLfsr ! interactive vgaInit oVgaCtrl ! 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
 : ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr ;
 
@@ -785,31 +785,6 @@ in which the problem could be solved. )
 
 ( ==================== Control Structures ============================ )
 
-( ==================== Vocabulary Words ============================== )
-
-: find-empty-cell begin dup @ while cell+ repeat ; hidden ( a -- a )
-
-: get-order ( -- widn ... wid1 n : )
-	context
-	find-empty-cell
-	dup cell- swap
-	context - 2/ dup >r 1- dup 0< if 50 -throw then
-	for aft dup @ swap cell- then next @ r> ;
-
-: set-order ( widn ... wid1 n -- )
-	dup [-1]  = if drop forth-wordlist 1 set-order exit then
-	dup #vocs > if 49 -throw then
-	context swap for aft tuck ! cell+ then next 0 swap ! ;
-
-: forth -1 set-order ;
-: flash get-order flash-voc swap 1+ set-order ;
-
-: .words space begin dup while dup .id space @ address repeat drop cr ; hidden
-: words get-order begin ?dup while swap dup cr u. 58 emit @ .words 1- repeat ;
-
-
-( ==================== Vocabulary Words ============================== )
-
 ( ==================== Strings ======================================= )
 
 : do$ r> r@ r> count + aligned >r swap >r ; hidden ( -- a )
@@ -822,6 +797,7 @@ in which the problem could be solved. )
 : abort" ?compile ." ' abort compile, ; immediate
 
 ( ==================== Strings ======================================= )
+
 
 ( ==================== Block Word Set ================================ )
 
@@ -964,6 +940,31 @@ irq:
 
 
 ( ==================== Miscellaneous ================================= )
+
+( ==================== Vocabulary Words ============================== )
+
+: find-empty-cell begin dup @ while cell+ repeat ; hidden ( a -- a )
+
+: get-order ( -- widn ... wid1 n : get the current search order )
+	context
+	find-empty-cell
+	dup cell- swap
+	context - 2/ dup >r 1- dup 0< if 50 -throw then
+	for aft dup @ swap cell- then next @ r> ;
+
+: set-order ( widn ... wid1 n -- : set the current search order )
+	dup [-1]  = if drop forth-wordlist 1 set-order exit then
+	dup #vocs > if 49 -throw then
+	context swap for aft tuck ! cell+ then next 0 swap ! ;
+
+\ : root  -1 set-order ; \ should contain set-order, forth-wordlist, forth, and words
+: forth -1 set-order ;
+: flash get-order flash-voc swap 1+ set-order ;
+
+: .words space begin dup while dup .id space @ address repeat drop cr ; hidden
+: words get-order begin ?dup while swap dup cr u. 58 emit @ .words 1- repeat ;
+
+( ==================== Vocabulary Words ============================== )
 
 ( ==================== Memory Interface ============================== )
 

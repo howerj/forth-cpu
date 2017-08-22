@@ -196,7 +196,7 @@ console
 : hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
 : show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
 
-( @todo reset color )
+
 
 
 
@@ -209,8 +209,8 @@ console
 ( Requires ANSI Terminal Blocks )
 : screen-saver
   begin 
-    random 80 mod random 40 mod at-xy
-    random 127 and emit
+    random $50 mod random $28 mod at-xy
+    random $1f - $5e mod $1f + emit
     random 1 and 
     random 7 and 
     random 1 and if background then
@@ -307,8 +307,8 @@ console
 : o. base @ swap 8 base ! u. base ! ; ( u -- )
 : d. base @ swap decimal . base ! ;   ( n -- )
 : @bits swap @ and ;                  ( a u -- u )
-
-
+: ?\ if [compile] \ then ; immediate
+: ?( if [compile] ( then ; immediate
 
 
 
@@ -945,7 +945,7 @@ at: <http://retroforth.org/pages/?PortsOfRetroEditor>
 ## TO DO
 * Describe the Nexys 3 system, the system on a chip, the
 * List the instruction set, registers, words defined, eForth
-* Write full tutorial and description of the system
+* Make words for databases using blocks
 * Add source code for everything to this block file
 * Add a program listing, perhaps in the first block, it could
 set variables relating to this document

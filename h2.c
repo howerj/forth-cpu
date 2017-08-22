@@ -10,8 +10,10 @@
  * The processor has been tested on an FPGA and is working.
  * The project can be found at: https://github.com/howerj/forth-cpu
  *
- * @todo Simulate the Common Flash Interface so the Flash device
- * can be correctly used */
+ * @todo Simulate all of the Common Flash Memory Interface so the Flash device
+ * can be correctly used, see:
+ * <https://en.wikipedia.org/wiki/Common_Flash_Memory_Interface> with the
+ * devices PC28F128P33BF60 and NP8P128A13T1760E */
 
 /* ========================== Preamble: Types, Macros, Globals ============= */
 
@@ -548,8 +550,6 @@ static void symbol_table_free(symbol_table_t *t)
 	free(t);
 }
 
-/**@note If this becomes too slow, the first optimization would be
- * to use a frequency sorted list */
 static symbol_t *symbol_table_lookup(symbol_table_t *t, const char *id)
 {
 	for(size_t i = 0; i < t->length; i++)

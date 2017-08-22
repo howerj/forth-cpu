@@ -3,11 +3,10 @@
  * @copyright Richard James Howe (2017)
  * @license   MIT
  *
- * @todo Indicate if we are in step or continue mode, and display
- * help on the screen if requested. Also the return stack should be
- * printed when viewing the registers.
  * @todo Allow the setting of the foreground and background color
  * of a text string.
+ * @todo A terminal emulator as a separate program could be hacked together
+ * from the components in this module, this would be a separate program.
  */
 
 #include "h2.h"
@@ -85,17 +84,15 @@ static world_t world = {
 	.font_scaled                 = GLUT_STROKE_MONO_ROMAN
 };
 
-typedef enum {
-	WHITE,
+typedef enum { /**@warning do not change the order or insert elements */
+	BLACK,
 	RED,
-	YELLOW,
 	GREEN,
-	CYAN,
+	YELLOW,
 	BLUE,
 	MAGENTA,
-	BROWN,
-	BLACK,
-	INVALID_COLOR
+	CYAN,
+	WHITE,
 } colors_e;
 
 typedef colors_e color_t;
@@ -155,10 +152,8 @@ static void set_color(color_t color)
 	case CYAN:    glColor3f(0.0, 0.8, 0.8);   break;
 	case BLUE:    glColor3f(0.0, 0.0, 0.8);   break;
 	case MAGENTA: glColor3f(0.8, 0.0, 0.8);   break;
-	case BROWN:   glColor3f(0.35, 0.35, 0.0); break;
 	case BLACK:   glColor3f(0.0, 0.0, 0.0);   break;
-	default:
-		fatal("invalid color '%d'", color);
+	default:      fatal("invalid color '%d'", color);
 	}
 }
 
@@ -474,25 +469,11 @@ typedef struct {
 } led_8_segment_t;
 
 static uint8_t convert_to_segments(uint8_t segment) {
-	switch(segment & 0xf) {
-	case 0x0: return 0x3F;
-	case 0x1: return 0x06;
-	case 0x2: return 0x5B;
-	case 0x3: return 0x4F;
-	case 0x4: return 0x66;
-	case 0x5: return 0x6D;
-	case 0x6: return 0x7D;
-	case 0x7: return 0x07;
-	case 0x8: return 0x7F;
-	case 0x9: return 0x6F;
-	case 0xa: return 0x77;
-	case 0xb: return 0x7C;
-	case 0xc: return 0x39;
-	case 0xd: return 0x5E;
-	case 0xe: return 0x79;
-	case 0xf: return 0x71;
-	default:  return 0x00;
-	}
+	static const uint8_t c2s[16] = { 
+		0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 
+		0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71 
+	};
+	return c2s[segment & 0xf];
 }
 
 #define SEG_CLR(SG,BIT) (((SG) & (1 << BIT)) ? RED : BLACK)
@@ -534,21 +515,6 @@ typedef struct {
 	uint8_t m[VGA_BUFFER_LENGTH];
 } vga_t;
 
-static color_t vga_map_color(uint8_t c)
-{
-	color_t r = WHITE;
-	switch(c & 0x7) { /* MSB -> BLU  GRN  RED <- LSB*/
-	case 0: r = BLACK;   break;
-	case 1: r = RED;     break;
-	case 2: r = GREEN;   break;
-	case 3: r = YELLOW;  break;
-	case 4: r = BLUE;    break;
-	case 5: r = MAGENTA; break;
-	case 6: r = CYAN;    break;
-	case 7: r = WHITE;   break;
-	}
-	return r;
-}
 
 static void draw_vga(const world_t *world, vga_t *v)
 {
@@ -558,7 +524,7 @@ static void draw_vga(const world_t *world, vga_t *v)
 		return;
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
-	color_t color = vga_map_color(v->control & 0x7);
+	color_t color = (v->control & 0x7);
 
 	static const double scale_x = 0.011;
 	static const double scale_y = 0.011;
@@ -654,6 +620,16 @@ typedef enum {
 } terminal_state_t;
 
 typedef struct {
+	unsigned bold:          1;
+	unsigned under_score:   1;
+	unsigned blink:         1;
+	unsigned reverse_video: 1;
+	unsigned conceal:       1;
+	unsigned foreground_color: 3;
+	unsigned background_color: 3;
+} terminal_attribute_t;
+
+typedef struct {
 	uint64_t blink_count;
 	double x;
 	double y;
@@ -662,10 +638,10 @@ typedef struct {
 	terminal_state_t state;
 	unsigned n1, n2;
 	bool blink_on;
+	bool blinks;
 	bool cursor_on;
-	uint16_t attributes[TERMINAL_SIZE];
-	uint16_t attribute;
-	uint8_t command[TERMINAL_COMMAND_LEN];
+	terminal_attribute_t attributes[TERMINAL_SIZE];
+	terminal_attribute_t attribute;
 	uint8_t m[TERMINAL_SIZE];
 	uint8_t command_index;
 } terminal_t;
@@ -697,11 +673,10 @@ void draw_terminal(const world_t *world, terminal_t *t)
 	if(now > seconds_to_ticks(world, 1.0)) {
 		t->blink_on = !(t->blink_on);
 		t->blink_count = world->tick;
-
 	}
 
 	/**@note the cursor is deliberately in a different position compared to draw_vga(), due to how the VGA cursor behaves in hardware */
-	if(t->blink_on && t->cursor_on) /* fudge factor of 1.10? */
+	if((!(t->blinks) || t->blink_on) && t->cursor_on) /* fudge factor of 1.10? */
 		draw_rectangle_filled(t->x + (char_width * 1.10 * (cursor_x)) , t->y - (char_height * cursor_y), char_width, char_height, WHITE);
 
 	glPopMatrix();
@@ -715,7 +690,6 @@ void terminal_default_command_sequence(terminal_t *t)
 	t->n1 = 1;
 	t->n2 = 1;
 	t->command_index = 0;
-	memset(t->command, 0, TERMINAL_COMMAND_LEN);
 }
 
 static void terminal_at_xy(terminal_t *t, unsigned x, unsigned y, bool limit_not_wrap)
@@ -729,18 +703,19 @@ static void terminal_at_xy(terminal_t *t, unsigned x, unsigned y, bool limit_not
 	} else {
 		x %= TERMINAL_WIDTH;
 		y %= TERMINAL_HEIGHT;
-
 	}
 	t->cursor = (y * TERMINAL_WIDTH) + x;
 }
 
 static int terminal_x_current(terminal_t *t)
 {
+	assert(t);
 	return t->cursor % TERMINAL_WIDTH;
 }
 
 static int terminal_y_current(terminal_t *t)
 {
+	assert(t);
 	return t->cursor / TERMINAL_WIDTH;
 }
 
@@ -752,11 +727,27 @@ static void terminal_at_xy_relative(terminal_t *t, int x, int y, bool limit_not_
 	terminal_at_xy(t, x_current + x, y_current + y, limit_not_wrap);
 }
 
-/**@note it might be a good idea to add a time out as commands really should be
- * sent quite close together 
- *
- * @todo Replace atoi with "10*n + (c-'0')", and hence eliminate the need for a command
- * buffer. Also attributes should be properly parsed into a structure. */
+static void terminal_parse_attribute(terminal_attribute_t *a, unsigned v)
+{
+	switch(v) {
+	case 0:
+		memset(a, 0, sizeof(*a));
+		a->foreground_color = WHITE;
+		a->background_color = BLACK;
+		return;
+	case 1: a->bold          = true; return;
+	case 4: a->under_score   = true; return;
+	case 5: a->blink         = true; return;
+	case 7: a->reverse_video = true; return;
+	case 8: a->conceal       = true; return;
+	default:
+		if(v >= 30 && v <= 37)
+			a->foreground_color = v - 30;
+		if(v >= 40 && v <= 47)
+			a->background_color = v - 40;
+	}
+}
+
 int terminal_escape_sequences(terminal_t *t, uint8_t c)
 {
 	assert(t);
@@ -787,8 +778,8 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 		default:
 			if(isdigit(c)) {
 				terminal_default_command_sequence(t);
-				t->command[t->command_index++] = c;
-				t->n1 = atoi((char*)(t->command));
+				t->command_index++;
+				t->n1 = c - '0';
 				t->state = TERMINAL_NUMBER_1;
 			} else {
 				goto fail;
@@ -799,8 +790,8 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 		if(isdigit(c)) {
 			if(t->command_index > 3)
 				goto fail;
-			t->command[t->command_index++] = c;
-			t->n1 = atoi((char*)(t->command));
+			t->n1 = (t->n1 * (t->command_index ? 10 : 0)) + (c - '0');
+			t->command_index++;
 			break;
 		}
 
@@ -813,7 +804,8 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 		case 'F': terminal_at_xy(t, 0, -t->n1, false); goto success; /* relative cursor up, beginning of line */
 		case 'G': terminal_at_xy(t, t->n1, terminal_y_current(t), true); goto success; /* move the cursor to column n */
 		case 'm': /* set attribute, CSI number m */
-			t->attributes[t->cursor] = (t->attributes[t->cursor] & 0xff00) | t->n1;
+			terminal_parse_attribute(&t->attribute, t->n1);
+			t->attributes[t->cursor] = t->attribute;	
 			goto success;
 		case 'i': /* AUX Port On == 5, AUX Port Off == 4 */
 			if(t->n1 == 5 || t->n1 == 4)
@@ -832,19 +824,20 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 			case 3:
 			case 2: t->cursor = 0; /* with cursor */
 			case 1: 
-				if(t->command[0]) {
+				if(t->command_index) {
 					memset(t->m, ' ', TERMINAL_SIZE);
-					memset(t->attributes, t->attribute, sizeof(t->attributes[0]) * TERMINAL_SIZE);
+					for(size_t i = 0; i < TERMINAL_SIZE; i++)
+						memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
 					goto success;
 				} /* fall through if number not supplied */
 			case 0:
 				memset(t->m, ' ', t->cursor);
-				memset(t->attributes, t->attribute, sizeof(t->attributes[0]) * t->cursor);
+				for(size_t i = 0; i < t->cursor; i++)
+					memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
 				goto success;
 			}
 			goto fail;
 		case ';':
-			memset(t->command, 0, TERMINAL_COMMAND_LEN);
 			t->command_index = 0;
 			t->state = TERMINAL_NUMBER_2;
 			break;
@@ -856,12 +849,14 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 		if(isdigit(c)) {
 			if(t->command_index > 3)
 				goto fail;
-			t->command[t->command_index++] = c;
-			t->n2 = atoi((char*)(t->command));
+			t->n2 = (t->n2 * (t->command_index ? 10 : 0)) + (c - '0');
+			t->command_index++;
 		} else {
 			switch(c) {
 			case 'm':
-				t->attributes[t->cursor] = (t->attributes[t->cursor] >> 8) | (((uint16_t)t->n1) << 8);
+				terminal_parse_attribute(&t->attribute, t->n1);
+				terminal_parse_attribute(&t->attribute, t->n2);
+				t->attributes[t->cursor] = t->attribute;	
 				goto success;
 			case 'H':
 			case 'f':
@@ -875,8 +870,8 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 		if(isdigit(c)) {
 			if(t->command_index > 1)
 				goto fail;
-			t->command[t->command_index++] = c;
-			t->n1 = atoi((char*)(t->command));
+			t->n1 = (t->n1 * (t->command_index ? 10 : 0)) + (c - '0');
+			t->command_index++;
 			break;
 		}
 
@@ -904,6 +899,8 @@ fail:
 	return -1;
 }
 
+/**@bug Terminal is no longer clearing the display due to the way '\n' is now
+ * handled */
 void update_terminal(terminal_t *t, fifo_t *f)
 {
 	assert(t);
@@ -926,8 +923,8 @@ void update_terminal(terminal_t *t, fifo_t *f)
 				t->cursor &= ~0x7;
 				break;
 			case '\n':
-				terminal_at_xy_relative(t, 0,  1, false);
-				terminal_at_xy(t, 0, terminal_y_current(t), true);
+ 				t->cursor += TERMINAL_WIDTH;
+				t->cursor = (t->cursor / TERMINAL_WIDTH) * TERMINAL_WIDTH;
 				break;
 			case '\r':
 				break;
@@ -937,10 +934,12 @@ void update_terminal(terminal_t *t, fifo_t *f)
 			default:
 				assert(t->cursor < TERMINAL_SIZE);
 				t->m[t->cursor] = c;
+				memcpy(&t->attributes[t->cursor], &t->attribute, sizeof(t->attribute));
 				t->cursor++;
 			}
 			if(t->cursor >= TERMINAL_SIZE) {
-				memset(t->attributes, t->attribute, sizeof(t->attributes[0]) * TERMINAL_SIZE);
+				for(size_t i = 0; i < TERMINAL_SIZE; i++)
+					memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
 				memset(t->m, ' ', TERMINAL_SIZE);
 			}
 			t->cursor %= TERMINAL_SIZE;
@@ -1013,7 +1012,6 @@ static vga_t vga = {
 
 	.blink_count = 0,
 	.blink_on    = false,
-	
 
 	.m = { 0 }
 };
@@ -1037,15 +1035,15 @@ static terminal_t terminal = {
 	.cursor = 0,
 	.cursor_saved = 0,
 	.state = TERMINAL_NORMAL_MODE,
-	.command = { 0 },
 	.x = X_MIN + 2.0,
 	.y = Y_MIN + 28.5,
 	.cursor_on   = true,
 	.n1 = 1, .n2 = 1,
 	.blink_on = false,
+	.blinks   = false,
 	.m = { 0 },
-	.attribute  = 0,
-	.attributes = { 0 }
+	.attribute  = { 0 },
+	.attributes = { { 0 } }
 };
 
 static h2_t *h = NULL;
@@ -1078,10 +1076,11 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			r |= soc->uart_getchar_register;
 			return r;
 		}
-	case iSwitches:     soc->switches = 0;
-			    for(size_t i = 0; i < SWITCHES_COUNT; i++)
-				    soc->switches |= switches[i].on << i;
-			    return soc->switches;
+	case iSwitches:     
+		soc->switches = 0;
+		for(size_t i = 0; i < SWITCHES_COUNT; i++)
+			soc->switches |= switches[i].on << i;
+		return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
 	case iVgaTxtDout:   return soc->vga[soc->vga_addr & 0x1FFF];
@@ -1129,15 +1128,17 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 		}
 		break;
 	case oLeds:
-			soc->leds           = value;
-			for(size_t i = 0; i < LEDS_COUNT; i++)
-				leds[i].on = value & (1 << i);
-			break;
-	case oTimerCtrl:  soc->timer_control  = value; break;
+		soc->leds          = value;
+		for(size_t i = 0; i < LEDS_COUNT; i++)
+			leds[i].on = value & (1 << i);
+		break;
+	case oTimerCtrl:  
+		soc->timer_control  = value; 
+		break;
 	case oVgaCtrl:
-			soc->vga_control    = value;
-			  vga.control         = value;
-			  break;
+		soc->vga_control    = value;
+		vga.control         = value;
+		break;
 	case oVgaCursor:
 		soc->vga_cursor     = value;
 		vga.cursor_x        = value & 0x7f;
@@ -1182,9 +1183,9 @@ static double fps(void)
 	return fps;
 }
 
-static void draw_debug_info(const world_t *world, double fps)
+static void draw_debug_info(const world_t *world, double fps, double x, double y)
 {
-	textbox_t t = { .x = X_MIN + X_MAX/40, .y = Y_MAX - Y_MAX/40, .draw_border = true, .color_text = WHITE };
+	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE, .color_box = WHITE };
 	assert(world);
 	fifo_t *f = world->use_uart_input ? uart_rx_fifo : ps2_rx_fifo;
 	const char *fifo_str = world->use_uart_input ? "UART" : "PS/2";
@@ -1219,18 +1220,60 @@ static void fill_textbox_memory(textbox_t *t, uint16_t *m, size_t length)
 		fill_textbox(t, "%s%u: %x %x %x %x", i < 10 ? " " : "", i, m[i], m[i+1], m[i+2], m[i+3]);
 }
 
-static void draw_debug_h2(h2_t *h, double x, double y)
+static void draw_debug_h2_screen_1(h2_t *h, double x, double y)
 {
-	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE };
 	assert(h);
-
+	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE, .color_box = WHITE };
+	fill_textbox(&t, "H2 CPU State", h->tos);
 	fill_textbox(&t, "tp: %u", h->tos);
 	fill_textbox_memory(&t, h->dstk, STK_SIZE);
 	fill_textbox(&t, "pc: %u", h->pc);
 	fill_textbox(&t, "rp: %u (max %u)", h->rp, h->rpm);
 	fill_textbox(&t, "dp: %u (max %u)", h->sp, h->spm);
 	fill_textbox(&t, "ie: %s", h->ie ? "true" : "false");
+	draw_textbox(&t);
+}
 
+static void draw_debug_h2_screen_2(h2_t *h, double x, double y)
+{
+	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE, .color_box = WHITE };
+	assert(h);
+	fill_textbox(&t, "H2 CPU Return Stack");
+	fill_textbox_memory(&t, h->rstk, STK_SIZE);
+	draw_textbox(&t);
+}
+
+static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y)
+{
+	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE, .color_box = WHITE };
+	assert(io);
+	assert(io->soc);
+	h2_soc_state_t *s = io->soc;
+	fill_textbox(&t, "I/O");
+	fill_textbox(&t, "LED             %x", (unsigned)s->leds);
+	fill_textbox(&t, "VGA Cursor:     %x", (unsigned)s->vga_cursor);
+	fill_textbox(&t, "VGA Control:    %x", (unsigned)s->vga_control);
+	fill_textbox(&t, "Timer Control:  %x", (unsigned)s->timer_control);
+	fill_textbox(&t, "Timer Count:    %x", (unsigned)s->timer);
+	fill_textbox(&t, "IRQ Mask:       %x", (unsigned)s->irc_mask);
+	fill_textbox(&t, "LED 8 Segments: %x", (unsigned)s->led_8_segments);
+	fill_textbox(&t, "Switches:       %x", (unsigned)s->switches);
+	fill_textbox(&t, "LFSR:           %x", (unsigned)s->lfsr);
+	fill_textbox(&t, "Memory Control: %x", (unsigned)s->mem_control);
+	fill_textbox(&t, "Memory Address: %x", (unsigned)s->mem_addr_low);
+	fill_textbox(&t, "Memory Output:  %x", (unsigned)s->mem_dout);
+	fill_textbox(&t, "Wait:           %s", s->wait ? "yes" : "no");
+	fill_textbox(&t, "Interrupt:      %s", s->interrupt ? "yes" : "no");
+	fill_textbox(&t, "IRQ Selector:   %x", (unsigned)s->interrupt_selector);
+	fill_textbox(&t, ""); 
+	fill_textbox(&t, "Flash"); 
+	fill_textbox(&t, "we:             %s", s->flash.we ? "on" : "off"); 
+	fill_textbox(&t, "cs:             %s", s->flash.cs ? "on" : "off"); 
+	fill_textbox(&t, "mode:           %x", (unsigned)s->flash.mode);
+	fill_textbox(&t, "status:         %x", (unsigned)s->flash.status); 
+	fill_textbox(&t, "address arg 1:  %x", (unsigned)s->flash.arg1_address); 
+	fill_textbox(&t, "data            %x", (unsigned)s->flash.data); 
+	fill_textbox(&t, "cycle:          %x", (unsigned)s->flash.cycle);
 	draw_textbox(&t);
 }
 
@@ -1428,11 +1471,12 @@ static void draw_scene(void)
 		world.step = false;
 		world.cycle_count += increment;
 	}
-	draw_debug_info(&world, f);
+	draw_debug_info(&world, f, X_MIN + X_MAX/40., Y_MAX - Y_MAX/40.);
 	if(world.debug_extra) {
-		draw_debug_h2(h, X_MIN + X_MAX/40., Y_MAX*0.70);
+		draw_debug_h2_screen_1(h,     X_MIN + X_MAX/40., Y_MAX*0.70);
+		draw_debug_h2_screen_2(h,     X_MAX / 3.0,       Y_MAX*0.70);
+		draw_debug_h2_screen_3(h2_io, X_MAX / 1.55,  Y_MAX*0.70);
 	} else {
-
 		draw_vga(&world, &vga);
 	}
 
@@ -1449,19 +1493,18 @@ static void draw_scene(void)
 	draw_terminal(&world, &terminal);
 
 	{
-		textbox_t t = { .x = X_MAX-50, .y = Y_MAX-2, .draw_border = false, .color_text = WHITE };
+		textbox_t t = { .x = X_MAX-50, .y = Y_MAX-2, .draw_border = false, .color_text = WHITE, .color_box = WHITE };
 		fill_textbox(&t, "EXIT/QUIT     ESCAPE");
 		fill_textbox(&t, "SWITCHES     F-1...8");
 		fill_textbox(&t, "SINGLE STEP      F-9");
 
 	}
 	{
-		textbox_t t = { .x = X_MAX-25, .y = Y_MAX-2, .draw_border = false, .color_text = WHITE };
+		textbox_t t = { .x = X_MAX-25, .y = Y_MAX-2, .draw_border = false, .color_text = WHITE, .color_box = WHITE };
 		fill_textbox(&t, "CPU PAUSE/RESUME F-10");
 		fill_textbox(&t, "SWITCH INPUT     F-11");
 		fill_textbox(&t, "CHANGE DISPLAY   F-12");
 	}
-
 
 	glFlush();
 	glutSwapBuffers();
