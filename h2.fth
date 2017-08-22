@@ -941,6 +941,112 @@ irq:
 
 ( ==================== Miscellaneous ================================= )
 
+( ==================== CORDIC ======================================== )
+
+location cordic_0 0 .set cordic_0 $3243
+location cordic_1 0 .set cordic_1 $1DAC
+location cordic_2 0 .set cordic_2 $0FAD
+location cordic_3 0 .set cordic_3 $07F5
+location cordic_4 0 .set cordic_4 $03FE
+location cordic_5 0 .set cordic_5 $01FF
+location cordic_6 0 .set cordic_6 $00FF
+location cordic_7 0 .set cordic_7 $007F
+location cordic_8 0 .set cordic_8 $003F
+location cordic_9 0 .set cordic_9 $001F
+location cordic_A 0 .set cordic_A $000F
+location cordic_B 0 .set cordic_B $0007
+location cordic_C 0 .set cordic_C $0003
+location cordic_D 0 .set cordic_D $0001
+location cordic_E 0 .set cordic_E $0000
+location cordic_F 0 .set cordic_F $0000
+
+constant cordic_table_size 16
+constant cordic_1K         $26DD
+constant half_pi           $6487
+constant cordic_MUL        16384
+
+location tx 0
+location ty 0
+location tz 0
+location x  0
+location y  0
+location z  0
+location d  0
+location k  0
+
+\ : arshift for aft dup 2/ swap $8000 and or then next ; ( n u -- )
+: arshift begin ?dup while swap dup 2/ swap $8000 and or swap 1- repeat ;
+
+( valid in range -pi/2 to pi/2, arguments are in fixed point format
+with 1 = 16384, angle is given in radians.  )
+
+: cordic ( angle -- sine cosine )
+	z !
+	cordic_1K x !
+	0 y !
+	0 k !
+
+	15 for
+		z @ 0< d !
+		x @ y @ k @ arshift d @ xor d @ - - tx !
+		y @ x @ k @ arshift d @ xor d @ - + ty !
+		z @ k @ cells cordic_0 + @ d @ xor d @ - - tz !
+		tx @ x !
+		ty @ y !
+		tz @ z !
+		k 1+!
+	next 
+	y @ x @ ;
+
+: 2. swap . . ;
+: cordic.test
+decimal cr
+25771  dup . cordic 2. cr (  16381,   -36    )
+24482  dup . cordic 2. cr (  16338,   1252   )
+23193  dup . cordic 2. cr (  16187,   2531   )
+21904  dup . cordic 2. cr (  15937,   3794   )
+20615  dup . cordic 2. cr (  15589,   5037   )
+19326  dup . cordic 2. cr (  15147,   6244   )
+18037  dup . cordic 2. cr (  14607,   7418   )
+16748  dup . cordic 2. cr (  13981,   8542   )
+15459  dup . cordic 2. cr (  13265,   9615   )
+14170  dup . cordic 2. cr (  12469,   10629  )
+12881  dup . cordic 2. cr (  11598,   11571  )
+11592  dup . cordic 2. cr (  10648,   12451  )
+10303  dup . cordic 2. cr (  9639,    13246  )
+9014   dup . cordic 2. cr (  8568,    13965  )
+7725   dup . cordic 2. cr (  7446,    14593  )
+6436   dup . cordic 2. cr (  6272,    15135  )
+5147   dup . cordic 2. cr (  5067,    15579  )
+3858   dup . cordic 2. cr (  3822,    15931  )
+2569   dup . cordic 2. cr (  2557,    16183  )
+1280   dup . cordic 2. cr (  1278,    16331  )
+-8     dup . cordic 2. cr (  -4,      16390  )
+-1296  dup . cordic 2. cr (  -1294,   16338  )
+-2584  dup . cordic 2. cr (  -2571,   16180  )
+-3872  dup . cordic 2. cr (  -3840,   15932  )
+-5160  dup . cordic 2. cr (  -5075,   15576  )
+-6448  dup . cordic 2. cr (  -6281,   15130  )
+-7736  dup . cordic 2. cr (  -7455,   14590  )
+-9024  dup . cordic 2. cr (  -8575,   13954  )
+-10312 dup . cordic 2. cr (  -9643,   13247  )
+-11600 dup . cordic 2. cr (  -10654,  12448  )
+-12888 dup . cordic 2. cr (  -11598,  11580  )
+-14176 dup . cordic 2. cr (  -12475,  10625  )
+-15464 dup . cordic 2. cr (  -13267,  9616   )
+-16752 dup . cordic 2. cr (  -13983,  8543   )
+-18040 dup . cordic 2. cr (  -14607,  7413   )
+-19328 dup . cordic 2. cr (  -15147,  6247   )
+-20616 dup . cordic 2. cr (  -15589,  5034   )
+-21904 dup . cordic 2. cr (  -15937,  3793   )
+-23192 dup . cordic 2. cr (  -16187,  2528   )
+-24480 dup . cordic 2. cr (  -16338,  1263   )
+-25768 dup . cordic 2. cr (  -16387,  -28    )
+cr ;
+
+
+( ==================== CORDIC ======================================== )
+
 ( ==================== Vocabulary Words ============================== )
 
 : find-empty-cell begin dup @ while cell+ repeat ; hidden ( a -- a )
@@ -963,6 +1069,8 @@ irq:
 
 : .words space begin dup while dup .id space @ address repeat drop cr ; hidden
 : words get-order begin ?dup while swap dup cr u. 58 emit @ .words 1- repeat ;
+
+.set forth-wordlist $pwd
 
 ( ==================== Vocabulary Words ============================== )
 
