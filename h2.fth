@@ -1054,7 +1054,7 @@ information of locks and for extracting information from the query registers )
 	$2000 mcontrol!
 	5 40ns
 	$0000 mcontrol! ; hidden
-: flash-status 0 $70 m! 0 m@ dup $2a and if -34 -throw then ; ( -- status )
+: flash-status 0 $70 m! 0 m@ ( dup $2a and if -34 -throw then ) ; ( -- status )
 : flash-read   $ff 0 m! ;      ( -- )
 : flash-setup  flush [-1] memory-select ! flash-reset 0 memory-upper ! ;      ( -- )
 : flash-wait begin flash-status $80 and until ; hidden 
@@ -1062,6 +1062,8 @@ information of locks and for extracting information from the query registers )
 : flash-write dup $40 swap m! m! flash-wait ; ( u a -- )
 : flash-read-id   $90 0 m! ; ( -- read id mode )
 : flash-unlock 0 memory-upper substitute >r dup $60 swap m! $d0 swap m! r> memory-upper ! ; ( ba -- )
+\ : flash-unlock 0 memory-upper substitute >r dup $60 swap m! $01 swap m! r> memory-upper ! ; ( ba -- )
+\ : flash-unlock-down 0 memory-upper substitute >r dup $60 swap m! $2f swap m! r> memory-upper ! ; ( ba -- )
 : flash-erase 0 memory-upper substitute >r flash-clear dup $20 swap m! $d0 swap m! flash-wait r> memory-upper ! ; ( ba -- )
 : flash-query $98 0 m! ; ( -- : query mode )
 
