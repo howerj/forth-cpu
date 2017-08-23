@@ -1116,6 +1116,7 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 			if(address_protected(f, f->arg1_address)) {
 				warning("address locked: %u", (unsigned)f->arg1_address);
 				f->status |= FLASH_STATUS_BLOCK_LOCKED;
+				f->status |= FLASH_STATUS_PROGRAM;
 				f->mode    = FLASH_READ_STATUS_REGISTER;
 			} else {
 				f->status &= ~FLASH_STATUS_DEVICE_READY;
@@ -1177,6 +1178,13 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 				f->mode = FLASH_READ_STATUS_REGISTER;
 			else
 				f->mode = FLASH_BLOCK_ERASING;
+
+			if(f->mode == FLASH_BLOCK_ERASING && address_protected(f, f->arg1_address)) {
+				warning("address locked: %u", (unsigned)f->arg1_address);
+				f->status |= FLASH_STATUS_BLOCK_LOCKED;
+				f->status |= FLASH_STATUS_ERASE_BLANK;
+				f->mode    = FLASH_READ_STATUS_REGISTER;
+			} 
 		} else if(we && cs) {
 			f->arg2_address = addr;
 		}

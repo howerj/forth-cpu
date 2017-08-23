@@ -1013,7 +1013,7 @@ as are both of the chip selects.
 
 constant memory-upper-mask  $1ff
 variable memory-upper       0    ( upper bits of external memory address )
-variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
+location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 
 : mcontrol! ( u -- : write to memory control register )
 	$f3ff and
@@ -1037,41 +1037,44 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 	iMemDin @        ( get input )
 	$0000 mcontrol! ;
 
-: memory-dump ( a u -- : dump non-volatile memory )
- 	cr
- 	begin
- 		dup
- 	while
- 		over 5u.r 40 emit over m@ 4 u.r 41 emit over 1+ $7 and 0= if cr then
- 		1 /string
- 	repeat 2drop cr ;
-
+\ : memory-dump ( a u -- : dump non-volatile memory )
+\  	cr
+\  	begin
+\  		dup
+\  	while
+\  		over 5u.r 40 emit over m@ 4 u.r 41 emit over 1+ $7 and 0= if cr then
+\  		1 /string
+\  	repeat 2drop cr ;
+ 
 ( @todo The flash word set needs words for reading and decoding status
 information of locks and for extracting information from the query registers )
 
 : sram 0 memory-select ! ;
+: nvram [-1] memory-select ! ; hidden
+: block-mode 0 memory-upper substitute ; hidden ( -- hi )
 : flash-reset ( -- : reset non-volatile memory )
 	$2000 mcontrol!
 	5 40ns
 	$0000 mcontrol! ; hidden
-: flash-status 0 $70 m! 0 m@ ( dup $2a and if -34 -throw then ) ; ( -- status )
+: flash! dup >r m! r> m! ; hidden ( u u a )
+: flash-status nvram $70 0 m! 0 m@ ( dup $2a and if -34 -throw then ) ; ( -- status )
 : flash-read   $ff 0 m! ;      ( -- )
-: flash-setup  flush [-1] memory-select ! flash-reset 0 memory-upper ! ;      ( -- )
+: flash-setup  memory-select @ 0= if flush then nvram flash-reset block-mode drop 20 ms ; ( @todo run when 'flash' is called ) 
 : flash-wait begin flash-status $80 and until ; hidden 
 : flash-clear $50 0 m! ; ( -- clear status )
-: flash-write dup $40 swap m! m! flash-wait ; ( u a -- )
-: flash-read-id   $90 0 m! ; ( -- read id mode )
-: flash-unlock 0 memory-upper substitute >r dup $60 swap m! $d0 swap m! r> memory-upper ! ; ( ba -- )
-\ : flash-unlock 0 memory-upper substitute >r dup $60 swap m! $01 swap m! r> memory-upper ! ; ( ba -- )
-\ : flash-unlock-down 0 memory-upper substitute >r dup $60 swap m! $2f swap m! r> memory-upper ! ; ( ba -- )
-: flash-erase 0 memory-upper substitute >r flash-clear dup $20 swap m! $d0 swap m! flash-wait r> memory-upper ! ; ( ba -- )
+: flash-write $40 swap flash! flash-wait ; ( u a -- )
+: flash-unlock block-mode >r $d0 swap $60 swap flash! r> memory-upper ! ; ( ba -- )
+\ : flash-lock block-mode >r $01 swap $60 swap flash! r> memory-upper ! ; ( ba -- )
+\ : flash-lock-down block-mode >r $2f swap $60 swap flash! r> memory-upper ! ; ( ba -- )
+: flash-erase block-mode >r flash-clear $d0 swap $20 swap flash! flash-wait r> memory-upper ! ; ( ba -- )
 : flash-query $98 0 m! ; ( -- : query mode )
+\ : flash-read-id   $90 0 m! ; ( -- read id mode : does the same as flash-query on the PC28F128P33BF60 )
 
 : flash->sram ( a a : transfer flash memory cell to SRAM )
 	[-1] memory-select ! flash-clear flash-read
 	m@ 0 memory-select ! swap m! ; hidden
 
-( @todo This should accept to double width address and a double width
+( @todo This should accept two double width addresses and a double width
 length, so large sections of memory can be transfered, also a transfer
 in the opposite direction should be programmed )
 : transfer ( a a u -- : transfer memory block from Flash to SRAM )
