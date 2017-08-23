@@ -26,7 +26,6 @@
 
 /* ====================================== Utility Functions ==================================== */
 
-#define VGA_INIT_FILE    ("text.hex")
 #define PI               (3.1415926535897932384626433832795)
 #define MAX(X, Y)        ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y)        ((X) < (Y) ? (X) : (Y))
@@ -127,7 +126,7 @@ typedef struct { /**@note it might be worth translating some functions to use po
 	double x, y;
 } point_t;
 
-static const char *nvram_file = "nvram.blk";
+static const char *nvram_file = FLASH_INIT_FILE;
 
 /**@bug not quite correct, arena_tick_ms is what we request, not want the arena
  * tick actually is */
@@ -1580,16 +1579,12 @@ int main(int argc, char **argv)
 	{ /* attempt to load initial contents of VGA memory */
 		FILE *vga_init = fopen(VGA_INIT_FILE, "rb");
 		if(vga_init) {
-			char line[80] = {0};
-			for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++) {
-				if(!fgets(line, sizeof(line), vga_init))
-					break;
-				long m = strtol(line, NULL, 16);
-				h2_io->soc->vga[i] = m;
-				vga.m[i] = m;
-			}
-
+			memory_load(vga_init, h2_io->soc->vga, VGA_BUFFER_LENGTH);
+			for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++)
+				vga.m[i] = h2_io->soc->vga[i];
 			fclose(vga_init);
+		} else {
+			warning("");
 		}
 	}
 

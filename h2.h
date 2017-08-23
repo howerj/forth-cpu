@@ -17,6 +17,9 @@
 #define H2_CPU_ID_SIMULATION (0xDEADu)
 #define H2_CPU_ID_VHDL       (0xCAFEu)
 
+#define VGA_INIT_FILE        ("text.hex")  /**< default name for VGA screen */
+#define FLASH_INIT_FILE      ("nvram.blk") /**< default file for flash initialization */
+
 typedef struct {
 	size_t length;
 	uint16_t *points;
@@ -32,7 +35,7 @@ typedef struct {
 	uint16_t sp;  /**< variable stack pointer */
 	bool     ie;  /**< interrupt enable */
 
-	break_point_t bp;
+	break_point_t bp; /**< list of break points */
 	uint16_t rpm; /**< maximum value of rp ever encountered */
 	uint16_t spm; /**< maximum value of sp ever encountered */
 } h2_t; /**< state of the H2 CPU */
@@ -55,7 +58,6 @@ typedef struct {
 	size_t length;
 	symbol_t **symbols;
 } symbol_table_t;
-
 
 #define CLOCK_SPEED_HZ             (100000000ULL)
 

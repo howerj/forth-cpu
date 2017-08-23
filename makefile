@@ -126,7 +126,7 @@ gui.o: gui.c h2.h
 gui${EXE}: h2nomain.o gui.o
 	${CC} ${CFLAGS} $^ ${GUI_LDFLAGS} -o $@
 
-gui-run: gui${EXE} h2.hex nvram.blk
+gui-run: gui${EXE} h2.hex nvram.blk text.hex
 	${DF}$< h2.hex
 
 text${EXE}: text.c
@@ -286,7 +286,7 @@ clean:
 	@rm -vrf h2${EXE} gui${EXE} block${EXE} text${EXE}
 	@rm -vrf text.bin h2.hex text.hex
 	@rm -vrf *.pdf *.htm
-	@rm -vrf *.blk
+	@rm -vrf *.blk *.sym
 	@rm -vf usage_statistics_webtalk.html
 	@rm -vf mem_h2.binary mem_h2.hexadecimal
 

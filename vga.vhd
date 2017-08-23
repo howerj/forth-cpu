@@ -7,6 +7,9 @@
 --| @email      javier.valcarce@gmail.com
 --| @note       (Modifications and repackaging by Richard James Howe)
 --|
+--| @todo Make a VT100 processor that can feed into this module, this would
+--| drastically simplify the software running on the H2 Forth core, it could
+--| treat this component as a write only UART.
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------

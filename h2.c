@@ -10,6 +10,11 @@
  * The processor has been tested on an FPGA and is working.
  * The project can be found at: https://github.com/howerj/forth-cpu
  *
+ * @todo Copy the initial RAM block for the VGA display if the file
+ * exists on disk, this is done in the GUI program, but not in this one.
+ * @todo The simulators, the GUI one and the CLI one, could both report 
+ * different CPU IDs. This could be used to determine what I/O actions
+ * should be performed at start up.
  * @todo Simulate all of the Common Flash Memory Interface so the Flash device
  * can be correctly used, see:
  * <https://en.wikipedia.org/wiki/Common_Flash_Memory_Interface> with the
@@ -33,7 +38,7 @@
 extern int _fileno(FILE *stream);
 #endif
 
-static const char *nvram_file = "nvram.blk";
+static const char *nvram_file = FLASH_INIT_FILE;
 
 #define DEFAULT_STEPS (512)
 #define MAX(X, Y)     ((X) > (Y) ? (X) : (Y))
@@ -909,6 +914,68 @@ typedef enum {
 	FLASH_BLOCK_ERASING,
 } flash_state_t;
 
+static const uint8_t PC28F128P33BF60_CFI_Query[0x200] = {
+	/* CFI Identification */
+
+	[0x10] = 'Q', [0x11] = 'R', [0x12] = 'Y', /* Marks query block */
+	[0x13] = 0x01, [0x14] = 0x00,             /* Vendor command set: ???? */
+	[0x15] = 0x0A, [0x16] = 0x01,             /* Extended Query Table Algorithm Address */
+	[0x17] = 0x00, [0x18] = 0x00,             /* Alternate vendor command set, 0x0000 = none */
+	[0x19] = 0x00, [0x1A] = 0x00,             /* Alternate Extended Query Table Alternate Address, 0x0000 = none */
+
+	/* System Interface Specification */
+
+	[0x1B] = 0x23, /* BCD 2.3 Volts, minimum VCC for program/erase */
+	[0x1C] = 0x36, /* BCD 3.6 Volts, maximum VCC for program/erase */
+	[0x1D] = 0x85, /* BCD milli Volts for bits 0-3, Hex Volts for 4-7, 8.5Volts, VPP Programming minimum program/erase voltage */
+	[0x1E] = 0x95, /* Same as address 0x1D, but maximum */
+	[0x1F] = 0x06, /* Single Word Program _Typical_ Timeout, 2^n us, or 64 us */
+	[0x20] = 0x09, /* Full buffer Write _Typical_ Timeout, 2^n us, or 512 us */
+	[0x21] = 0x09, /* Full Block Erase _Typical_ Timeout, 2^n ms, or 0.5 seconds */
+	[0x22] = 0x00, /* N/A, Full Chip Erase _Typical_ Timeout, 2^n ms */
+	[0x23] = 0x02, /* Maximum word program timeout, (Typical Timeout)^n, 256 us */
+	[0x24] = 0x02, /* Maximum buffer program timeout, (Typical Timeout)^n, 2048 us */
+	[0x25] = 0x03, /* Maximum Block erase timeout, (Typical Timeout)^n, 4 seconds */
+	[0x26] = 0x00, /* N/A, Full Chip Erase maximum timeout, (Typical Typical)^n ms*/
+
+	/* Device Geometry */
+
+	[0x27] = 0x18, /* Flash Memory: 2^n bytes, 16777216 bytes */
+	[0x28] = 0x01, /* Flash Interface Type (type is "x16), bit 0 = x8, 1 = x16, 2 = x32, 3 = x64 */
+	[0x29] = 0x00, /* Reserved for Flash Interface Type */
+	[0x2A] = 0x09, /* 2^n maximum number of bytes in write buffer, 512 */
+	[0x2B] = 0x00, /* -- "" -- */
+	[0x2C] = 0x02, /* 0 = no erase blocking (erases in bulk), 1 = two erase regions, 2 = symmetric regions */
+
+	[0x2D] = 0x7E, /* Erase Block Region 1, bits 0-15=y, y+1 = number of identical size erase blocks, 127 blocks */
+	[0x2E] = 0x00,
+	[0x2F] = 0x00, /* ... bits 16-31 = z, region erase block size are 'z' x 256 */
+	[0x30] = 0x02, /* or 512 x 256, 128KiB or 64 Kilo WORDS */
+
+	[0x31] = 0x03, /* Erase Block Region 2, 3 blocks */
+	[0x32] = 0x00,
+	[0x33] = 0x80, /* 32 KiB, or 16 Kilo WORDs */
+	[0x34] = 0x00, 
+
+	[0x35] = 0x00, /* Erase Block Region 3, Reserved */
+	[0x36] = 0x00,
+	[0x37] = 0x00,
+	[0x38] = 0x00,
+
+	/* Vendor specific extended query */
+	
+	[0x10A] = 'P', [0x10B] = 'R', [0x10C] = 'I', 
+	[0x10D] = '1', /* major version */
+	[0x10E] = '5', /* minor version */
+
+	/* Optional feature support */
+
+	[0x10F] = 0xE6, 
+	[0x110] = 0x01,
+	[0x111] = 0x00,
+	[0x112] = 0x00,
+};
+
 static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bool rst)
 {
 	if(rst)
@@ -927,7 +994,7 @@ static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bo
 	switch(f->mode) {
 	case FLASH_READ_ARRAY:             return f->nvram[0x1ffffff & addr];
 	/**@todo make array with status information in it for the PC28F128P33BF60 */
-	case FLASH_QUERY:                  return 0;
+	case FLASH_QUERY:                  return PC28F128P33BF60_CFI_Query[0x1ff & addr];
 	case FLASH_READ_DEVICE_IDENTIFIER: return 0;
 	case FLASH_READ_STATUS_REGISTER:   return f->status;
 
@@ -945,6 +1012,9 @@ static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bo
 	return 0;
 }
 
+/**@todo implement the full standard for the Common Flash Memory Interface, and
+ * make the timing based on a simulated calculated time instead multiples of
+ * 10us */
 static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe, bool we, bool rst, bool cs)
 {
 	assert(f);
@@ -970,7 +1040,7 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 			case 0x00: break;
 			case 0xff: f->mode = FLASH_READ_ARRAY;             break;
 			case 0x90: f->mode = FLASH_READ_DEVICE_IDENTIFIER; break;
-			/*case 0x98: READ CSI not implemented              break; */
+			case 0x98: f->mode = FLASH_QUERY;                  break;
 			case 0x70: f->mode = FLASH_READ_STATUS_REGISTER;   break;
 			case 0x50: f->status = FLASH_STATUS_DEVICE_READY;  break; /* changes state? */
 			case 0x10:
