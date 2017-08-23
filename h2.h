@@ -128,15 +128,24 @@ typedef struct {
 #define FLASH_MEMORY_OE            (1 << FLASH_MEMORY_OE_BIT)
 #define FLASH_MEMORY_WE            (1 << FLASH_MEMORY_WE_BIT)
 
+#define FLASH_BLOCK_MAX            (130)
+
+typedef enum {
+	FLASH_UNLOCKED,
+	FLASH_LOCKED,
+	FLASH_LOCKED_DOWN,
+} flash_lock_t;
+
 typedef struct {
 	unsigned cycle;
 	unsigned mode;
 	unsigned we;
 	unsigned cs;
 	uint8_t  status;
-	uint32_t arg1_address;
+	uint32_t arg1_address, arg2_address;
 	uint16_t data;
 	uint16_t nvram[CHIP_MEMORY_SIZE];
+	uint8_t  locks[FLASH_BLOCK_MAX];
 } flash_t;
 
 typedef struct {

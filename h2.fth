@@ -184,7 +184,7 @@ location loading-string   "loading..."
 : 1+ 1 + ;                 ( n -- n )
 : negate invert 1 + ;      ( n -- n )
 : - invert 1 + + ;         ( n n -- n )
-: 2/ 1 rshift ;            ( n -- n )
+: 2/ 1 rshift ;            ( n -- n : NB. This isn't actually correct, just useful, "1 arshift" would be acceptable )
 : 2* 1 lshift ;            ( n -- n )
 : cell- cell - ;           ( a -- a )
 : cell+ cell + ;           ( a -- a )
@@ -288,6 +288,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : spaces =bl nchars ;                     ( +n -- )
 : cmove for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ; ( b b u -- )
 : fill swap for swap aft 2dup c! 1+ then next 2drop ; ( b u c -- )
+: substitute dup @ >r ! r> ; hidden ( u a -- u : substitute value at address )
 : switch 2dup @ >r @ swap ! r> swap ! ; hidden ( a a -- : swap contents )
 : aligned dup 1 and if 1+ then ;          ( b -- a )
 : align cp @ aligned cp ! ; hidden        ( -- )
@@ -1045,22 +1046,23 @@ variable memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
  		1 /string
  	repeat 2drop cr ;
 
-( @todo flash-status should throw if an error has been encountered, also
-the simulator in "h2.c" should be improved so it can simulate random errors )
+( @todo The flash word set needs words for reading and decoding status
+information of locks and for extracting information from the query registers )
+
 : sram 0 memory-select ! ;
 : flash-reset ( -- : reset non-volatile memory )
 	$2000 mcontrol!
 	5 40ns
 	$0000 mcontrol! ; hidden
-: flash-status 0 $70 m! 0 m@ ; ( -- status )
+: flash-status 0 $70 m! 0 m@ dup $2a and if -34 -throw then ; ( -- status )
 : flash-read   $ff 0 m! ;      ( -- )
-: flash-setup  flush [-1] memory-select ! flash-reset ;      ( -- )
-: flash-wait begin flash-status $80 and until ; hidden ( @todo throw on error )
+: flash-setup  flush [-1] memory-select ! flash-reset 0 memory-upper ! ;      ( -- )
+: flash-wait begin flash-status $80 and until ; hidden 
 : flash-clear $50 0 m! ; ( -- clear status )
 : flash-write dup $40 swap m! m! flash-wait ; ( u a -- )
 : flash-read-id   $90 0 m! ; ( -- read id mode )
-: flash-unlock dup $60 swap m! $d0 swap m! ; ( ba -- )
-: flash-erase flash-clear dup $20 swap m! $d0 swap m! flash-wait ; ( ba -- )
+: flash-unlock 0 memory-upper substitute >r dup $60 swap m! $d0 swap m! r> memory-upper ! ; ( ba -- )
+: flash-erase 0 memory-upper substitute >r flash-clear dup $20 swap m! $d0 swap m! flash-wait r> memory-upper ! ; ( ba -- )
 : flash-query $98 0 m! ; ( -- : query mode )
 
 : flash->sram ( a a : transfer flash memory cell to SRAM )

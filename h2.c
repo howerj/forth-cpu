@@ -910,71 +910,94 @@ typedef enum {
 	FLASH_WORD_PROGRAM,
 	FLASH_WORD_PROGRAMMING,
 	FLASH_LOCK_OPERATION,
+	FLASH_LOCK_OPERATING,
 	FLASH_BLOCK_ERASE,
 	FLASH_BLOCK_ERASING,
+	FLASH_BUFFERED_PROGRAM,
+	FLASH_BUFFERED_PROGRAMMING,
 } flash_state_t;
 
-static const uint8_t PC28F128P33BF60_CFI_Query[0x200] = {
-	/* CFI Identification */
-
-	[0x10] = 'Q', [0x11] = 'R', [0x12] = 'Y', /* Marks query block */
-	[0x13] = 0x01, [0x14] = 0x00,             /* Vendor command set: ???? */
-	[0x15] = 0x0A, [0x16] = 0x01,             /* Extended Query Table Algorithm Address */
-	[0x17] = 0x00, [0x18] = 0x00,             /* Alternate vendor command set, 0x0000 = none */
-	[0x19] = 0x00, [0x1A] = 0x00,             /* Alternate Extended Query Table Alternate Address, 0x0000 = none */
-
-	/* System Interface Specification */
-
-	[0x1B] = 0x23, /* BCD 2.3 Volts, minimum VCC for program/erase */
-	[0x1C] = 0x36, /* BCD 3.6 Volts, maximum VCC for program/erase */
-	[0x1D] = 0x85, /* BCD milli Volts for bits 0-3, Hex Volts for 4-7, 8.5Volts, VPP Programming minimum program/erase voltage */
-	[0x1E] = 0x95, /* Same as address 0x1D, but maximum */
-	[0x1F] = 0x06, /* Single Word Program _Typical_ Timeout, 2^n us, or 64 us */
-	[0x20] = 0x09, /* Full buffer Write _Typical_ Timeout, 2^n us, or 512 us */
-	[0x21] = 0x09, /* Full Block Erase _Typical_ Timeout, 2^n ms, or 0.5 seconds */
-	[0x22] = 0x00, /* N/A, Full Chip Erase _Typical_ Timeout, 2^n ms */
-	[0x23] = 0x02, /* Maximum word program timeout, (Typical Timeout)^n, 256 us */
-	[0x24] = 0x02, /* Maximum buffer program timeout, (Typical Timeout)^n, 2048 us */
-	[0x25] = 0x03, /* Maximum Block erase timeout, (Typical Timeout)^n, 4 seconds */
-	[0x26] = 0x00, /* N/A, Full Chip Erase maximum timeout, (Typical Typical)^n ms*/
-
-	/* Device Geometry */
-
-	[0x27] = 0x18, /* Flash Memory: 2^n bytes, 16777216 bytes */
-	[0x28] = 0x01, /* Flash Interface Type (type is "x16), bit 0 = x8, 1 = x16, 2 = x32, 3 = x64 */
-	[0x29] = 0x00, /* Reserved for Flash Interface Type */
-	[0x2A] = 0x09, /* 2^n maximum number of bytes in write buffer, 512 */
-	[0x2B] = 0x00, /* -- "" -- */
-	[0x2C] = 0x02, /* 0 = no erase blocking (erases in bulk), 1 = two erase regions, 2 = symmetric regions */
-
-	[0x2D] = 0x7E, /* Erase Block Region 1, bits 0-15=y, y+1 = number of identical size erase blocks, 127 blocks */
-	[0x2E] = 0x00,
-	[0x2F] = 0x00, /* ... bits 16-31 = z, region erase block size are 'z' x 256 */
-	[0x30] = 0x02, /* or 512 x 256, 128KiB or 64 Kilo WORDS */
-
-	[0x31] = 0x03, /* Erase Block Region 2, 3 blocks */
-	[0x32] = 0x00,
-	[0x33] = 0x80, /* 32 KiB, or 16 Kilo WORDs */
-	[0x34] = 0x00, 
-
-	[0x35] = 0x00, /* Erase Block Region 3, Reserved */
-	[0x36] = 0x00,
-	[0x37] = 0x00,
-	[0x38] = 0x00,
-
-	/* Vendor specific extended query */
-	
-	[0x10A] = 'P', [0x10B] = 'R', [0x10C] = 'I', 
-	[0x10D] = '1', /* major version */
-	[0x10E] = '5', /* minor version */
-
-	/* Optional feature support */
-
-	[0x10F] = 0xE6, 
-	[0x110] = 0x01,
-	[0x111] = 0x00,
-	[0x112] = 0x00,
+/** @note read the datasheet for decoding this information */
+static const uint16_t PC28F128P33BF60_CFI_Query_Table[0x200] = {
+0x0089, 0x881E, 0x0000, 0xFFFF, 0x0089, 0xBFCF, 0x0000, 0xFFFF,
+0x0089, 0x881E, 0x0000, 0x0000, 0x0089, 0xBFCF, 0x0000, 0xFFFF,
+0x0051, 0x0052, 0x0059, 0x0001, 0x0000, 0x000A, 0x0001, 0x0000,
+0x0000, 0x0000, 0x0000, 0x0023, 0x0036, 0x0085, 0x0095, 0x0006,
+0x0009, 0x0009, 0x0000, 0x0002, 0x0002, 0x0003, 0x0000, 0x0018,
+0x0001, 0x0000, 0x0009, 0x0000, 0x0002, 0x007E, 0x0000, 0x0000,
+0x0002, 0x0003, 0x0000, 0x0080, 0x0000, 0x0000, 0x0000, 0x0000,
+0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFBE, 0x0396, 0x66A2, 0xA600, 0x395A, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0x0050, 0x0052, 0x0049, 0x0031, 0x0035, 0x00E6,
+0x0001, 0x0000, 0x0000, 0x0001, 0x0003, 0x0000, 0x0030, 0x0090,
+0x0002, 0x0080, 0x0000, 0x0003, 0x0003, 0x0089, 0x0000, 0x0000,
+0x0000, 0x0000, 0x0000, 0x0000, 0x0010, 0x0000, 0x0004, 0x0004,
+0x0004, 0x0001, 0x0002, 0x0003, 0x0007, 0x0001, 0x0024, 0x0000,
+0x0001, 0x0000, 0x0011, 0x0000, 0x0000, 0x0002, 0x007E, 0x0000,
+0x0000, 0x0002, 0x0064, 0x0000, 0x0002, 0x0003, 0x0000, 0x0080,
+0x0000, 0x0000, 0x0000, 0x0080, 0x0003, 0x0000, 0x0080, 0x0000,
+0x0064, 0x0000, 0x0002, 0x0003, 0x0000, 0x0080, 0x0000, 0x0000,
+0x0000, 0x0080, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xF020, 0x4DBF, 0x838C, 0xFC08, 0x638F, 0x20E3, 0xFF03, 0xD8D7,
+0xC838, 0xFFFF, 0xFFFF, 0xAFFF, 0x3352, 0xB333, 0x3004, 0x1353,
+0x0003, 0xA000, 0x80D5, 0x8A03, 0xFF4A, 0xFFFF, 0xFFFF, 0x0FFF,
+0x2000, 0x0000, 0x0004, 0x0080, 0x1000, 0x0000, 0x0002, 0x0040,
+0x0000, 0x0008, 0x0000, 0x0001, 0x2000, 0x0000, 0x0400, 0x0000,
+0x0080, 0x0000, 0x0010, 0x0000, 0x0002, 0x4000, 0x0000, 0x0800,
+0x0000, 0x0100, 0x0000, 0x0020, 0x0000, 0x0004, 0x8000, 0x0000,
+0x1000, 0x0000, 0x0200, 0x0000, 0x0040, 0x0000, 0x0008, 0x0000,
+0x0001, 0x2000, 0x0000, 0x0800, 0x0000, 0x0200, 0x0000, 0x0040,
+0x0000, 0x0008, 0x0000, 0x0001, 0x2000, 0x0000, 0x0400, 0x0000,
+0x0080, 0x0000, 0x0010, 0x0000, 0x0002, 0x4000, 0x0000, 0x0800,
+0x0000, 0x0100, 0x0000, 0x0020, 0x0000, 0x0004, 0x8000, 0x0000,
+0x1000, 0x0000, 0x0200, 0x0000, 0x0040, 0x0000, 0x0008, 0x0000,
+0x0001, 0x4000, 0x0000, 0x1000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
 };
+
+uint16_t PC28F128P33BF60_CFI_Query_Read(uint32_t addr)
+{
+	addr &= 0x3ff;
+	if(addr > 0x1ff) {
+		addr &= 0x7;
+		static const uint16_t r[] = { 
+			0x0089, 0x881E, 0x0000, 0x0000, 
+			0x0089, 0xBFCF, 0x0000, 0xFFFF 
+		};
+		return r[addr];
+	}
+	return PC28F128P33BF60_CFI_Query_Table[addr];
+}
 
 static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bool rst)
 {
@@ -992,18 +1015,15 @@ static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bo
 	}
 
 	switch(f->mode) {
-	case FLASH_READ_ARRAY:             return f->nvram[0x1ffffff & addr];
-	/**@todo make array with status information in it for the PC28F128P33BF60 */
-	case FLASH_QUERY:                  return PC28F128P33BF60_CFI_Query[0x1ff & addr];
-	case FLASH_READ_DEVICE_IDENTIFIER: return 0;
+	case FLASH_READ_ARRAY:             return f->nvram[0x7ffffff & addr];
+	case FLASH_READ_DEVICE_IDENTIFIER:
+	case FLASH_QUERY:                  return PC28F128P33BF60_CFI_Query_Read(addr);
 	case FLASH_READ_STATUS_REGISTER:   return f->status;
-
 	case FLASH_WORD_PROGRAMMING:
 	case FLASH_WORD_PROGRAM:           return f->status;
-
 	case FLASH_BLOCK_ERASING:
 	case FLASH_BLOCK_ERASE:            return f->status;
-
+	case FLASH_LOCK_OPERATING:
 	case FLASH_LOCK_OPERATION:         return f->status; /* return what? */
 	default:
 		fatal("invalid flash state: %u", f->mode);
@@ -1012,9 +1032,42 @@ static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bo
 	return 0;
 }
 
+static unsigned addr_to_block(uint32_t addr)
+{
+	uint32_t lower_64k_blocks_highest_address = 127u * 64u * 1024u; /* 0x7F000 */
+	/*assert(addr < 0x7ffffff);*/
+	if(addr < lower_64k_blocks_highest_address)
+		return addr / (64u * 1024u);
+	addr -= lower_64k_blocks_highest_address;
+	addr /= (16u * 1024u);
+	return addr + 127u;
+}
+
+static unsigned block_size(unsigned block)
+{
+	if(block >= 127u)
+		return 16u * 1024u;
+	return 64u * 1024u;
+}
+
+static bool block_locked(flash_t *f, unsigned block)
+{
+	assert(f);
+	assert(block < FLASH_BLOCK_MAX);
+	return !!(f->locks[block]);
+}
+
+static bool address_protected(flash_t *f, uint32_t addr)
+{
+	assert(f);
+	return block_locked(f, addr_to_block(addr));
+}
+
 /**@todo implement the full standard for the Common Flash Memory Interface, and
  * make the timing based on a simulated calculated time instead multiples of
- * 10us */
+ * 10us 
+ * @todo check f->arg1_address == f->arg2_address when it matters 
+ * @todo implement reading the lock status of registers */
 static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe, bool we, bool rst, bool cs)
 {
 	assert(f);
@@ -1045,11 +1098,12 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 			case 0x50: f->status = FLASH_STATUS_DEVICE_READY;  break; /* changes state? */
 			case 0x10:
 			case 0x40: f->mode = FLASH_WORD_PROGRAM;           break;
-			/*case 0xE8: BUFFERED PROGRAM NOT IMPLEMENTED;     break; */
+			case 0xE8: f->mode = FLASH_BUFFERED_PROGRAM;       break;
 			case 0x20: f->mode = FLASH_BLOCK_ERASE;            break;
 			/*case 0xB0: SUSPEND NOT IMPLEMENTED;              break; */
 			/*case 0xD0: RESUME NOT IMPLEMENTED;               break; */
 			case 0x60: f->mode = FLASH_LOCK_OPERATION;         break;
+			/*case 0xC0: PROTECTION PROGRAM NOT IMPLEMENTED;     break; */
 			default:
 				warning("Common Flash Interface command not implemented: %x", (unsigned)(f->data));
 				f->mode = FLASH_READ_ARRAY;
@@ -1058,53 +1112,97 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 		break;
 	case FLASH_WORD_PROGRAM:
 		if(!we && f->we && cs) {
-			f->nvram[addr] &= f->data; /**@todo default ram to all set */
-			f->cycle = 0;
-			f->status &= ~FLASH_STATUS_DEVICE_READY;
-			f->mode = FLASH_WORD_PROGRAMMING;
+			f->cycle   = 0;
+			if(address_protected(f, f->arg1_address)) {
+				warning("address locked: %u", (unsigned)f->arg1_address);
+				f->status |= FLASH_STATUS_BLOCK_LOCKED;
+				f->mode    = FLASH_READ_STATUS_REGISTER;
+			} else {
+				f->status &= ~FLASH_STATUS_DEVICE_READY;
+				f->mode    = FLASH_WORD_PROGRAMMING;
+			}
+		} else if(we && cs) {
+			f->arg2_address = addr;
 		}
 		break;
 	case FLASH_WORD_PROGRAMMING:
 		if(f->cycle++ > FLASH_WRITE_CYCLES) {
-			f->mode    = FLASH_READ_STATUS_REGISTER;
-			f->cycle   = 0;
+			f->nvram[f->arg1_address] &= f->data; 
+			f->mode         = FLASH_READ_STATUS_REGISTER;
+			f->cycle        = 0;
 			f->status |= FLASH_STATUS_DEVICE_READY;
 		}
 		break;
 	case FLASH_LOCK_OPERATION:
-		if(we)
+		if(!we && f->we && cs) {
+			f->mode = FLASH_LOCK_OPERATING;
+		} else if(we && cs) {
+			f->arg2_address = addr;
+		}
+		break;
+	case FLASH_LOCK_OPERATING:
+		if(f->arg1_address > FLASH_BLOCK_MAX) {
+			warning("block address invalid: %u", (unsigned)f->arg1_address);
+			f->mode = FLASH_READ_STATUS_REGISTER;
 			break;
+		}
 
-		/**@todo implement locking */
 		switch(f->data) {
-		case 0xD0: break;
-		case 0x01: /* lock */
-		case 0x2F: /* lock down */
+		case 0xD0:
+			if(f->locks[f->arg1_address] != FLASH_LOCKED_DOWN)
+				f->locks[f->arg1_address] = FLASH_UNLOCKED; 
+			else
+				warning("block locked down: %u", (unsigned)f->arg1_address);
+			break;
+		case 0x01: 
+			if(f->locks[f->arg1_address] != FLASH_LOCKED_DOWN)
+				f->locks[f->arg1_address] = FLASH_LOCKED; 
+			else
+				warning("block locked down: %u", (unsigned)f->arg1_address);
+			break;
+		case 0x2F: 
+			f->locks[f->arg1_address] = FLASH_LOCKED_DOWN; 
+			break;
 		default:
 			warning("Unknown/Unimplemented Common Flash Interface Lock Operation: %x", (unsigned)(f->data));
 		}
 		f->mode = FLASH_READ_STATUS_REGISTER;
 		break;
 	case FLASH_BLOCK_ERASE:
+		/*f->status &= ~FLASH_STATUS_DEVICE_READY;*/
 		if(!we && f->we && cs) {
-			if(f->data != 0xd0) /* erase confirm */
+			if(addr != f->arg1_address)
+				warning("block addresses differ: 1(%u) 2(%u)", f->arg1_address, addr);
+			if(f->data != 0xD0) /* erase confirm */
 				f->mode = FLASH_READ_STATUS_REGISTER;
 			else
 				f->mode = FLASH_BLOCK_ERASING;
+		} else if(we && cs) {
+			f->arg2_address = addr;
 		}
 		f->cycle = 0;
 		break;
 	case FLASH_BLOCK_ERASING:
 		f->status &= ~FLASH_STATUS_DEVICE_READY;
 		if(f->cycle++ > FLASH_ERASE_CYCLES) {
-			size_t i = 0;
-			addr /= (1 << 6); /* assume block size is 64 Kilo-Word for now */
-			for(i = 0; i < (1 << 6); i++)
-				f->nvram[addr*(1 << 6) + i] = 0xFFFFu;
+			unsigned block = f->arg1_address;
+			unsigned size  = block_size(block);
+			if(block >= FLASH_BLOCK_MAX) {
+				warning("block operation out of range: %u", block);
+				f->status |= FLASH_STATUS_ERASE_BLANK;
+			} else {
+				memset(f->nvram+block*size, 0xff, sizeof(f->nvram[0])*size);
+			}
 			f->cycle = 0;
 			f->mode = FLASH_READ_STATUS_REGISTER;
 			f->status |= FLASH_STATUS_DEVICE_READY;
 		}
+		break;
+	case FLASH_BUFFERED_PROGRAM:
+	case FLASH_BUFFERED_PROGRAMMING:
+		warning("block programming not implemented");
+		f->status |= FLASH_STATUS_PROGRAM;
+		f->mode = FLASH_READ_STATUS_REGISTER;
 		break;
 	default:
 		fatal("invalid flash state: %u", f->mode);
@@ -1244,7 +1342,10 @@ static void h2_io_update_default(h2_soc_state_t *soc)
 
 h2_soc_state_t *h2_soc_state_new(void)
 {
-	return allocate_or_die(sizeof(h2_soc_state_t));
+	h2_soc_state_t *r = allocate_or_die(sizeof(h2_soc_state_t));
+	memset(r->flash.nvram, 0xff, sizeof(r->flash.nvram[0])*FLASH_BLOCK_MAX);
+	memset(r->flash.locks, FLASH_LOCKED, FLASH_BLOCK_MAX);
+	return r;
 }
 
 void h2_soc_state_free(h2_soc_state_t *soc)
