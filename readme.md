@@ -255,17 +255,13 @@ The output register map:
 | oUart       | 0x4000  | UART register                   |
 | oLeds       | 0x4001  | LED outputs                     |
 | oTimerCtrl  | 0x4002  | Timer control                   |
-| oVgaCursor  | 0x4003  | VGA Cursor X/Y cursor position  |
-| oVgaCtrl    | 0x4004  | VGA control registers           |
-| o8SegLED    | 0x4005  | 4 x LED 8 Segment display 0     |
-| oIrcMask    | 0x4006  | CPU Interrupt Mask              |
-| oLfsr       | 0x4007  | LFSR Value                      |
-| oMemControl | 0x4008  | Memory Control / Hi Address     |
-| oMemAddrLow | 0x4009  | Memory Lo Address               |
-| oMemDout    | 0x400A  | Memory Data Output              |
-| VGA Memory  | 0xC000  | VGA Memory Start                |
-|             |    -    |                                 |
-|             | 0xFFFF  | VGA Memory End                  |
+| oVga        | 0x4003  | VGA VT100 Terminal Write        |
+| o8SegLED    | 0x4004  | 4 x LED 8 Segment display 0     |
+| oIrcMask    | 0x4005  | CPU Interrupt Mask              |
+| oLfsr       | 0x4006  | LFSR Value                      |
+| oMemControl | 0x4007  | Memory Control / Hi Address     |
+| oMemAddrLow | 0x4008  | Memory Lo Address               |
+| oMemDout    | 0x4009  | Memory Data Output              |
 
 
 The input registers:
@@ -276,11 +272,10 @@ The input registers:
 | iSwitches   | 0x4001  | Buttons and switches            |
 | iTimerCtrl  | 0x4002  | Timer control Register          |
 | iTimerDin   | 0x4003  | Current Timer Value             |
-| iVgaTxtDout | 0x4004  | Contents of address oVgaTxtAddr |
+| iVga        | 0x4004  | VGA status                      |
 | iPs2        | 0x4005  | PS2 Keyboard Register           |
 | iLfsr       | 0x4006  | LFSR Seed                       |
 | iMemDin     | 0x4007  | Memory Data Input               |
-
 
 
 The following description of the registers should be read in order and describe
@@ -309,9 +304,9 @@ length, parity bits and stop bits can only be changed with modifications to
 	|  X |  X |TXWE|  X |  X |RXRE|  X |  X |               TXDO                    |
 	+-------------------------------------------------------------------------------+
 
-	TXWE: UART RT Write Enable
+	TXWE: UART TX Write Enable
 	RXRE: UART RX Read Enable
-	TXDO: Uart TX Data Output
+	TXDO: UART TX Data Output
 
 
 #### oLeds
@@ -352,45 +347,22 @@ The timer can be reset by writing to RST.
 	INTE: Interrupt Enable
 	TCMP: Timer Compare Value
 
-#### oVgaCursor
+#### oVga
 
-The VGA Text peripheral has a cursor, the cursor position can be changed with
-this register.
-
-	+-------------------------------------------------------------------------------+
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
-	|  X |  X |          POSY               |  X |            POSX                  |
-	+-------------------------------------------------------------------------------+
-
-	POSY: VGA Text Cursor Position Y
-	POSX: VGA Text Cursor Position X
-
-
-#### oVgaCtrl
-
-The VGA control register contains bits that affect the behavior of the VGA Text
-display. The VGA peripheral is a text only display, each location in video ram
-gets written out to the display as a character. The display is monochrome, but
-which color is used can be selected with the RED (for red), GRN (for green) and
-BLU (for blue) bits in the oVgaCtrl register.
-
-The CEN bit enables the cursor, and the BLK bit makes the cursor blink. The MOD
-bit changes the cursors shape.
+The VGA Text device emulates a terminal which the user can talk to by writing
+to the oVga register. It supports a subset of the [VT100][] terminal
+functionality. The interface behaves much like writing to a UART with the same
+busy and control signals.
 
 	+-------------------------------------------------------------------------------+
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	+-------------------------------------------------------------------------------+
-	|  X |  X |  X |  X |  X |  X |  X |  X |  X | VEN| CEN| BLK| MOD| RED| GRN| BLU|
+	|  X |  X |TXDO|  X |  X |  X |  X |  X |            TXD0                       |
 	+-------------------------------------------------------------------------------+
 
-	VEN: VGA Enable
-	CEN: Cursor Enable
-	BLK: Cursor Blink
-	MOD: Cursor Mode
-	RED: Red Enable
-	GRN: Green Enable
-	BLU: Blue Enable
+	TXWE: VGA VT100 TX Write Enable
+	TXDO: VGA VT100 TX Data Output
+
 
 #### o8SegLED
 
@@ -575,18 +547,21 @@ This register contains the current value of the timers counter.
 
 	TCNT: Timer Counter Value
 
-#### iVgaTxtDout
+#### iVga
 
-This register contains the value of the video memory index by oVgaTxtAddr. The
-mechanism for reading from VGA ram does not work correctly at the moment.
+Read in the status registers for the VT100 VGA terminal interface, the transmit
+values are the only ones that matter.
 
 	+-------------------------------------------------------------------------------+
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	+-------------------------------------------------------------------------------+
-	|                                     VRDO                                      |
+	|  X |  X |  X |TFFL|TFEM|  X |RFFL|RFEM|                XXXX                   |
 	+-------------------------------------------------------------------------------+
 
-	VRDO: VGA RAM Data Output
+	TFFL: VGA VT100 TX FIFO Full
+	TFEM: VGA VT100 TX FIFO Empty
+	RFFL: VGA VT100 RX FIFO Full,  always 0
+	RFEM: VGA VT100 RX FIFO Empty, always 1
 
 #### iPs2
 
@@ -1513,6 +1488,7 @@ a very compact system.
 [picocom]: https://github.com/npat-efault/picocom
 [Gforth]: https://www.gnu.org/software/gforth/
 [opencores]: https://opencores.org
+[VT100]: https://en.wikipedia.org/wiki/VT100
 
 <!--
 

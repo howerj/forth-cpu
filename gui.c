@@ -747,6 +747,8 @@ static void terminal_parse_attribute(terminal_attribute_t *a, unsigned v)
 	}
 }
 
+/**@todo move this to "h2.c", it can be used to simulate the new terminal
+ * interface being built into the hardware */
 int terminal_escape_sequences(terminal_t *t, uint8_t c)
 {
 	assert(t);
@@ -1007,7 +1009,7 @@ static vga_t vga = {
 	.cursor_x = 0,
 	.cursor_y = 0,
 
-	.control = 0,
+	.control = 0x7A,
 
 	.blink_count = 0,
 	.blink_on    = false,
@@ -1082,7 +1084,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 		return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
-	case iVgaTxtDout:   return soc->vga[soc->vga_addr & 0x1FFF];
+	case iVga:          return 0x1100;
 	case iPs2:
 		{
 			uint8_t c = 0;
@@ -1106,12 +1108,6 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 
 	if(debug_on)
 		*debug_on = false;
-	if(addr & 0x8000) {
-		soc->vga[addr & 0x1FFF] = value;
-		soc->vga_addr = addr & 0x1FFF;
-		vga.m[addr & 0x1FFF]    = value;
-		return;
-	}
 
 	switch(addr) {
 	case oUart:
@@ -1134,14 +1130,12 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oTimerCtrl:  
 		soc->timer_control  = value; 
 		break;
-	case oVgaCtrl:
-		soc->vga_control    = value;
-		vga.control         = value;
-		break;
-	case oVgaCursor:
-		soc->vga_cursor     = value;
-		vga.cursor_x        = value & 0x7f;
-		vga.cursor_y        = (value >> 8) & 0x3f;
+	case oVga: /**@todo implement VT100 terminal emulator */
+		if(0x2000 & value) {
+			vga.m[soc->vga_cursor & 0x1fff]   = value;
+			soc->vga[soc->vga_cursor & 0x1fff] = value;
+			soc->vga_cursor++;
+		}
 		break;
 	case o8SegLED:
 		for(size_t i = 0; i < SEGMENT_COUNT; i++)
@@ -1157,7 +1151,6 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 		break;
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
-	case oVgaAddr:    soc->vga_addr       = value & 0x1fff; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 		break;
@@ -1251,7 +1244,6 @@ static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y)
 	fill_textbox(&t, "I/O");
 	fill_textbox(&t, "LED             %x", (unsigned)s->leds);
 	fill_textbox(&t, "VGA Cursor:     %x", (unsigned)s->vga_cursor);
-	fill_textbox(&t, "VGA Control:    %x", (unsigned)s->vga_control);
 	fill_textbox(&t, "Timer Control:  %x", (unsigned)s->timer_control);
 	fill_textbox(&t, "Timer Count:    %x", (unsigned)s->timer);
 	fill_textbox(&t, "IRQ Mask:       %x", (unsigned)s->irc_mask);

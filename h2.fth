@@ -635,8 +635,8 @@ not consumed in the previous parse )
 
 ( ==================== Advanced I/O Control ========================== )
 
-: vga! oVga ! ; ( n a -- : write to VGA memory and adjust cursor position )
 : vga@ iVga @ ; ( -- u : read VGA status )
+: vga! ( begin vga@ $1000 and until ) $2000 or oVga ! ; ( n a -- : output character to VT100 display )
 : segments! o8SegLED ! ;   ( u -- : display a number on the LED 7/8 segment display )
 : led!      oLeds ! ;      ( u -- : write to LED lights )
 : switches  iSwitches  @ ; ( -- u : get the state of the switches)

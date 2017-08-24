@@ -302,7 +302,7 @@ begin
 		rx_data_re         <= io_dout(10)         when is_write and selector = x"0" else '0';
 		ld_n               <= io_dout(ld_n'range) when is_write and selector = x"1" else ld_c;
 		timer_control_we   <= '1'                 when is_write and selector = x"2" else '0';
-		vga_data_we        <= '1'                 when is_write and selector = x"3" else '0';
+		vga_data_we        <= io_dout(13)         when is_write and selector = x"3" else '0';
 		leds_reg_we        <= '1'                 when is_write and selector = x"4" else '0';
 		cpu_irc_mask_we    <= '1'                 when is_write and selector = x"5" else '0';
 		lfsr_i_we          <= '1'                 when is_write and selector = x"6" else '0';

@@ -1256,7 +1256,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	case iSwitches:     return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
-	case iVga:          return 0x0900;
+	case iVga:          return 0x1100;
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
 	case iMemDin:       return h2_io_memory_read_operation(soc);
@@ -1271,12 +1271,6 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	assert(soc);
 	debug("IO write addr/value: %"PRIx16"/%"PRIx16, addr, value);
 
-	if(addr & 0x8000) {
-		soc->vga[addr & 0x1FFF] = value;
-		soc->vga_addr = value & 0x1FFF;
-		return;
-	}
-
 	switch(addr) {
 	case oUart:
 			if(value & UART_TX_WE)
@@ -1286,7 +1280,10 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 			break;
 	case oLeds:       soc->leds           = value; break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
-	case oVga:        soc->vga_control    = value; break; /** @todo implement VT100 terminal */
+	case oVga:        /** @todo implement VT100 terminal */
+		if(0x2000 & value)
+			soc->vga[soc->vga_cursor++ & 0x1fff] = value;
+		break;
 	case o8SegLED:    soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;

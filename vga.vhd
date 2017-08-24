@@ -149,7 +149,7 @@ architecture rtl of vt100 is
 	constant height: positive := 40;
 
 	type state_type is (RESET, ACCEPT, COMMAND, LIMIT, WRITE, ERASING);
-	signal state: state_type := ACCEPT;
+	signal state: state_type := RESET;
 
 	constant tab:       unsigned(char'range) := x"09";
 	constant cr:        unsigned(char'range) := x"0d";
@@ -157,7 +157,6 @@ architecture rtl of vt100 is
 	constant backspace: unsigned(char'range) := x"08";
 
 	signal addr:       std_logic_vector(12 downto 0) := (others => '0');
-	signal data:       std_logic_vector(7 downto 0)  := (others => '0');
 	signal attr:       std_logic_vector(7 downto 0)  := (others => '0');
 	signal data_we:    std_logic                     := '0';
 	signal x:          std_logic_vector(6 downto 0)  := (others => '0');
@@ -167,7 +166,7 @@ architecture rtl of vt100 is
 	signal x_n, x_c: unsigned(x'range)    := (others => '0');
 	signal y_n, y_c: unsigned(y'range)    := (others => '0');
 	signal c_n, c_c: unsigned(char'range) := (others => '0');
-	signal d_n, d_c: unsigned(data'range) := (others => '0');
+	signal d_n, d_c: unsigned(char'range) := (others => '0');
 
 	signal dwe_n, dwe_c: boolean          := false;
 
@@ -182,10 +181,8 @@ begin
 		signal addr_int: integer range 8191 downto 0 := 0; --12 bits
 		signal x_int:    integer range  127 downto 0 := 0; -- 7 bits
 	begin
-		x_int    <=     to_integer(x_c);
-		addr_int <=	to_integer(y_c sll 4) +
-				to_integer(y_c sll 6) +
-				x_int;
+		x_int    <=  to_integer(x_c);
+		addr_int <= (to_integer(y_c) * width) + x_int;
 		addr <= std_logic_vector(to_unsigned(addr_int, 13));
 	end block;
 
@@ -193,9 +190,9 @@ begin
 	x_plus_one          <= x_c + 1;
 	x_underflow         <= true when x_minus_one > width - 1 else false;
 	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
+	y_plus_one          <= y_c + 1;
 
 	busy                <= '1' when state /= ACCEPT else '0';
-	data                <= std_logic_vector(d_c);
 
 	vga_blk: block
 		signal vga_din:    std_logic_vector(15 downto 0)      := (others => '0');
@@ -205,7 +202,7 @@ begin
 		vga_din        <= attr & std_logic_vector(d_c);
 		vga_ctr.crx    <= std_logic_vector(x_c);
 		vga_ctr.cry    <= std_logic_vector(y_c);
-		vga_ctr.ctl    <= x"7A";
+		vga_ctr.ctl    <= x"7A"; -- @todo only turn on if 1 character recieved?
 		vga_ctr_we.crx <= cursor_we;
 		vga_ctr_we.cry <= cursor_we;
 		vga_ctr_we.ctl <= cursor_we;
@@ -225,16 +222,17 @@ begin
 			o_vga             =>  o_vga);
 	end block;
 
+
 	fsm: process(clk, rst)
 	begin
 		if rst = '1' then
 			state <= RESET;
 		elsif rising_edge(clk) then
-			x_n       <= x_c;
-			y_n       <= y_c;
-			d_n       <= d_c;
-			c_n       <= c_c;
-			dwe_n     <= dwe_c;
+			x_c       <= x_n;
+			y_c       <= y_n;
+			d_c       <= d_n;
+			c_c       <= c_n;
+			dwe_c     <= dwe_n;
 			data_we   <= '0';
 			cursor_we <= '0';
 
@@ -254,7 +252,7 @@ begin
 			elsif state = COMMAND then
 				case c_c is
 				when tab       => 
-					x_n <= (x_c and x"F8") + 8;
+					x_n <= (x_c and "1111000") + 8;
 					state <= LIMIT;
 				when cr        => 
 					y_n <= y_plus_one;
