@@ -1256,7 +1256,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	case iSwitches:     return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
-	case iVga:          return 0x1100;
+	case iVga:          return 0x0100;
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
 	case iMemDin:       return h2_io_memory_read_operation(soc);

@@ -1084,7 +1084,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 		return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
-	case iVga:          return 0x1100;
+	case iVga:          return 0x0100;
 	case iPs2:
 		{
 			uint8_t c = 0;

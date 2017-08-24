@@ -1,15 +1,16 @@
 -------------------------------------------------------------------------------
 --| @file vga.vhd
---| @brief      Monochrome Text Mode Video Controller VHDL Module
+--| @brief      Monochrome Text Mode Video Controller VHDL Module and VT100
+--|             Terminal Emulator
 --| @author     Javier Valcarce García
---| @copyright  Copyright 2007 Javier Valcarce García
+--| @author     Richard James Howe
+--| @copyright  Copyright 2007 Javier Valcarce García, 2017 Richard James Howe
 --| @license    LGPL version 3
 --| @email      javier.valcarce@gmail.com
 --| @note       (Modifications and repackaging by Richard James Howe)
 --|
---| @todo Make a VT100 processor that can feed into this module, this would
---| drastically simplify the software running on the H2 Forth core, it could
---| treat this component as a write only UART.
+--| @todo Add scrolling by changing the base address "text_a", adding
+--| a line
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------
@@ -56,8 +57,6 @@ package vga_pkg is
 
 		-- VGA Text buffer interface
 		vga_we_ram:  in  std_logic; -- Write enable RAM
-		vga_addr_we: in  std_logic; -- Write enable address
-		vga_din_we:  in  std_logic; -- Write enable data
 		vga_din:     in  std_logic_vector(15 downto 0);
 		vga_addr:    in  std_logic_vector(12 downto 0);
 		vga_dout:    out std_logic_vector(15 downto 0):= (others => '0');
@@ -118,7 +117,6 @@ package vga_pkg is
 		rst:        in  std_logic;
 		we:         in  std_logic;
 		char:       in  std_logic_vector(7 downto 0);
-		initialize: in  std_logic;
 
 		busy:       out std_logic;
 		o_vga:      out vga_physical_interface);
@@ -138,7 +136,6 @@ entity vt100 is
 		rst:        in  std_logic;
 		we:         in  std_logic;
 		char:       in  std_logic_vector(7 downto 0);
-		initialize: in  std_logic;
 
 		busy:       out std_logic;
 		o_vga:      out vga_physical_interface);
@@ -149,12 +146,15 @@ architecture rtl of vt100 is
 	constant height: positive := 40;
 
 	type state_type is (RESET, ACCEPT, COMMAND, LIMIT, WRITE, ERASING);
-	signal state: state_type := RESET;
+	signal state_c, state_n: state_type := RESET;
 
+	constant esc:       unsigned(char'range) := x"1b";
+	constant lsqb:      unsigned(char'range) := x"5b"; -- '['
 	constant tab:       unsigned(char'range) := x"09";
 	constant cr:        unsigned(char'range) := x"0d";
 	constant lf:        unsigned(char'range) := x"0a";
 	constant backspace: unsigned(char'range) := x"08";
+	constant blank:     unsigned(char'range) := x"20";
 
 	signal addr:       std_logic_vector(12 downto 0) := (others => '0');
 	signal attr:       std_logic_vector(7 downto 0)  := (others => '0');
@@ -166,9 +166,6 @@ architecture rtl of vt100 is
 	signal x_n, x_c: unsigned(x'range)    := (others => '0');
 	signal y_n, y_c: unsigned(y'range)    := (others => '0');
 	signal c_n, c_c: unsigned(char'range) := (others => '0');
-	signal d_n, d_c: unsigned(char'range) := (others => '0');
-
-	signal dwe_n, dwe_c: boolean          := false;
 
 	signal x_minus_one:         unsigned(x'range) := (others => '0');
 	signal x_minus_one_limited: unsigned(x'range) := (others => '0');
@@ -176,6 +173,9 @@ architecture rtl of vt100 is
 	signal x_plus_one:          unsigned(x'range) := (others => '0');
 
 	signal y_plus_one:          unsigned(y'range) := (others => '0');
+
+	signal count_c, count_n:    unsigned(addr'range) := (others => '0');
+	signal limit_c, limit_n:    unsigned(addr'range) := (others => '0');
 begin
 	address: block 
 		signal addr_int: integer range 8191 downto 0 := 0; --12 bits
@@ -183,7 +183,7 @@ begin
 	begin
 		x_int    <=  to_integer(x_c);
 		addr_int <= (to_integer(y_c) * width) + x_int;
-		addr <= std_logic_vector(to_unsigned(addr_int, 13));
+		addr <= std_logic_vector(to_unsigned(addr_int, 13)) when state_c /= ERASING else std_logic_vector(count_c);
 	end block;
 
 	x_minus_one         <= x_c - 1;
@@ -192,17 +192,17 @@ begin
 	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
 	y_plus_one          <= y_c + 1;
 
-	busy                <= '1' when state /= ACCEPT else '0';
+	busy                <= '1' when state_c /= ACCEPT else '0';
 
 	vga_blk: block
 		signal vga_din:    std_logic_vector(15 downto 0)      := (others => '0');
 		signal vga_ctr_we: vga_control_registers_we_interface := vga_control_registers_we_initialize;
 		signal vga_ctr:    vga_control_registers_interface    := vga_control_registers_initialize;
 	begin
-		vga_din        <= attr & std_logic_vector(d_c);
+		vga_din        <= attr & std_logic_vector(c_c);
 		vga_ctr.crx    <= std_logic_vector(x_c);
 		vga_ctr.cry    <= std_logic_vector(y_c);
-		vga_ctr.ctl    <= x"7A"; -- @todo only turn on if 1 character recieved?
+		vga_ctr.ctl    <= x"7F"; 
 		vga_ctr_we.crx <= cursor_we;
 		vga_ctr_we.cry <= cursor_we;
 		vga_ctr_we.ctl <= cursor_we;
@@ -213,8 +213,6 @@ begin
 			clk25MHz          =>  clk25MHz,
 			rst               =>  rst,
 			vga_we_ram        =>  data_we,
-			vga_addr_we       =>  data_we,
-			vga_din_we        =>  data_we,
 			vga_din           =>  vga_din,
 			vga_addr          =>  addr,
 			i_vga_control_we  =>  vga_ctr_we,
@@ -222,75 +220,93 @@ begin
 			o_vga             =>  o_vga);
 	end block;
 
-
+	-- @todo A small subset of the ANSI escape codes should be implement
+	--
+	-- Subset to implement:
+	-- ED  - Erase Display, CSI n 'J'  
+	-- SGR - Select Graphic Rendition - for colors, CSI n 'm'
+	-- HVP - Horizontal and Vertical Position - CSI n ; m 'f'
+	--
+	-- It would also be interesting to implement an ASCII bell character
+	-- with some audio output (or perhaps just inverting the colors on
+	-- the screen for a second).
+	--
+	-- @todo Fix the bugs and test this module! Also implement a simulator
+	-- for it.
 	fsm: process(clk, rst)
 	begin
 		if rst = '1' then
-			state <= RESET;
+			state_c <= RESET;
 		elsif rising_edge(clk) then
 			x_c       <= x_n;
 			y_c       <= y_n;
-			d_c       <= d_n;
 			c_c       <= c_n;
-			dwe_c     <= dwe_n;
+			count_c   <= count_n;
+			limit_c   <= limit_n;
+			state_c   <= state_n;
 			data_we   <= '0';
 			cursor_we <= '0';
 
-			if state = RESET then
-				x_c       <= (others => '0');
-				y_c       <= (others => '0');
-				d_c       <= (others => '0');
-				c_c       <= (others => '0');
-				dwe_c     <= false;
-				cursor_we <= '1';
-				state     <= ACCEPT;
-			elsif state = ACCEPT then
+			if state_c = RESET then
+				x_n       <= (others => '0');
+				y_n       <= (others => '0');
+				c_n       <= (others => '0');
+				count_n   <= (others => '0');
+				limit_n   <= (others => '0');
+				state_n   <= ACCEPT;
+			elsif state_c = ACCEPT then
 				if we = '1' then
 					c_n   <= unsigned(char);
-					state <= COMMAND;
+					state_n <= COMMAND;
 				end if;
-			elsif state = COMMAND then
+			elsif state_c = COMMAND then
 				case c_c is
-				when tab       => 
-					x_n <= (x_c and "1111000") + 8;
-					state <= LIMIT;
-				when cr        => 
-					y_n <= y_plus_one;
-					state <= LIMIT;
-				when lf        => 
-					x_n <= (others => '0');
-					state <= WRITE;
+				when tab => 
+					x_n     <= (x_c and "1111000") + 8;
+					state_n <= ERASING;
+					c_n     <= blank;
+					limit_n <= unsigned(addr and "1111111111000") + 8;
+					count_n <= unsigned(addr);
+				when cr => 
+					y_n     <= y_plus_one;
+					state_n <= LIMIT;
+				when lf => 
+					x_n     <= (others => '0');
+					state_n <= ACCEPT;
 				when backspace => 
-					x_n <= x_minus_one_limited;
-					state <= WRITE;
-				when others    => d_n <= c_c;
-					x_n <= x_plus_one;
-					dwe_n <= true;
-					state <= LIMIT;
+					x_n     <= x_minus_one_limited;
+					state_n <= WRITE;
+				when others => 
+					x_n     <= x_plus_one;
+					data_we <= '1';
+					state_n <= LIMIT;
 				end case;
-			elsif state = LIMIT then
+			elsif state_c = LIMIT then
 				if x_c > width - 1 then
 					x_n <= (others => '0');
 					y_n <= y_plus_one;
 				elsif y_c > height - 1 then
-					x_n <= (others => '0');
-					y_n <= (others => '0');
-					state <= ERASING;
+					x_n     <= (others => '0');
+					y_n     <= (others => '0');
+					state_n <= ERASING;
+					c_n     <= blank;
+					count_n <= (others => '0');
+					limit_n <= "1000000000000";
 				else
-					state <= WRITE;
+					state_n <= WRITE;
 				end if;
-			elsif state = WRITE then
-				state     <= ACCEPT;
+			elsif state_c = WRITE then
+				state_n   <= ACCEPT;
 				cursor_we <= '1';
-
-				if dwe_c then
+			elsif state_c = ERASING then
+				if count_c /= limit_c then
+					count_n <= count_c + 1;
 					data_we <= '1';
-					dwe_n   <= false;
+				else
+					state_n <= LIMIT;
 				end if;
-			elsif state = ERASING then
-				state <= ACCEPT;
 			else
-				state <= RESET;
+				state_n <= RESET;
 			end if;
 		end if;
 	end process;
@@ -310,8 +326,6 @@ entity vga_top is
 
 		-- VGA Text buffer interface
 		vga_we_ram:       in  std_logic; -- Write enable RAM
-		vga_addr_we:      in  std_logic; -- Write enable address
-		vga_din_we:       in  std_logic; -- Write enable data
 		vga_din:          in  std_logic_vector(15 downto 0);
 		vga_addr:         in  std_logic_vector(12 downto 0);
 		vga_dout:         out std_logic_vector(15 downto 0) := (others => '0');
@@ -354,9 +368,6 @@ architecture behav of vga_top is
 
 	signal  control_c, control_n: vga_control_registers_interface := vga_control_registers_initialize;
 
-	-- Internal registers for buffering write operation to RAM memory
-	signal  din_c,  din_n:   std_logic_vector(15 downto 0) := (others => '0');
-	signal  addr_c, addr_n:  std_logic_vector(12 downto 0) := (others => '0');
 begin
 	-- Output assignments, syncs elsewhere
 	-- o_vga.red   <= (others => R_internal);
@@ -376,12 +387,8 @@ begin
 	begin
 		if rst = '1' then
 			control_c   <= vga_control_registers_initialize;
-			din_c       <= (others => '0');
-			addr_c      <= (others => '0');
 		elsif rising_edge(clk) then
 			control_c   <= control_n;
-			din_c       <= din_n;
-			addr_c      <= addr_n;
 		end if;
 	end process;
 
@@ -390,27 +397,17 @@ begin
 	vga_creg_we: process(
 		control_c,
 		i_vga_control,
-		i_vga_control_we,
-
-		din_c, addr_c,
-		vga_addr_we, vga_din,
-		vga_din_we, vga_addr)
+		i_vga_control_we)
 	begin
 		control_n <= control_c;
-
-		din_n  <= din_c;
-		addr_n <= addr_c;
 
 		if i_vga_control_we.crx = '1' then control_n.crx <= i_vga_control.crx; end if;
 		if i_vga_control_we.cry = '1' then control_n.cry <= i_vga_control.cry; end if;
 		if i_vga_control_we.ctl = '1' then control_n.ctl <= i_vga_control.ctl; end if;
-		if vga_din_we = '1'           then din_n         <= vga_din;           end if;
-		if vga_addr_we = '1'          then addr_n        <= vga_addr;          end if;
-
 	end process;
 
 	-- The actual VGA module
-	u_vga : work.vga_pkg.vga_core port map (
+	u_vga: work.vga_pkg.vga_core port map (
 		rst       => rst,
 		clk25MHz  => clk25MHz,
 
@@ -445,8 +442,8 @@ begin
 		-- External interface
 		a_dwe  => vga_we_ram,
 		a_dre  => '1',
-		a_addr => addr_c,
-		a_din  => din_c,
+		a_addr => vga_addr,
+		a_din  => vga_din,
 		a_dout => vga_dout,
 		-- Internal interface
 		b_clk  => clk25MHz,

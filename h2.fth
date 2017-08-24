@@ -529,6 +529,8 @@ not consumed in the previous parse )
 \ : save last cp @ rendezvous 2! ; hidden
 \ : restore rendezvous 2@ cp ! context ! ; hidden ( @todo Fix restore to be vocabulary friendly )
 
+( @todo Only print out message if block storage loaded correctly, otherwise
+just print out the number )
 : on-error ( n -- : perform actions on error )
 	?dup if
 		[char] ? emit ( print error message )
@@ -635,8 +637,7 @@ not consumed in the previous parse )
 
 ( ==================== Advanced I/O Control ========================== )
 
-: vga@ iVga @ ; ( -- u : read VGA status )
-: vga! ( begin vga@ $1000 and until ) $2000 or oVga ! ; ( n a -- : output character to VT100 display )
+: vga! begin iVga @ $1000 and 0= until $2000 or oVga ! ; ( n a -- : output character to VT100 display )
 : segments! o8SegLED ! ;   ( u -- : display a number on the LED 7/8 segment display )
 : led!      oLeds ! ;      ( u -- : write to LED lights )
 : switches  iSwitches  @ ; ( -- u : get the state of the switches)
