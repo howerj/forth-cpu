@@ -1256,7 +1256,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	case iSwitches:     return soc->switches;
 	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
-	case iVgaTxtDout:   return soc->vga[soc->vga_addr & 0x1FFF];
+	case iVga:          return 0x0900;
 	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
 	case iLfsr:         return soc->lfsr;
 	case iMemDin:       return h2_io_memory_read_operation(soc);
@@ -1286,8 +1286,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 			break;
 	case oLeds:       soc->leds           = value; break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
-	case oVgaCtrl:    soc->vga_control    = value; break;
-	case oVgaCursor:  soc->vga_cursor     = value; break;
+	case oVga:        soc->vga_control    = value; break; /** @todo implement VT100 terminal */
 	case o8SegLED:    soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
@@ -1305,7 +1304,6 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	}
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
-	case oVgaAddr:    soc->vga_addr       = value & 0x1FFF; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 	}

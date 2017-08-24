@@ -68,22 +68,20 @@ constant word-length   31    ( maximum length of a word )
 constant oUart         $4000 ( UART TX/RX Control register )
 constant oLeds         $4001 ( LEDs )
 constant oTimerCtrl    $4002 ( Timer Control )
-constant oVgaCursor    $4003 ( VGA X/Y Cursor position )
-constant oVgaCtrl      $4004 ( VGA Control )
-constant o8SegLED      $4005 ( 4x7 Segment display )
-constant oIrcMask      $4006 ( Interrupt Mask )
-constant oLfsr         $4007 ( Seed value of LFSR )
-constant oMemControl   $4008 ( Memory control and high address bits )
-constant oMemAddrLow   $4009 ( Lower memory address bits )
-constant oMemDout      $400A ( Memory output for writes )
-constant oVgaAddr      $400B ( VGA memory address output )
+constant oVga          $4003 ( VGA X/Y Cursor position )
+constant o8SegLED      $4004 ( 4x7 Segment display )
+constant oIrcMask      $4005 ( Interrupt Mask )
+constant oLfsr         $4006 ( Seed value of LFSR )
+constant oMemControl   $4007 ( Memory control and high address bits )
+constant oMemAddrLow   $4008 ( Lower memory address bits )
+constant oMemDout      $4009 ( Memory output for writes )
 
 ( Inputs: $6000 - $7FFF )
 constant iUart         $4000 ( Matching registers for iUart )
 constant iSwitches     $4001 ( Switch control [on/off] )
 constant iTimerCtrl    $4002 ( Timer control, not really needed )
 constant iTimerDin     $4003 ( Current timer value )
-constant iVgaTxtDout   $4004 ( VGA text output, currently broken )
+constant iVga          $4004 ( VGA text output, currently broken )
 constant iPs2          $4005 ( PS/2 keyboard input )
 constant iLfsr         $4006 ( Input from Linear Feedback Shift Register )
 constant iMemDin       $4007 ( Memory input for reads )
@@ -131,7 +129,6 @@ location _id        0  ( used for source id )
 location rendezvous 0  ( saved cp and pwd )
 .allocate cell
 location seed       1  ( seed used for the PRNG )
-location cursor     0  ( index into VGA text memory )
 location handler    0  ( current handler for throw/catch )
 variable >in        0  ( Hold character pointer when parsing input )
 variable state      0  ( compiler state variable )
@@ -638,8 +635,8 @@ not consumed in the previous parse )
 
 ( ==================== Advanced I/O Control ========================== )
 
-: vga! ( vga.screen @ if 4096 + then ) $C000 or ! ; ( n a -- : write to VGA memory and adjust cursor position )
-: vga@ oVgaAddr ! iVgaTxtDout @ ; ( a -- u : read VGA value at address )
+: vga! oVga ! ; ( n a -- : write to VGA memory and adjust cursor position )
+: vga@ iVga @ ; ( -- u : read VGA status )
 : segments! o8SegLED ! ;   ( u -- : display a number on the LED 7/8 segment display )
 : led!      oLeds ! ;      ( u -- : write to LED lights )
 : switches  iSwitches  @ ; ( -- u : get the state of the switches)
@@ -647,40 +644,7 @@ not consumed in the previous parse )
 : timer     iTimerDin  @ ; ( -- u )
 : ps2? iPs2 @ dup $ff and swap $100 and if [-1] else drop 0 then ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
 : input rx? if [-1] else ps2? then ; hidden ( -- c -1 | 0 : UART and PS/2 Input )
-: vga.at-xy 256* or oVgaCursor ! ; hidden ( x y -- : set terminal cursor to x-y position )
-: vgaX* dup 6 lshift swap 4 lshift + ; hidden ( n -- n : 80* )
-: vgaTextSizeMod dup vgaTextSize u> if vgaTextSize - then ; hidden
-
-: vga.page ( -- : clear the VGA display )
-	0 cursor !
-	vgaTextSize
-	begin
-		dup
-	while
-		dup =bl swap vga! 1-
-	repeat drop ; hidden
-
-( @todo Vector these words, or look at the state of _emit, _echo and _key
-and take appropriate action
-@bug ansi.page and ansi.at-xy should only write over the UART, otherwise
-this causes major problems and blows up the return stack )
-: page   ( ansi.page ) vga.page ; ( -- : clear screen )
-: at-xy  ( 2dup ansi.at-xy )  vga.at-xy ;
-
-( @todo This does not handle transitions between screen correctly, it appears
-a character is dropped somewhere )
-: terminal ( n a -- a : act like a terminal )
-	swap
-	dup =lf = if drop 0 vgaX um/mod nip 1+ dup 0 swap vga.at-xy vgaX* exit then
-	dup =cr = if drop exit then
-	dup =bs = if drop 1- exit then
-	swap vgaTextSizeMod tuck dup 1+ 0 vgaX um/mod vga.at-xy vga! 1+ ; hidden
-
-: output ( c -- : write to UART and VGA display )
-	dup tx!
-	( drop exit \ @note The rest of this word is responsible for the large return stack usage )
-	cursor @ terminal
-	dup 1+ cursor @ u< if drop page else cursor ! then ; hidden
+: output dup tx! vga! ; hidden ( c -- : write to UART and VGA display )
 
 : pace 11 emit ; hidden
 : xio  ' accept _expect ! _tap ! _echo ! _prompt ! ; hidden
@@ -688,7 +652,7 @@ a character is dropped somewhere )
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? _key? ! ' tx! _emit ! hand ;
 : interactive ' input _key? ! ' output _emit ! hand ; hidden
-: io! 1 oLfsr ! interactive vgaInit oVgaCtrl ! 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
+: io! 1 oLfsr ! interactive 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
 : ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr ;
 
@@ -1203,5 +1167,5 @@ start:
 .set _bload    memory-load ( execution vector of _bload, used in block )
 .set _bsave    memory-save ( execution vector of _bsave, used in block )
 .set _binvalid minvalid    ( execution vector of _invalid, used in block )
-.set _page     page        ( execution vector of _page, used in list )
+\ .set _page     page        ( execution vector of _page, used in list )
 .set _message  message     ( execution vector of _message, used in on-error)

@@ -28,8 +28,8 @@ package vga_pkg is
 
 	type vga_control_registers_we_interface is record
 		crx: std_logic; -- Write enable for cursor X position register
-		ctl: std_logic; -- Write enable for cursor Y position register
 		cry: std_logic; -- Write enable for VGA control register
+		ctl: std_logic; -- Write enable for cursor Y position register
 	end record;
 
 	type vga_control_registers_interface is record
@@ -111,9 +111,192 @@ package vga_pkg is
 			do:  out integer range (M-1) downto 0 := 0);
 	end component;
 
+	component vt100 is
+	port(
+		clk:        in  std_logic;
+		clk25MHz:   in  std_logic;
+		rst:        in  std_logic;
+		we:         in  std_logic;
+		char:       in  std_logic_vector(7 downto 0);
+		initialize: in  std_logic;
+
+		busy:       out std_logic;
+		o_vga:      out vga_physical_interface);
+	end component;
 end package;
 
 ----- VGA Package -------------------------------------------------------------
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.vga_pkg.all;
+
+entity vt100 is
+	port(
+		clk:        in  std_logic;
+		clk25MHz:   in  std_logic;
+		rst:        in  std_logic;
+		we:         in  std_logic;
+		char:       in  std_logic_vector(7 downto 0);
+		initialize: in  std_logic;
+
+		busy:       out std_logic;
+		o_vga:      out vga_physical_interface);
+end entity;
+
+architecture rtl of vt100 is
+	constant width:  positive := 80;
+	constant height: positive := 40;
+
+	type state_type is (RESET, ACCEPT, COMMAND, LIMIT, WRITE, ERASING);
+	signal state: state_type := ACCEPT;
+
+	constant tab:       unsigned(char'range) := x"09";
+	constant cr:        unsigned(char'range) := x"0d";
+	constant lf:        unsigned(char'range) := x"0a";
+	constant backspace: unsigned(char'range) := x"08";
+
+	signal addr:       std_logic_vector(12 downto 0) := (others => '0');
+	signal data:       std_logic_vector(7 downto 0)  := (others => '0');
+	signal attr:       std_logic_vector(7 downto 0)  := (others => '0');
+	signal data_we:    std_logic                     := '0';
+	signal x:          std_logic_vector(6 downto 0)  := (others => '0');
+	signal y:          std_logic_vector(5 downto 0)  := (others => '0');
+	signal cursor_we:  std_logic                     := '0';
+
+	signal x_n, x_c: unsigned(x'range)    := (others => '0');
+	signal y_n, y_c: unsigned(y'range)    := (others => '0');
+	signal c_n, c_c: unsigned(char'range) := (others => '0');
+	signal d_n, d_c: unsigned(data'range) := (others => '0');
+
+	signal dwe_n, dwe_c: boolean          := false;
+
+	signal x_minus_one:         unsigned(x'range) := (others => '0');
+	signal x_minus_one_limited: unsigned(x'range) := (others => '0');
+	signal x_underflow:         boolean           := false;
+	signal x_plus_one:          unsigned(x'range) := (others => '0');
+
+	signal y_plus_one:          unsigned(y'range) := (others => '0');
+begin
+	address: block 
+		signal addr_int: integer range 8191 downto 0 := 0; --12 bits
+		signal x_int:    integer range  127 downto 0 := 0; -- 7 bits
+	begin
+		x_int    <=     to_integer(x_c);
+		addr_int <=	to_integer(y_c sll 4) +
+				to_integer(y_c sll 6) +
+				x_int;
+		addr <= std_logic_vector(to_unsigned(addr_int, 13));
+	end block;
+
+	x_minus_one         <= x_c - 1;
+	x_plus_one          <= x_c + 1;
+	x_underflow         <= true when x_minus_one > width - 1 else false;
+	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
+
+	busy                <= '1' when state /= ACCEPT else '0';
+	data                <= std_logic_vector(d_c);
+
+	vga_blk: block
+		signal vga_din:    std_logic_vector(15 downto 0)      := (others => '0');
+		signal vga_ctr_we: vga_control_registers_we_interface := vga_control_registers_we_initialize;
+		signal vga_ctr:    vga_control_registers_interface    := vga_control_registers_initialize;
+	begin
+		vga_din        <= attr & std_logic_vector(d_c);
+		vga_ctr.crx    <= std_logic_vector(x_c);
+		vga_ctr.cry    <= std_logic_vector(y_c);
+		vga_ctr.ctl    <= x"7A";
+		vga_ctr_we.crx <= cursor_we;
+		vga_ctr_we.cry <= cursor_we;
+		vga_ctr_we.ctl <= cursor_we;
+
+		vga_0: work.vga_pkg.vga_top
+		port map(
+			clk               =>  clk,
+			clk25MHz          =>  clk25MHz,
+			rst               =>  rst,
+			vga_we_ram        =>  data_we,
+			vga_addr_we       =>  data_we,
+			vga_din_we        =>  data_we,
+			vga_din           =>  vga_din,
+			vga_addr          =>  addr,
+			i_vga_control_we  =>  vga_ctr_we,
+			i_vga_control     =>  vga_ctr,
+			o_vga             =>  o_vga);
+	end block;
+
+	fsm: process(clk, rst)
+	begin
+		if rst = '1' then
+			state <= RESET;
+		elsif rising_edge(clk) then
+			x_n       <= x_c;
+			y_n       <= y_c;
+			d_n       <= d_c;
+			c_n       <= c_c;
+			dwe_n     <= dwe_c;
+			data_we   <= '0';
+			cursor_we <= '0';
+
+			if state = RESET then
+				x_c       <= (others => '0');
+				y_c       <= (others => '0');
+				d_c       <= (others => '0');
+				c_c       <= (others => '0');
+				dwe_c     <= false;
+				cursor_we <= '1';
+				state     <= ACCEPT;
+			elsif state = ACCEPT then
+				if we = '1' then
+					c_n   <= unsigned(char);
+					state <= COMMAND;
+				end if;
+			elsif state = COMMAND then
+				case c_c is
+				when tab       => 
+					x_n <= (x_c and x"F8") + 8;
+					state <= LIMIT;
+				when cr        => 
+					y_n <= y_plus_one;
+					state <= LIMIT;
+				when lf        => 
+					x_n <= (others => '0');
+					state <= WRITE;
+				when backspace => 
+					x_n <= x_minus_one_limited;
+					state <= WRITE;
+				when others    => d_n <= c_c;
+					x_n <= x_plus_one;
+					dwe_n <= true;
+					state <= LIMIT;
+				end case;
+			elsif state = LIMIT then
+				if x_c > width - 1 then
+					x_n <= (others => '0');
+					y_n <= y_plus_one;
+				elsif y_c > height - 1 then
+					x_n <= (others => '0');
+					y_n <= (others => '0');
+					state <= ERASING;
+				else
+					state <= WRITE;
+				end if;
+			elsif state = WRITE then
+				state     <= ACCEPT;
+				cursor_we <= '1';
+
+				if dwe_c then
+					data_we <= '1';
+					dwe_n   <= false;
+				end if;
+			elsif state = ERASING then
+				state <= ACCEPT;
+			else
+				state <= RESET;
+			end if;
+		end if;
+	end process;
+end architecture;
 
 ----- VGA Top Level Component -------------------------------------------------
 library ieee,work;
@@ -476,11 +659,9 @@ begin
 				to_integer(to_unsigned(scry,12) sll 6) +
 				scrx;
 
-		text_a <= std_logic_vector(to_unsigned(ram_tmp, 12));
-
+		text_a  <= std_logic_vector(to_unsigned(ram_tmp, 12));
 		rom_tmp <= to_integer(unsigned(text_d)) * 12 + chry;
-
-		font_a <= std_logic_vector(to_unsigned(rom_tmp, 12));
+		font_a  <= std_logic_vector(to_unsigned(rom_tmp, 12));
 
 	end block;
 

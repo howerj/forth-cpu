@@ -110,13 +110,12 @@ architecture behav of top is
 	-- Basic IO register
 
 	---- LEDs/Switches
-	signal ld_c, ld_n: std_logic_vector(7 downto 0):=  (others => '0');
+	signal ld_c, ld_n: std_logic_vector(7 downto 0)  :=  (others => '0');
 
 	---- VGA
-	signal vga_control:    vga_control_registers_interface    := vga_control_registers_initialize;
-	signal vga_control_we: vga_control_registers_we_interface := vga_control_registers_we_initialize;
-	signal vga_dout:            std_logic_vector(15 downto 0) := (others => '0');
-	signal vga_update_address : std_logic                     := '0';
+	signal vga_data:      std_logic_vector(7 downto 0) := (others => '0');
+	signal vga_data_we:   std_logic                    := '0';
+	signal vga_data_busy: std_logic                    := '0';
 
 	---- UART
 	signal rx_data:        std_logic_vector(7 downto 0) := (others => '0');
@@ -281,9 +280,7 @@ begin
 
 	cpu_irc_mask      <= io_dout(number_of_interrupts - 1 downto 0);
 	timer_control_i   <= io_dout;
-	vga_control.crx   <= io_dout(6 downto 0);
-	vga_control.cry   <= io_dout(13 downto 8);
-	vga_control.ctl   <= io_dout(vga_control.ctl'range);
+	vga_data          <= io_dout(vga_data'range);
 	leds_reg          <= io_dout;
 	tx_data           <= io_dout(tx_data'range);
 	lfsr_i            <= io_dout;
@@ -301,21 +298,18 @@ begin
 		selector <= io_daddr(3 downto 0);
 		is_write <= true when io_wr = '1' and io_daddr(15) = '0' else false;
 
-		tx_data_we         <= io_dout(13)         when is_write and selector = "0000" else '0';
-		rx_data_re         <= io_dout(10)         when is_write and selector = "0000" else '0';
-		ld_n               <= io_dout(7 downto 0) when is_write and selector = "0001" else ld_c;
-		timer_control_we   <= '1'                 when is_write and selector = "0010" else '0';
-		vga_control_we.crx <= '1'                 when is_write and selector = "0011" else '0';
-		vga_control_we.cry <= '1'                 when is_write and selector = "0011" else '0';
-		vga_control_we.ctl <= '1'                 when is_write and selector = "0100" else '0';
-		leds_reg_we        <= '1'                 when is_write and selector = "0101" else '0';
-		cpu_irc_mask_we    <= '1'                 when is_write and selector = "0110" else '0';
-		lfsr_i_we          <= '1'                 when is_write and selector = "0111" else '0';
-		mem_addr_26_17_we  <= '1'                 when is_write and selector = "1000" else '0';
-		mem_control_we     <= '1'                 when is_write and selector = "1000" else '0';
-		mem_addr_16_1_we   <= '1'                 when is_write and selector = "1001" else '0';
-		mem_data_i_we      <= '1'                 when is_write and selector = "1010" else '0';
-		vga_update_address <= '1'                 when is_write and selector = "1011" else '0';
+		tx_data_we         <= io_dout(13)         when is_write and selector = x"0" else '0';
+		rx_data_re         <= io_dout(10)         when is_write and selector = x"0" else '0';
+		ld_n               <= io_dout(ld_n'range) when is_write and selector = x"1" else ld_c;
+		timer_control_we   <= '1'                 when is_write and selector = x"2" else '0';
+		vga_data_we        <= '1'                 when is_write and selector = x"3" else '0';
+		leds_reg_we        <= '1'                 when is_write and selector = x"4" else '0';
+		cpu_irc_mask_we    <= '1'                 when is_write and selector = x"5" else '0';
+		lfsr_i_we          <= '1'                 when is_write and selector = x"6" else '0';
+		mem_addr_26_17_we  <= '1'                 when is_write and selector = x"7" else '0';
+		mem_control_we     <= '1'                 when is_write and selector = x"8" else '0';
+		mem_addr_16_1_we   <= '1'                 when is_write and selector = x"9" else '0';
+		mem_data_i_we      <= '1'                 when is_write and selector = x"A" else '0';
 	end block;
 
 	io_read: process(
@@ -323,8 +317,6 @@ begin
 		sw_d, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
 		kbd_char, kbd_new_c, kbd_char_c,
 		kbd_new_edge,
-
-		vga_dout,
 
 		rx_data_n,
 		rx_fifo_empty,
@@ -337,6 +329,8 @@ begin
 
 		timer_control_o,
 		timer_counter_o,
+
+		vga_data_busy,
 
 		mem_data_o)
 	begin
@@ -366,8 +360,11 @@ begin
 				io_din <= timer_control_o;
 			when "011" => -- Timer in
 				io_din(timer_counter_o'range) <= timer_counter_o;
-			when "100" => -- VGA dout
-				io_din <= vga_dout;
+			when "100" => -- VT100 status
+				io_din(8)          <= '1';
+				io_din(9)          <= '0';
+				io_din(11)         <= not vga_data_busy;
+				io_din(12)         <= vga_data_busy;
 			when "101" => -- PS/2 Keyboard, Check for new char
 				io_din(6 downto 0) <= kbd_char_c;
 				io_din(8)          <= kbd_new_c;
@@ -439,54 +436,16 @@ begin
 
 	--- VGA -----------------------------------------------------------
 
-	-- @note Writes to the VGA memory are memory mapped, reads however
-	-- have to go through a special register, for timing related reasons,
-	-- this makes the interface odd and does not buy us much in the
-	-- way of functionality. It might be better going back to the old
-	-- interface.
-	vga: block
-		signal vga_din_we_d: std_logic := '0';
-		signal vga_we_ram:   std_logic := '0';
-		signal vga_addr_we:  std_logic := '0';
-		signal vga_din_we:   std_logic := '0';
-		signal vga_addr:     std_logic_vector(12 downto 0) := (others => '0');
-		signal vga_din:      std_logic_vector(15 downto 0) := (others => '0');
-	begin
-		vga_din_we   <= '1' when io_wr = '1' and io_daddr(15) = '1' else '0';
-
-
-		vga_addr_we  <= '1' when vga_din_we = '1' or vga_update_address = '1' else '0';
-		vga_din_we_d <= vga_din_we;
-		vga_addr     <= io_daddr(12 downto 0); -- @todo 13 downto 1 ??
-		vga_din      <= io_dout;
-
-		delay: process(clk, rst)
-		begin
-			if rst = '1' then
-				vga_we_ram <= '0';
-			elsif rising_edge(clk) then
-				vga_we_ram <= vga_din_we_d;
-			end if;
-		end process;
-
-		vga_0: entity work.vga_top
-		port map(
-			clk        => clk,
-			clk25MHz   => clk25MHz,
-			rst        => rst,
-
-			i_vga_control    => vga_control,
-			i_vga_control_we => vga_control_we,
-
-			vga_we_ram  => vga_we_ram,
-			vga_addr_we => vga_addr_we,
-			vga_din_we  => vga_din_we,
-			vga_dout    => vga_dout,
-			vga_din     => vga_din,
-			vga_addr    => vga_addr,
-
-			o_vga      => o_vga);
-	end block;
+	vt100_0: work.vga_pkg.vt100
+	port map(
+		clk         =>  clk,
+		clk25MHz    =>  clk25MHz,
+		rst         =>  rst,
+		we          =>  vga_data_we,
+		char        =>  vga_data,
+		initialize  =>  '0',
+		busy        =>  vga_data_busy,
+		o_vga       =>  o_vga);
 
 	--- VGA -----------------------------------------------------------
 
