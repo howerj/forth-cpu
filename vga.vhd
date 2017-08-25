@@ -121,9 +121,125 @@ package vga_pkg is
 		busy:       out std_logic;
 		o_vga:      out vga_physical_interface);
 	end component;
+
+	component accumulator is
+		generic(
+			N:      positive := 16);
+		port(
+			clk:    in  std_logic;
+			rst:    in  std_logic;
+			we:     in  std_logic;
+			init:   in  std_logic;
+			char:   in  std_logic_vector(7 downto 0);
+			char_o: out std_logic_vector(7 downto 0);
+			done_o: out std_logic;
+			ready:  out std_logic;
+			n_o:    out unsigned(N - 1 downto 0));
+	end component;
+
 end package;
 
 ----- VGA Package -------------------------------------------------------------
+
+----- Accumulator -------------------------------------------------------------
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.vga_pkg.all;
+
+entity accumulator is
+	generic(
+		N:      positive := 16);
+	port(
+		clk:    in  std_logic;
+		rst:    in  std_logic;
+		we:     in  std_logic;
+		init:   in  std_logic;
+		char:   in  std_logic_vector(7 downto 0);
+		char_o: out std_logic_vector(7 downto 0);
+		done_o: out std_logic;
+		ready:  out std_logic;
+		n_o:    out unsigned(N - 1 downto 0));
+end entity;
+
+architecture rlt of accumulator is
+	type state_type is (RESET, WAITING, COMMAND, ACCUMULATE, WRITE, FINISHED);
+	signal state_c, state_n: state_type   := RESET;
+	signal c_c, c_n: unsigned(char'range) := (others => '0');
+	signal n_c, n_n: unsigned(n_o'range)  := (others => '0');
+	signal f_c, f_n: boolean              := true;
+begin
+	char_o <= std_logic_vector(c_c);
+	n_o    <= n_c;
+	ready  <= '1' when state_c = WAITING else '0';
+
+	process(clk, rst)
+		variable akk: unsigned((2 * N) - 1 downto 0) := (others => '0');
+	begin
+		if rst = '1' then
+			state_n   <= RESET;
+		elsif rising_edge(clk) then
+			state_c <= state_n;
+			c_c     <= c_n;
+			n_c     <= n_n;
+			f_c     <= f_n;
+			done_o  <= '0';
+
+			if state_c = RESET then
+				c_n     <= (others => '0');
+				n_n     <= (others => '0');
+				f_n     <= true;
+				state_n <= WAITING;
+			elsif state_c = WAITING then
+				if we = '1' then
+					c_n     <= unsigned(char);
+					state_n <= COMMAND;
+				end if;
+			elsif state_c = COMMAND then
+				state_n <= ACCUMULATE;
+				case c_c is
+				when x"30"  => 
+				when x"31"  => 
+				when x"32"  => 
+				when x"33"  => 
+				when x"34"  => 
+				when x"35"  => 
+				when x"36"  => 
+				when x"37"  => 
+				when x"38"  => 
+				when x"39"  =>
+				when others =>
+					state_n <= WRITE;
+				end case;
+			elsif state_c = ACCUMULATE then
+				if f_c then
+					f_n <= false;
+					n_n <= n_c + (c_c - x"30");
+				else
+					akk := n_c * to_unsigned(10, N);
+					n_n <= akk(N - 1 downto 0) + (c_c - x"30");
+				end if;
+				state_n <= WAITING;
+			elsif state_c = WRITE then
+				done_o  <= '1';
+				state_n <= FINISHED;
+			elsif state_c = FINISHED then
+				null; -- wait for a reset
+			else
+				state_n <= RESET;
+			end if;
+			
+			if init = '1' then
+				state_n <= RESET;
+			end if;
+		end if;
+	end process;
+
+end architecture;
+----- Accumulator -------------------------------------------------------------
+
+----- VT100 Terminal Emulator -------------------------------------------------
+
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -144,8 +260,9 @@ end entity;
 architecture rtl of vt100 is
 	constant width:  positive := 80;
 	constant height: positive := 40;
+	constant number: positive := 8;
 
-	type state_type is (RESET, ACCEPT, COMMAND, LIMIT, WRITE, ERASING);
+	type state_type is (RESET, ACCEPT, NORMAL, WRAP, CSI, COMMAND, NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING);
 	signal state_c, state_n: state_type := RESET;
 
 	constant esc:       unsigned(char'range) := x"1b";
@@ -155,6 +272,7 @@ architecture rtl of vt100 is
 	constant lf:        unsigned(char'range) := x"0a";
 	constant backspace: unsigned(char'range) := x"08";
 	constant blank:     unsigned(char'range) := x"20";
+	constant ascii_c:   unsigned(char'range) := x"63"; -- c
 
 	signal addr:       std_logic_vector(12 downto 0) := (others => '0');
 	signal attr:       std_logic_vector(7 downto 0)  := (others => '0');
@@ -167,6 +285,9 @@ architecture rtl of vt100 is
 	signal y_n, y_c: unsigned(y'range)    := (others => '0');
 	signal c_n, c_c: unsigned(char'range) := (others => '0');
 
+	signal n1_n, n1_c: unsigned(y'range) := (others => '0');
+	signal n2_n, n2_c: unsigned(x'range) := (others => '0');
+
 	signal x_minus_one:         unsigned(x'range) := (others => '0');
 	signal x_minus_one_limited: unsigned(x'range) := (others => '0');
 	signal x_underflow:         boolean           := false;
@@ -176,13 +297,32 @@ architecture rtl of vt100 is
 
 	signal count_c, count_n:    unsigned(addr'range) := (others => '0');
 	signal limit_c, limit_n:    unsigned(addr'range) := (others => '0');
+
+	signal akk_done_o:  std_logic := '0';
+	signal akk_ready_o: std_logic := '0';
+	signal akk_init:    std_logic := '0';
+	signal n_o:         unsigned(number - 1 downto 0) := (others => '0');
+	signal akk_char_o:  std_logic_vector(char'range) := (others => '0');
 begin
+	accumulator_0: work.vga_pkg.accumulator
+		generic map(N => number)
+		port map(
+			clk    => clk,
+			rst    => rst,
+			we     => we,
+			init   => akk_init,
+			char   => char,
+			char_o => akk_char_o,
+			done_o => akk_done_o,
+			ready  => akk_ready_o,
+			n_o    => n_o);
+
 	address: block 
 		signal addr_int: integer range 8191 downto 0 := 0; --12 bits
 		signal x_int:    integer range  127 downto 0 := 0; -- 7 bits
 	begin
-		x_int    <=  to_integer(x_c);
-		addr_int <= (to_integer(y_c) * width) + x_int;
+		x_int    <=  to_integer(x_n);
+		addr_int <= (to_integer(y_n) * width) + x_int;
 		addr <= std_logic_vector(to_unsigned(addr_int, 13)) when state_c /= ERASING else std_logic_vector(count_c);
 	end block;
 
@@ -192,7 +332,10 @@ begin
 	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
 	y_plus_one          <= y_c + 1;
 
-	busy                <= '1' when state_c /= ACCEPT else '0';
+	busy                <= '0' when state_c = ACCEPT 
+				       or state_c = CSI
+				       or state_c = NUMBER1
+				       or state_c = NUMBER2 else '1';
 
 	vga_blk: block
 		signal vga_din:    std_logic_vector(15 downto 0)      := (others => '0');
@@ -244,10 +387,15 @@ begin
 			count_c   <= count_n;
 			limit_c   <= limit_n;
 			state_c   <= state_n;
+			n1_c      <= n1_n;
+			n2_c      <= n2_n;
 			data_we   <= '0';
 			cursor_we <= '0';
+			akk_init  <= '0';
 
 			if state_c = RESET then
+				n1_n      <= (others => '0');
+				n2_n      <= (others => '0');
 				x_n       <= (others => '0');
 				y_n       <= (others => '0');
 				c_n       <= (others => '0');
@@ -257,9 +405,9 @@ begin
 			elsif state_c = ACCEPT then
 				if we = '1' then
 					c_n   <= unsigned(char);
-					state_n <= COMMAND;
+					state_n <= NORMAL;
 				end if;
-			elsif state_c = COMMAND then
+			elsif state_c = NORMAL then
 				case c_c is
 				when tab => 
 					x_n     <= (x_c and "1111000") + 8;
@@ -269,19 +417,77 @@ begin
 					count_n <= unsigned(addr);
 				when cr => 
 					y_n     <= y_plus_one;
-					state_n <= LIMIT;
+					state_n <= WRAP;
 				when lf => 
 					x_n     <= (others => '0');
-					state_n <= ACCEPT;
+					state_n <= WRITE;
 				when backspace => 
 					x_n     <= x_minus_one_limited;
 					state_n <= WRITE;
+				when esc =>
+					state_n <= CSI;
 				when others => 
 					x_n     <= x_plus_one;
 					data_we <= '1';
-					state_n <= LIMIT;
+					state_n <= WRAP;
 				end case;
-			elsif state_c = LIMIT then
+			elsif state_c = CSI then
+				if we = '1' then
+					c_n <= unsigned(char);
+					state_n <= COMMAND;
+				end if;
+			elsif state_c = COMMAND then
+				case c_c is
+				when ascii_c => -- @todo Erase screen as well
+					state_n <= RESET;
+				when lsqb =>
+					state_n  <= NUMBER1;
+					akk_init <= '1';
+				when others => -- Error
+					state_n <= ACCEPT;
+				end case;
+			elsif state_c = NUMBER1 then
+				if akk_done_o = '1' then
+					state_n <= COMMAND1;
+					n1_n    <= n_o(n1_n'range);
+				end if;
+			elsif state_c = COMMAND1 then
+				case akk_char_o is
+				when x"4a" => -- ESC CSI n 'J'
+					x_n       <= (others => '0');
+					y_n       <= (others => '0');
+					cursor_we <= '1';
+					state_n   <= ERASING;
+					c_n       <= blank;
+					count_n   <= (others => '0');
+					limit_n   <= "1000000000000";
+				when x"3b" =>
+					state_n <= NUMBER2;
+					akk_init <= '1';
+				when others => -- Error
+					state_n <= ACCEPT;
+				end case;
+			elsif state_c = NUMBER2 then
+				if akk_done_o = '1' then
+					state_n <= COMMAND2;
+					n2_n    <= n_o(n2_n'range);
+				end if;
+			elsif state_c = COMMAND2 then
+				case akk_char_o is
+				when x"66" => -- f
+					y_n       <= n1_c(y_n'range) - 1;
+					x_n       <= n2_c(x_n'range) - 1;
+					cursor_we <= '1';
+					state_n   <= WRAP;
+				when x"48" => -- H
+					y_n       <= n1_c(y_n'range) - 1;
+					x_n       <= n2_c(x_n'range) - 1;
+					cursor_we <= '1';
+					state_n   <= WRAP;
+				when others =>
+					state_n <= ACCEPT;
+				end case;
+			elsif state_c = WRAP then
 				if x_c > width - 1 then
 					x_n <= (others => '0');
 					y_n <= y_plus_one;
@@ -303,7 +509,7 @@ begin
 					count_n <= count_c + 1;
 					data_we <= '1';
 				else
-					state_n <= LIMIT;
+					state_n <= WRAP;
 				end if;
 			else
 				state_n <= RESET;
@@ -311,6 +517,7 @@ begin
 		end if;
 	end process;
 end architecture;
+----- VT100 Terminal Emulator -------------------------------------------------
 
 ----- VGA Top Level Component -------------------------------------------------
 library ieee,work;

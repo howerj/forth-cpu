@@ -501,64 +501,6 @@ typedef struct {
 	double x;
 	double y;
 	double angle;
-
-	uint8_t cursor_x;
-	uint8_t cursor_y;
-
-	uint16_t control;
-
-	uint64_t blink_count;
-	bool blink_on;
-
-	/**@warning The actual VGA memory is 16-bit, only the lower 8-bits are used */
-	uint8_t m[VGA_BUFFER_LENGTH];
-} vga_t;
-
-
-static void draw_vga(const world_t *world, vga_t *v)
-{
-	assert(world);
-	assert(v);
-	if(!(v->control & VGA_EN))
-		return;
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	color_t color = (v->control & 0x7);
-
-	static const double scale_x = 0.011;
-	static const double scale_y = 0.011;
-
-	scale_t scale = font_attributes();
-
-	double char_width  = scale.x / X_MAX;
-       	double char_height = scale.y / Y_MAX;
-	uint8_t *m = v->m + (v->control & VGA_SCREEN_SELECT ? VGA_BUFFER_LENGTH/2 : 0);
-
-	for(size_t i = 0; i < VGA_HEIGHT; i++)
-		draw_block_scaled(v->x, v->y - ((double)i * char_height), scale_x, scale_y, 0, m + (i*VGA_WIDTH), VGA_WIDTH, color);
-	draw_string_scaled(v->x, v->y - (VGA_HEIGHT * char_height), scale_x, scale_y, 0, "VGA", color);
-
-	/* fudge factor = 1/((1/scale_x)/X_MAX) ??? */
-
-	if(v->control & VGA_CUR_EN) {
-		double now = world->tick - v->blink_count;
-		if(now > seconds_to_ticks(world, 1.0)) {
-			v->blink_on = !(v->blink_on);
-			v->blink_count = world->tick;
-		}
-		if(v->blink_on) /* fudge factor of 1.10? */
-			draw_rectangle_filled(v->x + (char_width * 1.10 * (v->cursor_x-1.0)) , v->y - (char_height * v->cursor_y), char_width, char_height, WHITE);
-	}
-
-	glPopMatrix();
-
-	draw_rectangle_line(v->x, v->y - (char_height * (VGA_HEIGHT-1.0)), char_width * VGA_WIDTH * 1.10, char_height * VGA_HEIGHT, LINE_WIDTH, color);
-}
-
-typedef struct {
-	double x;
-	double y;
-	double angle;
 	double radius;
 
 	bool up;
@@ -630,6 +572,10 @@ typedef struct {
 
 typedef struct {
 	uint64_t blink_count;
+	unsigned height;
+	unsigned width;
+	unsigned size;
+
 	double x;
 	double y;
 	size_t cursor;
@@ -639,33 +585,32 @@ typedef struct {
 	bool blink_on;
 	bool blinks;
 	bool cursor_on;
-	terminal_attribute_t attributes[TERMINAL_SIZE];
+	terminal_attribute_t attributes[8192]; /**< @todo Fix this hack! Dynamically allocate this */
 	terminal_attribute_t attribute;
-	uint8_t m[TERMINAL_SIZE];
+	uint8_t m[8192]; /**< @todo Fix this hack! Dynamically allocate this */
 	uint8_t command_index;
+	color_t color;
 } terminal_t;
 
-void draw_terminal(const world_t *world, terminal_t *t)
+void draw_terminal(const world_t *world, terminal_t *t, char *name)
 {
 	assert(world);
 	assert(t);
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 
-	color_t color = BLUE;
 	static const double scale_x = 0.011;
 	static const double scale_y = 0.011;
 	double now = world->tick - t->blink_count;
 	scale_t scale = font_attributes();
 	double char_width  = scale.x / X_MAX;
        	double char_height = scale.y / Y_MAX;
-	size_t cursor_x = t->cursor % TERMINAL_WIDTH;
-	size_t cursor_y = t->cursor / TERMINAL_WIDTH;
-	char *source = world->use_uart_input ? "UART RX / TX" : "PS/2 KBD RX / UART TX";
+	size_t cursor_x = t->cursor % t->width;
+	size_t cursor_y = t->cursor / t->width;
 
-	for(size_t i = 0; i < TERMINAL_HEIGHT; i++)
-		draw_block_scaled(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, t->m + (i*TERMINAL_WIDTH), TERMINAL_WIDTH, color);
-	draw_string_scaled(t->x, t->y - (TERMINAL_HEIGHT * char_height), scale_x, scale_y, 0, source, color);
+	for(size_t i = 0; i < t->height; i++)
+		draw_block_scaled(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, t->m + (i*t->width), t->width, t->color);
+	draw_string_scaled(t->x, t->y - (t->height * char_height), scale_x, scale_y, 0, name, t->color);
 
 	/* fudge factor = 1/((1/scale_x)/X_MAX) ??? */
 
@@ -680,7 +625,7 @@ void draw_terminal(const world_t *world, terminal_t *t)
 
 	glPopMatrix();
 
-	draw_rectangle_line(t->x, t->y - (char_height * (TERMINAL_HEIGHT-1.0)), char_width * TERMINAL_WIDTH * 1.10, char_height * TERMINAL_HEIGHT, LINE_WIDTH, color);
+	draw_rectangle_line(t->x, t->y - (char_height * (t->height-1.0)), char_width * t->width * 1.10, char_height * t->height, LINE_WIDTH, t->color);
 }
 
 void terminal_default_command_sequence(terminal_t *t)
@@ -697,25 +642,25 @@ static void terminal_at_xy(terminal_t *t, unsigned x, unsigned y, bool limit_not
 	if(limit_not_wrap) {
 		x = MAX(x, 0);
 		y = MAX(y, 0);
-		x = MIN(x, TERMINAL_WIDTH - 1);
-		y = MIN(y, TERMINAL_HEIGHT - 1);
+		x = MIN(x, t->width - 1);
+		y = MIN(y, t->height - 1);
 	} else {
-		x %= TERMINAL_WIDTH;
-		y %= TERMINAL_HEIGHT;
+		x %= t->width;
+		y %= t->height;
 	}
-	t->cursor = (y * TERMINAL_WIDTH) + x;
+	t->cursor = (y * t->width) + x;
 }
 
 static int terminal_x_current(terminal_t *t)
 {
 	assert(t);
-	return t->cursor % TERMINAL_WIDTH;
+	return t->cursor % t->width;
 }
 
 static int terminal_y_current(terminal_t *t)
 {
 	assert(t);
-	return t->cursor / TERMINAL_WIDTH;
+	return t->cursor / t->width;
 }
 
 static void terminal_at_xy_relative(terminal_t *t, int x, int y, bool limit_not_wrap)
@@ -826,8 +771,8 @@ int terminal_escape_sequences(terminal_t *t, uint8_t c)
 			case 2: t->cursor = 0; /* with cursor */
 			case 1: 
 				if(t->command_index) {
-					memset(t->m, ' ', TERMINAL_SIZE);
-					for(size_t i = 0; i < TERMINAL_SIZE; i++)
+					memset(t->m, ' ', t->size);
+					for(size_t i = 0; i < t->size; i++)
 						memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
 					goto success;
 				} /* fall through if number not supplied */
@@ -902,49 +847,44 @@ fail:
 
 /**@bug Terminal is no longer clearing the display due to the way '\n' is now
  * handled */
-void update_terminal(terminal_t *t, fifo_t *f)
+void update_terminal(terminal_t *t, uint8_t c)
 {
 	assert(t);
-	assert(f);
-	for(;!fifo_is_empty(f);) {
-		uint8_t c = 0;
-		bool r = fifo_pop(f, &c);
-		if(r && t->state != TERMINAL_NORMAL_MODE) {
-			if(terminal_escape_sequences(t, c)) {
-				t->state = TERMINAL_NORMAL_MODE;
-				/*warning("invalid ANSI command sequence");*/
-			}
-		} else if(r) {
-			switch(c) {
-			case ESCAPE:
-				t->state = TERMINAL_CSI;
-				break;
-			case '\t':
-				t->cursor += 8;
-				t->cursor &= ~0x7;
-				break;
-			case '\n':
- 				t->cursor += TERMINAL_WIDTH;
-				t->cursor = (t->cursor / TERMINAL_WIDTH) * TERMINAL_WIDTH;
-				break;
-			case '\r':
-				break;
-			case BACKSPACE:
-				terminal_at_xy_relative(t, -1, 0, true);
-				break;
-			default:
-				assert(t->cursor < TERMINAL_SIZE);
-				t->m[t->cursor] = c;
-				memcpy(&t->attributes[t->cursor], &t->attribute, sizeof(t->attribute));
-				t->cursor++;
-			}
-			if(t->cursor >= TERMINAL_SIZE) {
-				for(size_t i = 0; i < TERMINAL_SIZE; i++)
-					memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
-				memset(t->m, ' ', TERMINAL_SIZE);
-			}
-			t->cursor %= TERMINAL_SIZE;
+	if(t->state != TERMINAL_NORMAL_MODE) {
+		if(terminal_escape_sequences(t, c)) {
+			t->state = TERMINAL_NORMAL_MODE;
+			/*warning("invalid ANSI command sequence");*/
 		}
+	} else {
+		switch(c) {
+		case ESCAPE:
+			t->state = TERMINAL_CSI;
+			break;
+		case '\t':
+			t->cursor += 8;
+			t->cursor &= ~0x7;
+			break;
+		case '\n':
+			t->cursor += t->width;
+			t->cursor = (t->cursor / t->width) * t->width;
+			break;
+		case '\r':
+			break;
+		case BACKSPACE:
+			terminal_at_xy_relative(t, -1, 0, true);
+			break;
+		default:
+			assert(t->cursor < t->size);
+			t->m[t->cursor] = c;
+			memcpy(&t->attributes[t->cursor], &t->attribute, sizeof(t->attribute));
+			t->cursor++;
+		}
+		if(t->cursor >= t->size) {
+			for(size_t i = 0; i < t->size; i++)
+				memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
+			memset(t->m, ' ', t->size);
+		}
+		t->cursor %= t->size;
 	}
 }
 
@@ -1001,21 +941,27 @@ static dpad_t dpad = {
 	.center  =  false,
 };
 
-static vga_t vga = {
-	.x     = X_MIN + 2.0,
-	.y     = Y_MAX - 8.0,
-	.angle = 0.0,
-
-	.cursor_x = 0,
-	.cursor_y = 0,
-
-	.control = 0x7A,
-
+static terminal_t vga_terminal = {
 	.blink_count = 0,
-	.blink_on    = false,
+	.width = VGA_WIDTH,
+	.height = VGA_HEIGHT,
+	.size = VGA_WIDTH * VGA_HEIGHT,
+	.cursor = 0,
+	.cursor_saved = 0,
+	.state = TERMINAL_NORMAL_MODE,
+	.x = X_MIN + 2.0,
+	.y = Y_MAX - 8.0,
 
-	.m = { 0 }
+	.cursor_on   = true,
+	.n1 = 1, .n2 = 1,
+	.blink_on = false,
+	.blinks   = false,
+	.m = { 0 },
+	.attribute  = { 0 },
+	.attributes = { { 0 } },
+	.color      = GREEN  /* WHITE */
 };
+
 
 #define SEGMENT_COUNT   (4)
 #define SEGMENT_SPACING (1.1)
@@ -1031,8 +977,11 @@ static led_8_segment_t segments[SEGMENT_COUNT] = {
 	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 4.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 0 },
 };
 
-static terminal_t terminal = {
+static terminal_t uart_terminal = {
 	.blink_count = 0,
+	.width = TERMINAL_WIDTH,
+	.height = TERMINAL_HEIGHT,
+	.size = TERMINAL_SIZE,
 	.cursor = 0,
 	.cursor_saved = 0,
 	.state = TERMINAL_NORMAL_MODE,
@@ -1044,7 +993,8 @@ static terminal_t terminal = {
 	.blinks   = false,
 	.m = { 0 },
 	.attribute  = { 0 },
-	.attributes = { { 0 } }
+	.attributes = { { 0 } },
+	.color = BLUE 
 };
 
 static h2_t *h = NULL;
@@ -1130,11 +1080,12 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oTimerCtrl:  
 		soc->timer_control  = value; 
 		break;
-	case oVga: /**@todo implement VT100 terminal emulator */
+	case oVga: 
 		if(0x2000 & value) {
-			vga.m[soc->vga_cursor & 0x1fff]   = value;
-			soc->vga[soc->vga_cursor & 0x1fff] = value;
-			soc->vga_cursor++;
+			/**@warning uses a global! */
+			update_terminal(&vga_terminal, value & 0xff);
+			/*soc->vga[soc->vga_cursor & 0x1fff] = value;
+			soc->vga_cursor++;*/
 		}
 		break;
 	case o8SegLED:
@@ -1439,7 +1390,11 @@ static void draw_scene(void)
 	if(next != world.tick) {
 		unsigned long increment = 0;
 		next = world.tick;
-		update_terminal(&terminal, uart_tx_fifo);
+		for(;!fifo_is_empty(uart_tx_fifo);) {
+			uint8_t c = 0;
+			fifo_pop(uart_tx_fifo, &c);
+			update_terminal(&uart_terminal, c);
+		}
 
 		if(world.debug_mode && world.step)
 			increment = 1;
@@ -1468,7 +1423,7 @@ static void draw_scene(void)
 		draw_debug_h2_screen_2(h,     X_MAX / 3.0,       Y_MAX*0.70);
 		draw_debug_h2_screen_3(h2_io, X_MAX / 1.55,  Y_MAX*0.70);
 	} else {
-		draw_vga(&world, &vga);
+		draw_terminal(&world, &vga_terminal, "VGA");
 	}
 
 	for(size_t i = 0; i < SWITCHES_COUNT; i++)
@@ -1481,7 +1436,8 @@ static void draw_scene(void)
 		draw_led_8_segment(&segments[i]);
 
 	draw_dpad(&dpad);
-	draw_terminal(&world, &terminal);
+
+	draw_terminal(&world, &uart_terminal, world.use_uart_input ? "UART RX / TX" : "PS/2 KBD RX / UART TX");
 
 	{
 		textbox_t t = { .x = X_MAX-50, .y = Y_MAX-2, .draw_border = false, .color_text = WHITE, .color_box = WHITE };
@@ -1506,7 +1462,7 @@ static void initialize_rendering(char *arg_0)
 {
 	char *glut_argv[] = { arg_0, NULL };
 	int glut_argc = 0;
-	memset(terminal.m, ' ', TERMINAL_SIZE);
+	memset(uart_terminal.m, ' ', uart_terminal.size);
 	glutInit(&glut_argc, glut_argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
 	glutInitWindowPosition(world.window_x_starting_position, world.window_y_starting_position);
@@ -1573,7 +1529,7 @@ int main(int argc, char **argv)
 		if(vga_init) {
 			memory_load(vga_init, h2_io->soc->vga, VGA_BUFFER_LENGTH);
 			for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++)
-				vga.m[i] = h2_io->soc->vga[i];
+				vga_terminal.m[i] = h2_io->soc->vga[i];
 			fclose(vga_init);
 		} else {
 			warning("");

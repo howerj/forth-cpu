@@ -362,6 +362,7 @@ begin
 				io_din(11)         <= not vga_data_busy;
 				io_din(12)         <= vga_data_busy;
 			when "101" => -- PS/2 Keyboard, Check for new char
+				-- @todo Merge the VT100 and the PS/2 registers
 				io_din(6 downto 0) <= kbd_char_c;
 				io_din(8)          <= kbd_new_c;
 				kbd_new_n          <= '0';

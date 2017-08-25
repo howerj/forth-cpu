@@ -626,6 +626,11 @@ just print out the number )
 
 ( ==================== Extra Words =================================== )
 
+: CSI $1b emit [char] [ emit ; hidden
+: 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( u -- )
+: at-xy CSI 10u. $3b emit 10u. [char] H emit ; ( x y -- )
+: page CSI 2 10u. [char] J emit 1 1 at-xy ; ( -- )
+
 \ : ?if ' "dup" compile, call "if" ; immediate
 \ : ?dup-if ' "?dup" compile, call "if" ; immediate
 \ : gcd gcdStart: dup if tuck mod branch gcdStart then drop ; ( u1 u2 -- u : greatest common divisor )
