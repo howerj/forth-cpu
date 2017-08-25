@@ -144,8 +144,8 @@ $40 constant c/l $10 constant l/b
 
 : q forth save-buffers ;
 : e forth blk @ load editor ;
-: ia c/l * + (block) + tib >in @ +
-  swap #tib @ >in @ - cmove [compile] \ ;
+: ia c/l * + (block) + source drop >in @ +
+  swap source nip >in @ - cmove [compile] \ ;
 : i 0 swap ia ;
 : u update ;
 : w words ;
