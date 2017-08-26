@@ -77,8 +77,9 @@ entity top is
 end;
 
 architecture behav of top is
-	constant timer_length:         positive := 16;
-	constant number_of_interrupts: positive := 8;
+	constant timer_length:           positive := 16;
+	constant number_of_interrupts:   positive := 8;
+	constant number_of_led_displays: positive := 4;
 
 	-- Signals
 	signal rst: std_logic := '0';
@@ -470,57 +471,20 @@ begin
 	--- PS/2 ----------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------
-	segments: block
-		constant number_of_led_displays: positive := 4;
-		signal leds: led_8_segment_displays_interface(number_of_led_displays - 1 downto 0) := (others => led_8_segment_display_default);
+	ledseg_0: entity work.led_8_segment_display
+	generic map(
+		number_of_led_displays => number_of_led_displays,
+		clock_frequency        => clock_frequency,
+		use_bcd_not_hex        => false)
+	port map(
+		clk        => clk,
+		rst        => rst,
 
-		signal leds_reg_o: std_logic_vector(15 downto 0) := (others => '0');
-		signal leds_reg_we_o: std_logic := '0';
-	begin
-		segment_reg: entity work.reg
-			generic map(N => 16)
-			port map(
-				clk => clk,
-				rst => rst,
-				we  => leds_reg_we,
-				di  => leds_reg,
-				do  => leds_reg_o);
+		leds_we    => leds_reg_we,
+		leds       => leds_reg,
 
-		segment_reg_re: entity work.reg
-			generic map(N => 1)
-			port map(
-				clk   => clk,
-				rst   => rst,
-				we    => '1',
-				di(0) => leds_reg_we,
-				do(0) => leds_reg_we_o);
-
-		-- @todo change led interface, records are a bad idea for them, provide
-		-- a wishbone interface, this component could be used for testing the
-		-- wishbone concept out in this project.
-		leds(0).display <= leds_reg_o(15 downto 12);
-		leds(0).we      <= leds_reg_we_o;
-		leds(1).display <= leds_reg_o(11 downto 8);
-		leds(1).we      <= leds_reg_we_o;
-		leds(2).display <= leds_reg_o(7 downto 4);
-		leds(2).we      <= leds_reg_we_o;
-		leds(3).display <= leds_reg_o(3 downto 0);
-		leds(3).we      <= leds_reg_we_o;
-
-		ledseg_0: entity work.led_8_segment_display
-		generic map(
-			number_of_led_displays => number_of_led_displays,
-			clock_frequency        => clock_frequency,
-			use_bcd_not_hex        => false)
-		port map(
-			clk        => clk,
-			rst        => rst,
-
-			leds       => leds,
-
-			an         => an,
-			ka         => ka);
-	end block;
+		an         => an,
+		ka         => ka);
 	--- LED 8 Segment display -----------------------------------------
 
 	--- Buttons -------------------------------------------------------

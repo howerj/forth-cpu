@@ -19,16 +19,6 @@ package led_pkg is
 	subtype led_character is std_logic_vector(character_length - 1 downto 0);
 	subtype led_8_segment is std_logic_vector(7 downto 0);
 
-	type led_8_segment_display_interface is record
-		display: led_character;
-		we:      std_logic;
-	end record;
-
-	constant led_8_segment_display_default: led_8_segment_display_interface :=
-		(display => (others => '0'), we => '0');
-
-	type led_8_segment_displays_interface is array(integer range <>) of led_8_segment_display_interface;
-
 	component led_8_segment_display is
 		generic(
 			clock_frequency:        positive;
@@ -39,7 +29,8 @@ package led_pkg is
 			clk:      in   std_logic;
 			rst:      in   std_logic;
 
-			leds:     in   led_8_segment_displays_interface;
+			leds_we:  in   std_logic;
+			leds:     in   std_logic_vector((number_of_led_displays * character_length) - 1 downto 0);
 
 			-- Physical outputs
 			an:       out  std_logic_vector(number_of_led_displays - 1 downto 0);  -- anodes, controls on/off
@@ -81,7 +72,8 @@ entity led_8_segment_display is
 		clk:      in   std_logic;
 		rst:      in   std_logic;
 
-		leds:     in   led_8_segment_displays_interface;
+		leds_we:  in   std_logic;
+		leds:     in   std_logic_vector((number_of_led_displays * character_length) - 1 downto 0);
 
 		-- Physical outputs
 		an:       out  std_logic_vector(number_of_led_displays - 1 downto 0);  -- anodes, controls on/off
@@ -89,11 +81,6 @@ entity led_8_segment_display is
 end;
 
 architecture rtl of led_8_segment_display is
-
-	signal leds_o: led_8_segment_displays_interface(number_of_led_displays - 1 downto 0) := (others => led_8_segment_display_default);
-
-	signal do_shift:  std_logic := '0';
-	signal shift_reg: std_logic_vector(number_of_led_displays - 1 downto 0) := (0 => '1', others => '0');
 
 	-- 8 Segment LED lookup table converts a BCD character into a value
 	-- that can be displayed on an 8 segment display. The layout of which
@@ -197,8 +184,35 @@ architecture rtl of led_8_segment_display is
 			return invert(hex_to_8segment(a));
 		end if;
 	end function;
+
+	signal leds_o: std_logic_vector(leds'range) := (others => '0');
+
+	signal do_shift:  std_logic := '0';
+	signal shift_reg: std_logic_vector(number_of_led_displays - 1 downto 0) := (0 => '1', others => '0');
+
+
+	signal leds_reg_o: std_logic_vector(leds'range) := (others => '0');
+	signal leds_reg_we_o: std_logic := '0';
 begin
 	an <= invert(shift_reg);
+
+	segment_reg: entity work.reg
+		generic map(N => number_of_led_displays * character_length)
+		port map(
+			clk => clk,
+			rst => rst,
+			we  => leds_we,
+			di  => leds,
+			do  => leds_reg_o);
+
+	segment_reg_re: entity work.reg
+		generic map(N => 1)
+		port map(
+			clk   => clk,
+			rst   => rst,
+			we    => '1',
+			di(0) => leds_we,
+			do(0) => leds_reg_we_o);
 
 	led_gen: for i in number_of_led_displays - 1 downto 0 generate
 		led_i: entity work.reg
@@ -207,9 +221,9 @@ begin
 			port map(
 				clk => clk,
 				rst => rst,
-				we  => leds(i).we,
-				di  => leds(i).display,
-				do  => leds_o(i).display);
+				we  => leds_reg_we_o,
+				di  => leds_reg_o((i*character_length) + character_length - 1 downto (i*character_length)),
+				do  => leds_o((i*character_length) + character_length - 1 downto (i*character_length)));
 	end generate;
 
 	timer: entity work.timer_us
@@ -236,9 +250,9 @@ begin
 	begin
 		ka <= (others => '0');
 
-		for i in leds_o'range loop
-			if '1' = shift_reg(i) then
-				ka <= char_to_8segment(leds_o(i).display);
+		for i in  number_of_led_displays - 1 downto 0 loop 
+			if '1' = shift_reg(number_of_led_displays - i - 1) then
+				ka <= char_to_8segment(leds_o(i*character_length + character_length - 1 downto (i*character_length)));
 			end if;
 		end loop;
 	end process;
