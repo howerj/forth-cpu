@@ -1144,9 +1144,6 @@ void vt100_update(vt100_t *t, uint8_t c)
 	}
 }
 
-
-
-
 #define FLASH_WRITE_CYCLES (20)  /* x10ns */
 #define FLASH_ERASE_CYCLES (200) /* x10ns */
 

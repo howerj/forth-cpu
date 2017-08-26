@@ -142,6 +142,11 @@ end package;
 ----- VGA Package -------------------------------------------------------------
 
 ----- Accumulator -------------------------------------------------------------
+-- The purpose of this module is to read in numeric characters ('0' through 
+-- '9') and convert the string into a binary number ('n_o'). On the first non-
+-- numeric character the module stops and outputs that non-numeric character
+-- as well as the converted number string. The module waits in the FINISHED
+-- state until the module is reset by an external signal ('init').
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -227,9 +232,11 @@ begin
 				null; -- wait for a reset
 			else
 				state_n <= RESET;
+				report "Invalid State" severity failure;
 			end if;
 			
 			if init = '1' then
+				assert state_c = FINISHED report "Lost Conversion" severity error;
 				state_n <= RESET;
 			end if;
 		end if;
@@ -239,6 +246,16 @@ end architecture;
 ----- Accumulator -------------------------------------------------------------
 
 ----- VT100 Terminal Emulator -------------------------------------------------
+-- This module contains the VGA module and wraps it in a terminal emulator,
+-- based on the VT100 <https://en.wikipedia.org/wiki/VT100>, it only implements
+-- a subset of the commands supplied by the VT100. This simplifies the usage
+-- of the VGA text mode display, other VHDL components only have to write bytes
+-- and do not have to worry about cursor position or implementing new lines,
+-- tabs, and other very basic features. 
+--
+-- The interface is designed to act like a UART, simply write a byte to it
+-- and so long as the interface is not busy, it will be written to the screen
+-- (or interpreter as part of a command sequence).
 
 library ieee,work;
 use ieee.std_logic_1164.all;
@@ -262,7 +279,7 @@ architecture rtl of vt100 is
 	constant height: positive := 40;
 	constant number: positive := 8;
 
-	type state_type is (RESET, ACCEPT, NORMAL, WRAP, CSI, COMMAND, NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING);
+	type state_type is (RESET, ACCEPT, NORMAL, WRAP, LIMIT, CSI, COMMAND, NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING);
 	signal state_c, state_n: state_type := RESET;
 
 	constant esc:       unsigned(char'range) := x"1b";
@@ -281,9 +298,10 @@ architecture rtl of vt100 is
 	signal y:          std_logic_vector(5 downto 0)  := (others => '0');
 	signal cursor_we:  std_logic                     := '0';
 
-	signal x_n, x_c: unsigned(x'range)    := (others => '0');
-	signal y_n, y_c: unsigned(y'range)    := (others => '0');
-	signal c_n, c_c: unsigned(char'range) := (others => '0');
+	signal x_n, x_c:     unsigned(x'range)    := (others => '0');
+	signal y_n, y_c:     unsigned(y'range)    := (others => '0');
+	signal c_n, c_c:     unsigned(char'range) := (others => '0');
+	--signal ctl_c, ctl_n: unsigned(6 downto 0) := (others => '0');
 
 	signal n1_n, n1_c: unsigned(y'range) := (others => '0');
 	signal n2_n, n2_c: unsigned(x'range) := (others => '0');
@@ -292,8 +310,10 @@ architecture rtl of vt100 is
 	signal x_minus_one_limited: unsigned(x'range) := (others => '0');
 	signal x_underflow:         boolean           := false;
 	signal x_plus_one:          unsigned(x'range) := (others => '0');
+	signal x_overflow:          boolean           := false;
 
 	signal y_plus_one:          unsigned(y'range) := (others => '0');
+	signal y_overflow:          boolean           := false;
 
 	signal count_c, count_n:    unsigned(addr'range) := (others => '0');
 	signal limit_c, limit_n:    unsigned(addr'range) := (others => '0');
@@ -302,7 +322,7 @@ architecture rtl of vt100 is
 	signal akk_ready_o: std_logic := '0';
 	signal akk_init:    std_logic := '0';
 	signal n_o:         unsigned(number - 1 downto 0) := (others => '0');
-	signal akk_char_o:  std_logic_vector(char'range) := (others => '0');
+	signal akk_char_o:  std_logic_vector(char'range)  := (others => '0');
 begin
 	accumulator_0: work.vga_pkg.accumulator
 		generic map(N => number)
@@ -328,9 +348,11 @@ begin
 
 	x_minus_one         <= x_c - 1;
 	x_plus_one          <= x_c + 1;
-	x_underflow         <= true when x_minus_one > width - 1 else false;
+	x_underflow         <= true when x_minus_one > width  - 1 else false;
+	x_overflow          <= true when x_c         > width  - 1 else false;
 	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
 	y_plus_one          <= y_c + 1;
+	y_overflow          <= true when y_c         > height - 1 else false;
 
 	busy                <= '0' when state_c = ACCEPT 
 				       or state_c = CSI
@@ -343,7 +365,7 @@ begin
 		signal vga_ctr:    vga_control_registers_interface    := vga_control_registers_initialize;
 	begin
 		vga_din        <= attr & std_logic_vector(c_c);
-		vga_ctr.crx    <= std_logic_vector(x_c);
+		vga_ctr.crx    <= std_logic_vector(x_plus_one);
 		vga_ctr.cry    <= std_logic_vector(y_c);
 		vga_ctr.ctl    <= x"7F"; 
 		vga_ctr_we.crx <= cursor_we;
@@ -374,8 +396,7 @@ begin
 	-- with some audio output (or perhaps just inverting the colors on
 	-- the screen for a second).
 	--
-	-- @todo Fix the bugs and test this module! Also implement a simulator
-	-- for it.
+	-- @todo Fix the bugs and test this module! 
 	fsm: process(clk, rst)
 	begin
 		if rst = '1' then
@@ -478,20 +499,20 @@ begin
 					y_n       <= n1_c(y_n'range) - 1;
 					x_n       <= n2_c(x_n'range) - 1;
 					cursor_we <= '1';
-					state_n   <= WRAP;
+					state_n   <= LIMIT;
 				when x"48" => -- H
 					y_n       <= n1_c(y_n'range) - 1;
 					x_n       <= n2_c(x_n'range) - 1;
 					cursor_we <= '1';
-					state_n   <= WRAP;
+					state_n   <= LIMIT;
 				when others =>
 					state_n <= ACCEPT;
 				end case;
 			elsif state_c = WRAP then
-				if x_c > width - 1 then
+				if x_overflow then
 					x_n <= (others => '0');
 					y_n <= y_plus_one;
-				elsif y_c > height - 1 then
+				elsif y_overflow then
 					x_n     <= (others => '0');
 					y_n     <= (others => '0');
 					state_n <= ERASING;
@@ -501,6 +522,14 @@ begin
 				else
 					state_n <= WRITE;
 				end if;
+			elsif state_c = LIMIT then
+				if x_overflow then
+					x_n <= to_unsigned(width - 1, x_n'high + 1);
+				end if;
+				if y_overflow then
+					y_n <= to_unsigned(height - 1, y_n'high + 1);
+				end if;
+				state_n <= WRITE;
 			elsif state_c = WRITE then
 				state_n   <= ACCEPT;
 				cursor_we <= '1';
@@ -513,6 +542,7 @@ begin
 				end if;
 			else
 				state_n <= RESET;
+				report "Invalid State" severity failure;
 			end if;
 		end if;
 	end process;
@@ -828,7 +858,6 @@ begin
 		signal rom_tmp: integer range 3071 downto 0;
 
 	begin
-
 		u_hctr: work.vga_pkg.ctrm generic map (M => 794) port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
 		u_vctr: work.vga_pkg.ctrm generic map (M => 525) port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
 
@@ -864,7 +893,6 @@ begin
 		text_a  <= std_logic_vector(to_unsigned(ram_tmp, 12));
 		rom_tmp <= to_integer(unsigned(text_d)) * 12 + chry;
 		font_a  <= std_logic_vector(to_unsigned(rom_tmp, 12));
-
 	end block;
 
 	u_losr: work.vga_pkg.losr generic map (N => 8)

@@ -174,38 +174,38 @@ location loading-string   "loading..."
 
 ( ======================== Forth Kernel ===================== )
 
-: [-1] -1 ; hidden
-: ! store drop ;           ( n a -- )
-: 256* 8 lshift ; hidden   ( u -- u )
-: 256/ 8 rshift ; hidden   ( u -- u )
-: 1+ 1 + ;                 ( n -- n )
-: negate invert 1 + ;      ( n -- n )
-: - invert 1 + + ;         ( n n -- n )
-: 2/ 1 rshift ;            ( n -- n : NB. This isn't actually correct, just useful, "1 arshift" would be acceptable )
-: 2* 1 lshift ;            ( n -- n )
-: cell- cell - ;           ( a -- a )
-: cell+ cell + ;           ( a -- a )
-: cells 2* ;               ( n -- n )
-: ?dup dup if dup then ;   ( n -- | n n  )
-: >  swap < ;              ( n n -- f )
-: u> swap u< ;             ( u u -- f )
-: <> = invert ;            ( n n -- f )
-: 0<> 0= invert ;          ( n n -- f )
-: 0> 0 > ;                 ( n -- f )
-: 0< 0 < ;                 ( n -- f )
+: [-1] -1 ; hidden         ( -- -1 : space saving measure, push -1 onto stack )
+: ! store drop ;           ( n a -- : store a value 'n' at location 'a'  )
+: 256* 8 lshift ; hidden   ( u -- u : shift left by 8, or multiple by 256 )
+: 256/ 8 rshift ; hidden   ( u -- u : shift right by 8, or divide by 256 )
+: 1+ 1 + ;                 ( n -- n : increment a value  )
+: negate invert 1 + ;      ( n -- n : negate a number )
+: - invert 1 + + ;         ( n1 n2 -- n : subtract n1 from n2 )
+: 2/ 1 rshift ;            ( n -- n : divide by 2 NB. This isn't actually correct, just useful, "1 arshift" would be acceptable )
+: 2* 1 lshift ;            ( n -- n : multiply by 2 )
+: cell- cell - ;           ( a -- a : adjust address to previous cell )
+: cell+ cell + ;           ( a -- a : move address forward to next cell )
+: cells 2* ;               ( n -- n : convert number of cells to number to increment address by )
+: ?dup dup if dup then ;   ( n -- 0 | n n : duplicate value if it is not zero )
+: >  swap < ;              ( n1 n2 -- f : signed greater than, n1 > n2 )
+: u> swap u< ;             ( u1 u2 -- f : unsigned greater than, u1 > u2 )
+: <> = invert ;            ( n n -- f : not equal )
+: 0<> 0= invert ;          ( n n -- f : not equal  to zero )
+: 0> 0 > ;                 ( n -- f : greater than zero? )
+: 0< 0 < ;                 ( n -- f : less than zero? )
 : 2dup over over ;         ( n1 n2 -- n1 n2 n1 n2 )
 : 2drop drop drop ;        ( n n -- )
 : tuck swap over ;         ( n1 n2 -- n2 n1 n2 )
-: +! tuck @ + swap ! ;     ( n a -- )
-: 1+!  1 swap +! ;         ( a -- )
-: 1-! [-1] swap +! ; hidden  ( a -- )
-: execute >r ;             ( cfa -- )
+: +! tuck @ + swap ! ;     ( n a -- : increment value at address by 'n' )
+: 1+!  1 swap +! ;         ( a -- : increment value at address by 1 )
+: 1-! [-1] swap +! ; hidden  ( a -- : decrement value at address by 1 )
+: execute >r ;             ( cfa -- : execute a function )
 : c@ dup ( -2 and ) @ swap 1 and if 8 rshift else $ff and then ; ( b -- c )
 : c!                       ( c b -- )
 	swap $ff and dup 8 lshift or swap
 	swap over dup ( -2 and ) @ swap 1 and 0 = $ff xor
 	>r over xor r> and xor swap ( -2 and ) store drop ;
-\ : c, cp @ c! cp 1+! ;    ( c -- )
+: c, cp @ c! cp 1+! ;    ( c -- : store 'c' at next available location in the dictionary )
 
 : rx? ( -- c -1 | 0 : read in a character of input from UART )
 	iUart @ $0100 and 0=
@@ -235,7 +235,8 @@ location loading-string   "loading..."
 
 ( With the built in words defined in the assembler, and the words
 defined so far, all of the primitive words needed by eForth should
-be available. "doList" and "doLit" do not need to be implemented. )
+be available. "doList" and "doLit" do not need to be implemented as
+they can implemented in terms of instructions )
 
 ( ======================== Forth Kernel ===================== )
 
@@ -626,10 +627,12 @@ just print out the number )
 : dump ( a u -- )
 	dump-width /
 	for
-		cr dump-width 2dup
-		over 5u.r 58 emit space
-		dm+ -rot
-		2 spaces $type
+		aft
+			cr dump-width 2dup
+			over 5u.r 58 emit space
+			dm+ -rot
+			2 spaces $type
+		then
 	next drop ;
 
 ( ==================== Extra Words =================================== )
@@ -721,6 +724,7 @@ as possible so the Forth environment is easy to use. )
 	then ; immediate
 : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
 : compile ( -- ) r> dup @ , cell+ >r ;
+
 
 \ : [leave] rdrop rdrop rdrop ; hidden
 \ : leave ?compile ' [leave] compile, ; immediate
@@ -914,10 +918,17 @@ irq:
 
 .set 12 irq
 
-: irqTest
+: irqTest ( -- : start timer with interrupts enabled )
 	$0040 oIrcMask !
 	$ffff oTimerCtrl !
 	1 ien drop ;
+
+: screen-saver ( -- )
+	begin
+		random 80 mod
+		random 40 mod at-xy
+		random >char emit
+	again ;
 
 ( ==================== Miscellaneous ================================= )
 
@@ -1162,7 +1173,8 @@ start:
 	cpu-id segments!
 	loading-string print
 	0 0 $2000 transfer
-	\ 7 load $b load $c load decimal
+	( @todo Load block 0 and signal that block storage is available )
+	0 ' load catch drop
 	
 	.ok
 	\ login 0 load 1 list
