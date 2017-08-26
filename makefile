@@ -44,7 +44,7 @@ SOURCES = \
 	kbd.vhd \
 	vga.vhd \
 	h2.vhd \
-	cpu.vhd \
+	core.vhd \
 	led.vhd 
 
 OBJECTS = ${SOURCES:.vhd=.o}
@@ -142,9 +142,9 @@ text.hex: text${EXE}
 
 led.o: util.o led.vhd
 vga.o: util.o vga.vhd text.hex font.bin
-cpu.o: util.o h2.o cpu.vhd h2.hex
+core.o: util.o h2.o core.vhd h2.hex
 uart.o: util.o uart.vhd
-top.o: util.o timer.o cpu.o uart.o vga.o kbd.o led.o top.vhd 
+top.o: util.o timer.o core.o uart.o vga.o kbd.o led.o top.vhd 
 tb.o: top.o tb.vhd 
 
 tb: ${OBJECTS} tb.o

@@ -21,7 +21,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use std.textio.all;
 use work.util.all;
-use work.cpu_pkg.all;
+use work.core_pkg.all;
 use work.vga_pkg.all;
 use work.uart_pkg.uart_core;
 

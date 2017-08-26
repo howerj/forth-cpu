@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
---| @file cpu.vhd
+--| @file core.vhd
 --| @brief This contains the CPU, memory and interrupt handler instances
 --|
 --| @author     Richard James Howe.
@@ -12,7 +12,7 @@ library ieee,work;
 use ieee.std_logic_1164.all;
 use work.util.n_bits;
 
-package cpu_pkg is
+package core_pkg is
 	type cpu_debug_interface is record
 		pc:        std_logic_vector(12 downto 0);
 		insn:      std_logic_vector(15 downto 0);
@@ -23,7 +23,7 @@ package cpu_pkg is
 		daddr:     std_logic_vector(12 downto 0);
 	end record;
 
-	component cpu is
+	component core is
 	generic(number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
@@ -72,9 +72,9 @@ end package;
 library ieee,work;
 use ieee.std_logic_1164.all;
 use work.util.n_bits;
-use work.cpu_pkg.all;
+use work.core_pkg.all;
 
-entity cpu is
+entity core is
 	generic(number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
@@ -99,7 +99,7 @@ entity cpu is
 		cpu_irc_mask_we: in std_logic);
 end;
 
-architecture structural of cpu is
+architecture structural of core is
 	constant interrupt_address_length: natural  := n_bits(number_of_interrupts);
 	constant addr_length:              positive := 13;
 	constant data_length:              positive := 16;
@@ -127,7 +127,7 @@ begin
 	debug.daddr <= daddr;
 	-- synthesis translate_on
 
-	irqh_0: work.cpu_pkg.interrupt_request_handler
+	irqh_0: work.core_pkg.interrupt_request_handler
 	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 		clk    => clk,

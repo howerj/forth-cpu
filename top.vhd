@@ -14,7 +14,7 @@
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.cpu_pkg.all;
+use work.core_pkg.all;
 use work.vga_pkg.all;
 use work.led_pkg.all;
 use work.kbd_pkg.ps2_kbd_top;
@@ -224,7 +224,7 @@ begin
 				else '0';
 	end block;
 
-	cpu_0: entity work.cpu
+	core_0: entity work.core
 	generic map(number_of_interrupts => number_of_interrupts)
 	port map(
 -- synthesis translate_off
