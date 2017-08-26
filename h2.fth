@@ -312,6 +312,14 @@ be available. "doList" and "doLit" do not need to be implemented. )
 
 : -throw negate throw ; hidden ( space saving measure )
 
+( By making all the Forth primitives call '?depth' it should be possible
+to get quite good coverage for stack checking, if not there is only a few
+choice words that need depth checking to get quite a large coverage )
+: ?depth dup 0= if drop exit then sp@ 1- u> if 4 -throw then ; hidden ( u -- )
+: 1depth 1 ?depth ; hidden
+\ : 2depth 2 ?depth ; hidden
+\ : 3depth 3 ?depth ; hidden
+
 : um/mod ( ud u -- ur uq )
 	?dup 0= if 10 -throw then
 	2dup u<
@@ -348,7 +356,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 : hold  hld @ 1- dup hld ! ?hold c! ;        ( c -- )
 : sign  0< if [char] - hold then ;           ( n -- )
 : #>  drop hld @ pad over - ;                ( w -- b u )
-: #  radix extract digit hold ;              ( u -- u )
+: #  1depth radix extract digit hold ;       ( u -- u )
 : #s begin # dup while repeat ;              ( u -- 0 )
 : <#  pad hld ! ;                            ( -- )
 : decimal  10 base ! ;                       ( -- )
@@ -408,7 +416,7 @@ be available. "doList" and "doLit" do not need to be implemented. )
 \ 		aft
 \ 			over r@ cells + @
 \ 			over r@ cells + @ -  ?dup
-\ 			if r> drop exit then
+\ 			if rdrop exit then
 \ 		then
 \ 	next 0 ;
 
@@ -516,7 +524,7 @@ not consumed in the previous parse )
 : .( 41 parse type ; immediate
 : "\" #tib @ >in ! ; immediate
 : ?length dup word-length u> if 19 -throw then ; hidden
-: word parse ?length here pack$ ;          ( c -- a ; <string> )
+: word 1depth parse ?length here pack$ ;          ( c -- a ; <string> )
 : token =bl word ;
 : char token count drop c@ ;               ( -- c; <string> )
 : .s ( -- ) cr sp@ for aft r@ pick . then next .s-string print ;
@@ -674,7 +682,6 @@ as possible so the Forth environment is easy to use. )
 : ?csp sp@ csp @ xor if 22 -throw then ; hidden
 : +csp csp 1+! ; hidden
 : -csp csp 1-! ; hidden
-\ : ?depth dup 0= if drop exit then sp@ 1- u> if 4 -throw then ; ( u -- )
 : ?compile state @ 0= if 14 -throw then ; hidden ( fail if not compiling )
 : ?unique dup last search if drop redefined print cr else drop then ; hidden ( a -- a )
 : ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
@@ -788,6 +795,7 @@ in which the problem could be solved. )
 source-id word can be used by words to modify their behavior )
 
 : block ( k -- a )
+	1depth
 	_binvalid @execute                         ( check validity of block number )
 	dup blk @ = if drop block-buffer exit then ( block already loaded )
 	flush
@@ -795,16 +803,18 @@ source-id word can be used by words to modify their behavior )
 	blk !
 	block-buffer ;
 
-\ : loadline block swap c/l * + c/l evaluate ; ( u k -- )
+\ : loadline swap block swap c/l * + c/l evaluate ; ( k u -- )
+\ : load 0 15 for 2dup loadline 1+ next 2drop ;
 : load block b/buf evaluate ;
 : --> 1 +block load ;
 : scr blk ;
 : pipe 124 emit ; hidden
 : border 3 spaces 64 45 nchars cr ; hidden
 : list _page @execute block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
-: thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
+: thru over - for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
 : message 16 extract swap block swap c/l * + c/l -trailing $type cr ; ( u -- )
+\ : list-thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
 
 ( all words before this are now in the forth vocabulary, it is also set
 later on )
@@ -1173,5 +1183,5 @@ start:
 .set _bload    memory-load ( execution vector of _bload, used in block )
 .set _bsave    memory-save ( execution vector of _bsave, used in block )
 .set _binvalid minvalid    ( execution vector of _invalid, used in block )
-\ .set _page     page        ( execution vector of _page, used in list )
+.set _page     page        ( execution vector of _page, used in list )
 .set _message  message     ( execution vector of _message, used in on-error)

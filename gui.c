@@ -29,8 +29,6 @@
 #define PI               (3.1415926535897932384626433832795)
 #define MAX(X, Y)        ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y)        ((X) < (Y) ? (X) : (Y))
-#define ESCAPE           (27)
-#define BACKSPACE        (8)
 #define UNUSED(X)        ((void)(X))
 #define X_MAX            (100.0)
 #define X_MIN            (0.0)
@@ -82,19 +80,6 @@ static world_t world = {
 	.cycles                      = CYCLE_INITIAL,
 	.font_scaled                 = GLUT_STROKE_MONO_ROMAN
 };
-
-typedef enum { /**@warning do not change the order or insert elements */
-	BLACK,
-	RED,
-	GREEN,
-	YELLOW,
-	BLUE,
-	MAGENTA,
-	CYAN,
-	WHITE,
-} colors_e;
-
-typedef colors_e color_t;
 
 typedef enum {
 	TRIANGLE,
@@ -548,48 +533,14 @@ static dpad_collision_e dpad_collision(dpad_t *d, double x, double y, double rad
 #define TERMINAL_WIDTH       (80)
 #define TERMINAL_HEIGHT      (10)
 #define TERMINAL_SIZE        (TERMINAL_WIDTH*TERMINAL_HEIGHT)
-#define TERMINAL_COMMAND_LEN (256+1)
-
-typedef enum {
-	TERMINAL_NORMAL_MODE,
-	TERMINAL_CSI,
-	TERMINAL_COMMAND,
-	TERMINAL_NUMBER_1,
-	TERMINAL_NUMBER_2,
-	TERMINAL_DECTCEM,
-	TERMINAL_STATE_END,
-} terminal_state_t;
-
-typedef struct {
-	unsigned bold:          1;
-	unsigned under_score:   1;
-	unsigned blink:         1;
-	unsigned reverse_video: 1;
-	unsigned conceal:       1;
-	unsigned foreground_color: 3;
-	unsigned background_color: 3;
-} terminal_attribute_t;
 
 typedef struct {
 	uint64_t blink_count;
-	unsigned height;
-	unsigned width;
-	unsigned size;
-
 	double x;
 	double y;
-	size_t cursor;
-	size_t cursor_saved;
-	terminal_state_t state;
-	unsigned n1, n2;
 	bool blink_on;
-	bool blinks;
-	bool cursor_on;
-	terminal_attribute_t attributes[8192]; /**< @todo Fix this hack! Dynamically allocate this */
-	terminal_attribute_t attribute;
-	uint8_t m[8192]; /**< @todo Fix this hack! Dynamically allocate this */
-	uint8_t command_index;
 	color_t color;
+	vt100_t vt100;
 } terminal_t;
 
 void draw_terminal(const world_t *world, terminal_t *t, char *name)
@@ -601,16 +552,17 @@ void draw_terminal(const world_t *world, terminal_t *t, char *name)
 
 	static const double scale_x = 0.011;
 	static const double scale_y = 0.011;
+	vt100_t *v = &t->vt100;
 	double now = world->tick - t->blink_count;
 	scale_t scale = font_attributes();
 	double char_width  = scale.x / X_MAX;
        	double char_height = scale.y / Y_MAX;
-	size_t cursor_x = t->cursor % t->width;
-	size_t cursor_y = t->cursor / t->width;
+	size_t cursor_x = v->cursor % v->width;
+	size_t cursor_y = v->cursor / v->width;
 
-	for(size_t i = 0; i < t->height; i++)
-		draw_block_scaled(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, t->m + (i*t->width), t->width, t->color);
-	draw_string_scaled(t->x, t->y - (t->height * char_height), scale_x, scale_y, 0, name, t->color);
+	for(size_t i = 0; i < t->vt100.height; i++)
+		draw_block_scaled(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*v->width), v->width, t->color);
+	draw_string_scaled(t->x, t->y - (v->height * char_height), scale_x, scale_y, 0, name, t->color);
 
 	/* fudge factor = 1/((1/scale_x)/X_MAX) ??? */
 
@@ -620,272 +572,12 @@ void draw_terminal(const world_t *world, terminal_t *t, char *name)
 	}
 
 	/**@note the cursor is deliberately in a different position compared to draw_vga(), due to how the VGA cursor behaves in hardware */
-	if((!(t->blinks) || t->blink_on) && t->cursor_on) /* fudge factor of 1.10? */
+	if((!(v->blinks) || t->blink_on) && v->cursor_on) /* fudge factor of 1.10? */
 		draw_rectangle_filled(t->x + (char_width * 1.10 * (cursor_x)) , t->y - (char_height * cursor_y), char_width, char_height, WHITE);
 
 	glPopMatrix();
 
-	draw_rectangle_line(t->x, t->y - (char_height * (t->height-1.0)), char_width * t->width * 1.10, char_height * t->height, LINE_WIDTH, t->color);
-}
-
-void terminal_default_command_sequence(terminal_t *t)
-{
-	assert(t);
-	t->n1 = 1;
-	t->n2 = 1;
-	t->command_index = 0;
-}
-
-static void terminal_at_xy(terminal_t *t, unsigned x, unsigned y, bool limit_not_wrap)
-{
-	assert(t);
-	if(limit_not_wrap) {
-		x = MAX(x, 0);
-		y = MAX(y, 0);
-		x = MIN(x, t->width - 1);
-		y = MIN(y, t->height - 1);
-	} else {
-		x %= t->width;
-		y %= t->height;
-	}
-	t->cursor = (y * t->width) + x;
-}
-
-static int terminal_x_current(terminal_t *t)
-{
-	assert(t);
-	return t->cursor % t->width;
-}
-
-static int terminal_y_current(terminal_t *t)
-{
-	assert(t);
-	return t->cursor / t->width;
-}
-
-static void terminal_at_xy_relative(terminal_t *t, int x, int y, bool limit_not_wrap)
-{
-	assert(t);
-	int x_current = terminal_x_current(t);
-	int y_current = terminal_y_current(t);
-	terminal_at_xy(t, x_current + x, y_current + y, limit_not_wrap);
-}
-
-static void terminal_parse_attribute(terminal_attribute_t *a, unsigned v)
-{
-	switch(v) {
-	case 0:
-		memset(a, 0, sizeof(*a));
-		a->foreground_color = WHITE;
-		a->background_color = BLACK;
-		return;
-	case 1: a->bold          = true; return;
-	case 4: a->under_score   = true; return;
-	case 5: a->blink         = true; return;
-	case 7: a->reverse_video = true; return;
-	case 8: a->conceal       = true; return;
-	default:
-		if(v >= 30 && v <= 37)
-			a->foreground_color = v - 30;
-		if(v >= 40 && v <= 47)
-			a->background_color = v - 40;
-	}
-}
-
-/**@todo move this to "h2.c", it can be used to simulate the new terminal
- * interface being built into the hardware */
-int terminal_escape_sequences(terminal_t *t, uint8_t c)
-{
-	assert(t);
-	assert(t->state != TERMINAL_NORMAL_MODE);
-	switch(t->state) {
-	case TERMINAL_CSI:
-		if(c == '[')
-			t->state = TERMINAL_COMMAND;
-		else
-			goto fail;
-		break;
-	case TERMINAL_COMMAND:
-		switch(c) {
-		case 's': 
-			t->cursor_saved = t->cursor; 
-			goto success;
-		case 'n': 
-			t->cursor = t->cursor_saved;
-			goto success;
-		case '?': 
-			terminal_default_command_sequence(t);
-			t->state = TERMINAL_DECTCEM; 
-			break;
-		case ';':
-			terminal_default_command_sequence(t);
-			t->state = TERMINAL_NUMBER_2;
-			break;
-		default:
-			if(isdigit(c)) {
-				terminal_default_command_sequence(t);
-				t->command_index++;
-				t->n1 = c - '0';
-				t->state = TERMINAL_NUMBER_1;
-			} else {
-				goto fail;
-			}
-		}
-		break;
-	case TERMINAL_NUMBER_1:
-		if(isdigit(c)) {
-			if(t->command_index > 3)
-				goto fail;
-			t->n1 = (t->n1 * (t->command_index ? 10 : 0)) + (c - '0');
-			t->command_index++;
-			break;
-		}
-
-		switch(c) {
-		case 'A': terminal_at_xy_relative(t,  0,     -t->n1, true); goto success;/* relative cursor up */
-		case 'B': terminal_at_xy_relative(t,  0,      t->n1, true); goto success;/* relative cursor down */
-		case 'C': terminal_at_xy_relative(t,  t->n1,  0,     true); goto success;/* relative cursor forward */
-		case 'D': terminal_at_xy_relative(t, -t->n1,  0,     true); goto success;/* relative cursor back */
-		case 'E': terminal_at_xy(t, 0,  t->n1, false); goto success; /* relative cursor down, beginning of line */
-		case 'F': terminal_at_xy(t, 0, -t->n1, false); goto success; /* relative cursor up, beginning of line */
-		case 'G': terminal_at_xy(t, t->n1, terminal_y_current(t), true); goto success; /* move the cursor to column n */
-		case 'm': /* set attribute, CSI number m */
-			terminal_parse_attribute(&t->attribute, t->n1);
-			t->attributes[t->cursor] = t->attribute;	
-			goto success;
-		case 'i': /* AUX Port On == 5, AUX Port Off == 4 */
-			if(t->n1 == 5 || t->n1 == 4)
-				goto success;
-			goto fail;
-		case 'n': /* Device Status Report */
-			/** @note This should transmit to the H2 system the
-			 * following "ESC[n;mR", where n is the row and m is the column,
-			 * we're not going to do this, although fifo_push() on
-			 * uart_rx_fifo could be called to do this */
-			if(t->n1 == 6)
-				goto success;
-			goto fail;
-		case 'J': /* reset */
-			switch(t->n1) {
-			case 3:
-			case 2: t->cursor = 0; /* with cursor */
-			case 1: 
-				if(t->command_index) {
-					memset(t->m, ' ', t->size);
-					for(size_t i = 0; i < t->size; i++)
-						memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
-					goto success;
-				} /* fall through if number not supplied */
-			case 0:
-				memset(t->m, ' ', t->cursor);
-				for(size_t i = 0; i < t->cursor; i++)
-					memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
-				goto success;
-			}
-			goto fail;
-		case ';':
-			t->command_index = 0;
-			t->state = TERMINAL_NUMBER_2;
-			break;
-		default:
-			goto fail;
-		}
-		break;
-	case TERMINAL_NUMBER_2:
-		if(isdigit(c)) {
-			if(t->command_index > 3)
-				goto fail;
-			t->n2 = (t->n2 * (t->command_index ? 10 : 0)) + (c - '0');
-			t->command_index++;
-		} else {
-			switch(c) {
-			case 'm':
-				terminal_parse_attribute(&t->attribute, t->n1);
-				terminal_parse_attribute(&t->attribute, t->n2);
-				t->attributes[t->cursor] = t->attribute;	
-				goto success;
-			case 'H':
-			case 'f':
-				terminal_at_xy(t, t->n2, t->n1, true);
-				goto success;
-			}
-			goto fail;
-		}
-		break;
-	case TERMINAL_DECTCEM:
-		if(isdigit(c)) {
-			if(t->command_index > 1)
-				goto fail;
-			t->n1 = (t->n1 * (t->command_index ? 10 : 0)) + (c - '0');
-			t->command_index++;
-			break;
-		}
-
-		if(t->n1 != 25)
-			goto fail;
-		switch(c) {
-		case 'l': t->cursor_on = false; goto success;
-		case 'h': t->cursor_on = true;  goto success;
-		default:
-			goto fail;
-		}
-	case TERMINAL_STATE_END:
-		t->state = TERMINAL_NORMAL_MODE;
-		break;
-	default:
-		fatal("invalid terminal state: %u", (unsigned)t->state);
-	}
-
-	return 0;
-success:
-	t->state = TERMINAL_NORMAL_MODE;
-	return 0;
-fail:
-	t->state = TERMINAL_NORMAL_MODE;
-	return -1;
-}
-
-/**@bug Terminal is no longer clearing the display due to the way '\n' is now
- * handled */
-void update_terminal(terminal_t *t, uint8_t c)
-{
-	assert(t);
-	if(t->state != TERMINAL_NORMAL_MODE) {
-		if(terminal_escape_sequences(t, c)) {
-			t->state = TERMINAL_NORMAL_MODE;
-			/*warning("invalid ANSI command sequence");*/
-		}
-	} else {
-		switch(c) {
-		case ESCAPE:
-			t->state = TERMINAL_CSI;
-			break;
-		case '\t':
-			t->cursor += 8;
-			t->cursor &= ~0x7;
-			break;
-		case '\n':
-			t->cursor += t->width;
-			t->cursor = (t->cursor / t->width) * t->width;
-			break;
-		case '\r':
-			break;
-		case BACKSPACE:
-			terminal_at_xy_relative(t, -1, 0, true);
-			break;
-		default:
-			assert(t->cursor < t->size);
-			t->m[t->cursor] = c;
-			memcpy(&t->attributes[t->cursor], &t->attribute, sizeof(t->attribute));
-			t->cursor++;
-		}
-		if(t->cursor >= t->size) {
-			for(size_t i = 0; i < t->size; i++)
-				memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
-			memset(t->m, ' ', t->size);
-		}
-		t->cursor %= t->size;
-	}
+	draw_rectangle_line(t->x, t->y - (char_height * (v->height-1.0)), char_width * v->width * 1.10, char_height * v->height, LINE_WIDTH, t->color);
 }
 
 /* ====================================== Simulator Objects ==================================== */
@@ -943,23 +635,26 @@ static dpad_t dpad = {
 
 static terminal_t vga_terminal = {
 	.blink_count = 0,
-	.width = VGA_WIDTH,
-	.height = VGA_HEIGHT,
-	.size = VGA_WIDTH * VGA_HEIGHT,
-	.cursor = 0,
-	.cursor_saved = 0,
-	.state = TERMINAL_NORMAL_MODE,
-	.x = X_MIN + 2.0,
-	.y = Y_MAX - 8.0,
+	.x           = X_MIN + 2.0,
+	.y           = Y_MAX - 8.0,
+	.color       = GREEN,  /* WHITE */
+	.blink_on    = false,
 
-	.cursor_on   = true,
-	.n1 = 1, .n2 = 1,
-	.blink_on = false,
-	.blinks   = false,
-	.m = { 0 },
-	.attribute  = { 0 },
-	.attributes = { { 0 } },
-	.color      = GREEN  /* WHITE */
+	.vt100  = {
+		.width        = VGA_WIDTH,
+		.height       = VGA_HEIGHT,
+		.size         = VGA_WIDTH * VGA_HEIGHT,
+		.cursor       = 0,
+		.cursor_saved = 0,
+		.state        = TERMINAL_NORMAL_MODE,
+		.cursor_on    = true,
+		.blinks       = false,
+		.n1           = 1, 
+		.n2           = 1,
+		.m            = { 0 },
+		.attribute    = { 0 },
+		.attributes   = { { 0 } },
+	}
 };
 
 
@@ -979,22 +674,26 @@ static led_8_segment_t segments[SEGMENT_COUNT] = {
 
 static terminal_t uart_terminal = {
 	.blink_count = 0,
-	.width = TERMINAL_WIDTH,
-	.height = TERMINAL_HEIGHT,
-	.size = TERMINAL_SIZE,
-	.cursor = 0,
-	.cursor_saved = 0,
-	.state = TERMINAL_NORMAL_MODE,
-	.x = X_MIN + 2.0,
-	.y = Y_MIN + 28.5,
-	.cursor_on   = true,
-	.n1 = 1, .n2 = 1,
-	.blink_on = false,
-	.blinks   = false,
-	.m = { 0 },
-	.attribute  = { 0 },
-	.attributes = { { 0 } },
-	.color = BLUE 
+	.x           = X_MIN + 2.0,
+	.y           = Y_MIN + 28.5,
+	.color       = BLUE,
+	.blink_on    = false,
+
+	.vt100 = {
+		.width        = TERMINAL_WIDTH,
+		.height       = TERMINAL_HEIGHT,
+		.size         = TERMINAL_SIZE,
+		.cursor       = 0,
+		.cursor_saved = 0,
+		.state        = TERMINAL_NORMAL_MODE,
+		.cursor_on    = true,
+		.n1           = 1, 
+		.n2           = 1,
+		.blinks      = false,
+		.m            = { 0 },
+		.attribute    = { 0 },
+		.attributes   = { { 0 } },
+	}
 };
 
 static h2_t *h = NULL;
@@ -1083,9 +782,8 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oVga: 
 		if(0x2000 & value) {
 			/**@warning uses a global! */
-			update_terminal(&vga_terminal, value & 0xff);
-			/*soc->vga[soc->vga_cursor & 0x1fff] = value;
-			soc->vga_cursor++;*/
+			vt100_update(&vga_terminal.vt100, value & 0xff);
+			vt100_update(&soc->vt100, value & 0xff);
 		}
 		break;
 	case o8SegLED:
@@ -1194,7 +892,7 @@ static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y)
 	h2_soc_state_t *s = io->soc;
 	fill_textbox(&t, "I/O");
 	fill_textbox(&t, "LED             %x", (unsigned)s->leds);
-	fill_textbox(&t, "VGA Cursor:     %x", (unsigned)s->vga_cursor);
+	/*fill_textbox(&t, "VGA Cursor:     %x", (unsigned)s->vga_cursor);*/
 	fill_textbox(&t, "Timer Control:  %x", (unsigned)s->timer_control);
 	fill_textbox(&t, "Timer Count:    %x", (unsigned)s->timer);
 	fill_textbox(&t, "IRQ Mask:       %x", (unsigned)s->irc_mask);
@@ -1337,13 +1035,9 @@ static coordinate_t pixels_to_coordinates(const world_t *world, int x, int y)
 static void mouse_handler(int button, int state, int x, int y)
 {
 	coordinate_t c = pixels_to_coordinates(&world, x, y);
-	/*fprintf(stderr, "button: %d state: %d x: %d y: %d\n", button, state, x, y);
-	fprintf(stderr, "x: %f y: %f\n", c.x, c.y); */
 
 	for(size_t i = 0; i < SWITCHES_COUNT; i++) {
-		/*fprintf(stderr, "x: %f y: %f\n", switches[i].x, switches[i].y);*/
 		if(detect_circle_circle_collision(c.x, c.y, 0.1, switches[i].x, switches[i].y, switches[i].radius)) {
-			/*fprintf(stderr, "hit\n");*/
 			if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
 				switches[i].on = true;
 			if(button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
@@ -1393,7 +1087,7 @@ static void draw_scene(void)
 		for(;!fifo_is_empty(uart_tx_fifo);) {
 			uint8_t c = 0;
 			fifo_pop(uart_tx_fifo, &c);
-			update_terminal(&uart_terminal, c);
+			vt100_update(&uart_terminal.vt100, c);
 		}
 
 		if(world.debug_mode && world.step)
@@ -1444,7 +1138,6 @@ static void draw_scene(void)
 		fill_textbox(&t, "EXIT/QUIT     ESCAPE");
 		fill_textbox(&t, "SWITCHES     F-1...8");
 		fill_textbox(&t, "SINGLE STEP      F-9");
-
 	}
 	{
 		textbox_t t = { .x = X_MAX-25, .y = Y_MAX-2, .draw_border = false, .color_text = WHITE, .color_box = WHITE };
@@ -1462,7 +1155,7 @@ static void initialize_rendering(char *arg_0)
 {
 	char *glut_argv[] = { arg_0, NULL };
 	int glut_argc = 0;
-	memset(uart_terminal.m, ' ', uart_terminal.size);
+	memset(uart_terminal.vt100.m, ' ', uart_terminal.vt100.size);
 	glutInit(&glut_argc, glut_argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
 	glutInitWindowPosition(world.window_x_starting_position, world.window_y_starting_position);
@@ -1525,14 +1218,19 @@ int main(int argc, char **argv)
 	h2_io->out = h2_io_set_gui;
 
 	{ /* attempt to load initial contents of VGA memory */
+		errno = 0;
 		FILE *vga_init = fopen(VGA_INIT_FILE, "rb");
+		static uint16_t vga_initial_contents[VGA_BUFFER_LENGTH] = { 0 };
+		assert(VGA_BUFFER_LENGTH <= VT100_MAX_SIZE);
 		if(vga_init) {
-			memory_load(vga_init, h2_io->soc->vga, VGA_BUFFER_LENGTH);
-			for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++)
-				vga_terminal.m[i] = h2_io->soc->vga[i];
+			memory_load(vga_init, vga_initial_contents, VGA_BUFFER_LENGTH);
+			for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++) {
+				vga_terminal.vt100.m[i] = vga_initial_contents[i];
+				h2_io->soc->vt100.m[i]  = vga_initial_contents[i];
+			}
 			fclose(vga_init);
 		} else {
-			warning("");
+			warning("could not load initial VGA memory file %s: %s", VGA_INIT_FILE, strerror(errno));
 		}
 	}
 

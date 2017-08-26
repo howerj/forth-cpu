@@ -14,7 +14,14 @@
 #define STK_SIZE             (64u)
 #define START_ADDR           (0u)
 
+#ifndef H2_CPU_ID_SIMULATION
+#ifdef NO_MAIN
+#define H2_CPU_ID_SIMULATION (0xD1ED)
+#else
 #define H2_CPU_ID_SIMULATION (0xDEADu)
+#endif
+#endif
+
 #define H2_CPU_ID_VHDL       (0xCAFEu)
 
 #define VGA_INIT_FILE        ("text.hex")  /**< default name for VGA screen */
@@ -148,12 +155,58 @@ typedef struct {
 	uint8_t  locks[FLASH_BLOCK_MAX];
 } flash_t;
 
+typedef enum { /**@warning do not change the order or insert elements */
+	BLACK,
+	RED,
+	GREEN,
+	YELLOW,
+	BLUE,
+	MAGENTA,
+	CYAN,
+	WHITE,
+} color_t;
+
+typedef enum {
+	TERMINAL_NORMAL_MODE,
+	TERMINAL_CSI,
+	TERMINAL_COMMAND,
+	TERMINAL_NUMBER_1,
+	TERMINAL_NUMBER_2,
+	TERMINAL_DECTCEM,
+	TERMINAL_STATE_END,
+} terminal_state_t;
+
+typedef struct {
+	unsigned bold:          1;
+	unsigned under_score:   1;
+	unsigned blink:         1;
+	unsigned reverse_video: 1;
+	unsigned conceal:       1;
+	unsigned foreground_color: 3;
+	unsigned background_color: 3;
+} vt100_attribute_t;
+
+#define VT100_MAX_SIZE (8192)
+
+typedef struct {
+	size_t cursor;
+	size_t cursor_saved;
+	unsigned n1, n2;
+	unsigned height;
+	unsigned width;
+	unsigned size;
+	terminal_state_t state;
+	bool blinks;
+	bool cursor_on;
+	vt100_attribute_t attribute;
+	vt100_attribute_t attributes[VT100_MAX_SIZE];
+	uint8_t m[VT100_MAX_SIZE];
+	uint8_t command_index;
+} vt100_t;
+
 typedef struct {
 	uint8_t leds;
-	uint16_t vga_cursor;
-	uint16_t vga_control;
-	uint16_t vga_addr;
-	uint16_t vga[VGA_BUFFER_LENGTH];
+	vt100_t vt100;
 
 	uint16_t timer_control;
 	uint16_t timer;
@@ -287,5 +340,12 @@ int logger(log_level_e level, const char *func,
 
 int memory_load(FILE *input, uint16_t *p, size_t length);
 int memory_save(FILE *output, uint16_t *p, size_t length);
+
+#define BACKSPACE (8)
+#define ESCAPE    (27)
+#define DELETE    (127)  /* ASCII delete */
+
+void vt100_update(vt100_t *t, uint8_t c);
+
 
 #endif

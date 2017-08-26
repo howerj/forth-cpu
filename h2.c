@@ -12,9 +12,6 @@
  *
  * @todo Copy the initial RAM block for the VGA display if the file
  * exists on disk, this is done in the GUI program, but not in this one.
- * @todo The simulators, the GUI one and the CLI one, could both report 
- * different CPU IDs. This could be used to determine what I/O actions
- * should be performed at start up.
  * @todo Simulate all of the Common Flash Memory Interface so the Flash device
  * can be correctly used, see:
  * <https://en.wikipedia.org/wiki/Common_Flash_Memory_Interface> with the
@@ -37,8 +34,6 @@
 #include <fcntl.h>
 extern int _fileno(FILE *stream);
 #endif
-
-static const char *nvram_file = FLASH_INIT_FILE;
 
 #define DEFAULT_STEPS (512)
 #define MAX(X, Y)     ((X) > (Y) ? (X) : (Y))
@@ -440,10 +435,6 @@ size_t fifo_pop(fifo_t * fifo, fifo_data_t * data)
 	return 1;
 }
 
-#define CHAR_BACKSPACE (8)    /* ASCII backspace */
-#define CHAR_ESCAPE    (27)   /* ASCII escape character value */
-#define CHAR_DELETE    (127)  /* ASCII delete */
-
 #ifdef __unix__
 #include <unistd.h>
 #include <termios.h>
@@ -494,16 +485,16 @@ static int wrap_getch(bool *debug_on)
 	int ch = getch();
 	assert(debug_on);
 	if(ch == EOF) {
-		note("End Of Input - exiting", CHAR_ESCAPE);
+		note("End Of Input - exiting", ESCAPE);
 		exit(EXIT_SUCCESS);
 	}
 	/**@bug Escape is sent to the I/O process if all we intend to do it
 	 * exit back to the debugger, perhaps C signals should be used
 	 * instead */
-	if(ch == CHAR_ESCAPE && debug_on)
+	if(ch == ESCAPE && debug_on)
 		*debug_on = true;
 
-	return ch == CHAR_DELETE ? CHAR_BACKSPACE : ch;
+	return ch == DELETE ? BACKSPACE : ch;
 }
 
 /* ========================== Utilities ==================================== */
@@ -610,7 +601,7 @@ static int symbol_table_print(symbol_table_t *t, FILE *output)
 	return 0;
 }
 
-static symbol_table_t *symbol_table_load(FILE *input)
+symbol_table_t *symbol_table_load(FILE *input)
 {
 	symbol_table_t *t = symbol_table_new();
 	assert(input);
@@ -871,8 +862,8 @@ void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 	unsigned char led3 = l8seg(soc->led_8_segments);
 
 	fprintf(out, "LEDS:          %02"PRIx8"\n",  soc->leds);
-	fprintf(out, "VGA Cursor:    %04"PRIx16"\n", soc->vga_cursor);
-	fprintf(out, "VGA Control:   %04"PRIx16"\n", soc->vga_control);
+	/*fprintf(out, "VGA Cursor:    %04"PRIx16"\n", soc->vga_cursor);
+	fprintf(out, "VGA Control:   %04"PRIx16"\n", soc->vga_control);*/
 	fprintf(out, "Timer Control: %04"PRIx16"\n", soc->timer_control);
 	fprintf(out, "Timer:         %04"PRIx16"\n", soc->timer);
 	fprintf(out, "IRC Mask:      %04"PRIx16"\n", soc->irc_mask);
@@ -884,9 +875,277 @@ void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 
 	if(verbose) {
 		fputs("VGA Memory:\n", out);
-		memory_print(out, 0, soc->vga, VGA_BUFFER_LENGTH, true);
+		/**@note we could also print the attribute information here as
+		 * well, and it should display correctly on a VT100 compatible
+		 * terminal emulator. We would have to convert the attributes
+		 * back into escape codes */
+		/*memory_print(out, 0, soc->vt100.m, VGA_BUFFER_LENGTH, true);*/
 	}
 }
+
+static void terminal_default_command_sequence(vt100_t *t)
+{
+	assert(t);
+	t->n1 = 1;
+	t->n2 = 1;
+	t->command_index = 0;
+}
+
+static void terminal_at_xy(vt100_t *t, unsigned x, unsigned y, bool limit_not_wrap)
+{
+	assert(t);
+	if(limit_not_wrap) {
+		x = MAX(x, 0);
+		y = MAX(y, 0);
+		x = MIN(x, t->width - 1);
+		y = MIN(y, t->height - 1);
+	} else {
+		x %= t->width;
+		y %= t->height;
+	}
+	t->cursor = (y * t->width) + x;
+}
+
+static int terminal_x_current(vt100_t *t)
+{
+	assert(t);
+	return t->cursor % t->width;
+}
+
+static int terminal_y_current(vt100_t *t)
+{
+	assert(t);
+	return t->cursor / t->width;
+}
+
+static void terminal_at_xy_relative(vt100_t *t, int x, int y, bool limit_not_wrap)
+{
+	assert(t);
+	int x_current = terminal_x_current(t);
+	int y_current = terminal_y_current(t);
+	terminal_at_xy(t, x_current + x, y_current + y, limit_not_wrap);
+}
+
+static void terminal_parse_attribute(vt100_attribute_t *a, unsigned v)
+{
+	switch(v) {
+	case 0:
+		memset(a, 0, sizeof(*a));
+		a->foreground_color = WHITE;
+		a->background_color = BLACK;
+		return;
+	case 1: a->bold          = true; return;
+	case 4: a->under_score   = true; return;
+	case 5: a->blink         = true; return;
+	case 7: a->reverse_video = true; return;
+	case 8: a->conceal       = true; return;
+	default:
+		if(v >= 30 && v <= 37)
+			a->foreground_color = v - 30;
+		if(v >= 40 && v <= 47)
+			a->background_color = v - 40;
+	}
+}
+
+/**@todo move this to "h2.c", it can be used to simulate the new terminal
+ * interface being built into the hardware */
+int terminal_escape_sequences(vt100_t *t, uint8_t c)
+{
+	assert(t);
+	assert(t->state != TERMINAL_NORMAL_MODE);
+	switch(t->state) {
+	case TERMINAL_CSI:
+		if(c == '[')
+			t->state = TERMINAL_COMMAND;
+		else
+			goto fail;
+		break;
+	case TERMINAL_COMMAND:
+		switch(c) {
+		case 's': 
+			t->cursor_saved = t->cursor; 
+			goto success;
+		case 'n': 
+			t->cursor = t->cursor_saved;
+			goto success;
+		case '?': 
+			terminal_default_command_sequence(t);
+			t->state = TERMINAL_DECTCEM; 
+			break;
+		case ';':
+			terminal_default_command_sequence(t);
+			t->state = TERMINAL_NUMBER_2;
+			break;
+		default:
+			if(isdigit(c)) {
+				terminal_default_command_sequence(t);
+				t->command_index++;
+				t->n1 = c - '0';
+				t->state = TERMINAL_NUMBER_1;
+			} else {
+				goto fail;
+			}
+		}
+		break;
+	case TERMINAL_NUMBER_1:
+		if(isdigit(c)) {
+			if(t->command_index > 3)
+				goto fail;
+			t->n1 = (t->n1 * (t->command_index ? 10 : 0)) + (c - '0');
+			t->command_index++;
+			break;
+		}
+
+		switch(c) {
+		case 'A': terminal_at_xy_relative(t,  0,     -t->n1, true); goto success;/* relative cursor up */
+		case 'B': terminal_at_xy_relative(t,  0,      t->n1, true); goto success;/* relative cursor down */
+		case 'C': terminal_at_xy_relative(t,  t->n1,  0,     true); goto success;/* relative cursor forward */
+		case 'D': terminal_at_xy_relative(t, -t->n1,  0,     true); goto success;/* relative cursor back */
+		case 'E': terminal_at_xy(t, 0,  t->n1, false); goto success; /* relative cursor down, beginning of line */
+		case 'F': terminal_at_xy(t, 0, -t->n1, false); goto success; /* relative cursor up, beginning of line */
+		case 'G': terminal_at_xy(t, t->n1, terminal_y_current(t), true); goto success; /* move the cursor to column n */
+		case 'm': /* set attribute, CSI number m */
+			terminal_parse_attribute(&t->attribute, t->n1);
+			t->attributes[t->cursor] = t->attribute;	
+			goto success;
+		case 'i': /* AUX Port On == 5, AUX Port Off == 4 */
+			if(t->n1 == 5 || t->n1 == 4)
+				goto success;
+			goto fail;
+		case 'n': /* Device Status Report */
+			/** @note This should transmit to the H2 system the
+			 * following "ESC[n;mR", where n is the row and m is the column,
+			 * we're not going to do this, although fifo_push() on
+			 * uart_rx_fifo could be called to do this */
+			if(t->n1 == 6)
+				goto success;
+			goto fail;
+		case 'J': /* reset */
+			switch(t->n1) {
+			case 3:
+			case 2: t->cursor = 0; /* with cursor */
+			case 1: 
+				if(t->command_index) {
+					memset(t->m, ' ', t->size);
+					for(size_t i = 0; i < t->size; i++)
+						memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
+					goto success;
+				} /* fall through if number not supplied */
+			case 0:
+				memset(t->m, ' ', t->cursor);
+				for(size_t i = 0; i < t->cursor; i++)
+					memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
+				goto success;
+			}
+			goto fail;
+		case ';':
+			t->command_index = 0;
+			t->state = TERMINAL_NUMBER_2;
+			break;
+		default:
+			goto fail;
+		}
+		break;
+	case TERMINAL_NUMBER_2:
+		if(isdigit(c)) {
+			if(t->command_index > 3)
+				goto fail;
+			t->n2 = (t->n2 * (t->command_index ? 10 : 0)) + (c - '0');
+			t->command_index++;
+		} else {
+			switch(c) {
+			case 'm':
+				terminal_parse_attribute(&t->attribute, t->n1);
+				terminal_parse_attribute(&t->attribute, t->n2);
+				t->attributes[t->cursor] = t->attribute;	
+				goto success;
+			case 'H':
+			case 'f':
+				terminal_at_xy(t, t->n2, t->n1, true);
+				goto success;
+			}
+			goto fail;
+		}
+		break;
+	case TERMINAL_DECTCEM:
+		if(isdigit(c)) {
+			if(t->command_index > 1)
+				goto fail;
+			t->n1 = (t->n1 * (t->command_index ? 10 : 0)) + (c - '0');
+			t->command_index++;
+			break;
+		}
+
+		if(t->n1 != 25)
+			goto fail;
+		switch(c) {
+		case 'l': t->cursor_on = false; goto success;
+		case 'h': t->cursor_on = true;  goto success;
+		default:
+			goto fail;
+		}
+	case TERMINAL_STATE_END:
+		t->state = TERMINAL_NORMAL_MODE;
+		break;
+	default:
+		fatal("invalid terminal state: %u", (unsigned)t->state);
+	}
+
+	return 0;
+success:
+	t->state = TERMINAL_NORMAL_MODE;
+	return 0;
+fail:
+	t->state = TERMINAL_NORMAL_MODE;
+	return -1;
+}
+
+void vt100_update(vt100_t *t, uint8_t c)
+{
+	assert(t);
+	assert(t->size <= VT100_MAX_SIZE);
+	assert((t->width * t->height) <= VT100_MAX_SIZE);
+
+	if(t->state != TERMINAL_NORMAL_MODE) {
+		if(terminal_escape_sequences(t, c)) {
+			t->state = TERMINAL_NORMAL_MODE;
+			/*warning("invalid ANSI command sequence");*/
+		}
+	} else {
+		switch(c) {
+		case ESCAPE:
+			t->state = TERMINAL_CSI;
+			break;
+		case '\t':
+			t->cursor += 8;
+			t->cursor &= ~0x7;
+			break;
+		case '\n':
+			t->cursor += t->width;
+			t->cursor = (t->cursor / t->width) * t->width;
+			break;
+		case '\r':
+			break;
+		case BACKSPACE:
+			terminal_at_xy_relative(t, -1, 0, true);
+			break;
+		default:
+			assert(t->cursor < t->size);
+			t->m[t->cursor] = c;
+			memcpy(&t->attributes[t->cursor], &t->attribute, sizeof(t->attribute));
+			t->cursor++;
+		}
+		if(t->cursor >= t->size) {
+			for(size_t i = 0; i < t->size; i++)
+				memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
+			memset(t->m, ' ', t->size);
+		}
+		t->cursor %= t->size;
+	}
+}
+
+
+
 
 #define FLASH_WRITE_CYCLES (20)  /* x10ns */
 #define FLASH_ERASE_CYCLES (200) /* x10ns */
@@ -917,7 +1176,9 @@ typedef enum {
 	FLASH_BUFFERED_PROGRAMMING,
 } flash_state_t;
 
-/** @note read the datasheet for decoding this information */
+/** @note read the PC28F128P33BF60 datasheet to decode this 
+ * information, this table was actually acquired from reading
+ * the data from the actual device. */
 static const uint16_t PC28F128P33BF60_CFI_Query_Table[0x200] = {
 0x0089, 0x881E, 0x0000, 0xFFFF, 0x0089, 0xBFCF, 0x0000, 0xFFFF,
 0x0089, 0x881E, 0x0000, 0x0000, 0x0089, 0xBFCF, 0x0000, 0xFFFF,
@@ -1282,7 +1543,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	case oTimerCtrl:  soc->timer_control  = value; break;
 	case oVga:        /** @todo implement VT100 terminal */
 		if(0x2000 & value)
-			soc->vga[soc->vga_cursor++ & 0x1fff] = value;
+			vt100_update(&soc->vt100, value);
 		break;
 	case o8SegLED:    soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
@@ -1346,8 +1607,18 @@ static void h2_io_update_default(h2_soc_state_t *soc)
 h2_soc_state_t *h2_soc_state_new(void)
 {
 	h2_soc_state_t *r = allocate_or_die(sizeof(h2_soc_state_t));
+	vt100_t *v = &r->vt100;
 	memset(r->flash.nvram, 0xff, sizeof(r->flash.nvram[0])*FLASH_BLOCK_MAX);
 	memset(r->flash.locks, FLASH_LOCKED, FLASH_BLOCK_MAX);
+
+	v->width        = VGA_WIDTH;
+	v->height       = VGA_HEIGHT;
+	v->size         = VGA_WIDTH * VGA_HEIGHT;
+	v->state        = TERMINAL_NORMAL_MODE;
+	v->cursor_on    = true;
+	v->blinks       = false;
+	v->n1           = 1; 
+	v->n2           = 1;
 	return r;
 }
 
@@ -1656,24 +1927,10 @@ again:
 			break;
 		}
 		case 'd':
-			if(num1 & 0x8000) { /* VGA memory */
-				if((long)(num1 & 0x1FFF) + (long)num2 > VGA_BUFFER_LENGTH) {
-					fprintf(ds->output, "overflow in VGA dump\n");
-					break;
-				}
-
-				if(io)
-					memory_print(ds->output, num1, io->soc->vga + (num1 & 0x1FFF), num2, true);
-				else
-					fprintf(ds->output, "I/O unavailable\n");
-			} else { /* RAM */
-
-				if(((long)num1 + (long)num2) > MAX_CORE)
-					fprintf(ds->output, "overflow in RAM dump\n");
-				else
-					memory_print(ds->output, num1, h->core + num1, num2, true);
-
-			}
+			if(((long)num1 + (long)num2) > MAX_CORE)
+				fprintf(ds->output, "overflow in RAM dump\n");
+			else
+				memory_print(ds->output, num1, h->core + num1, num2, true);
 			break;
 		case 'l':
 			if(!is_numeric1) {
@@ -1785,7 +2042,7 @@ again:
 			}
 			for(size_t i = 0; i < VGA_HEIGHT; i++) {
 				for(size_t j = 0; j < VGA_WIDTH; j++) {
-					unsigned char c = io->soc->vga[i*VGA_WIDTH + j];
+					unsigned char c = io->soc->vt100.m[i*VGA_WIDTH + j];
 					fputc(c < 32 || c > 127 ? '?' : c, ds->output);
 				}
 				fputc('\n', ds->output);
@@ -3416,6 +3673,7 @@ h2_t *h2_assemble_core(FILE *input, symbol_table_t *symbols)
 
 /* ========================== Main ========================================= */
 
+#ifndef NO_MAIN
 typedef enum {
 	DEFAULT_COMMAND,
 	DISASSEMBLE_COMMAND,
@@ -3467,7 +3725,7 @@ static void debug_note(command_args_t *cmd)
 		note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
 }
 
-static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols, bool assemble)
+static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols, bool assemble, uint16_t *vga_initial_contents)
 {
 	assert(input);
 	assert(output);
@@ -3490,6 +3748,11 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 		return -1;
 
 	io = h2_io_new();
+	assert(VGA_BUFFER_LENGTH <= VT100_MAX_SIZE);
+	for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++) {
+		io->soc->vt100.m[i]          = vga_initial_contents[i] & 0xff;
+		/*io->soc->vt100.attributes[i] = (vga_initial_contents[i] >> 8u) & 0xff;*/
+	}
 
 	/**@todo Endian agnostic serialization of block for read and write */
 	errno = 0;
@@ -3518,7 +3781,7 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 	return r;
 }
 
-int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols)
+int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols, uint16_t *vga_initial_contents)
 {
 	assert(input);
 	assert(output);
@@ -3527,12 +3790,14 @@ int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symb
 	case DEFAULT_COMMAND:      /* fall through */
 	case DISASSEMBLE_COMMAND:  return h2_disassemble(input, output, symbols);
 	case ASSEMBLE_COMMAND:     return h2_assemble_file(input, output, symbols);
-	case RUN_COMMAND:          return assemble_run_command(cmd, input, output, symbols, false);
-	case ASSEMBLE_RUN_COMMAND: return assemble_run_command(cmd, input, output, symbols, true);
+	case RUN_COMMAND:          return assemble_run_command(cmd, input, output, symbols, false, vga_initial_contents);
+	case ASSEMBLE_RUN_COMMAND: return assemble_run_command(cmd, input, output, symbols, true,  vga_initial_contents);
 	default:                   fatal("invalid command: %d", cmd->cmd);
 	}
 	return -1;
 }
+
+static const char *nvram_file = FLASH_INIT_FILE;
 
 int h2_main(int argc, char **argv)
 {
@@ -3547,6 +3812,8 @@ int h2_main(int argc, char **argv)
 	cmd.steps = DEFAULT_STEPS;
 	cmd.nvram = nvram_file;
 
+	static uint16_t vga_initial_contents[VGA_BUFFER_LENGTH] = { 0 };
+
 #ifdef _WIN32
 	/* Windows Only: Put the used standard streams into binary mode.
 	 * Text mode sucks. */
@@ -3554,6 +3821,17 @@ int h2_main(int argc, char **argv)
 	_setmode(_fileno(stdout), _O_BINARY);
 	_setmode(_fileno(stderr), _O_BINARY);
 #endif
+
+	{ /* attempt to load initial contents of VGA memory */
+		errno = 0;
+		FILE *vga_init = fopen(VGA_INIT_FILE, "rb");
+		if(vga_init) {
+			memory_load(vga_init, vga_initial_contents, VGA_BUFFER_LENGTH);
+			fclose(vga_init);
+		} else {
+			warning("could not load initial VGA memory file %s: %s", VGA_INIT_FILE, strerror(errno));
+		}
+	}
 
 	for(i = 1; i < argc && argv[i][0] == '-'; i++) {
 
@@ -3633,7 +3911,7 @@ int h2_main(int argc, char **argv)
 		symbols = symbol_table_new();
 done:
 	if(i == argc) {
-		if(command(&cmd, stdin, stdout, symbols) < 0)
+		if(command(&cmd, stdin, stdout, symbols, vga_initial_contents) < 0)
 			fatal("failed to process standard input");
 		return 0;
 	}
@@ -3642,7 +3920,7 @@ done:
 		fatal("more than one file argument given");
 
 	input = fopen_or_die(argv[i], "rb");
-	if(command(&cmd, input, stdout, symbols) < 0)
+	if(command(&cmd, input, stdout, symbols, vga_initial_contents) < 0)
 		fatal("failed to process file: %s", argv[i]);
 	/**@note keeping "input" open until the command exits locks the
 	 * file for longer than is necessary under Windows */
@@ -3658,7 +3936,6 @@ done:
 	return 0;
 }
 
-#ifndef NO_MAIN
 int main(int argc, char **argv)
 {
 	return h2_main(argc, argv);

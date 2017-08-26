@@ -140,7 +140,7 @@ $40 constant c/l $10 constant l/b
 : p -1 +block b l ;
 : d (line) c/l blank ;
 : x (block) b/buf blank ; 
-: s update save-buffers ; -->
+: s update save-buffers ; 
 
 : q forth save-buffers ;
 : e forth blk @ load editor ;
