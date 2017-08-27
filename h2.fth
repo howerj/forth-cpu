@@ -10,18 +10,15 @@ For a grammar of the language look into the file "h2.c", or "readme.md".
 
 Execution begins at a label called "start".
 
+A problem with this Forth is that is uses a singe block buffer, which can cause
+problems when using the block word set from within blocks. The main reason for
+this is due to the limited space on the device.
+
 * Reformat this document to be 64 characters wide maximum, this
 is so it could be stored in block memory.
 
-* For tiny math routines, look at:
-http://files.righto.com/calculator/sinclair_scientific_simulator.html
-https://en.wikipedia.org/wiki/Sinclair_Scientific
-Also:
-https://groups.google.com/forum/#!topic/comp.lang.forth/_bx4dJFb9R0
-http://www.figuk.plus.com/build/arith.htm
-
 Forth To Do:
-* Fix PARSE
+* Implement rpick
 * Add do...loop, case statements
 * Implement some words from the C library, like all of "ctype.h" and
 put them in block storage. )
@@ -119,7 +116,6 @@ location _boot      0  ( -- : execute program at startup )
 location _bload     0  ( a u k -- f : load block )
 location _bsave     0  ( a u k -- f : save block )
 location _binvalid  0  ( k -- k : throws error if k invalid )
-location _page      0  ( -- : clear screen )
 location _message   0  ( n -- : display an error message )
 
 location flash-voc  0     ( flash and memory word set )
@@ -135,6 +131,7 @@ variable state      0  ( compiler state variable )
 variable hld        0  ( Pointer into hold area for numeric output )
 variable base       10 ( Current output radix )
 variable span       0  ( Hold character count received by expect   )
+variable loaded     0  ( Used by boot block to indicate it has been loaded  )
 
 constant #vocs            8 ( number of vocabularies in allowed )
 variable forth-wordlist   0 ( set at the end near the end of the file )
@@ -175,6 +172,7 @@ location loading-string   "loading..."
 ( ======================== Forth Kernel ===================== )
 
 : [-1] -1 ; hidden         ( -- -1 : space saving measure, push -1 onto stack )
+: 0x8000 $8000 ; hidden    ( -- $8000 : space saving measure, push $8000 onto stack )
 : ! store drop ;           ( n a -- : store a value 'n' at location 'a'  )
 : 256* 8 lshift ; hidden   ( u -- u : shift left by 8, or multiple by 256 )
 : 256/ 8 rshift ; hidden   ( u -- u : shift right by 8, or divide by 256 )
@@ -428,7 +426,7 @@ choice words that need depth checking to get quite a large coverage )
 
 : logical 0= 0= ; hidden ( n -- f )
 : immediate? @ $4000 and logical ; hidden ( pwd -- f : is immediate? )
-: inline?    @ $8000 and logical ; hidden ( pwd -- f : is inline? )
+: inline?    @ 0x8000 and logical ; hidden ( pwd -- f : is inline? )
 
 : search ( a a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
 	swap >r
@@ -509,24 +507,20 @@ choice words that need depth checking to get quite a large coverage )
 : scan ' scanTest _test ! lookfor ; hidden ( b u c -- u c )
 
 ( @todo store tmp on the return stack with stack magic )
-( @bug ." xxx" creates a string of size 4, the space is
-not consumed in the previous parse )
 
 : parser ( b u c -- b u delta )
 	tmp ! over >r
 	tmp @ skip 2dup
-	tmp @ scan swap r> - >r - r>
-	tmp @ =bl <> if 1+ then ( <-- this is a hack, relate to the string length bug )
-	; hidden
+	tmp @ scan swap r> - >r - r> 1+ ; hidden
 
-: parse >r tib >in @ + #tib @ >in @ - r> parser >in +! ; ( c -- b u ; <string> )
+: parse >r tib >in @ + #tib @ >in @ - r> parser >in +! -trailing 0 max ; ( c -- b u ; <string> )
 : ) ; immediate
 : "(" 41 parse 2drop ; immediate
 : .( 41 parse type ; immediate
 : "\" #tib @ >in ! ; immediate
 : ?length dup word-length u> if 19 -throw then ; hidden
 : word 1depth parse ?length here pack$ ;          ( c -- a ; <string> )
-: token =bl word ;
+: token =bl word ; hidden
 : char token count drop c@ ;               ( -- c; <string> )
 : .s ( -- ) cr sp@ for aft r@ pick . then next .s-string print ;
 : unused $4000 here - ; hidden
@@ -538,13 +532,18 @@ not consumed in the previous parse )
 \ : save last cp @ rendezvous 2! ; hidden
 \ : restore rendezvous 2@ cp ! context ! ; hidden ( @todo Fix restore to be vocabulary friendly )
 
-( @todo Only print out message if block storage loaded correctly, otherwise
-just print out the number )
-: on-error ( n -- : perform actions on error )
+: .error ( n -- )
+	abs dup 60 < loaded @ and 
+	if 
+		32 + _message @execute 
+	else 
+		negate . cr 
+	then ; hidden
+
+: ?error ( n -- : perform actions on error )
 	?dup if
 		[char] ? emit ( print error message )
-		\ . [char] # cr ( print error number )
-		abs dup 60 < if 32 + _message @execute else negate . cr then
+		.error
 		\ restore     ( restore dictionary to point before error )
 		preset        ( reset machine )
 		[             ( back into interpret mode )
@@ -552,9 +551,9 @@ just print out the number )
 
 : ?dictionary dup $3f00 u> if 8 -throw then ; hidden
 : , here dup cell+ ?dictionary cp ! ! ; ( u -- )
-: doLit $8000 or , ; hidden
+: doLit 0x8000 or , ; hidden
 : literal ( n -- : write a literal into the dictionary )
-	dup $8000 and ( n > $7fff ? )
+	dup 0x8000 and ( n > $7fff ? )
 	if
 		invert doLit =invert , ( store inversion of n the invert it )
 	else
@@ -589,7 +588,7 @@ just print out the number )
 : "immediate" last address $4000 toggle ;
 : .ok state @ 0= if space OK print space then cr ;
 : eval begin token dup count nip while interpret repeat drop _prompt @execute ; hidden
-: quit quitLoop: preset [ begin query ' eval catch on-error again ;
+: quit quitLoop: preset [ begin query ' eval catch ?error again ;
 
 : evaluate ( a u -- )
 	_prompt @ >r  0 _prompt !
@@ -623,19 +622,18 @@ just print out the number )
 
 : 5u.r 5 u.r ; hidden
 : dm+ 2/ for aft dup @ space 5u.r cell+ then next ; ( a u -- a )
+: colon 58 emit ; hidden ( -- )
 
 : dump ( a u -- )
 	dump-width /
 	for
 		aft
 			cr dump-width 2dup
-			over 5u.r 58 emit space
+			over 5u.r colon space
 			dm+ -rot
 			2 spaces $type
 		then
 	next drop ;
-
-( ==================== Extra Words =================================== )
 
 : CSI $1b emit [char] [ emit ; hidden
 : 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( u -- )
@@ -650,6 +648,9 @@ just print out the number )
 : background 10 + ;
 : color 30 + sgr ;
 
+( ==================== Extra Words =================================== )
+
+\ : defined? token find if -1 else drop 0 then ; ( -- pwd -1 | 0, <string> : is a word defined? )
 \ : ?if ' "dup" compile, call "if" ; immediate
 \ : ?dup-if ' "?dup" compile, call "if" ; immediate
 \ : gcd gcdStart: dup if tuck mod branch gcdStart then drop ; ( u1 u2 -- u : greatest common divisor )
@@ -791,6 +792,9 @@ in which the problem could be solved. )
 
 ( ==================== Block Word Set ================================ )
 
+( @todo implement multiple blocks, with the constraint that blocks
+should be contiguous as well )
+
 : updated? block-dirty @ ; hidden      ( -- f )
 : update [-1] block-dirty ! ;          ( -- )
 : +block blk @ + ;                     ( -- )
@@ -803,9 +807,6 @@ in which the problem could be solved. )
 	clean-buffers ;
 : flush save-buffers empty-buffers ;
 
-( @todo extend various words like '\' to work with blocks, the
-source-id word can be used by words to modify their behavior )
-
 : block ( k -- a )
 	1depth
 	_binvalid @execute                         ( check validity of block number )
@@ -815,17 +816,27 @@ source-id word can be used by words to modify their behavior )
 	blk !
 	block-buffer ;
 
-\ : loadline swap block swap c/l * + c/l evaluate ; ( k u -- )
-\ : load 0 15 for 2dup loadline 1+ next 2drop ;
-: load block b/buf evaluate ;
+: line swap block swap c/l * + c/l ; hidden ( k u -- a u )
+: loadline line evaluate ; hidden ( k u -- )
+: load 0 15 for 2dup >r >r loadline r> r> 1+ next 2drop ;
+\ : load block b/buf evaluate ;
 : --> 1 +block load ;
 : scr blk ;
 : pipe 124 emit ; hidden
 : border 3 spaces 64 45 nchars cr ; hidden
-: list _page @execute block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
+: .line line -trailing $type ; hidden
+: #line dup 2 u.r ; hidden ( u -- u )
+: list
+	 page
+	cr
+	border
+	0 begin dup l/b < while 2dup #line pipe line $type pipe cr 1+ repeat border 2drop ;
+
+\ : list page block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
 : thru over - for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
-: message 16 extract swap block swap c/l * + c/l -trailing $type cr ; ( u -- )
+\ : index 0 .line cr ;
+: message 16 extract .line cr ; ( u -- )
 \ : list-thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
 
 ( all words before this are now in the forth vocabulary, it is also set
@@ -871,10 +882,10 @@ i.end:   5u.r rdrop exit
 things, the 'decompiler' word could be called manually on an address if desired )
 : instruction ( decode instruction )
 	over >r
-	$8000 mask-off if see.lit     print $7fff and      branch i.end then
-	$6000 mask-off if see.alu     i.print              branch i.end then
-	$4000 mask-off if see.call    i.print dup 2*       5u.r rdrop space .name exit then
-	$2000 mask-off if see.0branch i.print r@ bcounter! branch i.end2t then
+	0x8000 mask-off if see.lit     print $7fff and      branch i.end then
+	$6000  mask-off if see.alu     i.print              branch i.end then
+	$4000  mask-off if see.call    i.print dup 2*       5u.r rdrop space .name exit then
+	$2000  mask-off if see.0branch i.print r@ bcounter! branch i.end2t then
 	                  see.branch  i.print r@ bcounter! branch i.end2t ; hidden
 
 : continue? ( u a -- f : determine whether to continue decompilation  )
@@ -884,7 +895,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 	=exit and =exit <> ; hidden
 
 : decompile ( a -- a : decompile a single instruction )
-	dup 5u.r 58 emit dup @ 5u.r space
+	dup 5u.r colon dup @ 5u.r space
 	dup @ instruction cr
 	cell+ ; hidden
 
@@ -896,12 +907,19 @@ things, the 'decompiler' word could be called manually on an address if desired 
 
 : see ( --, <string> : decompile a word )
 	token find 0= if 11 -throw then
-	cr 58 emit space dup .id space
+	cr colon space dup .id space
 	dup inline?    if see.inline    print then
 	dup immediate? if see.immediate print then
 	cr
 	cfa decompiler space 59 emit cr ;
 
+\ : see
+\ 	token find 0= if 11 -throw then 
+\ 	begin nuf? while 
+\ 		dup @ dup $4000 and $4000 
+\ 		= if space .name else . then cell+ 
+\ 	repeat drop ;
+ 
 .set forth-wordlist $pwd
 ( ==================== See =========================================== )
 
@@ -932,12 +950,15 @@ irq:
 	1 ien drop ;
 
 : screen-saver ( -- )
+	page
 	begin
 		random 80 mod
 		random 40 mod at-xy
 		random >char emit
+		random 8  mod 
+		( random 1 and if background then )
+		color
 	again ;
-
 
 ( ==================== Miscellaneous ================================= )
 
@@ -962,7 +983,7 @@ irq:
 : flash get-order flash-voc swap 1+ set-order ;
 
 : .words space begin dup while dup .id space @ address repeat drop cr ; hidden
-: words get-order begin ?dup while swap dup cr u. 58 emit @ .words 1- repeat ;
+: words get-order begin ?dup while swap dup cr u. colon @ .words 1- repeat ;
 
 .set forth-wordlist $pwd
 
@@ -1026,7 +1047,7 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 	oMemAddrLow !
 	oMemDout !
 	5 40ns
-	$8000 mcontrol!
+	0x8000 mcontrol!
 	5 40ns
 	$0000 mcontrol! ;
 
@@ -1182,9 +1203,7 @@ start:
 	cpu-id segments!
 	loading-string print
 	0 0 $2000 transfer
-	( @todo Load block 0 and signal that block storage is available )
-	( 0 ' load catch drop )
-	
+	0 ' load catch drop 
 	.ok
 	\ login 0 load 1 list
 	_boot @execute  ( _boot contains zero by default, does nothing )
@@ -1204,5 +1223,4 @@ start:
 .set _bload    memory-load ( execution vector of _bload, used in block )
 .set _bsave    memory-save ( execution vector of _bsave, used in block )
 .set _binvalid minvalid    ( execution vector of _invalid, used in block )
-.set _page     page        ( execution vector of _page, used in list )
-.set _message  message     ( execution vector of _message, used in on-error)
+.set _message  message     ( execution vector of _message, used in ?error )

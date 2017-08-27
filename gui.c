@@ -794,10 +794,17 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oLfsr:       soc->lfsr           = value; break;
 	case oMemControl:
-		soc->mem_control    = value;
-		if(!(soc->mem_control & FLASH_MEMORY_OE) && (soc->mem_control & FLASH_MEMORY_WE))
-			soc->vram[((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
-		break;
+		{
+			soc->mem_control    = value;
+
+			bool sram_cs   = soc->mem_control & SRAM_CHIP_SELECT;
+			bool oe        = soc->mem_control & FLASH_MEMORY_OE;
+			bool we        = soc->mem_control & FLASH_MEMORY_WE;
+
+			if(sram_cs && !oe && we)
+				soc->vram[((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
+			break;
+		}
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
 	default:

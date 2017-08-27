@@ -1,5 +1,5 @@
 ( Reserved for boot block )
-
+-1 loaded !
 
 
 
@@ -231,15 +231,15 @@ $003F , $001F , $000F , $0007 , $0003 , $0001 , $0000 , $0000 ,
   2dup rshift >r swap $8000 and 
   if $10 swap - -1 swap lshift else drop 0 then r> or ;
 
-$26DD constant cordic_1K $6487 constant half_pi
+$26DD constant cordic_1K $6487 constant pi/2
 
 variable tx 0 tx ! variable ty 0 ty ! variable tz 0 tz !
 variable x  0  x ! variable y  0  y ! variable z  0  z !
 variable d  0  d ! variable k  0  k !
 
 
-( CORDIC: valid in range -pi/2 to pi/2, arguments are in fixed
-point format with 1 = 16384, angle is given in radians.  )
+( CORDIC: valid in range -pi/2 to pi/2, arguments are in fixed )
+( point format with 1 = 16384, angle is given in radians.  )
 : cordic ( angle -- sine cosine )
   z ! cordic_1K x ! 0 y ! 0 k !
   $10 begin ?dup while
@@ -251,8 +251,8 @@ point format with 1 = 16384, angle is given in radians.  )
     k 1+!
     1-
   repeat y @ x @ ;
-
-
+: sin cordic drop ; 
+: cos cordic nip ;
 
 : 2+ 2 + ;                       ( n -- n )
 : 2- 2 - ;                       ( n -- n )
@@ -1218,7 +1218,7 @@ tib      ( -- a, V : terminal input buffer address )
 timer    ( -- u, IO : get current timer value )
 timer!   ( u --, IO : set timer compare and control )
 toggle   ( a u -- : xor contents of 'a' with 'u' )
-token    ( -- a, <string>, T : parse and pack into word buffer )
+
 tuck     ( n1 n2 -- n2 n1 n2 )
 type     ( a u --, IO: display a block of memory )
 u.       ( u --, P : print unsigned number )
