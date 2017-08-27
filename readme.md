@@ -7,6 +7,8 @@
 | License   | MIT/LGPL                  |
 | Email     | howe.r.j.89@gmail.com     |
 
+![H2 build status](https://travis-ci.org/howerj/forth-cpu.svg?branch=master "Build status of the H2 Assembler")
+
 # Introduction
 
 This project implements a small stack computer tailored to executing Forth
