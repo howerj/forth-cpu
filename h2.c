@@ -10,8 +10,8 @@
  * The processor has been tested on an FPGA and is working.
  * The project can be found at: https://github.com/howerj/forth-cpu
  *
- * @todo Copy the initial RAM block for the VGA display if the file
- * exists on disk, this is done in the GUI program, but not in this one.
+ * @todo Make 'hidden' apply to variables, and do the same for constants,
+ * removing the need for 'location'.
  * @todo Simulate all of the Common Flash Memory Interface so the Flash device
  * can be correctly used, see:
  * <https://en.wikipedia.org/wiki/Common_Flash_Memory_Interface> with the

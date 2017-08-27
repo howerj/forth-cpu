@@ -641,6 +641,14 @@ just print out the number )
 : 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( u -- )
 : at-xy CSI 10u. $3b emit 10u. [char] H emit ; ( x y -- )
 : page CSI 2 10u. [char] J emit 1 1 at-xy ; ( -- )
+: sgr CSI 10u. [char] m emit ;
+: black 0 ;
+: red 1 ;
+: green 2 ;
+: blue 4 ;
+: white red green blue + + ;
+: background 10 + ;
+: color 30 + sgr ;
 
 \ : ?if ' "dup" compile, call "if" ; immediate
 \ : ?dup-if ' "?dup" compile, call "if" ; immediate
@@ -930,6 +938,7 @@ irq:
 		random >char emit
 	again ;
 
+
 ( ==================== Miscellaneous ================================= )
 
 ( ==================== Vocabulary Words ============================== )
@@ -1174,7 +1183,7 @@ start:
 	loading-string print
 	0 0 $2000 transfer
 	( @todo Load block 0 and signal that block storage is available )
-	0 ' load catch drop
+	( 0 ' load catch drop )
 	
 	.ok
 	\ login 0 load 1 list

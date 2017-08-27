@@ -3,9 +3,11 @@
 #include <stdbool.h>
 
 #define MAX_READ (3200)
+#define DEFAULT_ATTRIBUTES (0x3800u)
 
 static int printer(FILE *o, uint16_t n, bool binary_not_hex)
 {
+	n |= DEFAULT_ATTRIBUTES;
 	if(binary_not_hex) {
 		unsigned i;
 		for(i = 15; i <= 15; i--)
