@@ -85,7 +85,8 @@ package vga_pkg is
 		ocry:      in  std_logic_vector(5 downto 0);
 		octl:      in  std_logic_vector(3 downto 0);
 		--
-		char_draw: out std_logic;
+		foreground_draw: out std_logic;
+		background_draw: out std_logic;
 		hsync:     out std_logic;
 		vsync:     out std_logic);
 	end component;
@@ -570,6 +571,7 @@ begin
 				when x"01"  => attr_n(6) <= '1'; -- bold
 				when x"07"  => attr_n(7) <= '1'; -- reverse video
 
+				-- @todo This should make the _text_ blink, not the cursor!
 				when x"05"  => ctl_n(1) <= '1'; -- blink slow
 				when x"19"  => ctl_n(1) <= '0'; -- blink off
 
@@ -644,7 +646,7 @@ architecture behav of vga_top is
 	constant font_file_type:   string   := "bin";
 
 	-- Internal signals for mapping output <--> VGA module
-	signal  char_draw_internal:      std_logic := '0';
+	signal  foreground_draw_internal:      std_logic := '0';
 
 	-- Text RAM signals, RAM <--> VGA module
 	signal  text_dout:       std_logic_vector(15 downto 0) := (others => '0');
@@ -658,12 +660,10 @@ architecture behav of vga_top is
 
 	signal  control_c, control_n: vga_control_registers_interface := vga_control_registers_initialize;
 
-	signal  char_draw: std_logic := '0';
+	signal  foreground_draw: std_logic := '0';
+	signal  background_draw: std_logic := '0';
 begin
-	--
-	-- @note This is an experimental interface, that allows coloring of individual
-	-- characters, it is not usable at the moment
-	--
+
 	color_block: block
 		signal red_on:   std_logic := '0';
 		signal green_on: std_logic := '0';
@@ -678,9 +678,13 @@ begin
 		set         <= "100" when bold = '0' else "111";
 		final       <= set   when reverse = '0' else not set;
 
-		red_on      <= text_dout(11) when char_draw = '1' else '0'; -- text_dout(8);
-		green_on    <= text_dout(12) when char_draw = '1' else '0'; -- text_dout(9);
-		blue_on     <= text_dout(13) when char_draw = '1' else '0'; -- text_dout(10);
+		red_on      <= text_dout(11) when foreground_draw = '1' else
+			       text_dout(8)  when background_draw = '1' else '0';
+		green_on    <= text_dout(12) when foreground_draw = '1' else
+			       text_dout(9)  when background_draw = '1' else '0';
+		blue_on     <= text_dout(13) when foreground_draw = '1' else
+			       text_dout(10) when background_draw = '1' else '0';
+
 		o_vga.red   <= final             when red_on    = '1' else "000";
 		o_vga.green <= final             when green_on  = '1' else "000";
 		o_vga.blue  <= final(2 downto 1) when blue_on   = '1' else "00";
@@ -726,7 +730,8 @@ begin
 		ocry      => control_c.cry,
 		octl      => control_c.ctl(3 downto 0),
 
-		char_draw => char_draw,
+		foreground_draw => foreground_draw,
+		background_draw => background_draw,
 		hsync     => o_vga.hsync,
 		vsync     => o_vga.vsync);
 
@@ -796,14 +801,15 @@ entity vga_core is
 		ocry:     in  std_logic_vector(5 downto 0);
 		octl:     in  std_logic_vector(3 downto 0);
 		--
-		char_draw: out std_logic; -- If '1', we should draw the character, not the background 
+		foreground_draw: out std_logic; -- If '1', we should draw the character
+		background_draw: out std_logic; 
 		hsync:     out std_logic;
 		vsync:     out std_logic);
 end entity;
 
 architecture rtl of vga_core is
 
-	signal char_draw_int: std_logic := '0';
+	signal foreground_draw_int, background_draw_int: std_logic := '0';
 	signal hsync_int: std_logic := '1';
 	signal vsync_int: std_logic := '1';
 
@@ -869,9 +875,10 @@ begin
 	process (rst, clk25MHz)
 	begin
 		if rst = '1' then
-			char_draw <= '0';
+			foreground_draw <= '0';
 		elsif rising_edge(clk25MHz) then
-			char_draw <= char_draw_int;
+			foreground_draw <= foreground_draw_int;
+			background_draw <= background_draw_int;
 		end if;
 	end process;
 
@@ -953,7 +960,8 @@ begin
 	losr_ld <= '1' when (chrx = 7) else '0';
 
 	-- video out, vga_en control signal enable/disable vga signal
-	char_draw_int <= y and blank;
+	foreground_draw_int <=      y  and blank;
+	background_draw_int <= (not y) and blank;
 
 	hsync <= hsync_int and vga_en;
 	vsync <= vsync_int and vga_en;
