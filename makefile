@@ -96,7 +96,7 @@ documentation: readme.pdf readme.htm
 CFLAGS=-Wall -Wextra -O2 -g
 
 h2${EXE}: h2.c h2.h
-	${CC} ${CFLAGS} -std=c99 $^ -o $@
+	${CC} ${CFLAGS} -std=c99 $< -o $@
 
 disassemble: h2${EXE} h2.fth
 	${DF}h2 -S h2.sym -a h2.fth > h2.hex
