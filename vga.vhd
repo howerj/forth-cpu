@@ -399,6 +399,7 @@ begin
 	--
 	-- Subset to implement:
 	-- ED  - Erase Display, CSI n 'J'  
+	-- RIS - Erase Display, ESC 'c'  
 	-- SGR - Select Graphic Rendition - for colors, CSI n 'm'
 	-- HVP - Horizontal and Vertical Position - CSI n ; m 'f'
 	--

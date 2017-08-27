@@ -358,8 +358,9 @@ begin
 			when "011" => -- Timer in
 				io_din(timer_counter_o'range) <= timer_counter_o;
 			when "100" => -- VT100 status
-				io_din(8)          <= '1';
-				io_din(9)          <= '0';
+				--io_din(6 downto 0) <= kbd_char_c;
+				--io_din(8)          <= not kbd_new_c;
+				--io_din(9)          <= kbd_new_c;
 				io_din(11)         <= not vga_data_busy;
 				io_din(12)         <= vga_data_busy;
 			when "101" => -- PS/2 Keyboard, Check for new char
