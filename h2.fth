@@ -1203,7 +1203,7 @@ start:
 	cpu-id segments!
 	loading-string print
 	0 0 $2000 transfer
-	0 ' load catch drop 
+	0 ' load catch drop
 	.ok
 	\ login 0 load 1 list
 	_boot @execute  ( _boot contains zero by default, does nothing )

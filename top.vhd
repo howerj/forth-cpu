@@ -303,10 +303,11 @@ begin
 		leds_reg_we        <= '1'                 when is_write and selector = x"4" else '0';
 		cpu_irc_mask_we    <= '1'                 when is_write and selector = x"5" else '0';
 		lfsr_i_we          <= '1'                 when is_write and selector = x"6" else '0';
+
 		mem_addr_26_17_we  <= '1'                 when is_write and selector = x"7" else '0';
-		mem_control_we     <= '1'                 when is_write and selector = x"8" else '0';
-		mem_addr_16_1_we   <= '1'                 when is_write and selector = x"9" else '0';
-		mem_data_i_we      <= '1'                 when is_write and selector = x"A" else '0';
+		mem_control_we     <= '1'                 when is_write and selector = x"7" else '0';
+		mem_addr_16_1_we   <= '1'                 when is_write and selector = x"8" else '0';
+		mem_data_i_we      <= '1'                 when is_write and selector = x"9" else '0';
 	end block;
 
 	io_read: process(
