@@ -12,6 +12,7 @@
  *
  * @todo Make 'hidden' apply to variables, and do the same for constants,
  * removing the need for 'location'.
+ * @todo Fix FIFO implementation when it comes to edge cases
  * @todo Simulate all of the Common Flash Memory Interface so the Flash device
  * can be correctly used, see:
  * <https://en.wikipedia.org/wiki/Common_Flash_Memory_Interface> with the
@@ -852,7 +853,7 @@ static char l8seg(uint8_t c)
 	return v[c & 0xf];
 }
 
-void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
+void soc_print(FILE *out, h2_soc_state_t *soc)
 {
 	assert(out);
 	assert(soc);
@@ -870,17 +871,7 @@ void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 	fprintf(out, "UART Input:    %02"PRIx8"\n",  soc->uart_getchar_register);
 	fprintf(out, "LED 7seg:      %c%c%c%c\n",    led0, led1, led2, led3);
 	fprintf(out, "Switches:      %02"PRIx8"\n",  soc->switches);
-	fprintf(out, "LFSR:          %04"PRIx16"\n", soc->lfsr);
 	fprintf(out, "Waiting:       %s\n",          soc->wait ? "true" : "false");
-
-	if(verbose) {
-		fputs("VGA Memory:\n", out);
-		/**@note we could also print the attribute information here as
-		 * well, and it should display correctly on a VT100 compatible
-		 * terminal emulator. We would have to convert the attributes
-		 * back into escape codes */
-		/*memory_print(out, 0, soc->vt100.m, VGA_BUFFER_LENGTH, true);*/
-	}
 }
 
 static void terminal_default_command_sequence(vt100_t *t)
@@ -1508,15 +1499,12 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 {
 	assert(soc);
 	debug("IO read addr: %"PRIx16, addr);
-
+	(void)debug_on;
 	switch(addr) {
 	case iUart:         return UART_TX_FIFO_EMPTY | soc->uart_getchar_register;
+	case iVT100:        return UART_TX_FIFO_EMPTY | soc->ps2_getchar_register;
 	case iSwitches:     return soc->switches;
-	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
-	case iVga:          return 0x0100;
-	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
-	case iLfsr:         return soc->lfsr;
 	case iMemDin:       return h2_io_memory_read_operation(soc);
 	default:
 		warning("invalid read from %04"PRIx16, addr);
@@ -1538,13 +1526,14 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 			break;
 	case oLeds:       soc->leds           = value; break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
-	case oVga:        /** @todo implement VT100 terminal */
-		if(0x2000 & value)
+	case oVT100:        /** @todo implement VT100 terminal */
+		if(value & UART_TX_WE)
 			vt100_update(&soc->vt100, value);
+		if(value & UART_RX_RE)
+			soc->ps2_getchar_register = wrap_getch(debug_on);
 		break;
 	case o8SegLED:    soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
-	case oLfsr:       soc->lfsr           = value; break;
 	case oMemControl:
 	{
 		soc->mem_control    = value;
@@ -1564,16 +1553,9 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	}
 }
 
-static uint16_t lfsr(uint16_t v)
-{
-	return (v >> 1) ^ (-(v & 1u) & 0x400b);
-}
-
 static void h2_io_update_default(h2_soc_state_t *soc)
 {
 	assert(soc);
-
-	soc->lfsr = lfsr(soc->lfsr);
 
 	if(soc->timer_control & TIMER_ENABLE) {
 		if(soc->timer_control & TIMER_RESET) {
@@ -2048,7 +2030,7 @@ again:
 			break;
 		case 'p':
 			if(io)
-				soc_print(ds->output, io->soc, log_level >= LOG_DEBUG);
+				soc_print(ds->output, io->soc);
 			else
 				fprintf(ds->output, "I/O unavailable\n");
 			break;

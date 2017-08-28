@@ -395,17 +395,11 @@ begin
 			o_vga             =>  o_vga);
 	end block;
 
-	-- @todo A small subset of the ANSI escape codes should be implement
-	--
-	-- Subset to implement:
-	-- ED  - Erase Display, CSI n 'J'  
+	-- Subset of commands implemented:
+	-- ED  - Erase Display, CSI n 'J' 
 	-- RIS - Erase Display, ESC 'c'  
 	-- SGR - Select Graphic Rendition - for colors, CSI n 'm'
 	-- HVP - Horizontal and Vertical Position - CSI n ; m 'f'
-	--
-	-- It would also be interesting to implement an ASCII bell character
-	-- with some audio output (or perhaps just inverting the colors on
-	-- the screen for a second).
 	--
 	fsm: process(clk, rst)
 		variable limit_value: unsigned(addr'range) := (others => '0');

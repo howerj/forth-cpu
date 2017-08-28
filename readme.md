@@ -257,13 +257,12 @@ The output register map:
 | oUart       | 0x4000  | UART register                   |
 | oLeds       | 0x4001  | LED outputs                     |
 | oTimerCtrl  | 0x4002  | Timer control                   |
-| oVga        | 0x4003  | VGA VT100 Terminal Write        |
-| o8SegLED    | 0x4004  | 4 x LED 8 Segment display 0     |
+| oVT100      | 0x4003  | VT100 Terminal Write            |
+| o8SegLED    | 0x4004  | 4 x LED 8 Segment display       |
 | oIrcMask    | 0x4005  | CPU Interrupt Mask              |
-| oLfsr       | 0x4006  | LFSR Value                      |
-| oMemControl | 0x4007  | Memory Control / Hi Address     |
-| oMemAddrLow | 0x4008  | Memory Lo Address               |
-| oMemDout    | 0x4009  | Memory Data Output              |
+| oMemControl | 0x4006  | Memory Control / Hi Address     |
+| oMemAddrLow | 0x4007  | Memory Lo Address               |
+| oMemDout    | 0x4008  | Memory Data Output              |
 
 
 The input registers:
@@ -274,9 +273,7 @@ The input registers:
 | iSwitches   | 0x4001  | Buttons and switches            |
 | iTimerCtrl  | 0x4002  | Timer control Register          |
 | iTimerDin   | 0x4003  | Current Timer Value             |
-| iVga        | 0x4004  | VGA status                      |
-| iPs2        | 0x4005  | PS2 Keyboard Register           |
-| iLfsr       | 0x4006  | LFSR Seed                       |
+| iVT100      | 0x4004  | Terminal status & PS/2 Keyboard |
 | iMemDin     | 0x4007  | Memory Data Input               |
 
 
@@ -349,10 +346,10 @@ The timer can be reset by writing to RST.
 	INTE: Interrupt Enable
 	TCMP: Timer Compare Value
 
-#### oVga
+#### oVT100
 
 The VGA Text device emulates a terminal which the user can talk to by writing
-to the oVga register. It supports a subset of the [VT100][] terminal
+to the oVT100 register. It supports a subset of the [VT100][] terminal
 functionality. The interface behaves much like writing to a UART with the same
 busy and control signals.
 
@@ -405,21 +402,6 @@ enabled within it.
 	+-------------------------------------------------------------------------------+
 
 	IMSK: Interrupt Mask
-
-#### oLfsr
-
-This register contains the interface the output of the Linear Feedback Shift
-Register ([LFSR][]). It needs an initial non-zero seed value before it will start
-counting, which can be supplied with iLfsr.
-
-	+-------------------------------------------------------------------------------+
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
-	|                               LFSR                                            |
-	+-------------------------------------------------------------------------------+
-
-	LFSR: Current Linear Feedback Shift Register Value
-
 
 #### oMemControl
 
@@ -549,7 +531,7 @@ This register contains the current value of the timers counter.
 
 	TCNT: Timer Counter Value
 
-#### iVga
+#### iVT100
 
 Read in the status registers for the VT100 VGA terminal interface, the transmit
 values are the only ones that matter.
@@ -578,20 +560,6 @@ an [ASCII][] character is present in ACHR. Both PS2N and ACHR will be cleared.
 
 	PS2N: New character available on PS2 Keyboard
 	ACHR: ASCII Character
-
-#### iLfsr
-
-This register contains the interface to the input of the Linear Feedback Shift
-Register ([LFSR][]). It needs an initial non-zero seed value before it will start
-counting, the LFSR can be used to generate pseudo random numbers.
-
-	|-------------------------------------------------------------------------------|
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	|-------------------------------------------------------------------------------|
-	|                               LFSR                                            |
-	|-------------------------------------------------------------------------------|
-
-	LFSR: Linear Feedback Shift Register Seed Value
 
 #### iMemDin
 

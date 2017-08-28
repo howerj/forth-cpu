@@ -726,21 +726,22 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			r |= soc->uart_getchar_register;
 			return r;
 		}
+	case iVT100:        
+		{
+			uint16_t r = 0;
+			r |= 1u << UART_TX_FIFO_EMPTY_BIT;
+			r |= 0u << UART_TX_FIFO_FULL_BIT;
+			r |= fifo_is_empty(ps2_rx_fifo) << UART_RX_FIFO_EMPTY_BIT;
+			r |= fifo_is_full(ps2_rx_fifo)  << UART_RX_FIFO_FULL_BIT;
+			r |= soc->uart_getchar_register;
+			return r;
+		}
 	case iSwitches:     
 		soc->switches = 0;
 		for(size_t i = 0; i < SWITCHES_COUNT; i++)
 			soc->switches |= switches[i].on << i;
 		return soc->switches;
-	case iTimerCtrl:    return soc->timer_control;
-	case iTimerDin:     return soc->timer;
-	case iVga:          return 0x0100;
-	case iPs2:
-		{
-			uint8_t c = 0;
-			bool char_arrived = fifo_pop(ps2_rx_fifo, &c);
-			return (char_arrived << PS2_NEW_CHAR_BIT) | c;
-		}
-	case iLfsr:     return soc->lfsr;
+	case iTimerDin: return soc->timer;
 	case iMemDin:   return h2_io_memory_read_operation(soc);
 	default:
 		warning("invalid read from %04"PRIx16, addr);
@@ -749,6 +750,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 	return 0;
 }
 
+/**@warning uses globals! */
 static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on)
 {
 	assert(soc);
@@ -762,13 +764,22 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oUart:
 		if(value & UART_TX_WE) {
 			fifo_push(uart_tx_fifo, value);
-			/*putchar(value);
-			fflush(stdout);*/
 		}
 		if(value & UART_RX_RE) {
 			uint8_t c = 0;
 			fifo_pop(uart_rx_fifo, &c);
 			soc->uart_getchar_register = c;
+		}
+		break;
+	case oVT100: 
+		if(value & UART_TX_WE) { /**@warning uses a global! */
+			vt100_update(&vga_terminal.vt100, value & 0xff);
+			vt100_update(&soc->vt100, value & 0xff);
+		}
+		if(value & UART_RX_RE) {
+			uint8_t c = 0;
+			fifo_pop(ps2_rx_fifo, &c);
+			soc->ps2_getchar_register = c;
 		}
 		break;
 	case oLeds:
@@ -779,20 +790,12 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oTimerCtrl:  
 		soc->timer_control  = value; 
 		break;
-	case oVga: 
-		if(0x2000 & value) {
-			/**@warning uses a global! */
-			vt100_update(&vga_terminal.vt100, value & 0xff);
-			vt100_update(&soc->vt100, value & 0xff);
-		}
-		break;
 	case o8SegLED:
 		for(size_t i = 0; i < SEGMENT_COUNT; i++)
 			segments[i].segment = (value >> ((SEGMENT_COUNT - i - 1) * 4)) & 0xf;
 		soc->led_8_segments = value;
 		break;
 	case oIrcMask:    soc->irc_mask       = value; break;
-	case oLfsr:       soc->lfsr           = value; break;
 	case oMemControl:
 		{
 			soc->mem_control    = value;
@@ -905,7 +908,6 @@ static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y)
 	fill_textbox(&t, "IRQ Mask:       %x", (unsigned)s->irc_mask);
 	fill_textbox(&t, "LED 8 Segments: %x", (unsigned)s->led_8_segments);
 	fill_textbox(&t, "Switches:       %x", (unsigned)s->switches);
-	fill_textbox(&t, "LFSR:           %x", (unsigned)s->lfsr);
 	fill_textbox(&t, "Memory Control: %x", (unsigned)s->mem_control);
 	fill_textbox(&t, "Memory Address: %x", (unsigned)s->mem_addr_low);
 	fill_textbox(&t, "Memory Output:  %x", (unsigned)s->mem_dout);

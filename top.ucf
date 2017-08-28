@@ -67,8 +67,8 @@ Net "o_vga_vsync" LOC = P7 | IOSTANDARD = LVCMOS33; # Bank = 2, pin name = IO_L4
 
 # Time output
 ##JA
-Net "gpt0_q" LOC = T12 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L19P, Sch name = JA1
-Net "gpt0_nq" LOC = V12 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L19N, Sch name = JA2
+#Net "gpt0_q" LOC = T12 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L19P, Sch name = JA1
+#Net "gpt0_nq" LOC = V12 | IOSTANDARD = LVCMOS33; #Bank = 2, pin name = IO_L19N, Sch name = JA2
 
 ## Pic USB-HID interface
 NET "ps2_keyboard_data" LOC = "J13" | IOSTANDARD = "LVCMOS33" | PULLUP;  #Bank = 1, Pin name = IO_L39P_M1A3,                      Sch name = PIC-SDI1

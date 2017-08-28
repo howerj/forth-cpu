@@ -64,24 +64,20 @@ constant word-length   31    ( maximum length of a word )
 ( Outputs: $6000 - $7FFF )
 constant oUart         $4000 ( UART TX/RX Control register )
 constant oLeds         $4001 ( LEDs )
-constant oTimerCtrl    $4002 ( Timer Control )
-constant oVga          $4003 ( VGA X/Y Cursor position )
+constant oTimerCtrl    $4002 ( Timer control register )
+constant oVT100          $4003 ( VGA X/Y Cursor position )
 constant o8SegLED      $4004 ( 4x7 Segment display )
 constant oIrcMask      $4005 ( Interrupt Mask )
-constant oLfsr         $4006 ( Seed value of LFSR )
-constant oMemControl   $4007 ( Memory control and high address bits )
-constant oMemAddrLow   $4008 ( Lower memory address bits )
-constant oMemDout      $4009 ( Memory output for writes )
+constant oMemControl   $4006 ( Memory control and high address bits )
+constant oMemAddrLow   $4007 ( Lower memory address bits )
+constant oMemDout      $4008 ( Memory output for writes )
 
 ( Inputs: $6000 - $7FFF )
 constant iUart         $4000 ( Matching registers for iUart )
 constant iSwitches     $4001 ( Switch control [on/off] )
-constant iTimerCtrl    $4002 ( Timer control, not really needed )
-constant iTimerDin     $4003 ( Current timer value )
-constant iVga          $4004 ( VGA text output, currently broken )
-constant iPs2          $4005 ( PS/2 keyboard input )
-constant iLfsr         $4006 ( Input from Linear Feedback Shift Register )
-constant iMemDin       $4007 ( Memory input for reads )
+constant iTimerDin     $4002 ( Current timer value )
+constant iVT100          $4003 ( VGA text output, currently broken )
+constant iMemDin       $4004 ( Memory input for reads )
 
 ( Initial value of VGA
 
@@ -152,7 +148,6 @@ location block-buffer     0 ( block buffer starts here )
 location _blockop         0             ( used in 'mblock' )
 location bcount           0             ( instruction counter used in 'see' )
 location _test            0             ( used in skip/test )
-location tmp              0             ( used in the parser )
 location .s-string        " <sp"        ( used by .s )
 location see.unknown      "(no-name)"   ( used by 'see' for calls to anonymous words )
 location see.lit          "LIT"         ( decompilation -> literal )
@@ -204,21 +199,28 @@ location loading-string   "loading..."
 	swap over dup ( -2 and ) @ swap 1 and 0 = $ff xor
 	>r over xor r> and xor swap ( -2 and ) store drop ;
 : c, cp @ c! cp 1+! ;    ( c -- : store 'c' at next available location in the dictionary )
-
-: rx? ( -- c -1 | 0 : read in a character of input from UART )
-	iUart @ $0100 and 0=
-	if
-		$0400 oUart ! iUart @ $ff and [-1]
-	else
-		0
-	then ; hidden
-
 : 40ns begin dup while 1- repeat drop ; hidden ( n -- : wait for 'n'*40ns + 30us )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
 
-: tx! ( c -- : write a character to UART )
-	begin iUart @ $1000 and 0= until ( Wait until TX FIFO is not full )
-	$2000 or oUart ! ; hidden     ( Write character out )
+: uart? ( a1 a2 -- c -1 | 0 : generic uart input using registers 'a1' and 'a2'  )
+	swap >r dup >r
+	@ $0100 and 0=
+	if
+		$0400 r> ! r> @ $ff and [-1]
+	else
+		rdrop rdrop 0
+	then ; hidden
+
+: rx?  oUart iUart uart? ; hidden ( -- c -1 | 0 : read in a character of input from UART )
+: ps2? oVT100 iVT100 uart? ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
+
+: uart! ( c a1 a2 -- : write to a UART, specified with registers a1, a2 )
+	>r >r
+	begin r@ @ $1000 and 0= until rdrop ( Wait until TX FIFO is not full )
+	$2000 or r> ! ; hidden
+
+: tx!  oUart iUart uart! ; hidden
+: vga! oVT100 iVT100 uart! ; hidden ( n a -- : output character to VT100 display )
 
 : um+ ( w w -- w carry )
 	over over + >r
@@ -247,7 +249,7 @@ they can implemented in terms of instructions )
 : source-id _id @ ;                       ( -- 0 | -1 )
 : pad here pad-length + ;                 ( -- a )
 : @execute @ ?dup if >r then ;            ( cfa -- )
-: 3drop 2drop drop ; hidden               ( n n n -- )
+: 3drop drop 2drop ; hidden               ( n n n -- )
 : bl =bl ;                                ( -- c )
 : within over - >r - r> u< ;              ( u lo hi -- t )
 : dnegate invert >r invert 1 um+ r> + ;   ( d -- d )
@@ -399,7 +401,6 @@ choice words that need depth checking to get quite a large coverage )
 : expect ( b u -- ) _expect @execute span ! drop ;
 : query tib tib-length _expect @execute #tib !  drop 0 >in ! ; ( -- )
 
-( @todo The 2dupxor instruction would be useful here )
 : =string ( a1 u2 a1 u2 -- f : string equality )
 	>r swap r> ( a1 a2 u1 u2 )
 	over xor if 3drop  0 exit then
@@ -409,15 +410,6 @@ choice words that need depth checking to get quite a large coverage )
 			if 2drop rdrop 0 exit then
 		then
 	next 2drop [-1] ; hidden
-
-\ : same? ( a a -- a a f )
-\ 	for
-\ 		aft
-\ 			over r@ cells + @
-\ 			over r@ cells + @ -  ?dup
-\ 			if rdrop exit then
-\ 		then
-\ 	next 0 ;
 
 : address $3fff and ; hidden ( a -- a : mask off address bits )
 : nfa address cell+ ; hidden ( pwd -- nfa : move to name field address)
@@ -506,12 +498,10 @@ choice words that need depth checking to get quite a large coverage )
 : skip ' skipTest _test ! lookfor ; hidden ( b u c -- u c )
 : scan ' scanTest _test ! lookfor ; hidden ( b u c -- u c )
 
-( @todo store tmp on the return stack with stack magic )
-
 : parser ( b u c -- b u delta )
-	tmp ! over >r
-	tmp @ skip 2dup
-	tmp @ scan swap r> - >r - r> 1+ ; hidden
+	>r over r> swap >r >r
+	r@ skip 2dup
+	r> scan swap r> - >r - r> 1+ ; hidden
 
 : parse >r tib >in @ + #tib @ >in @ - r> parser >in +! -trailing 0 max ; ( c -- b u ; <string> )
 : ) ; immediate
@@ -528,9 +518,6 @@ choice words that need depth checking to get quite a large coverage )
 : preset sp@ ndrop tib #tib cell+ ! 0 >in ! 0 _id ! ; hidden
 : ] [-1] state ! ;
 : [  0 state ! ; immediate
-
-\ : save last cp @ rendezvous 2! ; hidden
-\ : restore rendezvous 2@ cp ! context ! ; hidden ( @todo Fix restore to be vocabulary friendly )
 
 : .error ( n -- )
 	abs dup 60 < loaded @ and 
@@ -618,7 +605,7 @@ choice words that need depth checking to get quite a large coverage )
 		over c@ r> swap ccitt >r 1 /string
 	repeat 2drop r> ;
 
-: random seed @ dup 15 lshift ccitt dup seed ! iLfsr @ invert xor 1- ; ( -- u )
+: random seed @ dup 15 lshift ccitt dup seed ! ; ( -- u )
 
 : 5u.r 5 u.r ; hidden
 : dm+ 2/ for aft dup @ space 5u.r cell+ then next ; ( a u -- a )
@@ -647,8 +634,8 @@ choice words that need depth checking to get quite a large coverage )
 : white red green blue + + ;
 : background 10 + ;
 : color 30 + sgr ;
-: hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
-: show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
+\ : hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
+\ : show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
 
 ( ==================== Extra Words =================================== )
 
@@ -664,13 +651,11 @@ choice words that need depth checking to get quite a large coverage )
 
 ( ==================== Advanced I/O Control ========================== )
 
-: vga! begin iVga @ $1000 and 0= until $2000 or oVga ! ; ( n a -- : output character to VT100 display )
 : segments! o8SegLED ! ;   ( u -- : display a number on the LED 7/8 segment display )
 : led!      oLeds ! ;      ( u -- : write to LED lights )
 : switches  iSwitches  @ ; ( -- u : get the state of the switches)
 : timer!    oTimerCtrl ! ; ( u -- )
 : timer     iTimerDin  @ ; ( -- u )
-: ps2? iPs2 @ dup $ff and swap $100 and if [-1] else drop 0 then ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
 : input rx? if [-1] else ps2? then ; hidden ( -- c -1 | 0 : UART and PS/2 Input )
 : output dup tx! vga! ; hidden ( c -- : write to UART and VGA display )
 
@@ -680,7 +665,7 @@ choice words that need depth checking to get quite a large coverage )
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? _key? ! ' tx! _emit ! hand ;
 : interactive ' input _key? ! ' output _emit ! hand ; hidden
-: io! 1 oLfsr ! interactive 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
+: io! interactive 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
 : ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr ;
 
@@ -699,9 +684,9 @@ as possible so the Forth environment is easy to use. )
 : ?compile state @ 0= if 14 -throw then ; hidden ( fail if not compiling )
 : ?unique dup last search if drop redefined print cr else drop then ; hidden ( a -- a )
 : ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
+: ";" ?compile context @ ! ?csp =exit , ( save )  [ ; immediate
 : ":" align ( save ) !csp here last address ,  token ?nul ?unique count + aligned cp ! ] ;
 : "'" token find if cfa else 13 -throw then ; immediate
-: ";" ?compile context @ ! ?csp =exit , ( save )  [ ; immediate
 : jumpz, 2/ $2000 or , ; hidden
 : jump, 2/ ( $0000 or ) , ; hidden
 : "begin" ?compile here -csp ; immediate
@@ -791,7 +776,6 @@ in which the problem could be solved. )
 
 ( ==================== Strings ======================================= )
 
-
 ( ==================== Block Word Set ================================ )
 
 ( @todo implement multiple blocks, with the constraint that blocks
@@ -837,8 +821,8 @@ should be contiguous as well )
 \ : list page block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
 : thru over - for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
-\ : index 0 .line cr ;
 : message 16 extract .line cr ; ( u -- )
+\ : index over - cr for dup 5u.r space pipe space dup  0 .line cr 1+ next drop ;
 \ : list-thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
 
 ( all words before this are now in the forth vocabulary, it is also set
@@ -871,7 +855,6 @@ to work / break everything it touches )
 		address @
 	repeat rdrop ; hidden
 
-( : vocs get-order begin ?dup while swap @ space name print 1- repeat cr ; )
 
 : .name name ?dup 0= if see.unknown then print ; hidden
 : mask-off 2dup and = ; hidden ( u u -- u f )
@@ -986,6 +969,7 @@ irq:
 
 : .words space begin dup while dup .id space @ address repeat drop cr ; hidden
 : words get-order begin ?dup while swap dup cr u. colon @ .words 1- repeat ;
+\ : vocs get-order begin ?dup while swap @ dup . space .name 1- repeat cr ; 
 
 .set forth-wordlist $pwd
 

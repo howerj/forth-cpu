@@ -213,13 +213,11 @@ typedef struct {
 
 	uint16_t irc_mask;
 
-	uint8_t uart_getchar_register;
+	uint8_t uart_getchar_register, ps2_getchar_register;
 
 	uint16_t led_8_segments;
 
 	uint8_t switches;
-
-	uint16_t lfsr;
 
 	uint16_t vram[CHIP_MEMORY_SIZE]; /**@todo move to SRAM peripheral */
 	uint16_t mem_control;
@@ -246,25 +244,21 @@ typedef struct {
 typedef enum {
 	iUart         = 0x4000,
 	iSwitches     = 0x4001,
-	iTimerCtrl    = 0x4002,
-	iTimerDin     = 0x4003,
-	iVga          = 0x4004,
-	iPs2          = 0x4005,
-	iLfsr         = 0x4006,
-	iMemDin       = 0x4007,
+	iTimerDin     = 0x4002,
+	iVT100        = 0x4003,
+	iMemDin       = 0x4004,
 } h2_input_addr_t;
 
 typedef enum {
 	oUart         = 0x4000,
 	oLeds         = 0x4001,
 	oTimerCtrl    = 0x4002,
-	oVga          = 0x4003,
+	oVT100        = 0x4003,
 	o8SegLED      = 0x4004,
 	oIrcMask      = 0x4005,
-	oLfsr         = 0x4006,
-	oMemControl   = 0x4007,
-	oMemAddrLow   = 0x4008,
-	oMemDout      = 0x4009,
+	oMemControl   = 0x4006,
+	oMemAddrLow   = 0x4007,
+	oMemDout      = 0x4008,
 } h2_output_addr_t;
 
 typedef enum {
@@ -288,7 +282,7 @@ int h2_save(h2_t *h, FILE *output, bool full);
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger);
 
 uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc);
-void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose);
+void soc_print(FILE *out, h2_soc_state_t *soc);
 h2_soc_state_t *h2_soc_state_new(void);
 void h2_soc_state_free(h2_soc_state_t *soc);
 h2_io_t *h2_io_new(void);
