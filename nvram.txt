@@ -254,6 +254,22 @@ variable d  0  d ! variable k  0  k !
 : sin cordic drop ; 
 : cos cordic nip ;
 
+: pi/20 pi/2 $a / ;
+: generate 
+  pi/2 $28 2* for 
+    ( dup . ) dup sin $283 / 2 / $14 + r@ swap  
+    at-xy $5f  emit
+( swap . . cr )
+    pi/2 $28 / - next drop ;
+
+
+
+
+
+
+
+
+
 : 2+ 2 + ;                       ( n -- n )
 : 2- 2 - ;                       ( n -- n )
 : >= < invert ;                  ( n n -- f )

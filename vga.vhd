@@ -509,6 +509,9 @@ begin
 				when x"54" => -- ESC n 'T' : scroll down
 					ctl_n(4) <= '1';
 					state_n  <= WRITE;
+				-- when x"3f" => -- ESC ? 25 (l,h)
+				--	state_n  <= NUMBER2;
+				--	akk_init <= '1';
 				when others => -- Error
 					state_n <= ACCEPT;
 				end case;
@@ -571,6 +574,9 @@ begin
 				when x"00"  => attr_n <= attr_default;
 				when x"01"  => attr_n(6) <= '1'; -- bold
 				when x"07"  => attr_n(7) <= '1'; -- reverse video
+
+				-- when x"6c" => if n2_c = x"19" then ctl_n(2) <= '0'; end if; -- l, hide cursor
+				-- when x"68" => if n2_c = x"19" then ctl_n(2) <= '1'; end if; -- h, show cursor
 
 				-- @todo This should make the _text_ blink, not the cursor!
 				when x"05"  => ctl_n(1) <= '1'; -- blink slow
@@ -852,7 +858,6 @@ begin
 		end if;
 	end process;
 
-
 	-- vsync generator, initialized with '1'
 	process (rst, clk25MHz)
 	begin
@@ -992,9 +997,7 @@ begin
 		curen2 <= (slowclk or (not cur_blink)) and cur_en;
 		yint   <= '1' when cur_mode = '0'            else small;
 		y      <= (yint and curpos and curen2) xor losr_do;
-
 	end block;
-
 end;
 ----- VGA Core ----------------------------------------------------------------
 
@@ -1081,7 +1084,6 @@ begin
 				data := data(N-2 downto 0) & "0";
 			end if;
 		end if;
-
 		do <= data(N-1);
 	end process;
 end;

@@ -647,6 +647,8 @@ choice words that need depth checking to get quite a large coverage )
 : white red green blue + + ;
 : background 10 + ;
 : color 30 + sgr ;
+: hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
+: show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
 
 ( ==================== Extra Words =================================== )
 
@@ -1202,7 +1204,7 @@ start:
 	hi
 	cpu-id segments!
 	loading-string print
-	0 0 $2000 transfer
+	0 0 $8000 transfer
 	0 ' load catch drop
 	.ok
 	\ login 0 load 1 list
