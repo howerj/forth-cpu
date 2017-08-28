@@ -250,7 +250,7 @@ begin
 	begin
 		ka <= (others => '0');
 
-		for i in  number_of_led_displays - 1 downto 0 loop 
+		for i in  number_of_led_displays - 1 downto 0 loop
 			if '1' = shift_reg(number_of_led_displays - i - 1) then
 				ka <= char_to_8segment(leds_o(i*character_length + character_length - 1 downto (i*character_length)));
 			end if;

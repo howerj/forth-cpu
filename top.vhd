@@ -53,9 +53,6 @@ entity top is
 		-- VGA
 		o_vga:    out vga_physical_interface;
 
-		-- PWM from timer
-		gpt0_q:   out std_logic                    := '0';
-		gpt0_nq:  out std_logic                    := '0';
 		-- PS/2 Interface
 		ps2_keyboard_data:  in std_logic           := '0';
 		ps2_keyboard_clk:   in std_logic           := '0';
@@ -80,16 +77,17 @@ architecture behav of top is
 	constant timer_length:           positive := 16;
 	constant number_of_interrupts:   positive := 8;
 	constant number_of_led_displays: positive := 4;
+	constant timer_period_us:        positive := 20000;
 
 	-- Signals
-	signal rst: std_logic := '0';
+	signal rst:      std_logic := '0';
 	-- CPU H2 IO interface signals.
 	signal cpu_wait: std_logic := '0';
 	signal io_wr:    std_logic := '0';
 	signal io_re:    std_logic := '0';
-	signal io_din:   std_logic_vector(15 downto 0):= (others => '0');
-	signal io_dout:  std_logic_vector(15 downto 0):= (others => '0');
-	signal io_daddr: std_logic_vector(15 downto 0):= (others => '0');
+	signal io_din:   std_logic_vector(15 downto 0) := (others => '0');
+	signal io_dout:  std_logic_vector(15 downto 0) := (others => '0');
+	signal io_daddr: std_logic_vector(15 downto 0) := (others => '0');
 
 	-- CPU H2 Interrupts
 	signal cpu_irq:         std_logic := '0';
@@ -107,63 +105,51 @@ architecture behav of top is
 	-- Basic IO register
 
 	---- LEDs/Switches
-	signal ld_c, ld_n: std_logic_vector(7 downto 0)  :=  (others => '0');
+	signal ld_we:             std_logic := '0';
 
 	---- VGA
-	signal vga_data:      std_logic_vector(7 downto 0) := (others => '0');
-	signal vga_data_we:   std_logic                    := '0';
-	signal vga_data_busy: std_logic                    := '0';
+	signal vga_data:          std_logic_vector(7 downto 0) := (others => '0');
+	signal vga_data_we:       std_logic                    := '0';
+	signal vga_data_busy:     std_logic                    := '0';
 
 	---- UART
-	signal rx_data:        std_logic_vector(7 downto 0) := (others => '0');
-	signal rx_data_n:      std_logic_vector(7 downto 0) := (others => '0');
-	signal rx_fifo_empty:  std_logic := '0';
-	signal rx_fifo_full:   std_logic := '0';
-	signal rx_data_re:     std_logic := '0';
-	signal rx_data_re_n:   std_logic := '0';
+	signal rx_data:           std_logic_vector(7 downto 0) := (others => '0');
+	signal rx_data_n:         std_logic_vector(7 downto 0) := (others => '0');
+	signal rx_fifo_empty:     std_logic := '0';
+	signal rx_fifo_full:      std_logic := '0';
+	signal rx_data_re:        std_logic := '0';
+	signal rx_data_re_n:      std_logic := '0';
 
-	signal tx_data:        std_logic_vector(7 downto 0) := (others => '0');
-	signal tx_fifo_full:   std_logic := '0';
-	signal tx_fifo_empty:  std_logic := '0';
-	signal tx_data_we:     std_logic := '0';
+	signal tx_data:           std_logic_vector(7 downto 0) := (others => '0');
+	signal tx_fifo_full:      std_logic := '0';
+	signal tx_fifo_empty:     std_logic := '0';
+	signal tx_data_we:        std_logic := '0';
 
 	---- Timer
-	signal timer_control_we: std_logic := '0';
-	signal timer_control_i:  std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
-	-- @todo Remove timer_control_o, it is a pointless signal
-	signal timer_control_o:  std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
-	signal timer_counter_o:  std_logic_vector(timer_length - 4 downto 0) := (others =>'0');
-	signal timer_irq:        std_logic;
-	signal timer_q:          std_logic;
-	signal timer_nq:         std_logic;
+	signal timer_control_we:  std_logic := '0';
+	signal timer_control_i:   std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
+	signal timer_counter_o:   std_logic_vector(timer_length - 4 downto 0) := (others =>'0');
+	signal timer_irq:         std_logic;
 
 	---- PS/2
-	signal kbd_new:      std_logic := '0';  -- new ASCII char available
-	signal kbd_new_edge: std_logic := '0';
-	signal kbd_char:     std_logic_vector(6 downto 0); -- ASCII char
-	signal kbd_new_c,  kbd_new_n:  std_logic := '0';
-	signal kbd_char_c, kbd_char_n: std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
+	signal kbd_char_buf_new:  std_logic := '0';
+	signal kbd_char_buf:      std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
+	signal kbd_char_re:       std_logic := '0';
 
 	---- 8 Segment Display
 
-	signal leds_reg:    std_logic_vector(15 downto 0) := (others => '0');
-	signal leds_reg_we: std_logic := '0';
+	signal leds_reg:          std_logic_vector(15 downto 0) := (others => '0');
+	signal leds_reg_we:       std_logic := '0';
 
 	---- Buttons
+	signal btnu_d:            std_logic := '0';  -- button up
+	signal btnd_d:            std_logic := '0';  -- button down
+	signal btnc_d:            std_logic := '0';  -- button centre
+	signal btnl_d:            std_logic := '0';  -- button left
+	signal btnr_d:            std_logic := '0';  -- button right
 
-	signal btnu_d: std_logic := '0';  -- button up
-	signal btnd_d: std_logic := '0';  -- button down
-	signal btnc_d: std_logic := '0';  -- button centre
-	signal btnl_d: std_logic := '0';  -- button left
-	signal btnr_d: std_logic := '0';  -- button right
-
-	signal sw_d:   std_logic_vector(sw'range) := (others => '0');
-
-	-- LFSR
-	constant lfsr_tap: std_logic_vector(14 downto 0) := "100000000001011";
-	signal lfsr_o:     std_logic_vector(lfsr_tap'high + 1 downto lfsr_tap'low);
-	signal lfsr_i:     std_logic_vector(lfsr_o'range);
-	signal lfsr_i_we:  std_logic := '0';
+	-- Switches
+	signal sw_d:              std_logic_vector(sw'range) := (others => '0');
 
 	-- Memory
 	signal mem_addr_26_17:    std_logic_vector(26 downto 17) := (others => '0');
@@ -178,9 +164,9 @@ architecture behav of top is
 	signal mem_data_o:        std_logic_vector(15 downto 0) := (others => '0');
 
 	signal mem_control_i:     std_logic_vector(5 downto 0)  := (others => '0');
-	signal mem_control_o:     std_logic_vector(5 downto 0)  := (others => '0');
 	signal mem_control_we:    std_logic := '0';
 
+	signal mem_control_o:     std_logic_vector(5 downto 0)  := (others => '0');
 	signal mem_we:            std_logic := '0';
 	signal mem_oe:            std_logic := '0';
 begin
@@ -189,9 +175,6 @@ begin
 -------------------------------------------------------------------------------
 
 ------- Output assignments (Not in a process) ---------------------------------
-
-	gpt0_q  <= timer_q;
-	gpt0_nq <= timer_nq;
 
 	-- @warning These are both temporary measures for testing only!
 	rst        <= btnu_d;
@@ -209,7 +192,7 @@ begin
 		cpu_irc(2) <= rx_fifo_full;
 		cpu_irc(3) <= tx_fifo_not_empty;
 		cpu_irc(4) <= tx_fifo_full;
-		cpu_irc(5) <= kbd_new;
+		cpu_irc(5) <= kbd_char_buf_new;
 		cpu_irc(6) <= timer_irq;
 		cpu_irc(7) <= btnl_d; -- @todo replace with button change state
 
@@ -219,7 +202,7 @@ begin
 				rx_fifo_full      = '1' or
 				tx_fifo_not_empty = '1' or
 				tx_fifo_full      = '1' or
-				kbd_new           = '1' or
+				kbd_char_buf_new  = '1' or
 				btnl_d            = '1'
 				else '0';
 	end block;
@@ -256,65 +239,48 @@ begin
 	---- Clock divider /2. Pixel clock is 25MHz
 	clk25MHz <= '0' when rst = '1' else not clk25MHz when rising_edge(clk50MHz);
 
-	io_nextState: process(clk, rst)
-	begin
-		if rst = '1' then
-			-- LEDs/Switches
-			ld_c       <= (others => '0');
-			-- PS/2
-			kbd_char_c <= (others => '0');
-			kbd_new_c  <= '0';
-		elsif rising_edge(clk) then
-			-- LEDs/Switches
-			ld_c        <=  ld_n;
-			-- PS/2
-			kbd_char_c  <= kbd_char_n;
-			kbd_new_c   <= kbd_new_n;
-		end if;
-	end process;
-
 	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
+	assert not(io_wr = '1' or io_re = '1') or not  io_daddr(0) = '1' report "Unaligned register access" severity error;
 
 	cpu_irc_mask      <= io_dout(number_of_interrupts - 1 downto 0);
 	timer_control_i   <= io_dout;
 	vga_data          <= io_dout(vga_data'range);
 	leds_reg          <= io_dout;
 	tx_data           <= io_dout(tx_data'range);
-	lfsr_i            <= io_dout;
 	mem_addr_16_1     <= io_dout;
 	mem_addr_26_17    <= io_dout(9 downto 0);
 	mem_control_i     <= io_dout(15 downto 10);
 	mem_data_i        <= io_dout;
 
-	ld                <= ld_c;
-
 	io_write: block
 		signal selector: std_logic_vector(3 downto 0) := (others => '0');
 		signal is_write: boolean := false;
 	begin
-		selector <= io_daddr(3 downto 0);
-		is_write <= true when io_wr = '1' and io_daddr(15) = '0' else false;
+		selector           <= io_daddr(4 downto 1);
+		is_write           <= true when io_wr = '1' else false;
 
-		tx_data_we         <= io_dout(13)         when is_write and selector = x"0" else '0';
-		rx_data_re         <= io_dout(10)         when is_write and selector = x"0" else '0';
-		ld_n               <= io_dout(ld_n'range) when is_write and selector = x"1" else ld_c;
-		timer_control_we   <= '1'                 when is_write and selector = x"2" else '0';
-		vga_data_we        <= io_dout(13)         when is_write and selector = x"3" else '0';
-		leds_reg_we        <= '1'                 when is_write and selector = x"4" else '0';
-		cpu_irc_mask_we    <= '1'                 when is_write and selector = x"5" else '0';
-		lfsr_i_we          <= '1'                 when is_write and selector = x"6" else '0';
+		tx_data_we         <= io_dout(13) when is_write and selector = x"0" else '0';
+		rx_data_re         <= io_dout(10) when is_write and selector = x"0" else '0';
 
-		mem_addr_26_17_we  <= '1'                 when is_write and selector = x"7" else '0';
-		mem_control_we     <= '1'                 when is_write and selector = x"7" else '0';
-		mem_addr_16_1_we   <= '1'                 when is_write and selector = x"8" else '0';
-		mem_data_i_we      <= '1'                 when is_write and selector = x"9" else '0';
+		vga_data_we        <= io_dout(13) when is_write and selector = x"1" else '0';
+		kbd_char_re        <= io_dout(10) when is_write and selector = x"1" else '0';
+
+		timer_control_we   <= '1'         when is_write and selector = x"2" else '0';
+		ld_we              <= '1'         when is_write and selector = x"3" else '0';
+		leds_reg_we        <= '1'         when is_write and selector = x"4" else '0';
+		cpu_irc_mask_we    <= '1'         when is_write and selector = x"5" else '0';
+
+		mem_addr_26_17_we  <= '1'         when is_write and selector = x"6" else '0';
+		mem_control_we     <= '1'         when is_write and selector = x"6" else '0';
+
+		mem_addr_16_1_we   <= '1'         when is_write and selector = x"7" else '0';
+		mem_data_i_we      <= '1'         when is_write and selector = x"8" else '0';
 	end block;
 
 	io_read: process(
 		io_wr, io_re, io_daddr,
 		sw_d, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
-		kbd_char, kbd_new_c, kbd_char_c,
-		kbd_new_edge,
+		kbd_char_buf_new, kbd_char_buf,
 
 		rx_data_n,
 		rx_fifo_empty,
@@ -323,59 +289,38 @@ begin
 		tx_fifo_full,
 		tx_fifo_empty,
 
-		lfsr_o,
-
-		timer_control_o,
 		timer_counter_o,
 
 		vga_data_busy,
 
 		mem_data_o)
 	begin
-		-- @todo Move this into the PS/2 module
-		if kbd_new_edge = '1' then
-			kbd_new_n  <= '1';
-			kbd_char_n <= kbd_char;
-		else
-			kbd_new_n  <= kbd_new_c;
-			kbd_char_n <= kbd_char_c;
-		end if;
 
-		io_din             <= (others => '0');
+		io_din <= (others => '0');
 
-		if io_re = '1' and io_daddr(15) = '0' then
-			case io_daddr(2 downto 0) is
-			when "000" => -- buttons, plus direct access to UART bit.
-				io_din(7 downto 0) <= rx_data_n;
-				io_din(8)          <= rx_fifo_empty;
-				io_din(9)          <= rx_fifo_full;
-				io_din(11)         <= tx_fifo_empty;
-				io_din(12)         <= tx_fifo_full;
-			when "001" => -- Switches and buttons
-				io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
-			when "010" =>
-				-- @todo remove this register
-				io_din <= timer_control_o;
-			when "011" => -- Timer in
-				io_din(timer_counter_o'range) <= timer_counter_o;
-			when "100" => -- VT100 status
-				--io_din(6 downto 0) <= kbd_char_c;
-				--io_din(8)          <= not kbd_new_c;
-				--io_din(9)          <= kbd_new_c;
-				io_din(11)         <= not vga_data_busy;
-				io_din(12)         <= vga_data_busy;
-			when "101" => -- PS/2 Keyboard, Check for new char
-				-- @todo Merge the VT100 and the PS/2 registers
-				io_din(6 downto 0) <= kbd_char_c;
-				io_din(8)          <= kbd_new_c;
-				kbd_new_n          <= '0';
-			when "110" =>
-				io_din             <= lfsr_o;
-			when "111" =>
-				io_din             <= mem_data_o;
-			when others => io_din <= (others => '0');
-			end case;
-		end if;
+		-- The signal io_re is not needed as none of the reads have
+		-- any side effects
+		case io_daddr(3 downto 1) is
+		when "000" => -- buttons, plus direct access to UART bit.
+			io_din(7 downto 0) <= rx_data_n;
+			io_din(8)          <= rx_fifo_empty;
+			io_din(9)          <= rx_fifo_full;
+			io_din(11)         <= tx_fifo_empty;
+			io_din(12)         <= tx_fifo_full;
+		when "001" => -- VT100 status and Keyboard
+			io_din(6 downto 0) <= kbd_char_buf;
+			io_din(8)          <= not kbd_char_buf_new;
+			io_din(9)          <= kbd_char_buf_new;
+			io_din(11)         <= not vga_data_busy;
+			io_din(12)         <= vga_data_busy;
+		when "010" => -- Timer in
+			io_din(timer_counter_o'range) <= timer_counter_o;
+		when "011" => -- Switches and buttons
+			io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
+		when "100" =>
+			io_din             <= mem_data_o;
+		when others => io_din <= (others => '0');
+		end case;
 	end process;
 
 	--- UART ----------------------------------------------------------
@@ -419,23 +364,30 @@ begin
 			rx              =>  rx);
 	--- UART ----------------------------------------------------------
 
+	--- LED Output ----------------------------------------------------
+	led_output_reg_0: entity work.reg
+		generic map(N => ld'high + 1)
+		port map(
+			clk => clk,
+			rst => rst,
+			we  => ld_we,
+			di  => io_dout(ld'range),
+			do  => ld);
+	--- LED Output ----------------------------------------------------
+
 	--- Timer ---------------------------------------------------------
-	timer0_0: entity work.timer
+	timer_0: entity work.timer
 	generic map(timer_length => timer_length)
 	port map(
 		clk       => clk,
 		rst       => rst,
 		we        => timer_control_we,
 		control_i => timer_control_i,
-		control_o => timer_control_o,
 		counter_o => timer_counter_o,
-		irq       => timer_irq,
-		Q         => timer_q,
-		NQ        => timer_nq);
+		irq       => timer_irq);
 	--- Timer ---------------------------------------------------------
 
 	--- VGA -----------------------------------------------------------
-
 	vt100_0: work.vga_pkg.vt100
 	port map(
 		clk         =>  clk,
@@ -445,32 +397,24 @@ begin
 		char        =>  vga_data,
 		busy        =>  vga_data_busy,
 		o_vga       =>  o_vga);
-
 	--- VGA -----------------------------------------------------------
 
-	--- PS/2 ----------------------------------------------------------
-
-	-- Process a kbd_new into a single edge for the rest of the
-	-- system.
-	-- @todo Move into PS/2 component
-	ps2_edge_new_character_0: entity work.edge
-	port map(
-		clk    => clk,
-		rst    => rst,
-		sin    => kbd_new,
-		output => kbd_new_edge);
-
-	ps2_0: work.kbd_pkg.ps2_kbd_top
+	--- Keyboard ------------------------------------------------------
+	keyboard_0: work.kbd_pkg.keyboard
 	generic map(
-		clock_frequency => clock_frequency,
+		clock_frequency           => clock_frequency,
 		ps2_debounce_counter_size => 8)
 	port map(
-		clk        => clk,
-		ps2_clk    => ps2_keyboard_clk,
-		ps2_data   => ps2_keyboard_data,
-		ascii_new  => kbd_new,
-		ascii_code => kbd_char);
-	--- PS/2 ----------------------------------------------------------
+		clk              => clk,
+		rst              => rst,
+
+		ps2_clk          => ps2_keyboard_clk,
+		ps2_data         => ps2_keyboard_data,
+
+		kbd_char_re      => kbd_char_re,
+		kbd_char_buf_new => kbd_char_buf_new,
+		kbd_char_buf     => kbd_char_buf);
+	--- Keyboard ------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------
 	ledseg_0: entity work.led_8_segment_display
@@ -490,102 +434,62 @@ begin
 	--- LED 8 Segment display -----------------------------------------
 
 	--- Buttons -------------------------------------------------------
-
-	btnu_d0: entity work.debounce_us
-		generic map(clock_frequency => clock_frequency, timer_period_us => 20000)
-		port map(clk => clk, di => btnu, do => btnu_d);
-	btnd_d0: entity work.debounce_us
-		generic map(clock_frequency => clock_frequency, timer_period_us => 20000)
-		port map(clk => clk, di => btnd, do => btnd_d);
-	btnc_d0: entity work.debounce_us
-		generic map(clock_frequency => clock_frequency, timer_period_us => 20000)
-		port map(clk => clk, di => btnc, do => btnc_d);
-	btnl_d0: entity work.debounce_us
-		generic map(clock_frequency => clock_frequency, timer_period_us => 20000)
-		port map(clk => clk, di => btnl, do => btnl_d);
-	btnr_d0: entity work.debounce_us
-		generic map(clock_frequency => clock_frequency, timer_period_us => 20000)
-		port map(clk => clk, di => btnr, do => btnr_d);
-
+	button_debouncer: work.util.debounce_block_us
+	generic map(
+		N               => 5,
+		clock_frequency => clock_frequency,
+		timer_period_us => timer_period_us)
+	port map(
+		clk   => clk,
+		di(0) => btnu,
+		di(1) => btnd,
+		di(2) => btnc,
+		di(3) => btnl,
+		di(4) => btnr,
+		do(0) => btnu_d,
+		do(1) => btnd_d,
+		do(2) => btnc_d,
+		do(3) => btnl_d,
+		do(4) => btnr_d);
 	--- Buttons -------------------------------------------------------
 
 	--- Switches ------------------------------------------------------
-
-	sw_debouncer: for i in sw'range generate
-		sw_d_instance: entity work.debounce_us
-			generic map(
-				clock_frequency => clock_frequency,
-				timer_period_us => 20000)
-			port map(clk => clk, di => sw(i), do => sw_d(i));
-	end generate;
-
+	sw_debouncer: work.util.debounce_block_us
+		generic map(
+			N               => sw'high+1,
+			clock_frequency => clock_frequency,
+			timer_period_us => timer_period_us)
+		port map(clk => clk, di => sw, do => sw_d);
 	--- Switches ------------------------------------------------------
 
 	--- Memory Interface ----------------------------------------------
-	-- @todo Move to memory interface module
-	mem_addr_16_1_reg: entity work.reg
-		generic map(N => 16)
-		port map(
-			clk => clk,
-			rst => rst,
-			we  => mem_addr_16_1_we,
-			di  => mem_addr_16_1,
-			do  => MemAdr(16 downto 1));
-
-	mem_addr_26_17_reg: entity work.reg
-		generic map(N => 10)
-		port map(
-			clk => clk,
-			rst => rst,
-			we  => mem_addr_26_17_we,
-			di  => mem_addr_26_17,
-			do  => MemAdr(26 downto 17));
-
-	mem_control_reg: entity work.reg
-		generic map(N => 6)
-		port map(
-			clk => clk,
-			rst => rst,
-			we  => mem_control_we,
-			di  => mem_control_i,
-			do  => mem_control_o);
-
-	mem_data_i_reg: entity work.reg
-		generic map(N => 16)
-		port map(
-			clk => clk,
-			rst => rst,
-			we  => mem_data_i_we,
-			di  => mem_data_i,
-			do  => mem_data_buf_i);
-
-	FlashCS    <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(0) = '1' else '1';
-	RamCS      <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(1) = '1' else '1';
-	MemWait    <= mem_control_o(2);
-	FlashRp    <= '0' when mem_control_o(3) = '1' else '1';
-	MemAdv     <= '0' when mem_oe = '1' or mem_we = '1' else '1';
-	mem_oe     <= '1' when mem_control_o(5 downto 4) = "01"  else '0';
-	mem_we     <= '1' when mem_control_o(5 downto 4) = "10"  else '0';
-
-	MemOE      <= not mem_oe;
-	MemWR      <= not mem_we;
-
-	mem_data_o <= MemDB when mem_oe = '1' else (others => '0');
-	MemDB      <= mem_data_buf_i when mem_we = '1' else (others => 'Z');
-
+	-- @todo The memory interface should be WORD aligned, that is, the
+	-- lowest bit of the address should be dropped
+	ram_interface_0: entity work.ram_interface
+	port map(
+		clk                =>  clk,
+		rst                =>  rst,
+		mem_addr_16_1      =>  mem_addr_16_1,
+		mem_addr_16_1_we   =>  mem_addr_16_1_we,
+		mem_addr_26_17     =>  mem_addr_26_17,
+		mem_addr_26_17_we  =>  mem_addr_26_17_we,
+		mem_control_i      =>  mem_control_i,
+		mem_control_we     =>  mem_control_we,
+		mem_data_i         =>  mem_data_i,
+		mem_data_i_we      =>  mem_data_i_we,
+		mem_data_o         =>  mem_data_o,
+		RamCS              =>  RamCS,
+		MemOE              =>  MemOE,
+		MemWR              =>  MemWR,
+		MemAdv             =>  MemAdv,
+		MemWait            =>  MemWait,
+		FlashCS            =>  FlashCS,
+		FlashRp            =>  FlashRp,
+		MemAdr             =>  MemAdr,
+		MemDB              =>  MemDB);
 	--- Memory Interface ----------------------------------------------
-
-	--- LFSR ----------------------------------------------------------
-
-	lfsr_0: entity work.lfsr
-		generic map(tap => lfsr_tap)
-		port map(clk => clk, rst => rst, ce => '1', di => lfsr_i, we => lfsr_i_we, do => lfsr_o);
-
-	--- LFSR ----------------------------------------------------------
 
 -------------------------------------------------------------------------------
 end architecture;
-
-
 
 

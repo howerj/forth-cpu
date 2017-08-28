@@ -145,7 +145,7 @@ end package;
 ----- VGA Package -------------------------------------------------------------
 
 ----- Accumulator -------------------------------------------------------------
--- The purpose of this module is to read in numeric characters ('0' through 
+-- The purpose of this module is to read in numeric characters ('0' through
 -- '9') and convert the string into a binary number ('n_o'). On the first non-
 -- numeric character the module stops and outputs that non-numeric character
 -- as well as the converted number string. The module waits in the FINISHED
@@ -207,15 +207,15 @@ begin
 			elsif state_c = COMMAND then
 				state_n <= ACCUMULATE;
 				case c_c is
-				when x"30"  => 
-				when x"31"  => 
-				when x"32"  => 
-				when x"33"  => 
-				when x"34"  => 
-				when x"35"  => 
-				when x"36"  => 
-				when x"37"  => 
-				when x"38"  => 
+				when x"30"  =>
+				when x"31"  =>
+				when x"32"  =>
+				when x"33"  =>
+				when x"34"  =>
+				when x"35"  =>
+				when x"36"  =>
+				when x"37"  =>
+				when x"38"  =>
 				when x"39"  =>
 				when others =>
 					state_n <= WRITE;
@@ -238,7 +238,7 @@ begin
 				state_n <= RESET;
 				report "Invalid State" severity failure;
 			end if;
-			
+
 			if init = '1' then
 				assert state_c = FINISHED report "Lost Conversion" severity error;
 				state_n <= RESET;
@@ -255,7 +255,7 @@ end architecture;
 -- a subset of the commands supplied by the VT100. This simplifies the usage
 -- of the VGA text mode display, other VHDL components only have to write bytes
 -- and do not have to worry about cursor position or implementing new lines,
--- tabs, and other very basic features. 
+-- tabs, and other very basic features.
 --
 -- The interface is designed to act like a UART, simply write a byte to it
 -- and so long as the interface is not busy, it will be written to the screen
@@ -345,7 +345,7 @@ begin
 			ready  => akk_ready_o,
 			n_o    => n_o);
 
-	address: block 
+	address: block
 		signal addr_int: integer range 8191 downto 0 := 0; --12 bits
 		signal x_int:    integer range  127 downto 0 := 0; -- 7 bits
 	begin
@@ -362,7 +362,7 @@ begin
 	y_plus_one          <= y_c + 1;
 	y_overflow          <= true when y_c         > height - 1 else false;
 
-	busy                <= '0' when state_c = ACCEPT 
+	busy                <= '0' when state_c = ACCEPT
 				       or state_c = CSI
 				       or state_c = NUMBER1
 				       or state_c = NUMBER2 else '1';
@@ -395,17 +395,11 @@ begin
 			o_vga             =>  o_vga);
 	end block;
 
-	-- @todo A small subset of the ANSI escape codes should be implement
-	--
-	-- Subset to implement:
-	-- ED  - Erase Display, CSI n 'J'  
-	-- RIS - Erase Display, ESC 'c'  
+	-- Subset of commands implemented:
+	-- ED  - Erase Display, CSI n 'J'
+	-- RIS - Erase Display, ESC 'c'
 	-- SGR - Select Graphic Rendition - for colors, CSI n 'm'
 	-- HVP - Horizontal and Vertical Position - CSI n ; m 'f'
-	--
-	-- It would also be interesting to implement an ASCII bell character
-	-- with some audio output (or perhaps just inverting the colors on
-	-- the screen for a second).
 	--
 	fsm: process(clk, rst)
 		variable limit_value: unsigned(addr'range) := (others => '0');
@@ -445,25 +439,25 @@ begin
 				end if;
 			elsif state_c = NORMAL then
 				case c_c is
-				when tab => 
+				when tab =>
 					x_n     <= (x_c and "1111000") + 8;
 					state_n <= ERASING;
 					c_n     <= blank;
 					limit_value := unsigned(addr and "1111111111000") + 8;
 					limit_n <= limit_value(limit_n'high + 3 downto limit_n'low + 3);
 					count_n <= unsigned(addr);
-				when cr => 
+				when cr =>
 					y_n     <= y_plus_one;
 					state_n <= WRAP;
-				when lf => 
+				when lf =>
 					x_n     <= (others => '0');
 					state_n <= WRITE;
-				when backspace => 
+				when backspace =>
 					x_n     <= x_minus_one_limited;
 					state_n <= WRITE;
 				when esc =>
 					state_n <= CSI;
-				when others => 
+				when others =>
 					x_n     <= x_plus_one;
 					data_we <= '1';
 					state_n <= WRAP;
@@ -512,6 +506,12 @@ begin
 				-- when x"3f" => -- ESC ? 25 (l,h)
 				--	state_n  <= NUMBER2;
 				--	akk_init <= '1';
+
+				-- @warning This is an extension! It is for setting the
+				-- control lines of the VGA module directly.
+				when x"78" => -- ESC n 'x' : Set VGA control registers directly
+					ctl_n    <= n1_c(ctl_n'range);
+					state_n  <= WRITE;
 				when others => -- Error
 					state_n <= ACCEPT;
 				end case;
@@ -809,7 +809,7 @@ entity vga_core is
 		octl:     in  std_logic_vector(3 downto 0);
 		--
 		foreground_draw: out std_logic; -- If '1', we should draw the character
-		background_draw: out std_logic; 
+		background_draw: out std_logic;
 		hsync:     out std_logic;
 		vsync:     out std_logic);
 end entity;

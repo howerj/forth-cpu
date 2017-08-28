@@ -12,6 +12,7 @@
  *
  * @todo Make 'hidden' apply to variables, and do the same for constants,
  * removing the need for 'location'.
+ * @todo Fix FIFO implementation when it comes to edge cases
  * @todo Simulate all of the Common Flash Memory Interface so the Flash device
  * can be correctly used, see:
  * <https://en.wikipedia.org/wiki/Common_Flash_Memory_Interface> with the
@@ -852,7 +853,7 @@ static char l8seg(uint8_t c)
 	return v[c & 0xf];
 }
 
-void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
+void soc_print(FILE *out, h2_soc_state_t *soc)
 {
 	assert(out);
 	assert(soc);
@@ -870,17 +871,7 @@ void soc_print(FILE *out, h2_soc_state_t *soc, bool verbose)
 	fprintf(out, "UART Input:    %02"PRIx8"\n",  soc->uart_getchar_register);
 	fprintf(out, "LED 7seg:      %c%c%c%c\n",    led0, led1, led2, led3);
 	fprintf(out, "Switches:      %02"PRIx8"\n",  soc->switches);
-	fprintf(out, "LFSR:          %04"PRIx16"\n", soc->lfsr);
 	fprintf(out, "Waiting:       %s\n",          soc->wait ? "true" : "false");
-
-	if(verbose) {
-		fputs("VGA Memory:\n", out);
-		/**@note we could also print the attribute information here as
-		 * well, and it should display correctly on a VT100 compatible
-		 * terminal emulator. We would have to convert the attributes
-		 * back into escape codes */
-		/*memory_print(out, 0, soc->vt100.m, VGA_BUFFER_LENGTH, true);*/
-	}
 }
 
 static void terminal_default_command_sequence(vt100_t *t)
@@ -962,15 +953,15 @@ int terminal_escape_sequences(vt100_t *t, uint8_t c)
 		break;
 	case TERMINAL_COMMAND:
 		switch(c) {
-		case 's': 
-			t->cursor_saved = t->cursor; 
+		case 's':
+			t->cursor_saved = t->cursor;
 			goto success;
-		case 'n': 
+		case 'n':
 			t->cursor = t->cursor_saved;
 			goto success;
-		case '?': 
+		case '?':
 			terminal_default_command_sequence(t);
-			t->state = TERMINAL_DECTCEM; 
+			t->state = TERMINAL_DECTCEM;
 			break;
 		case ';':
 			terminal_default_command_sequence(t);
@@ -1006,7 +997,7 @@ int terminal_escape_sequences(vt100_t *t, uint8_t c)
 		case 'G': terminal_at_xy(t, t->n1, terminal_y_current(t), true); goto success; /* move the cursor to column n */
 		case 'm': /* set attribute, CSI number m */
 			terminal_parse_attribute(&t->attribute, t->n1);
-			t->attributes[t->cursor] = t->attribute;	
+			t->attributes[t->cursor] = t->attribute;
 			goto success;
 		case 'i': /* AUX Port On == 5, AUX Port Off == 4 */
 			if(t->n1 == 5 || t->n1 == 4)
@@ -1024,7 +1015,7 @@ int terminal_escape_sequences(vt100_t *t, uint8_t c)
 			switch(t->n1) {
 			case 3:
 			case 2: t->cursor = 0; /* with cursor */
-			case 1: 
+			case 1:
 				if(t->command_index) {
 					memset(t->m, ' ', t->size);
 					for(size_t i = 0; i < t->size; i++)
@@ -1057,7 +1048,7 @@ int terminal_escape_sequences(vt100_t *t, uint8_t c)
 			case 'm':
 				terminal_parse_attribute(&t->attribute, t->n1);
 				terminal_parse_attribute(&t->attribute, t->n2);
-				t->attributes[t->cursor] = t->attribute;	
+				t->attributes[t->cursor] = t->attribute;
 				goto success;
 			case 'H':
 			case 'f':
@@ -1173,7 +1164,7 @@ typedef enum {
 	FLASH_BUFFERED_PROGRAMMING,
 } flash_state_t;
 
-/** @note read the PC28F128P33BF60 datasheet to decode this 
+/** @note read the PC28F128P33BF60 datasheet to decode this
  * information, this table was actually acquired from reading
  * the data from the actual device. */
 static const uint16_t PC28F128P33BF60_CFI_Query_Table[0x200] = {
@@ -1248,9 +1239,9 @@ uint16_t PC28F128P33BF60_CFI_Query_Read(uint32_t addr)
 	addr &= 0x3ff;
 	if(addr > 0x1ff) {
 		addr &= 0x7;
-		static const uint16_t r[] = { 
-			0x0089, 0x881E, 0x0000, 0x0000, 
-			0x0089, 0xBFCF, 0x0000, 0xFFFF 
+		static const uint16_t r[] = {
+			0x0089, 0x881E, 0x0000, 0x0000,
+			0x0089, 0xBFCF, 0x0000, 0xFFFF
 		};
 		return r[addr];
 	}
@@ -1323,8 +1314,8 @@ static bool address_protected(flash_t *f, uint32_t addr)
 
 /**@todo implement the full standard for the Common Flash Memory Interface, and
  * make the timing based on a simulated calculated time instead multiples of
- * 10us 
- * @todo check f->arg1_address == f->arg2_address when it matters 
+ * 10us
+ * @todo check f->arg1_address == f->arg2_address when it matters
  * @todo implement reading the lock status of registers */
 static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe, bool we, bool rst, bool cs)
 {
@@ -1386,7 +1377,7 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 		break;
 	case FLASH_WORD_PROGRAMMING:
 		if(f->cycle++ > FLASH_WRITE_CYCLES) {
-			f->nvram[f->arg1_address] &= f->data; 
+			f->nvram[f->arg1_address] &= f->data;
 			f->mode         = FLASH_READ_STATUS_REGISTER;
 			f->cycle        = 0;
 			f->status |= FLASH_STATUS_DEVICE_READY;
@@ -1409,18 +1400,18 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 		switch(f->data) {
 		case 0xD0:
 			if(f->locks[f->arg1_address] != FLASH_LOCKED_DOWN)
-				f->locks[f->arg1_address] = FLASH_UNLOCKED; 
+				f->locks[f->arg1_address] = FLASH_UNLOCKED;
 			else
 				warning("block locked down: %u", (unsigned)f->arg1_address);
 			break;
-		case 0x01: 
+		case 0x01:
 			if(f->locks[f->arg1_address] != FLASH_LOCKED_DOWN)
-				f->locks[f->arg1_address] = FLASH_LOCKED; 
+				f->locks[f->arg1_address] = FLASH_LOCKED;
 			else
 				warning("block locked down: %u", (unsigned)f->arg1_address);
 			break;
-		case 0x2F: 
-			f->locks[f->arg1_address] = FLASH_LOCKED_DOWN; 
+		case 0x2F:
+			f->locks[f->arg1_address] = FLASH_LOCKED_DOWN;
 			break;
 		default:
 			warning("Unknown/Unimplemented Common Flash Interface Lock Operation: %x", (unsigned)(f->data));
@@ -1442,7 +1433,7 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 				f->status |= FLASH_STATUS_BLOCK_LOCKED;
 				f->status |= FLASH_STATUS_ERASE_BLANK;
 				f->mode    = FLASH_READ_STATUS_REGISTER;
-			} 
+			}
 		} else if(we && cs) {
 			f->arg2_address = addr;
 		}
@@ -1508,15 +1499,12 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 {
 	assert(soc);
 	debug("IO read addr: %"PRIx16, addr);
-
+	(void)debug_on;
 	switch(addr) {
 	case iUart:         return UART_TX_FIFO_EMPTY | soc->uart_getchar_register;
+	case iVT100:        return UART_TX_FIFO_EMPTY | soc->ps2_getchar_register;
 	case iSwitches:     return soc->switches;
-	case iTimerCtrl:    return soc->timer_control;
 	case iTimerDin:     return soc->timer;
-	case iVga:          return 0x0100;
-	case iPs2:          return PS2_NEW_CHAR | wrap_getch(debug_on);
-	case iLfsr:         return soc->lfsr;
 	case iMemDin:       return h2_io_memory_read_operation(soc);
 	default:
 		warning("invalid read from %04"PRIx16, addr);
@@ -1538,13 +1526,14 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 			break;
 	case oLeds:       soc->leds           = value; break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
-	case oVga:        /** @todo implement VT100 terminal */
-		if(0x2000 & value)
+	case oVT100:        /** @todo implement VT100 terminal */
+		if(value & UART_TX_WE)
 			vt100_update(&soc->vt100, value);
+		if(value & UART_RX_RE)
+			soc->ps2_getchar_register = wrap_getch(debug_on);
 		break;
 	case o8SegLED:    soc->led_8_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
-	case oLfsr:       soc->lfsr           = value; break;
 	case oMemControl:
 	{
 		soc->mem_control    = value;
@@ -1564,16 +1553,9 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	}
 }
 
-static uint16_t lfsr(uint16_t v)
-{
-	return (v >> 1) ^ (-(v & 1u) & 0x400b);
-}
-
 static void h2_io_update_default(h2_soc_state_t *soc)
 {
 	assert(soc);
-
-	soc->lfsr = lfsr(soc->lfsr);
 
 	if(soc->timer_control & TIMER_ENABLE) {
 		if(soc->timer_control & TIMER_RESET) {
@@ -1614,7 +1596,7 @@ h2_soc_state_t *h2_soc_state_new(void)
 	v->state        = TERMINAL_NORMAL_MODE;
 	v->cursor_on    = true;
 	v->blinks       = false;
-	v->n1           = 1; 
+	v->n1           = 1;
 	v->n2           = 1;
 	return r;
 }
@@ -2048,7 +2030,7 @@ again:
 			break;
 		case 'p':
 			if(io)
-				soc_print(ds->output, io->soc, log_level >= LOG_DEBUG);
+				soc_print(ds->output, io->soc);
 			else
 				fprintf(ds->output, "I/O unavailable\n");
 			break;
@@ -2157,7 +2139,9 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			case ALU_OP_T_LOAD:
 				if(h->tos & 0x4000) {
 					if(io) {
-						tos = io->in(io->soc, h->tos, &turn_debug_on);
+						if(h->tos & 0x1)
+							warning("unaligned register read: %04x", (unsigned)h->tos);
+						tos = io->in(io->soc, h->tos & ~0x1, &turn_debug_on);
 						if(turn_debug_on) {
 							ds.step = true;
 							run_debugger = true;
@@ -2201,7 +2185,9 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			if(instruction & N_TO_ADDR_T) {
 				if((h->tos & 0x4000) && ALU_OP(instruction) != ALU_OP_T_LOAD) {
 					if(io) {
-						io->out(io->soc, h->tos, nos, &turn_debug_on);
+						if(h->tos & 0x1)
+							warning("unaligned register write: %04x <- %04x", (unsigned)h->tos, (unsigned)nos);
+						io->out(io->soc, h->tos & ~0x1, nos, &turn_debug_on);
 						if(turn_debug_on) {
 							ds.step = true;
 							run_debugger = true;

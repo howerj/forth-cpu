@@ -242,8 +242,8 @@ begin
 	stack_update: process(
 		pc_c,
 		insn,
-		vstkp_c, vstk_ram, dd,
-		rstkp_c, rstk_ram, rd,
+		vstkp_c, dd,
+		rstkp_c, rd,
 		tos_c,
 		is_instr,
 		is_interrupt,
@@ -259,9 +259,7 @@ begin
 			rstk_we   <= '0';
 			rstk_data <= (others => '0');
 		elsif is_interrupt = '1' then -- Interrupts are similar to a call
-			assert to_integer(rstkp_c) + 1 < stack_size;
-
-			rstkp_n   <= rstkp_c + 1;
+			rstkp_n   <= rstkp_c;
 			rstk_we   <= '1';
 			rstk_data <= "00" & pc_c & "0"; -- return to current instruction
 		elsif is_instr.lit = '1' then

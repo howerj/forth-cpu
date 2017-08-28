@@ -9,7 +9,6 @@
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
---|
 --| The control register contains both the value to compare the timer against
 --| as well as three control bits. Given a "timer_length" value of eight the
 --| control bits are:
@@ -35,11 +34,8 @@ entity timer is
 
 		we:           in  std_logic; -- write enable for control register
 		control_i:    in  std_logic_vector(timer_length - 1 downto 0); -- control register
-		control_o:    out std_logic_vector(timer_length - 1 downto 0);
 		counter_o:    out std_logic_vector(timer_length - 4 downto 0);
-		irq:          out std_logic;  -- Interrupt signal
-		Q:            out std_logic;  -- Timer signal
-		NQ:           out std_logic); -- Timer signal inverted
+		irq:          out std_logic); -- generate interrupt
 end entity;
 
 architecture behav of timer is
@@ -50,7 +46,6 @@ architecture behav of timer is
 	constant timer_highest_bit:   positive := highest_bit - 3;
 
 	signal control_c, control_n:  std_logic_vector(highest_bit downto 0) := (others => '0');
-	signal q_c, q_n:              std_logic:= '0';
 
 	signal reset_timer:           std_logic  := '0';
 	signal enabled:               std_logic  := '0';
@@ -63,24 +58,18 @@ architecture behav of timer is
 begin
 	assert (timer_length >= 4) report "Timer needs to be at least 4 bits wide: 3 bits for control - 1 for counter" severity failure;
 
-	Q  <= q_c;
-	NQ <= not q_c;
-
 	enabled     <= control_c(control_enable_bit);
 	reset_timer <= control_c(timer_reset_bit);
 	irq_en      <= control_c(irq_enable_bit);
 	compare     <= control_c(timer_highest_bit downto 0);
 
-	control_o   <= control_c;
 	counter_o   <= std_logic_vector(count);
 
 	clockRegisters: process(clk, rst)
 	begin
 		if rst = '1' then
-			q_c       <= '0';
 			control_c <= (others => '0');
 		elsif rising_edge(clk) then
-			q_c       <= q_n;
 			control_c <= control_n;
 		end if;
 	end process;
@@ -100,11 +89,10 @@ begin
 		end if;
 	end process;
 
-	output: process(count, we, control_i, control_c, compare, q_c, irq_en, enabled)
+	output: process(count, we, control_i, control_c, compare, irq_en, enabled)
 	begin
 		irq         <= '0';
-		q_n         <= q_c;
-		control_n      <= control_c;
+		control_n   <= control_c;
 		timer_reset <= '0';
 
 		control_n(timer_reset_bit)  <= '0'; -- reset
@@ -118,7 +106,6 @@ begin
 				irq <= '1';
 			end if;
 			timer_reset <= '1';
-			q_n <= not q_c;
 		end if;
 	end process;
 end architecture;

@@ -453,9 +453,9 @@ typedef struct {
 } led_8_segment_t;
 
 static uint8_t convert_to_segments(uint8_t segment) {
-	static const uint8_t c2s[16] = { 
-		0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 
-		0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71 
+	static const uint8_t c2s[16] = {
+		0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,
+		0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71
 	};
 	return c2s[segment & 0xf];
 }
@@ -649,7 +649,7 @@ static terminal_t vga_terminal = {
 		.state        = TERMINAL_NORMAL_MODE,
 		.cursor_on    = true,
 		.blinks       = false,
-		.n1           = 1, 
+		.n1           = 1,
 		.n2           = 1,
 		.m            = { 0 },
 		.attribute    = { 0 },
@@ -687,7 +687,7 @@ static terminal_t uart_terminal = {
 		.cursor_saved = 0,
 		.state        = TERMINAL_NORMAL_MODE,
 		.cursor_on    = true,
-		.n1           = 1, 
+		.n1           = 1,
 		.n2           = 1,
 		.blinks      = false,
 		.m            = { 0 },
@@ -726,21 +726,22 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			r |= soc->uart_getchar_register;
 			return r;
 		}
-	case iSwitches:     
+	case iVT100:
+		{
+			uint16_t r = 0;
+			r |= 1u << UART_TX_FIFO_EMPTY_BIT;
+			r |= 0u << UART_TX_FIFO_FULL_BIT;
+			r |= fifo_is_empty(ps2_rx_fifo) << UART_RX_FIFO_EMPTY_BIT;
+			r |= fifo_is_full(ps2_rx_fifo)  << UART_RX_FIFO_FULL_BIT;
+			r |= soc->uart_getchar_register;
+			return r;
+		}
+	case iSwitches:
 		soc->switches = 0;
 		for(size_t i = 0; i < SWITCHES_COUNT; i++)
 			soc->switches |= switches[i].on << i;
 		return soc->switches;
-	case iTimerCtrl:    return soc->timer_control;
-	case iTimerDin:     return soc->timer;
-	case iVga:          return 0x0100;
-	case iPs2:
-		{
-			uint8_t c = 0;
-			bool char_arrived = fifo_pop(ps2_rx_fifo, &c);
-			return (char_arrived << PS2_NEW_CHAR_BIT) | c;
-		}
-	case iLfsr:     return soc->lfsr;
+	case iTimerDin: return soc->timer;
 	case iMemDin:   return h2_io_memory_read_operation(soc);
 	default:
 		warning("invalid read from %04"PRIx16, addr);
@@ -749,6 +750,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 	return 0;
 }
 
+/**@warning uses globals! */
 static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on)
 {
 	assert(soc);
@@ -762,8 +764,6 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oUart:
 		if(value & UART_TX_WE) {
 			fifo_push(uart_tx_fifo, value);
-			/*putchar(value);
-			fflush(stdout);*/
 		}
 		if(value & UART_RX_RE) {
 			uint8_t c = 0;
@@ -771,20 +771,24 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 			soc->uart_getchar_register = c;
 		}
 		break;
+	case oVT100:
+		if(value & UART_TX_WE) { /**@warning uses a global! */
+			vt100_update(&vga_terminal.vt100, value & 0xff);
+			vt100_update(&soc->vt100, value & 0xff);
+		}
+		if(value & UART_RX_RE) {
+			uint8_t c = 0;
+			fifo_pop(ps2_rx_fifo, &c);
+			soc->ps2_getchar_register = c;
+		}
+		break;
 	case oLeds:
 		soc->leds          = value;
 		for(size_t i = 0; i < LEDS_COUNT; i++)
 			leds[i].on = value & (1 << i);
 		break;
-	case oTimerCtrl:  
-		soc->timer_control  = value; 
-		break;
-	case oVga: 
-		if(0x2000 & value) {
-			/**@warning uses a global! */
-			vt100_update(&vga_terminal.vt100, value & 0xff);
-			vt100_update(&soc->vt100, value & 0xff);
-		}
+	case oTimerCtrl:
+		soc->timer_control  = value;
 		break;
 	case o8SegLED:
 		for(size_t i = 0; i < SEGMENT_COUNT; i++)
@@ -792,7 +796,6 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 		soc->led_8_segments = value;
 		break;
 	case oIrcMask:    soc->irc_mask       = value; break;
-	case oLfsr:       soc->lfsr           = value; break;
 	case oMemControl:
 		{
 			soc->mem_control    = value;
@@ -905,21 +908,20 @@ static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y)
 	fill_textbox(&t, "IRQ Mask:       %x", (unsigned)s->irc_mask);
 	fill_textbox(&t, "LED 8 Segments: %x", (unsigned)s->led_8_segments);
 	fill_textbox(&t, "Switches:       %x", (unsigned)s->switches);
-	fill_textbox(&t, "LFSR:           %x", (unsigned)s->lfsr);
 	fill_textbox(&t, "Memory Control: %x", (unsigned)s->mem_control);
 	fill_textbox(&t, "Memory Address: %x", (unsigned)s->mem_addr_low);
 	fill_textbox(&t, "Memory Output:  %x", (unsigned)s->mem_dout);
 	fill_textbox(&t, "Wait:           %s", s->wait ? "yes" : "no");
 	fill_textbox(&t, "Interrupt:      %s", s->interrupt ? "yes" : "no");
 	fill_textbox(&t, "IRQ Selector:   %x", (unsigned)s->interrupt_selector);
-	fill_textbox(&t, ""); 
-	fill_textbox(&t, "Flash"); 
-	fill_textbox(&t, "we:             %s", s->flash.we ? "on" : "off"); 
-	fill_textbox(&t, "cs:             %s", s->flash.cs ? "on" : "off"); 
+	fill_textbox(&t, "");
+	fill_textbox(&t, "Flash");
+	fill_textbox(&t, "we:             %s", s->flash.we ? "on" : "off");
+	fill_textbox(&t, "cs:             %s", s->flash.cs ? "on" : "off");
 	fill_textbox(&t, "mode:           %x", (unsigned)s->flash.mode);
-	fill_textbox(&t, "status:         %x", (unsigned)s->flash.status); 
-	fill_textbox(&t, "address arg 1:  %x", (unsigned)s->flash.arg1_address); 
-	fill_textbox(&t, "data            %x", (unsigned)s->flash.data); 
+	fill_textbox(&t, "status:         %x", (unsigned)s->flash.status);
+	fill_textbox(&t, "address arg 1:  %x", (unsigned)s->flash.arg1_address);
+	fill_textbox(&t, "data            %x", (unsigned)s->flash.data);
 	fill_textbox(&t, "cycle:          %x", (unsigned)s->flash.cycle);
 	draw_textbox(&t);
 }
