@@ -117,7 +117,7 @@ begin
 		end if;
 	end process;
 
-	new_char: entity work.reg 
+	new_char: entity work.reg
 	generic map(N => kbd_char'high+1)
 	port map(
 		clk => clk,
@@ -143,7 +143,7 @@ begin
 			kbd_new_n  <= '0';
 		else
 			kbd_new_n  <= kbd_new_c;
-		end if; 
+		end if;
 	end process;
 
 	-- Process a kbd_new into a single edge for the rest of the

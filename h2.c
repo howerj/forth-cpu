@@ -953,15 +953,15 @@ int terminal_escape_sequences(vt100_t *t, uint8_t c)
 		break;
 	case TERMINAL_COMMAND:
 		switch(c) {
-		case 's': 
-			t->cursor_saved = t->cursor; 
+		case 's':
+			t->cursor_saved = t->cursor;
 			goto success;
-		case 'n': 
+		case 'n':
 			t->cursor = t->cursor_saved;
 			goto success;
-		case '?': 
+		case '?':
 			terminal_default_command_sequence(t);
-			t->state = TERMINAL_DECTCEM; 
+			t->state = TERMINAL_DECTCEM;
 			break;
 		case ';':
 			terminal_default_command_sequence(t);
@@ -997,7 +997,7 @@ int terminal_escape_sequences(vt100_t *t, uint8_t c)
 		case 'G': terminal_at_xy(t, t->n1, terminal_y_current(t), true); goto success; /* move the cursor to column n */
 		case 'm': /* set attribute, CSI number m */
 			terminal_parse_attribute(&t->attribute, t->n1);
-			t->attributes[t->cursor] = t->attribute;	
+			t->attributes[t->cursor] = t->attribute;
 			goto success;
 		case 'i': /* AUX Port On == 5, AUX Port Off == 4 */
 			if(t->n1 == 5 || t->n1 == 4)
@@ -1015,7 +1015,7 @@ int terminal_escape_sequences(vt100_t *t, uint8_t c)
 			switch(t->n1) {
 			case 3:
 			case 2: t->cursor = 0; /* with cursor */
-			case 1: 
+			case 1:
 				if(t->command_index) {
 					memset(t->m, ' ', t->size);
 					for(size_t i = 0; i < t->size; i++)
@@ -1048,7 +1048,7 @@ int terminal_escape_sequences(vt100_t *t, uint8_t c)
 			case 'm':
 				terminal_parse_attribute(&t->attribute, t->n1);
 				terminal_parse_attribute(&t->attribute, t->n2);
-				t->attributes[t->cursor] = t->attribute;	
+				t->attributes[t->cursor] = t->attribute;
 				goto success;
 			case 'H':
 			case 'f':
@@ -1164,7 +1164,7 @@ typedef enum {
 	FLASH_BUFFERED_PROGRAMMING,
 } flash_state_t;
 
-/** @note read the PC28F128P33BF60 datasheet to decode this 
+/** @note read the PC28F128P33BF60 datasheet to decode this
  * information, this table was actually acquired from reading
  * the data from the actual device. */
 static const uint16_t PC28F128P33BF60_CFI_Query_Table[0x200] = {
@@ -1239,9 +1239,9 @@ uint16_t PC28F128P33BF60_CFI_Query_Read(uint32_t addr)
 	addr &= 0x3ff;
 	if(addr > 0x1ff) {
 		addr &= 0x7;
-		static const uint16_t r[] = { 
-			0x0089, 0x881E, 0x0000, 0x0000, 
-			0x0089, 0xBFCF, 0x0000, 0xFFFF 
+		static const uint16_t r[] = {
+			0x0089, 0x881E, 0x0000, 0x0000,
+			0x0089, 0xBFCF, 0x0000, 0xFFFF
 		};
 		return r[addr];
 	}
@@ -1314,8 +1314,8 @@ static bool address_protected(flash_t *f, uint32_t addr)
 
 /**@todo implement the full standard for the Common Flash Memory Interface, and
  * make the timing based on a simulated calculated time instead multiples of
- * 10us 
- * @todo check f->arg1_address == f->arg2_address when it matters 
+ * 10us
+ * @todo check f->arg1_address == f->arg2_address when it matters
  * @todo implement reading the lock status of registers */
 static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe, bool we, bool rst, bool cs)
 {
@@ -1377,7 +1377,7 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 		break;
 	case FLASH_WORD_PROGRAMMING:
 		if(f->cycle++ > FLASH_WRITE_CYCLES) {
-			f->nvram[f->arg1_address] &= f->data; 
+			f->nvram[f->arg1_address] &= f->data;
 			f->mode         = FLASH_READ_STATUS_REGISTER;
 			f->cycle        = 0;
 			f->status |= FLASH_STATUS_DEVICE_READY;
@@ -1400,18 +1400,18 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 		switch(f->data) {
 		case 0xD0:
 			if(f->locks[f->arg1_address] != FLASH_LOCKED_DOWN)
-				f->locks[f->arg1_address] = FLASH_UNLOCKED; 
+				f->locks[f->arg1_address] = FLASH_UNLOCKED;
 			else
 				warning("block locked down: %u", (unsigned)f->arg1_address);
 			break;
-		case 0x01: 
+		case 0x01:
 			if(f->locks[f->arg1_address] != FLASH_LOCKED_DOWN)
-				f->locks[f->arg1_address] = FLASH_LOCKED; 
+				f->locks[f->arg1_address] = FLASH_LOCKED;
 			else
 				warning("block locked down: %u", (unsigned)f->arg1_address);
 			break;
-		case 0x2F: 
-			f->locks[f->arg1_address] = FLASH_LOCKED_DOWN; 
+		case 0x2F:
+			f->locks[f->arg1_address] = FLASH_LOCKED_DOWN;
 			break;
 		default:
 			warning("Unknown/Unimplemented Common Flash Interface Lock Operation: %x", (unsigned)(f->data));
@@ -1433,7 +1433,7 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 				f->status |= FLASH_STATUS_BLOCK_LOCKED;
 				f->status |= FLASH_STATUS_ERASE_BLANK;
 				f->mode    = FLASH_READ_STATUS_REGISTER;
-			} 
+			}
 		} else if(we && cs) {
 			f->arg2_address = addr;
 		}
@@ -1596,7 +1596,7 @@ h2_soc_state_t *h2_soc_state_new(void)
 	v->state        = TERMINAL_NORMAL_MODE;
 	v->cursor_on    = true;
 	v->blinks       = false;
-	v->n1           = 1; 
+	v->n1           = 1;
 	v->n2           = 1;
 	return r;
 }

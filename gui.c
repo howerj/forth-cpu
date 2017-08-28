@@ -453,9 +453,9 @@ typedef struct {
 } led_8_segment_t;
 
 static uint8_t convert_to_segments(uint8_t segment) {
-	static const uint8_t c2s[16] = { 
-		0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 
-		0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71 
+	static const uint8_t c2s[16] = {
+		0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,
+		0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71
 	};
 	return c2s[segment & 0xf];
 }
@@ -649,7 +649,7 @@ static terminal_t vga_terminal = {
 		.state        = TERMINAL_NORMAL_MODE,
 		.cursor_on    = true,
 		.blinks       = false,
-		.n1           = 1, 
+		.n1           = 1,
 		.n2           = 1,
 		.m            = { 0 },
 		.attribute    = { 0 },
@@ -687,7 +687,7 @@ static terminal_t uart_terminal = {
 		.cursor_saved = 0,
 		.state        = TERMINAL_NORMAL_MODE,
 		.cursor_on    = true,
-		.n1           = 1, 
+		.n1           = 1,
 		.n2           = 1,
 		.blinks      = false,
 		.m            = { 0 },
@@ -726,7 +726,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			r |= soc->uart_getchar_register;
 			return r;
 		}
-	case iVT100:        
+	case iVT100:
 		{
 			uint16_t r = 0;
 			r |= 1u << UART_TX_FIFO_EMPTY_BIT;
@@ -736,7 +736,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			r |= soc->uart_getchar_register;
 			return r;
 		}
-	case iSwitches:     
+	case iSwitches:
 		soc->switches = 0;
 		for(size_t i = 0; i < SWITCHES_COUNT; i++)
 			soc->switches |= switches[i].on << i;
@@ -771,7 +771,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 			soc->uart_getchar_register = c;
 		}
 		break;
-	case oVT100: 
+	case oVT100:
 		if(value & UART_TX_WE) { /**@warning uses a global! */
 			vt100_update(&vga_terminal.vt100, value & 0xff);
 			vt100_update(&soc->vt100, value & 0xff);
@@ -787,8 +787,8 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 		for(size_t i = 0; i < LEDS_COUNT; i++)
 			leds[i].on = value & (1 << i);
 		break;
-	case oTimerCtrl:  
-		soc->timer_control  = value; 
+	case oTimerCtrl:
+		soc->timer_control  = value;
 		break;
 	case o8SegLED:
 		for(size_t i = 0; i < SEGMENT_COUNT; i++)
@@ -914,14 +914,14 @@ static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y)
 	fill_textbox(&t, "Wait:           %s", s->wait ? "yes" : "no");
 	fill_textbox(&t, "Interrupt:      %s", s->interrupt ? "yes" : "no");
 	fill_textbox(&t, "IRQ Selector:   %x", (unsigned)s->interrupt_selector);
-	fill_textbox(&t, ""); 
-	fill_textbox(&t, "Flash"); 
-	fill_textbox(&t, "we:             %s", s->flash.we ? "on" : "off"); 
-	fill_textbox(&t, "cs:             %s", s->flash.cs ? "on" : "off"); 
+	fill_textbox(&t, "");
+	fill_textbox(&t, "Flash");
+	fill_textbox(&t, "we:             %s", s->flash.we ? "on" : "off");
+	fill_textbox(&t, "cs:             %s", s->flash.cs ? "on" : "off");
 	fill_textbox(&t, "mode:           %x", (unsigned)s->flash.mode);
-	fill_textbox(&t, "status:         %x", (unsigned)s->flash.status); 
-	fill_textbox(&t, "address arg 1:  %x", (unsigned)s->flash.arg1_address); 
-	fill_textbox(&t, "data            %x", (unsigned)s->flash.data); 
+	fill_textbox(&t, "status:         %x", (unsigned)s->flash.status);
+	fill_textbox(&t, "address arg 1:  %x", (unsigned)s->flash.arg1_address);
+	fill_textbox(&t, "data            %x", (unsigned)s->flash.data);
 	fill_textbox(&t, "cycle:          %x", (unsigned)s->flash.cycle);
 	draw_textbox(&t);
 }

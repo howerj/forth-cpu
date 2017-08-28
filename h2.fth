@@ -520,11 +520,11 @@ choice words that need depth checking to get quite a large coverage )
 : [  0 state ! ; immediate
 
 : .error ( n -- )
-	abs dup 60 < loaded @ and 
-	if 
-		32 + _message @execute 
-	else 
-		negate . cr 
+	abs dup 60 < loaded @ and
+	if
+		32 + _message @execute
+	else
+		negate . cr
 	then ; hidden
 
 : ?error ( n -- : perform actions on error )
@@ -899,12 +899,12 @@ things, the 'decompiler' word could be called manually on an address if desired 
 	cfa decompiler space 59 emit cr ;
 
 \ : see
-\ 	token find 0= if 11 -throw then 
-\ 	begin nuf? while 
-\ 		dup @ dup $4000 and $4000 
-\ 		= if space .name else . then cell+ 
+\ 	token find 0= if 11 -throw then
+\ 	begin nuf? while
+\ 		dup @ dup $4000 and $4000
+\ 		= if space .name else . then cell+
 \ 	repeat drop ;
- 
+
 .set forth-wordlist $pwd
 ( ==================== See =========================================== )
 
@@ -940,7 +940,7 @@ irq:
 		random 80 mod
 		random 40 mod at-xy
 		random >char emit
-		random 8  mod 
+		random 8  mod
 		( random 1 and if background then )
 		color
 	again ;
@@ -969,7 +969,7 @@ irq:
 
 : .words space begin dup while dup .id space @ address repeat drop cr ; hidden
 : words get-order begin ?dup while swap dup cr u. colon @ .words 1- repeat ;
-\ : vocs get-order begin ?dup while swap @ dup . space .name 1- repeat cr ; 
+\ : vocs get-order begin ?dup while swap @ dup . space .name 1- repeat cr ;
 
 .set forth-wordlist $pwd
 
@@ -1052,7 +1052,7 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 \  		over 5u.r 40 emit over m@ 4 u.r 41 emit over 1+ $7 and 0= if cr then
 \  		1 /string
 \  	repeat 2drop cr ;
- 
+
 ( @todo The flash word set needs words for reading and decoding status
 information of locks and for extracting information from the query registers )
 
@@ -1066,8 +1066,8 @@ information of locks and for extracting information from the query registers )
 : flash! dup >r m! r> m! ; hidden ( u u a )
 : flash-status nvram $70 0 m! 0 m@ ( dup $2a and if -34 -throw then ) ; ( -- status )
 : flash-read   $ff 0 m! ;      ( -- )
-: flash-setup  memory-select @ 0= if flush then nvram flash-reset block-mode drop 20 ms ; ( @todo run when 'flash' is called ) 
-: flash-wait begin flash-status $80 and until ; hidden 
+: flash-setup  memory-select @ 0= if flush then nvram flash-reset block-mode drop 20 ms ; ( @todo run when 'flash' is called )
+: flash-wait begin flash-status $80 and until ; hidden
 : flash-clear $50 0 m! ; ( -- clear status )
 : flash-write $40 swap flash! flash-wait ; ( u a -- )
 : flash-unlock block-mode >r $d0 swap $60 swap flash! r> memory-upper ! ; ( ba -- )

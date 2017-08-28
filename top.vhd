@@ -408,7 +408,7 @@ begin
 
 		ps2_clk          => ps2_keyboard_clk,
 		ps2_data         => ps2_keyboard_data,
-		
+
 		kbd_char_re      => kbd_char_re,
 		kbd_char_buf_new => kbd_char_buf_new,
 		kbd_char_buf     => kbd_char_buf);
