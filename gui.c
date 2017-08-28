@@ -3,8 +3,7 @@
  * @copyright Richard James Howe (2017)
  * @license   MIT
  *
- * @todo Allow the setting of the foreground and background color
- * of a text string.
+ * @todo Allow the setting of the background color of a text string.
  * @todo A terminal emulator as a separate program could be hacked together
  * from the components in this module, this would be a separate program.
  */
@@ -251,6 +250,38 @@ static int draw_string(const char *msg)
 	return draw_block((uint8_t*)msg, strlen(msg));
 }
 
+
+static void draw_vt100_char(double x, double y, double scale_x, double scale_y, double orientation, uint8_t c, vt100_attribute_t *attr)
+{
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+		glLoadIdentity();
+		glTranslatef(x, y, 0.0);
+		glScaled(scale_x, scale_y, 1.0);
+		glRotated(rad2deg(orientation), 0, 0, 1);
+		set_color(attr->foreground_color);
+		draw_char(c);
+		glEnd();
+	glPopMatrix();
+}
+
+static scale_t font_attributes(void)
+{
+	scale_t scale = { 0., 0.};
+	scale.y = glutStrokeHeight(world.font_scaled);
+	scale.x = glutStrokeWidth(world.font_scaled, 'M');
+	return scale;
+}
+
+static int draw_vt100_block(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, vt100_attribute_t *attr)
+{
+	scale_t scale = font_attributes();
+	double char_width = (scale.x / X_MAX)*1.1;
+	for(size_t i = 0; i < len; i++)
+		draw_vt100_char(x+char_width*i, y, scale_x, scale_y, orientation, msg[i], &attr[i]);
+	return len;
+}
+
 static int draw_block_scaled(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, color_t color)
 {
 	assert(msg);
@@ -343,14 +374,6 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 	}
 	glPopMatrix();
 	return r;
-}
-
-static scale_t font_attributes(void)
-{
-	scale_t scale = { 0., 0.};
-	scale.y = glutStrokeHeight(world.font_scaled);
-	scale.x = glutStrokeWidth(world.font_scaled, 'M');
-	return scale;
 }
 
 static void fill_textbox(textbox_t *t, const char *fmt, ...)
@@ -560,8 +583,10 @@ void draw_terminal(const world_t *world, terminal_t *t, char *name)
 	size_t cursor_x = v->cursor % v->width;
 	size_t cursor_y = v->cursor / v->width;
 
-	for(size_t i = 0; i < t->vt100.height; i++)
-		draw_block_scaled(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*v->width), v->width, t->color);
+	for(size_t i = 0; i < t->vt100.height; i++) {
+		draw_vt100_block(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*v->width), v->width, v->attributes + (i*v->width));
+		//draw_block_scaled(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*v->width), v->width, t->color);
+	}
 	draw_string_scaled(t->x, t->y - (v->height * char_height), scale_x, scale_y, 0, name, t->color);
 
 	/* fudge factor = 1/((1/scale_x)/X_MAX) ??? */
@@ -1241,6 +1266,14 @@ int main(int argc, char **argv)
 		} else {
 			warning("could not load initial VGA memory file %s: %s", VGA_INIT_FILE, strerror(errno));
 		}
+		/**@todo simplify all this with a pointer in terminal_t to a VT100 */
+		vga_terminal.vt100.attribute.foreground_color = WHITE;
+		vga_terminal.vt100.attribute.background_color = BLACK;
+		uart_terminal.vt100.attribute = vga_terminal.vt100.attribute;
+		for(size_t i = 0; i < vga_terminal.vt100.size; i++)
+			vga_terminal.vt100.attributes[i] = vga_terminal.vt100.attribute; 
+		for(size_t i = 0; i < uart_terminal.vt100.size; i++)
+			uart_terminal.vt100.attributes[i] = uart_terminal.vt100.attribute; 
 	}
 
 	uart_rx_fifo = fifo_new(UART_FIFO_DEPTH);
@@ -1264,4 +1297,5 @@ fail:
 	h2_free(h);
 	return -1;
 }
+
 

@@ -1598,6 +1598,10 @@ h2_soc_state_t *h2_soc_state_new(void)
 	v->blinks       = false;
 	v->n1           = 1;
 	v->n2           = 1;
+	v->attribute.foreground_color = WHITE;
+	v->attribute.background_color = BLACK;
+	for(size_t i = 0; i < v->size; i++)
+		v->attributes[i] = v->attribute;
 	return r;
 }
 
