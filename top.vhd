@@ -384,10 +384,7 @@ begin
 		we        => timer_control_we,
 		control_i => timer_control_i,
 		counter_o => timer_counter_o,
-		control_o => open,
-		irq       => timer_irq,
-		q         => open,
-		nq        => open);
+		irq       => timer_irq);
 	--- Timer ---------------------------------------------------------
 
 	--- VGA -----------------------------------------------------------

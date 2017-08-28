@@ -128,7 +128,7 @@ variable hld        0  ( Pointer into hold area for numeric output )
 variable base       10 ( Current output radix )
 variable span       0  ( Hold character count received by expect   )
 variable loaded     0  ( Used by boot block to indicate it has been loaded  )
-
+variable border    -1  ( Put border around block begin displayed with 'list' )
 constant #vocs            8 ( number of vocabularies in allowed )
 variable forth-wordlist   0 ( set at the end near the end of the file )
 location context          0 ( holds current context for vocabulary search order )
@@ -605,7 +605,7 @@ choice words that need depth checking to get quite a large coverage )
 		over c@ r> swap ccitt >r 1 /string
 	repeat 2drop r> ;
 
-: random seed @ dup 15 lshift ccitt dup seed ! ; ( -- u )
+: random seed @ dup 15 lshift ccitt dup iTimerDin @ + seed ! ; ( -- u )
 
 : 5u.r 5 u.r ; hidden
 : dm+ 2/ for aft dup @ space 5u.r cell+ then next ; ( a u -- a )
@@ -665,7 +665,7 @@ choice words that need depth checking to get quite a large coverage )
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? _key? ! ' tx! _emit ! hand ;
 : interactive ' input _key? ! ' output _emit ! hand ; hidden
-: io! interactive 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
+: io! $8FFF oTimerCtrl ! interactive 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
 : ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr ;
 
@@ -809,21 +809,26 @@ should be contiguous as well )
 : --> 1 +block load ;
 : scr blk ;
 : pipe 124 emit ; hidden
-: border 3 spaces 64 45 nchars cr ; hidden
 : .line line -trailing $type ; hidden
-: #line dup 2 u.r ; hidden ( u -- u )
-: list
-	 page
-	cr
-	border
-	0 begin dup l/b < while 2dup #line pipe line $type pipe cr 1+ repeat border 2drop ;
-
-\ : list page block cr border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next border drop ;
+: .border border @ if 3 spaces 64 45 nchars cr then ; hidden
+: #line border @ if dup 2 u.r then ; hidden ( u -- u : print line number )
+: ?pipe border @ if pipe then ; hidden
+: ?page border @ if page then ; hidden
 : thru over - for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
 : message 16 extract .line cr ; ( u -- )
+: list
+	cr
+	?page
+	.border
+	0 begin 
+		dup l/b < 
+	while 
+		2dup #line ?pipe line $type ?pipe cr 1+ 
+	repeat .border 2drop ;
 \ : index over - cr for dup 5u.r space pipe space dup  0 .line cr 1+ next drop ;
 \ : list-thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
+\ : list page block cr .border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next .border drop ;
 
 ( all words before this are now in the forth vocabulary, it is also set
 later on )
@@ -843,6 +848,7 @@ to work / break everything it touches )
 : validate ( cfa pwd -- nfa | 0 )
 	tuck cfa <> if drop 0 else nfa then ; hidden
 
+( @todo Do this for every vocabulary loaded )
 : name ( cfa -- nfa )
 	abits 2*
 	>r
@@ -854,7 +860,6 @@ to work / break everything it touches )
 		if @ address r@ swap validate rdrop exit then
 		address @
 	repeat rdrop ; hidden
-
 
 : .name name ?dup 0= if see.unknown then print ; hidden
 : mask-off 2dup and = ; hidden ( u u -- u f )
@@ -969,7 +974,7 @@ irq:
 
 : .words space begin dup while dup .id space @ address repeat drop cr ; hidden
 : words get-order begin ?dup while swap dup cr u. colon @ .words 1- repeat ;
-\ : vocs get-order begin ?dup while swap @ dup . space .name 1- repeat cr ;
+\ : vocs get-order begin ?dup while swap dup . space cell- 2/ .name 1- repeat cr ;
 
 .set forth-wordlist $pwd
 
@@ -1193,6 +1198,8 @@ start:
 	loading-string print
 	0 0 $8000 transfer
 	0 ' load catch drop
+	\ loaded @ if 1 list then
+
 	.ok
 	\ login 0 load 1 list
 	_boot @execute  ( _boot contains zero by default, does nothing )

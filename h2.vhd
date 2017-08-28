@@ -242,8 +242,8 @@ begin
 	stack_update: process(
 		pc_c,
 		insn,
-		vstkp_c, vstk_ram, dd,
-		rstkp_c, rstk_ram, rd,
+		vstkp_c, dd,
+		rstkp_c, rd,
 		tos_c,
 		is_instr,
 		is_interrupt,
