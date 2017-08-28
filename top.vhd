@@ -266,7 +266,7 @@ begin
 		signal selector: std_logic_vector(3 downto 0) := (others => '0');
 		signal is_write: boolean := false;
 	begin
-		selector <= io_daddr(3 downto 0);
+		selector <= io_daddr(4 downto 1);
 		is_write <= true when io_wr = '1' else false;
 
 		tx_data_we         <= io_dout(13)         when is_write and selector = x"0" else '0';
@@ -312,7 +312,7 @@ begin
 		--
 		-- @todo This should be io_daddr(3 downto 1), discarding the
 		-- lowest bit, like with memory access
-		case io_daddr(2 downto 0) is
+		case io_daddr(3 downto 1) is
 		when "000" => -- buttons, plus direct access to UART bit.
 			io_din(7 downto 0) <= rx_data_n;
 			io_din(8)          <= rx_fifo_empty;

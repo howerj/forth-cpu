@@ -2139,7 +2139,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			case ALU_OP_T_LOAD:
 				if(h->tos & 0x4000) {
 					if(io) {
-						tos = io->in(io->soc, h->tos, &turn_debug_on);
+						tos = io->in(io->soc, h->tos & ~0x1, &turn_debug_on);
 						if(turn_debug_on) {
 							ds.step = true;
 							run_debugger = true;
@@ -2183,7 +2183,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			if(instruction & N_TO_ADDR_T) {
 				if((h->tos & 0x4000) && ALU_OP(instruction) != ALU_OP_T_LOAD) {
 					if(io) {
-						io->out(io->soc, h->tos, nos, &turn_debug_on);
+						io->out(io->soc, h->tos & ~0x1, nos, &turn_debug_on);
 						if(turn_debug_on) {
 							ds.step = true;
 							run_debugger = true;

@@ -243,22 +243,22 @@ typedef struct {
 
 typedef enum {
 	iUart         = 0x4000,
-	iSwitches     = 0x4001,
-	iTimerDin     = 0x4002,
-	iVT100        = 0x4003,
-	iMemDin       = 0x4004,
+	iSwitches     = 0x4002,
+	iTimerDin     = 0x4004,
+	iVT100        = 0x4006,
+	iMemDin       = 0x4008,
 } h2_input_addr_t;
 
 typedef enum {
 	oUart         = 0x4000,
-	oLeds         = 0x4001,
-	oTimerCtrl    = 0x4002,
-	oVT100        = 0x4003,
-	o8SegLED      = 0x4004,
-	oIrcMask      = 0x4005,
-	oMemControl   = 0x4006,
-	oMemAddrLow   = 0x4007,
-	oMemDout      = 0x4008,
+	oLeds         = 0x4002,
+	oTimerCtrl    = 0x4004,
+	oVT100        = 0x4006,
+	o8SegLED      = 0x4008,
+	oIrcMask      = 0x400A,
+	oMemControl   = 0x400C,
+	oMemAddrLow   = 0x400E,
+	oMemDout      = 0x4010,
 } h2_output_addr_t;
 
 typedef enum {
