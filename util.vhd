@@ -7,7 +7,6 @@
 --| @copyright      Copyright 2017 Richard James Howe
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
---|
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -274,6 +273,14 @@ package util is
 			clk:   in  std_logic;
 			di:    in  std_logic;
 			do:    out std_logic);
+	end component;
+
+	component debounce_block_us is
+		generic(N: positive; clock_frequency: positive; timer_period_us: natural);
+		port(
+			clk:   in  std_logic;
+			di:    in  std_logic_vector(N - 1 downto 0);
+			do:    out std_logic_vector(N - 1 downto 0));
 	end component;
 
 	component debounce_us_tb is
@@ -2221,7 +2228,7 @@ entity debounce_us is
 	port(
 		clk:   in  std_logic;
 		di:    in  std_logic;
-		do:    out std_logic := '0');
+		do:    out std_logic);
 end entity;
 
 architecture rtl of debounce_us is
@@ -2287,3 +2294,31 @@ begin
 	end process;
 end architecture;
 ------------------------- Debouncer -----------------------------------------------------------
+
+------------------------- Debouncer Block -----------------------------------------------------
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity debounce_block_us is
+	generic(N: positive; clock_frequency: positive; timer_period_us: natural);
+	port(
+		clk:   in  std_logic;
+		di:    in  std_logic_vector(N - 1 downto 0);
+		do:    out std_logic_vector(N - 1 downto 0));
+end entity;
+
+architecture structural of debounce_block_us is
+begin
+
+	debouncer: for i in N - 1 downto 0 generate
+		d_instance: work.util.debounce_us
+			generic map(
+				clock_frequency => clock_frequency,
+				timer_period_us => timer_period_us)
+			port map(clk => clk, di => di(i), do => do(i));
+	end generate;
+
+end architecture;
+
+------------------------- Debouncer Block -----------------------------------------------------

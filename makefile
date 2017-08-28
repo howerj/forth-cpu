@@ -141,6 +141,7 @@ text.hex: text${EXE}
 	ghdl -a $<
 
 led.o: util.o led.vhd
+kbd.o: util.o kbd.vhd
 vga.o: util.o vga.vhd text.hex font.bin
 core.o: util.o h2.o core.vhd h2.hex
 uart.o: util.o uart.vhd
