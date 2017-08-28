@@ -506,6 +506,12 @@ begin
 				-- when x"3f" => -- ESC ? 25 (l,h)
 				--	state_n  <= NUMBER2;
 				--	akk_init <= '1';
+
+				-- @warning This is an extension! It is for setting the 
+				-- control lines of the VGA module directly.
+				when x"78" => -- ESC n 'x' : Set VGA control registers directly
+					ctl_n    <= n1_c(ctl_n'range);
+					state_n  <= WRITE;
 				when others => -- Error
 					state_n <= ACCEPT;
 				end case;

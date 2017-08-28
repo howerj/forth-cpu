@@ -2139,6 +2139,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			case ALU_OP_T_LOAD:
 				if(h->tos & 0x4000) {
 					if(io) {
+						if(h->tos & 0x1)
+							warning("unaligned register read: %04x", (unsigned)h->tos);
 						tos = io->in(io->soc, h->tos & ~0x1, &turn_debug_on);
 						if(turn_debug_on) {
 							ds.step = true;
@@ -2183,6 +2185,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			if(instruction & N_TO_ADDR_T) {
 				if((h->tos & 0x4000) && ALU_OP(instruction) != ALU_OP_T_LOAD) {
 					if(io) {
+						if(h->tos & 0x1)
+							warning("unaligned register write: %04x <- %04x", (unsigned)h->tos, (unsigned)nos);
 						io->out(io->soc, h->tos & ~0x1, nos, &turn_debug_on);
 						if(turn_debug_on) {
 							ds.step = true;

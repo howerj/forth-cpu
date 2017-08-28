@@ -241,15 +241,14 @@ begin
 	io_nextState: process(clk, rst)
 	begin
 		if rst = '1' then
-			-- LEDs/Switches
 			ld_c       <= (others => '0');
 		elsif rising_edge(clk) then
-			-- LEDs/Switches
 			ld_c        <=  ld_n;
 		end if;
 	end process;
 
 	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
+	assert not(io_wr = '1' or io_re = '1') or not  io_daddr(0) = '1' report "Unaligned register access" severity error;
 
 	cpu_irc_mask      <= io_dout(number_of_interrupts - 1 downto 0);
 	timer_control_i   <= io_dout;
@@ -272,10 +271,11 @@ begin
 		tx_data_we         <= io_dout(13)         when is_write and selector = x"0" else '0';
 		rx_data_re         <= io_dout(10)         when is_write and selector = x"0" else '0';
 
-		ld_n               <= io_dout(ld_n'range) when is_write and selector = x"1" else ld_c;
+		vga_data_we        <= io_dout(13)         when is_write and selector = x"1" else '0';
+		kbd_char_re        <= io_dout(10)         when is_write and selector = x"1" else '0';
+
 		timer_control_we   <= '1'                 when is_write and selector = x"2" else '0';
-		vga_data_we        <= io_dout(13)         when is_write and selector = x"3" else '0';
-		kbd_char_re        <= io_dout(10)         when is_write and selector = x"3" else '0';
+		ld_n               <= io_dout(ld_n'range) when is_write and selector = x"3" else ld_c;
 		leds_reg_we        <= '1'                 when is_write and selector = x"4" else '0';
 		cpu_irc_mask_we    <= '1'                 when is_write and selector = x"5" else '0';
 
@@ -305,13 +305,10 @@ begin
 		mem_data_o)
 	begin
 
-		io_din             <= (others => '0');
+		io_din <= (others => '0');
 
 		-- The signal io_re is not needed as none of the reads have
 		-- any side effects
-		--
-		-- @todo This should be io_daddr(3 downto 1), discarding the
-		-- lowest bit, like with memory access
 		case io_daddr(3 downto 1) is
 		when "000" => -- buttons, plus direct access to UART bit.
 			io_din(7 downto 0) <= rx_data_n;
@@ -319,16 +316,16 @@ begin
 			io_din(9)          <= rx_fifo_full;
 			io_din(11)         <= tx_fifo_empty;
 			io_din(12)         <= tx_fifo_full;
-		when "001" => -- Switches and buttons
-			io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
-		when "010" => -- Timer in
-			io_din(timer_counter_o'range) <= timer_counter_o;
-		when "011" => -- VT100 status and Keyboard
+		when "001" => -- VT100 status and Keyboard
 			io_din(6 downto 0) <= kbd_char_buf;
 			io_din(8)          <= not kbd_char_buf_new;
 			io_din(9)          <= kbd_char_buf_new;
 			io_din(11)         <= not vga_data_busy;
 			io_din(12)         <= vga_data_busy;
+		when "010" => -- Timer in
+			io_din(timer_counter_o'range) <= timer_counter_o;
+		when "011" => -- Switches and buttons
+			io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
 		when "100" =>
 			io_din             <= mem_data_o;
 		when others => io_din <= (others => '0');

@@ -255,14 +255,14 @@ The output register map:
 | Register    | Address | Description                     |
 |-------------|---------|---------------------------------|
 | oUart       | 0x4000  | UART register                   |
-| oLeds       | 0x4001  | LED outputs                     |
-| oTimerCtrl  | 0x4002  | Timer control                   |
-| oVT100      | 0x4003  | VT100 Terminal Write            |
-| o8SegLED    | 0x4004  | 4 x LED 8 Segment display       |
-| oIrcMask    | 0x4005  | CPU Interrupt Mask              |
-| oMemControl | 0x4006  | Memory Control / Hi Address     |
-| oMemAddrLow | 0x4007  | Memory Lo Address               |
-| oMemDout    | 0x4008  | Memory Data Output              |
+| oVT100      | 0x4002  | VT100 Terminal Write            |
+| oLeds       | 0x4004  | LED outputs                     |
+| oTimerCtrl  | 0x4006  | Timer control                   |
+| o8SegLED    | 0x4008  | 4 x LED 8 Segment display       |
+| oIrcMask    | 0x400A  | CPU Interrupt Mask              |
+| oMemControl | 0x400C  | Memory Control / Hi Address     |
+| oMemAddrLow | 0x400E  | Memory Lo Address               |
+| oMemDout    | 0x4010  | Memory Data Output              |
 
 
 The input registers:
@@ -270,11 +270,10 @@ The input registers:
 | Register    | Address | Description                     |
 |-------------|---------|---------------------------------|
 | iUart       | 0x4000  | UART register                   |
-| iSwitches   | 0x4001  | Buttons and switches            |
-| iTimerCtrl  | 0x4002  | Timer control Register          |
-| iTimerDin   | 0x4003  | Current Timer Value             |
-| iVT100      | 0x4004  | Terminal status & PS/2 Keyboard |
-| iMemDin     | 0x4007  | Memory Data Input               |
+| iVT100      | 0x4002  | Terminal status & PS/2 Keyboard |
+| iSwitches   | 0x4004  | Buttons and switches            |
+| iTimerDin   | 0x4006  | Current Timer Value             |
+| iMemDin     | 0x4008  | Memory Data Input               |
 
 
 The following description of the registers should be read in order and describe
@@ -307,6 +306,23 @@ length, parity bits and stop bits can only be changed with modifications to
 	RXRE: UART RX Read Enable
 	TXDO: UART TX Data Output
 
+#### oVT100
+
+The VGA Text device emulates a terminal which the user can talk to by writing
+to the oVT100 register. It supports a subset of the [VT100][] terminal
+functionality. The interface behaves much like writing to a UART with the same
+busy and control signals. The input is taken from a [PS/2][] keyboard available
+on the board, this behaves like the RX mechanism of the UART.
+
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|  X |  X |TXWE|  X |  X |RXRE|  X |  X |               TXDO                    |
+	+-------------------------------------------------------------------------------+
+
+	TXWE: VT100 TX Write Enable
+	RXRE: UART RX Read Enable
+	TXDO: UART TX Data Output
 
 #### oLeds
 
@@ -345,22 +361,6 @@ The timer can be reset by writing to RST.
 	RST:  Timer Reset
 	INTE: Interrupt Enable
 	TCMP: Timer Compare Value
-
-#### oVT100
-
-The VGA Text device emulates a terminal which the user can talk to by writing
-to the oVT100 register. It supports a subset of the [VT100][] terminal
-functionality. The interface behaves much like writing to a UART with the same
-busy and control signals.
-
-	+-------------------------------------------------------------------------------+
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
-	|  X |  X |TXDO|  X |  X |  X |  X |  X |            TXD0                       |
-	+-------------------------------------------------------------------------------+
-
-	TXWE: VGA VT100 TX Write Enable
-	TXDO: VGA VT100 TX Data Output
 
 
 #### o8SegLED
@@ -451,16 +451,6 @@ oMemControl.
 	|                           Data Ouput                                          |
 	+-------------------------------------------------------------------------------+
 
-#### VGA Memory
-
-The VGA memory occupies the range 0xE000 to 0xFFFF, it can be written to (but
-not read from) like normal memory, except like all I/O registers the lowest bit
-is used for addressing, whereas in normal memory it is not. The lowest byte is
-display on the screen out of the 16-bit value.
-
-The value stored is treated as a [ISO 8859-1 (Latin-1)][] character (which is
-an extended [ASCII][] character set.
-
 #### iUart
 
 The iUart register works in conjunction with the oUart register. The status of
@@ -478,6 +468,37 @@ the iUart register, as well as any received bytes.
 	RFFL: UART RX FIFO Full
 	RFEM: UART RX FIFO Empty
 	RXDI: UART RX Data Input
+
+#### iVT100
+
+The iVT100 register works in conjunction with the oVT100 register. The status of
+the FIFO that buffers both transmission and reception of bytes is available in
+the iVT100 register, as well as any received bytes. It works the same as the
+iUart/oUart registers.
+
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|  X |  X |  X |TFFL|TFEM|  X |RFFL|RFEM|  0 |           ACHR                   |
+	+-------------------------------------------------------------------------------+
+
+	TFFL: VGA VT100 TX FIFO Full
+	TFEM: VGA VT100 TX FIFO Empty
+	RFFL: PS2 VT100 RX FIFO Full
+	RFEM: PS2 VT100 RX FIFO Empty
+	ACHR: New character available on PS2 Keyboard
+
+#### iTimerDin
+
+This register contains the current value of the timers counter.
+
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|  X |  X |  X |                       TCNT                                     |
+	+-------------------------------------------------------------------------------+
+
+	TCNT: Timer Counter Value
 
 #### iSwitches
 
@@ -504,64 +525,11 @@ have to be further processed once read in from these registers.
 	BCNT: Button Center
 	TSWI: Two Position Switches
 
-#### iTimerCtrl
-
-This register contains the contents stored in oTimerCtrl.
-
-	+-------------------------------------------------------------------------------+
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
-	| TE | RST|INTE|                      TCMP                                      |
-	+-------------------------------------------------------------------------------+
-
-	TE:   Timer Enable
-	RST:  Timer Reset
-	INTE: Interrupt Enable
-	TCMP: Timer Compare Value
-
-#### iTimerDin
-
-This register contains the current value of the timers counter.
-
-	+-------------------------------------------------------------------------------+
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
-	|  X |  X |  X |                       TCNT                                     |
-	+-------------------------------------------------------------------------------+
-
-	TCNT: Timer Counter Value
-
-#### iVT100
-
-Read in the status registers for the VT100 VGA terminal interface, the transmit
-values are the only ones that matter.
-
-	+-------------------------------------------------------------------------------+
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
-	|  X |  X |  X |TFFL|TFEM|  X |RFFL|RFEM|                XXXX                   |
-	+-------------------------------------------------------------------------------+
-
-	TFFL: VGA VT100 TX FIFO Full
-	TFEM: VGA VT100 TX FIFO Empty
-	RFFL: VGA VT100 RX FIFO Full,  always 0
-	RFEM: VGA VT100 RX FIFO Empty, always 1
-
-#### iPs2
-
-This register contains the interface to the PS/2 keyboard. If PS2N is set then
-an [ASCII][] character is present in ACHR. Both PS2N and ACHR will be cleared.
-
-	+-------------------------------------------------------------------------------+
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
-	|  X |  X |  X |  X |  X |  X |  X |PS2N|  X |              ACHR                |
-	+-------------------------------------------------------------------------------+
-
-	PS2N: New character available on PS2 Keyboard
-	ACHR: ASCII Character
-
 #### iMemDin
+
+Memory input, either from the SRAM or Flash, indexed by oMemControl and
+oMemAddrLow. When reading from flash this might actually be status information
+or information from the query table.
 
 	+-------------------------------------------------------------------------------+
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |

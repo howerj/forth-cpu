@@ -63,9 +63,9 @@ constant word-length   31    ( maximum length of a word )
 
 ( Outputs: $6000 - $7FFF )
 constant oUart         $4000 ( UART TX/RX Control register )
-constant oLeds         $4002 ( LEDs )
+constant oVT100        $4002 ( LEDs )
 constant oTimerCtrl    $4004 ( Timer control register )
-constant oVT100        $4006 ( VGA X/Y Cursor position )
+constant oLeds         $4006 ( VGA X/Y Cursor position )
 constant o8SegLED      $4008 ( 4x7 Segment display )
 constant oIrcMask      $400A ( Interrupt Mask )
 constant oMemControl   $400C ( Memory control and high address bits )
@@ -74,9 +74,9 @@ constant oMemDout      $4010 ( Memory output for writes )
 
 ( Inputs: $6000 - $7FFF )
 constant iUart         $4000 ( Matching registers for iUart )
-constant iSwitches     $4002 ( Switch control [on/off] )
+constant iVT100        $4002 ( Switch control [on/off] )
 constant iTimerDin     $4004 ( Current timer value )
-constant iVT100        $4006 ( VGA text output, currently broken )
+constant iSwitches     $4006 ( VGA text output, currently broken )
 constant iMemDin       $4008 ( Memory input for reads )
 
 ( Initial value of VGA
@@ -871,7 +871,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 	$6000  mask-off if see.alu     i.print              branch i.end then
 	$4000  mask-off if see.call    i.print dup 2*       5u.r rdrop space .name exit then
 	$2000  mask-off if see.0branch i.print r@ bcounter! branch i.end2t then
-	                  see.branch  i.print r@ bcounter! branch i.end2t ; hidden
+	                   see.branch  i.print r@ bcounter! branch i.end2t ; hidden
 
 : continue? ( u a -- f : determine whether to continue decompilation  )
 	bcount @ if 2drop [-1] exit then
@@ -1083,7 +1083,10 @@ information of locks and for extracting information from the query registers )
 
 ( @todo This should accept two double width addresses and a double width
 length, so large sections of memory can be transfered, also a transfer
-in the opposite direction should be programmed )
+in the opposite direction should be programmed
+
+@todo Memory addresses should be character aligned with the lowest
+bit discarded, like normal memory )
 : transfer ( a a u -- : transfer memory block from Flash to SRAM )
 	?dup 0= if 2drop exit then
 	1-

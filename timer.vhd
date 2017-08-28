@@ -104,7 +104,7 @@ begin
 	begin
 		irq         <= '0';
 		q_n         <= q_c;
-		control_n      <= control_c;
+		control_n   <= control_c;
 		timer_reset <= '0';
 
 		control_n(timer_reset_bit)  <= '0'; -- reset
