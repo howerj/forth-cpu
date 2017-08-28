@@ -105,7 +105,7 @@ architecture behav of top is
 	-- Basic IO register
 
 	---- LEDs/Switches
-	signal ld_c, ld_n:        std_logic_vector(7 downto 0)  :=  (others => '0');
+	signal ld_we:             std_logic := '0';
 
 	---- VGA
 	signal vga_data:          std_logic_vector(7 downto 0) := (others => '0');
@@ -148,6 +148,7 @@ architecture behav of top is
 	signal btnl_d:            std_logic := '0';  -- button left
 	signal btnr_d:            std_logic := '0';  -- button right
 
+	-- Switches
 	signal sw_d:              std_logic_vector(sw'range) := (others => '0');
 
 	-- Memory
@@ -238,15 +239,6 @@ begin
 	---- Clock divider /2. Pixel clock is 25MHz
 	clk25MHz <= '0' when rst = '1' else not clk25MHz when rising_edge(clk50MHz);
 
-	io_nextState: process(clk, rst)
-	begin
-		if rst = '1' then
-			ld_c       <= (others => '0');
-		elsif rising_edge(clk) then
-			ld_c        <=  ld_n;
-		end if;
-	end process;
-
 	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
 	assert not(io_wr = '1' or io_re = '1') or not  io_daddr(0) = '1' report "Unaligned register access" severity error;
 
@@ -259,31 +251,30 @@ begin
 	mem_addr_26_17    <= io_dout(9 downto 0);
 	mem_control_i     <= io_dout(15 downto 10);
 	mem_data_i        <= io_dout;
-	ld                <= ld_c;
 
 	io_write: block
 		signal selector: std_logic_vector(3 downto 0) := (others => '0');
 		signal is_write: boolean := false;
 	begin
-		selector <= io_daddr(4 downto 1);
-		is_write <= true when io_wr = '1' else false;
+		selector           <= io_daddr(4 downto 1);
+		is_write           <= true when io_wr = '1' else false;
 
-		tx_data_we         <= io_dout(13)         when is_write and selector = x"0" else '0';
-		rx_data_re         <= io_dout(10)         when is_write and selector = x"0" else '0';
+		tx_data_we         <= io_dout(13) when is_write and selector = x"0" else '0';
+		rx_data_re         <= io_dout(10) when is_write and selector = x"0" else '0';
 
-		vga_data_we        <= io_dout(13)         when is_write and selector = x"1" else '0';
-		kbd_char_re        <= io_dout(10)         when is_write and selector = x"1" else '0';
+		vga_data_we        <= io_dout(13) when is_write and selector = x"1" else '0';
+		kbd_char_re        <= io_dout(10) when is_write and selector = x"1" else '0';
 
-		timer_control_we   <= '1'                 when is_write and selector = x"2" else '0';
-		ld_n               <= io_dout(ld_n'range) when is_write and selector = x"3" else ld_c;
-		leds_reg_we        <= '1'                 when is_write and selector = x"4" else '0';
-		cpu_irc_mask_we    <= '1'                 when is_write and selector = x"5" else '0';
+		timer_control_we   <= '1'         when is_write and selector = x"2" else '0';
+		ld_we              <= '1'         when is_write and selector = x"3" else '0';
+		leds_reg_we        <= '1'         when is_write and selector = x"4" else '0';
+		cpu_irc_mask_we    <= '1'         when is_write and selector = x"5" else '0';
 
-		mem_addr_26_17_we  <= '1'                 when is_write and selector = x"6" else '0';
-		mem_control_we     <= '1'                 when is_write and selector = x"6" else '0';
+		mem_addr_26_17_we  <= '1'         when is_write and selector = x"6" else '0';
+		mem_control_we     <= '1'         when is_write and selector = x"6" else '0';
 
-		mem_addr_16_1_we   <= '1'                 when is_write and selector = x"7" else '0';
-		mem_data_i_we      <= '1'                 when is_write and selector = x"8" else '0';
+		mem_addr_16_1_we   <= '1'         when is_write and selector = x"7" else '0';
+		mem_data_i_we      <= '1'         when is_write and selector = x"8" else '0';
 	end block;
 
 	io_read: process(
@@ -373,6 +364,17 @@ begin
 			rx              =>  rx);
 	--- UART ----------------------------------------------------------
 
+	--- LED Output ----------------------------------------------------
+	led_output_reg_0: entity work.reg
+		generic map(N => ld'high + 1)
+		port map(
+			clk => clk,
+			rst => rst,
+			we  => ld_we,
+			di  => io_dout(ld'range),
+			do  => ld);
+	--- LED Output ----------------------------------------------------
+
 	--- Timer ---------------------------------------------------------
 	timer0_0: entity work.timer
 	generic map(timer_length => timer_length)
@@ -382,7 +384,9 @@ begin
 		we        => timer_control_we,
 		control_i => timer_control_i,
 		counter_o => timer_counter_o,
-		irq       => timer_irq);
+		irq       => timer_irq,
+		q         => open,
+		nq        => open);
 	--- Timer ---------------------------------------------------------
 
 	--- VGA -----------------------------------------------------------
