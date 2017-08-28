@@ -9,7 +9,6 @@
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
---|
 --| The control register contains both the value to compare the timer against
 --| as well as three control bits. Given a "timer_length" value of eight the
 --| control bits are:

@@ -80,14 +80,14 @@ architecture behav of top is
 	constant timer_period_us:        positive := 20000;
 
 	-- Signals
-	signal rst: std_logic := '0';
+	signal rst:      std_logic := '0';
 	-- CPU H2 IO interface signals.
 	signal cpu_wait: std_logic := '0';
 	signal io_wr:    std_logic := '0';
 	signal io_re:    std_logic := '0';
-	signal io_din:   std_logic_vector(15 downto 0):= (others => '0');
-	signal io_dout:  std_logic_vector(15 downto 0):= (others => '0');
-	signal io_daddr: std_logic_vector(15 downto 0):= (others => '0');
+	signal io_din:   std_logic_vector(15 downto 0) := (others => '0');
+	signal io_dout:  std_logic_vector(15 downto 0) := (others => '0');
+	signal io_daddr: std_logic_vector(15 downto 0) := (others => '0');
 
 	-- CPU H2 Interrupts
 	signal cpu_irq:         std_logic := '0';
@@ -164,9 +164,9 @@ architecture behav of top is
 	signal mem_data_o:        std_logic_vector(15 downto 0) := (others => '0');
 
 	signal mem_control_i:     std_logic_vector(5 downto 0)  := (others => '0');
-	signal mem_control_o:     std_logic_vector(5 downto 0)  := (others => '0');
 	signal mem_control_we:    std_logic := '0';
 
+	signal mem_control_o:     std_logic_vector(5 downto 0)  := (others => '0');
 	signal mem_we:            std_logic := '0';
 	signal mem_oe:            std_logic := '0';
 begin
@@ -376,7 +376,7 @@ begin
 	--- LED Output ----------------------------------------------------
 
 	--- Timer ---------------------------------------------------------
-	timer0_0: entity work.timer
+	timer_0: entity work.timer
 	generic map(timer_length => timer_length)
 	port map(
 		clk       => clk,
@@ -384,6 +384,7 @@ begin
 		we        => timer_control_we,
 		control_i => timer_control_i,
 		counter_o => timer_counter_o,
+		control_o => open,
 		irq       => timer_irq,
 		q         => open,
 		nq        => open);
@@ -465,61 +466,33 @@ begin
 	--- Switches ------------------------------------------------------
 
 	--- Memory Interface ----------------------------------------------
-	-- @todo Move to memory interface module
 	-- @todo The memory interface should be WORD aligned, that is, the
 	-- lowest bit of the address should be dropped
-	mem_addr_16_1_reg: entity work.reg
-		generic map(N => 16)
-		port map(
-			clk => clk,
-			rst => rst,
-			we  => mem_addr_16_1_we,
-			di  => mem_addr_16_1,
-			do  => MemAdr(16 downto 1));
-
-	mem_addr_26_17_reg: entity work.reg
-		generic map(N => 10)
-		port map(
-			clk => clk,
-			rst => rst,
-			we  => mem_addr_26_17_we,
-			di  => mem_addr_26_17,
-			do  => MemAdr(26 downto 17));
-
-	mem_control_reg: entity work.reg
-		generic map(N => 6)
-		port map(
-			clk => clk,
-			rst => rst,
-			we  => mem_control_we,
-			di  => mem_control_i,
-			do  => mem_control_o);
-
-	mem_data_i_reg: entity work.reg
-		generic map(N => 16)
-		port map(
-			clk => clk,
-			rst => rst,
-			we  => mem_data_i_we,
-			di  => mem_data_i,
-			do  => mem_data_buf_i);
-
-	FlashCS    <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(0) = '1' else '1';
-	RamCS      <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(1) = '1' else '1';
-	MemWait    <= mem_control_o(2);
-	FlashRp    <= '0' when mem_control_o(3) = '1' else '1';
-	MemAdv     <= '0' when mem_oe = '1' or mem_we = '1' else '1';
-	mem_oe     <= '1' when mem_control_o(5 downto 4) = "01"  else '0';
-	mem_we     <= '1' when mem_control_o(5 downto 4) = "10"  else '0';
-
-	MemOE      <= not mem_oe;
-	MemWR      <= not mem_we;
-
-	mem_data_o <= MemDB when mem_oe = '1' else (others => '0');
-	MemDB      <= mem_data_buf_i when mem_we = '1' else (others => 'Z');
-
+	ram_interface_0: entity work.ram_interface
+	port map(
+		clk                =>  clk,
+		rst                =>  rst,
+		mem_addr_16_1      =>  mem_addr_16_1,
+		mem_addr_16_1_we   =>  mem_addr_16_1_we,
+		mem_addr_26_17     =>  mem_addr_26_17,
+		mem_addr_26_17_we  =>  mem_addr_26_17_we,
+		mem_control_i      =>  mem_control_i,
+		mem_control_we     =>  mem_control_we,
+		mem_data_i         =>  mem_data_i,
+		mem_data_i_we      =>  mem_data_i_we,
+		mem_data_o         =>  mem_data_o,
+		RamCS              =>  RamCS,
+		MemOE              =>  MemOE,
+		MemWR              =>  MemWR,
+		MemAdv             =>  MemAdv,
+		MemWait            =>  MemWait,
+		FlashCS            =>  FlashCS,
+		FlashRp            =>  FlashRp,
+		MemAdr             =>  MemAdr,
+		MemDB              =>  MemDB);
 	--- Memory Interface ----------------------------------------------
 
 -------------------------------------------------------------------------------
 end architecture;
+
 

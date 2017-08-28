@@ -44,6 +44,7 @@ SOURCES = \
 	kbd.vhd \
 	vga.vhd \
 	h2.vhd \
+	ram.vhd \
 	core.vhd \
 	led.vhd 
 
@@ -145,7 +146,7 @@ kbd.o: util.o kbd.vhd
 vga.o: util.o vga.vhd text.hex font.bin
 core.o: util.o h2.o core.vhd h2.hex
 uart.o: util.o uart.vhd
-top.o: util.o timer.o core.o uart.o vga.o kbd.o led.o top.vhd 
+top.o: util.o timer.o core.o uart.o vga.o kbd.o led.o ram.o top.vhd 
 tb.o: top.o tb.vhd 
 
 tb: ${OBJECTS} tb.o
