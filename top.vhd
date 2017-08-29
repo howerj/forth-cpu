@@ -92,7 +92,6 @@ architecture behav of top is
 	-- CPU H2 Interrupts
 	signal cpu_irq:         std_logic := '0';
 	signal cpu_irc:         std_logic_vector(number_of_interrupts - 1 downto 0) := (others => '0');
-	signal cpu_irc_mask:    std_logic_vector(number_of_interrupts - 1 downto 0) := (others => '1');
 	signal cpu_irc_mask_we: std_logic := '0';
 
 	signal clk25MHz: std_logic:= '0';
@@ -127,7 +126,6 @@ architecture behav of top is
 
 	---- Timer
 	signal timer_control_we:  std_logic := '0';
-	signal timer_control_i:   std_logic_vector(timer_length - 1 downto 0) := (others =>'0');
 	signal timer_counter_o:   std_logic_vector(timer_length - 4 downto 0) := (others =>'0');
 	signal timer_irq:         std_logic;
 
@@ -138,7 +136,6 @@ architecture behav of top is
 
 	---- 8 Segment Display
 
-	signal leds_reg:          std_logic_vector(15 downto 0) := (others => '0');
 	signal leds_reg_we:       std_logic := '0';
 
 	---- Buttons
@@ -152,21 +149,11 @@ architecture behav of top is
 	signal sw_d:              std_logic_vector(sw'range) := (others => '0');
 
 	-- Memory
-	signal mem_addr_26_17:    std_logic_vector(26 downto 17) := (others => '0');
 	signal mem_addr_26_17_we: std_logic := '0';
-
-	signal mem_addr_16_1:     std_logic_vector(16 downto 1) := (others => '0');
 	signal mem_addr_16_1_we:  std_logic := '0';
-
-	signal mem_data_i:        std_logic_vector(15 downto 0) := (others => '0');
 	signal mem_data_i_we:     std_logic := '0';
-	signal mem_data_buf_i:    std_logic_vector(15 downto 0) := (others => '0');
 	signal mem_data_o:        std_logic_vector(15 downto 0) := (others => '0');
-
-	signal mem_control_i:     std_logic_vector(5 downto 0)  := (others => '0');
 	signal mem_control_we:    std_logic := '0';
-
-	signal mem_control_o:     std_logic_vector(5 downto 0)  := (others => '0');
 	signal mem_we:            std_logic := '0';
 	signal mem_oe:            std_logic := '0';
 begin
@@ -223,7 +210,7 @@ begin
 		io_daddr         => io_daddr,
 		cpu_irq          => cpu_irq,
 		cpu_irc          => cpu_irc,
-		cpu_irc_mask     => cpu_irc_mask,
+		cpu_irc_mask     => io_dout(number_of_interrupts - 1 downto 0),
 		cpu_irc_mask_we  => cpu_irc_mask_we);
 
 -------------------------------------------------------------------------------
@@ -242,15 +229,8 @@ begin
 	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
 	assert not(io_wr = '1' or io_re = '1') or not  io_daddr(0) = '1' report "Unaligned register access" severity error;
 
-	cpu_irc_mask      <= io_dout(number_of_interrupts - 1 downto 0);
-	timer_control_i   <= io_dout;
 	vga_data          <= io_dout(vga_data'range);
-	leds_reg          <= io_dout;
 	tx_data           <= io_dout(tx_data'range);
-	mem_addr_16_1     <= io_dout;
-	mem_addr_26_17    <= io_dout(9 downto 0);
-	mem_control_i     <= io_dout(15 downto 10);
-	mem_data_i        <= io_dout;
 
 	io_write: block
 		signal selector: std_logic_vector(3 downto 0) := (others => '0');
@@ -324,6 +304,7 @@ begin
 	end process;
 
 	--- UART ----------------------------------------------------------
+	-- @todo Move registers inside UART module
 	uart_rx_data_reg_we_0: work.util.reg
 		generic map(
 			N      => 1)
@@ -382,7 +363,7 @@ begin
 		clk       => clk,
 		rst       => rst,
 		we        => timer_control_we,
-		control_i => timer_control_i,
+		control_i => io_dout,
 		counter_o => timer_counter_o,
 		irq       => timer_irq);
 	--- Timer ---------------------------------------------------------
@@ -427,7 +408,7 @@ begin
 		rst        => rst,
 
 		leds_we    => leds_reg_we,
-		leds       => leds_reg,
+		leds       => io_dout,
 
 		an         => an,
 		ka         => ka);
@@ -469,13 +450,13 @@ begin
 	port map(
 		clk                =>  clk,
 		rst                =>  rst,
-		mem_addr_16_1      =>  mem_addr_16_1,
+		mem_addr_16_1      =>  io_dout,
 		mem_addr_16_1_we   =>  mem_addr_16_1_we,
-		mem_addr_26_17     =>  mem_addr_26_17,
+		mem_addr_26_17     =>  io_dout(9 downto 0),
 		mem_addr_26_17_we  =>  mem_addr_26_17_we,
-		mem_control_i      =>  mem_control_i,
+		mem_control_i      =>  io_dout(15 downto 10),
 		mem_control_we     =>  mem_control_we,
-		mem_data_i         =>  mem_data_i,
+		mem_data_i         =>  io_dout,
 		mem_data_i_we      =>  mem_data_i_we,
 		mem_data_o         =>  mem_data_o,
 		RamCS              =>  RamCS,

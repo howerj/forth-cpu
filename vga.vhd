@@ -15,6 +15,7 @@
 --|
 --| @todo Add scrolling by changing the base address "text_a", adding
 --| a line
+--| @todo Turn this into a stand alone project
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------

@@ -7,6 +7,8 @@
 --| @copyright      Copyright 2017 Richard James Howe
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
+--| @todo The block RAM should use an enumeration to specify its file type not
+--| a string.
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;

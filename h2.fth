@@ -950,6 +950,20 @@ irq:
 		color
 	again ;
 
+\ : plot ( a scale-y : plot an array of 80 value after scaling each one )
+\ 	40 / 2* dup 0= if drop 1 then >r
+\ 	79 2* begin
+\ 		dup cell+ 0>
+\ 	while
+\ 		\ 2dup dup . + @ r@ dup .  / . cr
+\ 		2dup + @ r@ / 20 + over 2/ swap at-xy [char] _ emit 
+\ 		cell-
+\ 	repeat rdrop 2drop ;
+\ 
+\ \ : 2. swap . . cr ;
+\ : ex1
+\ 	79 for r@  pad r@ 2* + ! next pad 80 ;
+ 
 ( ==================== Miscellaneous ================================= )
 
 ( ==================== Vocabulary Words ============================== )

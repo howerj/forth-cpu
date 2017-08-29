@@ -13,6 +13,8 @@
 --|
 --| It also tests multiple modules.
 --|
+--| @todo Optionally, read in from standard input and send the character
+--| over the UART, then print out any received characters to standard out.
 -------------------------------------------------------------------------------
 
 library ieee,work;
@@ -41,6 +43,7 @@ architecture testing of tb is
 		number_of_iterations: positive;
 		verbose:              boolean;
 		report_number:        positive;
+		interactive:          boolean;
 	end record;
 
 	function set_configuration_items(ci: configuration_items) return configurable_items is
@@ -48,13 +51,15 @@ architecture testing of tb is
 	begin
 		r.number_of_iterations := ci(0).value;
 		r.verbose              := ci(1).value > 0;
-		r.report_number        := ci(2).value;
+		r.interactive          := ci(2).value > 0;
+		r.report_number        := ci(3).value;
 		return r;
 	end function;
 
-	constant configuration_default: configuration_items(0 to 2) := (
+	constant configuration_default: configuration_items(0 to 3) := (
 		(name => "Cycles  ", value => 1000),
 		(name => "Verbose ", value => 1),
+		(name => "Interact", value => 0),
 		(name => "LogFor  ", value => 256));
 
 	-- Test bench configurable options --
@@ -103,6 +108,9 @@ architecture testing of tb is
 	-- Wave form generator
 	signal gen_dout:     std_logic_vector(15 downto 0) := (others => '0');
 
+	shared variable cfg: configurable_items := set_configuration_items(configuration_default);
+
+	signal configured: boolean := false;
 begin
 ---- Units under test ----------------------------------------------------------
 
@@ -139,9 +147,6 @@ begin
 	--
 	--  uut_io_pins:  entity work.io_pins_tb      generic map(clock_frequency => clock_frequency);
 
-	-- @note a more advanced test bench would send out a string and expect
-	-- the same one back using a loopback circuit. For the moment this
-	-- is just used for testing the SoC.
 	uut_uart: work.uart_pkg.uart_core
 		generic map(
 			baud_rate            =>  uart_baud_rate,
@@ -201,6 +206,37 @@ begin
 		wait;
 	end process;
 
+	-- @todo Send the input from STDIN into the UART, and wait for a configurable 
+	-- amount of time, or until the UART has finished writing its value. If we 
+	-- are in interactive mode, we should also run until end of input.
+	-- (perhaps zero as a value for Cycles could indicate running forever)
+	io_process: process
+		variable c: character := ' ';
+		variable iline: line;
+		-- variable oline: line;
+		variable good: boolean := true;
+	begin 
+		wait until configured;
+		if not cfg.interactive then
+			wait;
+		end if;
+
+		report "READING FROM STDIN";
+		while (not endfile(input)) and stop = '0' loop
+			readline(input, iline);
+			good := true;
+			while good loop
+				read(iline, c, good);
+				if good then
+					report "" & c;
+				end if;
+			end loop;
+			wait for clk_period * 100;
+		end loop;
+		-- stop <= '1';
+		wait;
+	end process;
+
 	-- I/O settings go here.
 	stimulus_process: process
 		variable w: line;
@@ -235,11 +271,11 @@ begin
 		end function;
 
 		variable configuration_values: configuration_items(configuration_default'range) := configuration_default;
-		variable cfg: configurable_items := set_configuration_items(configuration_default);
 	begin
 		-- write_configuration_tb(configuration_file_name, configuration_default);
 		read_configuration_tb(configuration_file_name, configuration_values);
 		cfg := set_configuration_items(configuration_values);
+		configured <= true;
 
 		rst  <= '1';
 		wait for clk_period * 2;
@@ -258,6 +294,8 @@ begin
 			wait for clk_period * 1;
 		end loop;
 
+		-- @note This really should be an assertion that both HSYNC and VSYNC
+		-- went high once
 		assert o_vga.hsync = '1' report "HSYNC not active - H2 failed to initialize VGA module";
 		assert o_vga.vsync = '1' report "VSYNC not active - H2 failed to initialize VGA module";
 
