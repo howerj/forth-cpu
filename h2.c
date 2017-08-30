@@ -36,7 +36,7 @@
 extern int _fileno(FILE *stream);
 #endif
 
-#define DEFAULT_STEPS (512)
+#define DEFAULT_STEPS (0) /*default is to run forever*/
 #define MAX(X, Y)     ((X) > (Y) ? (X) : (Y))
 #define MIN(X, Y)     ((X) > (Y) ? (Y) : (X))
 

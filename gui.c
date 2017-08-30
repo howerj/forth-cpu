@@ -125,17 +125,19 @@ static double rad2deg(double rad)
 	return (rad / (2.0 * PI)) * 360.0;
 }
 
-static void set_color(color_t color)
+static void set_color(color_t color, bool light)
 {
+	double ON = light ? 0.8 : 0.4;
+	static const double OFF = 0.0;
 	switch(color) {      /* RED  GRN  BLU */
-	case WHITE:   glColor3f(0.8, 0.8, 0.8);   break;
-	case RED:     glColor3f(0.8, 0.0, 0.0);   break;
-	case YELLOW:  glColor3f(0.8, 0.8, 0.0);   break;
-	case GREEN:   glColor3f(0.0, 0.8, 0.0);   break;
-	case CYAN:    glColor3f(0.0, 0.8, 0.8);   break;
-	case BLUE:    glColor3f(0.0, 0.0, 0.8);   break;
-	case MAGENTA: glColor3f(0.8, 0.0, 0.8);   break;
-	case BLACK:   glColor3f(0.0, 0.0, 0.0);   break;
+	case WHITE:   glColor3f( ON,  ON,  ON);   break;
+	case RED:     glColor3f( ON, OFF, OFF);   break;
+	case YELLOW:  glColor3f( ON,  ON, OFF);   break;
+	case GREEN:   glColor3f(OFF,  ON, OFF);   break;
+	case CYAN:    glColor3f(OFF,  ON,  ON);   break;
+	case BLUE:    glColor3f(OFF, OFF,  ON);   break;
+	case MAGENTA: glColor3f( ON, OFF,  ON);   break;
+	case BLACK:   glColor3f(OFF, OFF, OFF);   break;
 	default:      fatal("invalid color '%d'", color);
 	}
 }
@@ -153,7 +155,7 @@ static void _draw_regular_polygon(
 		glLoadIdentity();
 		glTranslatef(x, y, 0.0);
 		glRotated(rad2deg(orientation), 0, 0, 1);
-		set_color(color);
+		set_color(color, true);
 		if(lines) {
 			glLineWidth(thickness);
 			glBegin(GL_LINE_LOOP);
@@ -172,7 +174,7 @@ static void _draw_rectangle(double x, double y, double width, double height, boo
 	glPushMatrix();
 		glLoadIdentity();
 		glRasterPos2d(x, y);
-		set_color(color);
+		set_color(color, true);
 		if(lines) {
 			glLineWidth(thickness);
 			glBegin(GL_LINE_LOOP);
@@ -251,16 +253,18 @@ static int draw_string(const char *msg)
 }
 
 
-static void draw_vt100_char(double x, double y, double scale_x, double scale_y, double orientation, uint8_t c, vt100_attribute_t *attr)
+static void draw_vt100_char(double x, double y, double scale_x, double scale_y, double orientation, uint8_t c, vt100_attribute_t *attr, bool blink)
 {
+	if(blink && attr->blink)
+		return;
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glLoadIdentity();
 		glTranslatef(x, y, 0.0);
 		glScaled(scale_x, scale_y, 1.0);
 		glRotated(rad2deg(orientation), 0, 0, 1);
-		set_color(attr->foreground_color);
-		draw_char(c);
+		set_color(attr->foreground_color, attr->bold);
+		draw_char(attr->conceal ? '*' : c);
 		glEnd();
 	glPopMatrix();
 }
@@ -273,12 +277,12 @@ static scale_t font_attributes(void)
 	return scale;
 }
 
-static int draw_vt100_block(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, vt100_attribute_t *attr)
+static int draw_vt100_block(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, vt100_attribute_t *attr, bool blink)
 {
 	scale_t scale = font_attributes();
 	double char_width = (scale.x / X_MAX)*1.1;
 	for(size_t i = 0; i < len; i++)
-		draw_vt100_char(x+char_width*i, y, scale_x, scale_y, orientation, msg[i], &attr[i]);
+		draw_vt100_char(x+char_width*i, y, scale_x, scale_y, orientation, msg[i], &attr[i], blink);
 	return len;
 }
 
@@ -291,7 +295,7 @@ static int draw_block_scaled(double x, double y, double scale_x, double scale_y,
 		glTranslatef(x, y, 0.0);
 		glScaled(scale_x, scale_y, 1.0);
 		glRotated(rad2deg(orientation), 0, 0, 1);
-		set_color(color);
+		set_color(color, true);
 		for(size_t i = 0; i < len; i++) {
 			uint8_t c = msg[i];
 			c = c >= 32 && c <= 127 ? c : '?';
@@ -318,7 +322,7 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
-	set_color(color);
+	set_color(color, true);
 	glTranslatef(x, y, 0);
 	glScaled(scale_x, scale_y, 1.0);
 	while(*fmt) {
@@ -583,10 +587,8 @@ void draw_terminal(const world_t *world, terminal_t *t, char *name)
 	size_t cursor_x = v->cursor % v->width;
 	size_t cursor_y = v->cursor / v->width;
 
-	for(size_t i = 0; i < t->vt100.height; i++) {
-		draw_vt100_block(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*v->width), v->width, v->attributes + (i*v->width));
-		//draw_block_scaled(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*v->width), v->width, t->color);
-	}
+	for(size_t i = 0; i < t->vt100.height; i++)
+		draw_vt100_block(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*v->width), v->width, v->attributes + (i*v->width), t->blink_on);
 	draw_string_scaled(t->x, t->y - (v->height * char_height), scale_x, scale_y, 0, name, t->color);
 
 	/* fudge factor = 1/((1/scale_x)/X_MAX) ??? */
