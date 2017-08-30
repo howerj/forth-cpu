@@ -1,4 +1,4 @@
-( Reserved for boot block )
+\ ==== Boot Block ==============================================
 -1 loaded !
 
 
@@ -13,24 +13,24 @@
 
 
 
-
-# eForth Short Help
+
+\ ==== Short Help ==============================================
+
 
 A short list of commands
 
-  help    display the tutorial and help
-  words   list all Forth words (in current vocabulary)
-  see     decompile the next word in the input stream
-  editor  start block editor ('q' to quit, 'w' for commands )
-  1 list  list block number '1', this block
+  help       display the tutorial and help
+  words      list all Forth words (in current vocabulary)
+  see        decompile the next word in the input stream
+  0 30 index get titles for blocks 
+  1 list     list block number '1', this block
 
 This is a subroutine threaded Forth, the starting base is 16,
 or hexadecimal. It is based on eForth.
 
 
 
-
-( The Forth Error Messages: contained within 4 screens )
+\ ====  The Forth Error Messages: contained within 4 screens ==
   -1 ABORT
   -2 ABORT"
   -3 stack overflow
@@ -93,7 +93,8 @@ or hexadecimal. It is based on eForth.
 The previous lines are used for printing error messages, the
 Forth word 'message' is used to index into this document.
 
-
+
+\ ==== Description of this file ================================
 The next screens contain extra code that can be loaded into the
 interpreter if needed. Some of the standard Forth words are
 placed here instead of in the image to save on space.
@@ -109,7 +110,7 @@ this does not have any special significance and is only there
 to make editing easier. Line lengths are limited to 64
 characters wide, each block contains 16 lines.
 
-
+\ ==== Constant ================================================
 : constant create , does> @ ; 
 : u>= u< invert ;
 : [char] char [compile] literal ; immediate
@@ -125,7 +126,7 @@ characters wide, each block contains 16 lines.
 
 
 
-
+\ ==== Block Editor 1/2 ========================================
  ( Block Editor : block $8 )
 variable editor-voc 0 editor-voc ! forth
 : editor decimal editor-voc 1 set-order ;
@@ -141,7 +142,7 @@ $40 constant c/l $10 constant l/b
 : d (line) c/l blank ;
 : x (block) b/buf blank ; 
 : s update save-buffers ; 
-
+\ ==== Block Editor 2/2/ =======================================
 : q forth save-buffers ;
 : e forth blk @ load editor ;
 : ia c/l * + (block) + source drop >in @ +
@@ -157,8 +158,7 @@ $40 constant c/l $10 constant l/b
 : sw 2dup y (line) swap (line) swap c/l cmove c ;
 forth
 
-
-( Assembler word set : Block $A )
+\ ==== Assembler word set ======================================
 variable assembler-voc
 bl parse rdrop pad pack$ find drop assembler-voc !
 : assembler assembler-voc 1 set-order ;
@@ -173,56 +173,8 @@ forth
 
 
 
-
-( ANSI Terminal Escape Codes : Block $B )
-( See: https://en.wikipedia.org/wiki/ANSI_escape_code )
-console 
-0 constant black  1 constant red   2 constant green 
-3 constant yellow 4 constant blue  5 constant magenta
-6 constant cyan   7 constant white 
-0 constant dark   1 constant bright
-: CSI $1b emit [char] [ emit ;
-: 10u. base @ >r decimal <# #s #> type r> base ! ; ( u -- )
-: at-xy CSI 10u. $3b emit 10u. [char] H emit ; ( x y -- )
-: page CSI 2 10u. [char] J emit 1 1 at-xy ; ( -- )
-: foreground ; ( u -- u) : background $a + ; ( u -- u )
-: color $1E + CSI 10u.
-  if $3b emit $31 emit then ( ." ;1" )
-  [char] m emit ; ( brightness color -- )
-
-( Extra ANSI Terminal Words )
-: save-cursor CSI [char] s emit ;
-: restore-cursor CSI [char] u emit ;
-: hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
-: show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
 
-
-
-
-
-
-
-
-
-
-
-( Requires ANSI Terminal Blocks )
-: screen-saver
-  begin 
-    random $50 mod random $28 mod at-xy
-    random $1f - $5e mod $1f + emit
-    random 1 and 
-    random 7 and 
-    random 1 and if background then
-    color
-  again ;
-
-
-
-
-
-
-( CORDIC Routines )
+\ ==== CORDIC 1/2 ==============================================
 variable lookup -1 cells allot ( 16 values )
 $3243 , $1DAC , $0FAD , $07F5 , $03FE , $01FF , $00FF , $007F ,
 $003F , $001F , $000F , $0007 , $0003 , $0001 , $0000 , $0000 ,
@@ -237,7 +189,8 @@ variable tx 0 tx ! variable ty 0 ty ! variable tz 0 tz !
 variable x  0  x ! variable y  0  y ! variable z  0  z !
 variable d  0  d ! variable k  0  k !
 
-
+
+\ ==== CORDIC 2/2 ==============================================
 ( CORDIC: valid in range -pi/2 to pi/2, arguments are in fixed )
 ( point format with 1 = 16384, angle is given in radians.  )
 : cordic ( angle -- sine cosine )
@@ -253,27 +206,11 @@ variable d  0  d ! variable k  0  k !
   repeat y @ x @ ;
 : sin cordic drop ; 
 : cos cordic nip ;
-
-: pi/20 pi/2 $a / ;
-: generate 
-  pi/2 $28 2* for 
-    ( dup . ) dup sin $283 / 2 / $14 + r@ swap  
-    at-xy $5f  emit
-( swap . . cr )
-    pi/2 $28 / - next drop ;
-
-
-
-
-
-
-
-
-
+\ ==== Extra Code 1/6 ==========================================
 : 2+ 2 + ;                       ( n -- n )
 : 2- 2 - ;                       ( n -- n )
 : >= < invert ;                  ( n n -- f )
-: simulation? cpu-id $dead = ; ( -- f : are we in the matrix? )
+: simulation? cpu-id $cafe <> ; ( -- f : are we in the matrix? )
 : 0<= 0> 0= ;                    ( n n -- f )
 : 0>= 0< 0= ;                    ( n n -- f )
 : not -1 xor ;                   ( n -- n )
@@ -282,10 +219,10 @@ variable d  0  d ! variable k  0  k !
 : d=  >r swap r> = >r = r> and ; ( d d -- f )
 : d<> d= 0= ;                    ( d d -- f )
 : roll  dup 0> if swap >r 1- recurse r> swap else drop then ;
-: ?exit if rdrop then ;                   ( n --, R: n -- n | )
-: 2rdrop r> rdrop rdrop >r ;              ( R n n -- )
-: 2. swap . . ;                            ( n n -- )
-
+: ?exit if rdrop then ;          ( n --, R: n -- n | )
+: 2rdrop r> rdrop rdrop >r ;     ( R n n -- )
+: 2. swap . . ;                  ( n n -- )
+\ ==== Extra Code 2/6 ==========================================
 : m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ;
 : */mod  >r m* r> m/mod ;  ( n n n -- r q )
 : */  */mod nip ;          ( n n n -- q )
@@ -300,9 +237,8 @@ variable d  0  d ! variable k  0  k !
 : buffer block ; ( k -- a )
 : bye [ 0 , ] ;
 : enum dup constant 1+ ; ( n --, <string> )
-
-
 : logical 0= 0= ;     ( n -- f )
+\ ==== Extra Code 3/6 ==========================================
 : square dup * ;      ( n -- )
 : limit rot min max ; ( n lo hi -- n )
 : odd 1 and logical ; ( n -- )
@@ -317,8 +253,8 @@ variable d  0  d ! variable k  0  k !
 : 2swap >r -rot r> -rot ; ( n1 n2 n3 n4 -- n3 n4 n1 n2 )
 : 2tuck 2swap 2over ; ( n1 n2 n3 n4 -- n3 n4 n1 n2 n3 n4 )
 : 4drop 2drop 2drop ; ( n1 n2 n3 n4 -- )
-
 : trip dup dup ; ( n -- n n n )
+\ ==== Extra Code 4/6 ==========================================
 : log  >r 0 swap ( u base -- u )
   begin swap 1+ swap r@ / dup 0= until
   drop 1- rdrop ;
@@ -333,11 +269,12 @@ variable d  0  d ! variable k  0  k !
 : drup drop dup ; ( n1 n2 -- n1 n1 )
 : lsb $ff and ; ( u -- u )
 
-
+
+\ ==== Extra Code 5/6 ==========================================
 : signum ( n -- -1 | 0 | 1 : Signum function )
-	dup 0> if drop  1 exit then
-	    0< if      -1 exit then
-	0 ;
+  dup 0> if drop  1 exit then
+      0< if      -1 exit then
+      0 ;
 : >< dup 8 rshift swap 8 lshift or ; ( u -- u : swap bytes )
 : #digits dup 0= if 1+ exit then base @ log 1+ ;
 : ** ( n u -- n )
@@ -349,7 +286,7 @@ variable d  0  d ! variable k  0  k !
       swap r@ * swap 1- 
     repeat rdrop drop
   else logical 1 and then ; 
-
+\ ==== Extra Code 6/6 ==========================================
 : b. base @ swap 2 base ! u. base ! ; ( u -- )
 : h. base @ swap hex u. base ! ;      ( u -- )
 : o. base @ swap 8 base ! u. base ! ; ( u -- )
@@ -365,9 +302,7 @@ variable d  0  d ! variable k  0  k !
 
 
 
-
-## eForth v6.66
-Help System And Tutorial
+\ ==== eForth v6.66 : Help and Tutorial ========================
 
 This Forth is modeled after eForth, described in a book by
 C.H. Ting called "eForth Overview", or "The Zen of eForth". It
@@ -381,8 +316,10 @@ interrupts. The system resides on an FPGA Nexys 3 board from
 Digilent, with words and peripherals designed for it.
 
 For more see: <https://github.com/howerj/forth-cpu>
-
-## Introduction
+
+
+\ ==== Help: Introduction ======================================
+
 Forth is a simple, imperative, stack based language that mixes
 elements of a high level language with a low level language. It
 is possible to fit a small Forth system in a few kilobytes of
@@ -397,7 +334,7 @@ create reusable and maintainable software components.
 However it is still suitable for a number of purposes; for
 assemblers, to bring up hardware and test it, in memory
 constrained systems, as a boot loader, and for fun.
-
+\ ==== Help: Philosophy of Forth ===============================
 Forth itself has its own philosophy, one in which the programmer
 should have a complete understanding of the system, from the
 problem that needs to be solved, the algorithms needed to solve
@@ -413,7 +350,7 @@ it (as with Lisp, and other niche systems) so it is important
 to be pragmatic about Forth. Forth is simply a tool and when
 used correctly can be used productively.
 
-
+\ ==== Help: Basics 1/6 ========================================
 A Forth system contains an interactive interpreter that parses
 text and either compiles or executes functions, called 'words'
 in Forth terminology. The system uses Reverse Polish Notation
@@ -429,7 +366,7 @@ or not.
 
 This tutorial will describe how to use Forth and how the
 interpreter works internally.
-
+\ ==== Help: Basics 2/6 ========================================
 To start with, simple expressions can be entered and the
 results displayed. A line is evaluated after the carriage
 return is entered, code will be indented, this can be typed in.
@@ -445,7 +382,7 @@ line has been successfully compiled, unless we are in compile
 mode. '+' obviously does the addition, and '.' pops a value
 off the stack an prints it. Entering a number pushes it onto
 the data stack.
-
+\ ==== Help: Basics 3/6 ========================================
 The data, or variable, stack is a general purpose stack that
 the programmer uses to pass data to functions, and to return
 data from functions. The stacks are an important concept
@@ -461,7 +398,7 @@ when the second '2' is input, it is also pushed onto the stack.
 The Forth word '+' takes two arguments off the stack, adds them
 together and pushes the result back onto the stack. The word
 '.' pops a single number off the stack and prints it.
-
+\ ==== Help: Basics 4/6 ========================================
 Manipulating the stack will be difficult at first, but gets
 easier over time. There are standard words for stack
 manipulation and a standard methodology for describing
@@ -477,7 +414,7 @@ is:
 All text between '(' and the ')' is discarded by the Forth
 system. This comment describes a word that accepts two
 signed numbers "n n", and returns a signed number "n".
-
+\ ==== Help: Basics 5/6 ========================================
 The "--" divides the comment into what the stack looks like
 before execution of the word (to the left of "--") and what it
 looks like after (to the right of "--"). A comment on the
@@ -488,12 +425,12 @@ comments:
 
   dup  ( n -- n n : duplicate first item on the stack )
   swap ( n1 n2 -- n2 n1 : swap first two items on stack )
+  drop ( n -- : drop a value from the stack )
 
 Stack effects are sometimes numbered, which is used to
 so the effects on specific arguments can be documented if
 the order of arguments and return values matter.
-
-
+\ ==== Help: Basics 6/6 ========================================
 Some more words with comments:
 
   @    ( a -- u : load value from memory address )
@@ -509,7 +446,7 @@ to describe the type of the arguments that the word accepts.
 an address and a value. "<" takes two signed numbers, "u<"
 takes two unsigned numbers and produces a flag. Type checking
 is not performed by Forth and is up to the programmer.
-
+\ ==== Help: Stack Comments ====================================
 Here is a list of stack type descriptions and what they mean:
 | Comment  | Meaning                             |
 |----------|-------------------------------------|
@@ -525,7 +462,7 @@ Here is a list of stack type descriptions and what they mean:
 | nfa      | name field address of a word        |
 | pwd      | previous word address of a word     |
 | <string> | a parsing word                      |
-
+\ ==== Help: Expressions =======================================
 Let us continue on with some interactive examples before we
 start to define new words. Before we saw a trivial example
 of adding two numbers together, we will go over a few more
@@ -541,7 +478,7 @@ Negative numbers can be input by prefixing the number with
 
   -2 4 * . ( Display -8 )
 
-
+\ ==== Help: Numeric Output 1/2 ================================
 The word '.' pops a value off the stack before displaying it,
 if we want to examine the stack without popping the value we
 can print out the entire contents of the stack with '.s':
@@ -557,55 +494,55 @@ prints a memory dump of a region of memory.
 
   dump ( a u -- )
   ?    ( a -- )
-
+\ ==== Help: Numeric Output 2/2 ================================
 Hexadecimal numbers can be entered if the base input and output
 base is 16, or by prefixing the number with '$'.
 
-  decimal
-  $aaa .  ( Displays 2730 )
-  -$aaa . ( Displays -2730 )
+  decimal  $aaa . ( Displays 2730 )
+          -$aaa . ( Displays -2730 )
 
 eForth starts up in base 16, valid bases range anywhere from
 2 to 36. The base can be changed by either setting a variable
 'base' to the desired base, or with the words 'hex' to change
 the base back into hexadecimal, or 'decimal' to change the base
-to '10'.
+to '10'. Variables in Forth are words that leave an address on 
+the stack when they are called. They can be read or set with 
+'@' and '!'. For example, "$10 base !" and "hex" are 
+equivalent, as are "$a base !" and "decimal".
 
-Variables in Forth are words that leave an address on the stack
-when they are called. They can be read or set with '@' and '!'.
-
-For example, "$10 base !" and "hex" are equivalent, as are
-"$a base !" and "decimal".
-
+\ ==== Help: Word Definitions 1/2 ==============================
 For the moment we have not covered how words are defined and
 is a good time to do so, the word ":" is used to create a new
 word definition and the word ";" is used to terminate one.
 Words once defined are added to the 'dictionary', which is
-consists of a linked list of words, hence the name
-'dictionary'.
-
-We can define new words interactively like we can type
-expressions in, such as:
+consists of a linked list of words, hence the name 
+'dictionary'. We can define new words interactively like we can
+type expressions in, such as:
 
   : square dup * ; ( n -- n : square a number )
 
-
 We can then use square like any other word:
 
   4 square .  ( prints 16 )
   -5 square . ( prints 25 )
 
+\ ==== Help: Word Definitions 2/2 ==============================
 'hex' and 'decimal' are defined as:
 
   : hex $10 base ! ;
   : decimal $a base ! ;
 
-And simple Forth words like wise defined:
+And simple Forth words likewise defined:
 
+  : 2- 2 - ;      ( u -- u : decrement a number by 2 )
   : 2+ 2 + ;      ( u -- u : increment a number by 2 )
   : 2* 1 lshift ; ( u -- u : multiply a number by 2 )
-
-
+  : 1+ 1 + ;      ( u -- u : increment a number by 1 )
+  : negate invert 1+ ; ( n -- n : negate, twos compliment )
+  
+It is best to keep all Forth words as short as possible and
+reuse code as much as possible.
+\ ==== Help: Interpreter Loop 1/3 ==============================
 All functions, control structures, defining words such as ":",
 and simple functions like "square" or "hex" are simply Forth
 words, which are either defined in terms of other Forth words
@@ -621,7 +558,7 @@ mode, a call to the word is compiled (or an assembly
 instruction is inlined) and numbers of turned into literals
 that push their value when run.
 
-
+\ ==== Help: Interpreter Loop 2/3 ==============================
 There is a special class of words called "immediate" words, ";"
 is an immediate word, when it is encountered instead of being
 compiled into the dictionary it is executed, it compiles an
@@ -637,7 +574,7 @@ end of line respectively.
 Variables, strings, and defining words (defining words are
 that create new words) are all simply Forth words that are
 either compiling or immediate, their is no special syntax.
-
+\ ==== Help: Interpreter Loop 3/3 ==============================
 The command loop goes like this:
 Start) Fetch a space delimited word, find it in the dictionary
    Found) Is the system in compile mode?
@@ -653,7 +590,7 @@ Start) Fetch a space delimited word, find it in the dictionary
 This simple loop is invoked by the work 'quit' which uses
 'query' to fetch and parse the input and 'interpreter' to
 perform the state dependent action.
-
+\ ==== Help: Control Structures 1/8 ============================
 This will give you some idea what is going on when control
 structures are covered in the following blocks. Control
 structures can only be used within a word definition, that
@@ -669,7 +606,7 @@ Some of the control structures available to Forth are:
   begin ... until
   begin ... again
   begin ... while ... repeat
-
+\ ==== Help: Control Structures 2/8 ============================
 Recursion is also available with the 'recurse' word. There
 are more advance control flow methods available that will be
 described later (such as 'catch', 'throw' and manipulating the
@@ -685,7 +622,7 @@ negative, their stack effect comments are:
 
   0<     ( n -- f )
   negate ( n -- n )
-
+\ ==== Help: Control Structures 3/8 ============================
 The word 'abs' is then defined as:
 
   : abs dup 0< if negate then ;
@@ -701,7 +638,7 @@ word 'abs' as soon as we terminate the definition with ";":
    4 abs . ( displays 4 )
 
 This Forth uses two complements to represent negative numbers.
-
+\ ==== Help: Control Structures 4/8 ============================
 A number can be negated in twos compliment form by performing
 a bitwise not on the number and adding one to it, this is what
 the word 'negate' does.
@@ -717,7 +654,7 @@ two numbers.
    4 3 min . ( prints 3 )
    4 3 max . ( prints 4 )
 
-
+\ ==== Help: Control Structures 5/8 ============================
 Whilst control structures can be nested very deeply it is
 considered very bad practice to do, instead the definition
 should be refactored so it consists of short (preferably one
@@ -733,7 +670,7 @@ a single character from the input device, it blocks until there
 is input. It uses a word called "key?" which returns a variable
 number of items on the stack depending on whether there is
 new input from the user.
-
+\ ==== Help: Control Structures 6/8 ============================
 The stack comments for "key?" and "key" are:
 
   key? ( -- c -1 | 0 )
@@ -749,7 +686,7 @@ in terms of "key?" with:
 
 This simply loops until there is a new character of input.
 
-
+\ ==== Help: Control Structures 7/8 ============================
 Some contrived examples, using the standard metasyntactic
 variable name "foo":
 
@@ -765,8 +702,8 @@ If zero is given this will underflow and wrap around to $FFFF
 and continue the loop 65536 times which is probably not
 intended.
 
-
-Infine loops can be make with "begin...again", the
+\ ==== Help: Control Structures 8/8 ============================
+Indefinite loops can be made with "begin...again", the
 following word "bar" simply repeatedly prints out "1":
 
   : bar begin 1 . cr again ;
@@ -781,88 +718,8 @@ until a variable is not true:
 
 
 
-
-===============================================================
+\ ==== Help: TO DO =============================================
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-===============================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-===============================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-===============================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-===============================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-===============================================================
 * Describe the system internals
 * eForth primitives
 * Make, Doer, Create, Does>
@@ -877,8 +734,8 @@ until a variable is not true:
 
 
 
-
-## Block Editor
+\ ==== Block Editor Help 1/5 ===================================
+
 The traditional way to store Forth source code and data is as
 Forth blocks, a block is a contiguous array of 1024 characters,
 which can be saved to non-volatile storage with the 'block'
@@ -893,7 +750,7 @@ By default the editor words are not in the Forth search order,
 the words in the editor vocabulary would conflict with Forth
 words (and with hexadecimal numbers). To load the block editor
 execute the 'editor' Forth word. Load initial block with '0 b'.
-
+\ ==== Block Editor Help 2/5 ===================================
 The block editor is a prime example of Forth simplicity, it
 both simplifies the problem of editing text and reuses the
 Forth interpreter to define a new command language. Each command
@@ -909,7 +766,7 @@ output to decimal. The commands are terse words, only one or
 two characters in length.
 
 
-
+\ ==== Block Editor Help 3/5 ===================================
 The third element of the block editor is the elegant, if some-
 what limited, block word set. It completely abstracts aways the
 task of retrieving data from mass storage and saving modified
@@ -925,7 +782,7 @@ block loaded (and listed) is also used. Most editor commands
 are minor modifications on the behavior of these words.
 
 
-
+\ ==== Block Editor Help 4/5 ===================================
 The workhorse of the word set is 'block', it takes a block
 number and if that block number is not currently loaded into a
 block buffer (this system only has one block buffer available)
@@ -941,7 +798,7 @@ any blocks (by storing $FFFF in 'blk'). 'list' displays the
 contents of a block, 'load' evaluates a block and '+block'
 moves to a block relative to the currently loaded one.
 
-
+\ ==== Block Editor Help 5/5 ===================================
 A quick recap of the block words:
 
 block        ( k -- u : load block into buffer )
@@ -957,8 +814,8 @@ These can be used to define simple editor commands, such as:
   : n 1 +block b ;
   : u update ;
 
-
-## Block Editor Commands 1/2
+\ ==== Block Editor Commands 1/2 ===============================
+
 '#' indicates a numeric argument the command takes:
       n    move to next block
       p    move to previous block
@@ -973,8 +830,8 @@ These can be used to define simple editor commands, such as:
       u    update block
       w    list editor commands
       q    back to Forth interpreter
-
-## Block Editor Commands 2/2
+\ ==== Block Editor Commands 2/2 ===============================
+
 
       l    re-list current block
     # c    paste copy buffer to line #
@@ -989,8 +846,8 @@ editor was derived from the Retro Forth block editor, available
 at: <http://retroforth.org/pages/?PortsOfRetroEditor>
 
 
-
-## TO DO
+\ ==== TO DO ===================================================
+
 * Describe the Nexys 3 system, the system on a chip, the
 * List the instruction set, registers, words defined, eForth
 * Make words for databases using blocks
@@ -1005,8 +862,7 @@ space for the user
 * Better tools for editing this file would help a lot.
 * Move the block editor to this file
 * Full glossary: 1 block per word definition
-
-===============================================================
+\ ==== Empty Block =============================================
 
 
 
@@ -1021,8 +877,9 @@ space for the user
 
 
 
-
-## Glossary of words
+
+\ ==== Glossary of Words: Introduction =========================
+
 
 Search order is by raw ASCII value representing the character,
 words in addition to their stack comment have the following
@@ -1037,12 +894,12 @@ letters describing them:
 
 
 
-
+\ ==== Glossary 1/14 ===========================================
 !      ( u a -- : store 'u' at 'a' )
 #      ( u -- u, P : divide u by base, hold number )
 #>     ( u -- b u, P : return string in hold area )
 #s     ( u -- 0 : repeat # until u is zero )
-#tib   ( -- a, V: current input line length stored here )
+
 $"     ( --,<string>,I,C : Compile string into word )
 '      ( -- xt, <string>, I : find next word )
 (      ( --,I : read until matching parenthesis )
@@ -1053,8 +910,8 @@ $"     ( --,<string>,I,C : Compile string into word )
 +block ( n --,K : add 'n' to 'blk' variable )
 ,      ( u --,H : compile 'u' into next cell in dictionary )
 -      ( n1 n2 -- n : subtract n2 from n1 )
-
--->     ( --, K: Evaluate next block )
+\ ==== Glossary 2/14 ===========================================
+
 -rot    ( n1 n2 n3 -- n3 n1 n2 )
 .       ( n --, P : pop and print top of stack )
 ."      ( -- I,C,H : compile string into dictionary )
@@ -1069,7 +926,7 @@ $"     ( --,<string>,I,C : Compile string into word )
 0=      ( u -- f, A : equal to zero? )
 0>      ( n -- f : greater than zero? )
 1+      ( u -- u : increment u )
-
+\ ==== Glossary 3/14 ===========================================
 1-      ( u -- u, A : decrement u )
 2!      ( u u a -- : store values at two consecutive addresses )
 2*      ( u -- u : multiply by 2 )
@@ -1085,7 +942,7 @@ $"     ( --,<string>,I,C : Compile string into word )
 <>      ( u1 u2 -- f : true if u1 not equal to u2 )
 =       ( u1 u2 -- f : true if u1 equal to u2 )
 >       ( n1 n1 -- f : signed n1 greater than n2 )
-
+\ ==== Glossary 4/14 ===========================================
 >body    ( cfa --, : move to created words variable field )
 >in      ( -- a, V: input left unparsed )
 >r       ( u --, R: -- u, A )
@@ -1101,7 +958,7 @@ abort"   ( --, C,I,H,<string> : abort with message )
 abs      ( n -- u : absolute value of number )
 accept   ( b u -- b u : fetch line into string )
 again    ( C,T,I,H : begin...again )
-
+\ ==== Glossary 5/14 ===========================================
 aligned   ( b -- a : align address )
 allot     ( n --,H : allocate 'n' bytes in dictionary )
 and       ( u u -- u, A : bitwise and )
@@ -1117,7 +974,7 @@ block     ( k -- a, K,T : load block, flush dirty block )
 c!        ( c b -- : store byte 'c' at address 'b' )
 c@        ( b -- c : load byte from 'b' )
 catch     ( xt -- n : catch any throws, return thrown value )
-
+\ ==== Glossary 6/14 ===========================================
 cell+    ( a -- a : increment address to next cell )
 cell-    ( a -- a : decrement address to previous cell )
 char     ( -- c, <string> : parse out char, push it )
@@ -1133,7 +990,7 @@ decimal  ( -- : set input/output radix to decimal )
 dm+      ( a u --,K : print array of numbers 'u' long )
 dnegate  ( d -- d : negate a double cell value )
 doer     ( -- <string>,D,H : make new DOER word )
-
+\ ==== Glossary 7/14 ===========================================
 does>         ( C,I,H : make action for created word )
 drop          ( n --,A )
 dump          ( a u -- P : hex dump area of memory )
@@ -1149,7 +1006,7 @@ exit          ( R: a -- : exit word definition )
 expect        ( b u -- : accept, stores return in span )
 file          ( --, IO : File I/O mode )
 fill          ( b u c -- : fill string with 'c' )
-
+\ ==== Glossary 8/14 ===========================================
 find      ( a -- pwd 1 | pwd -1 | a 0 : find word )
 flush     ( --, K: save dirty buffers and deallocate )
 for       ( C,I,H,T : for...next, for...aft...next...then )
@@ -1165,7 +1022,7 @@ ien?      ( -- n, A : interrupts enabled? )
 if        ( C,I,T,H : if...then or if...else...then )
 immediate ( -- : make previously defined word immediate )
 interpret ( a --, T,H : execute commands/compilations )
-
+\ ==== Glossary 9/14 ===========================================
 invert    ( u -- u, A : bitwise inversion )
 io!       ( --, IO : setup IO )
 key       ( -- c, IO : get a new char, blocking input )
@@ -1181,7 +1038,7 @@ make      ( --,<string1> <string2> I, T : change word behavior )
 max       ( n n -- n : signed maximum of two numbers )
 message   ( n --, K : display error message 'n' from blocks )
 min       ( n n -- n : signed minimum of two numbers )
-
+\ ==== Glossary 10/14 ==========================================
 mod     ( n1 n2 -- n : quotient of n1 divided by n2 )
 ms      ( u -- : wait 'u' milliseconds )
 negate  ( n -- n : twos complement of 'n' )
@@ -1197,7 +1054,7 @@ pad     ( -- a, P: return address into PAD area )
 page    ( --, IO : clear display )
 parse   ( b u c -- b u, <string> : parse word from query line )
 pick    ( nx...n1 ux -- nx...n1 nx )
-
+\ ==== Glossary 11/14 ==========================================
 query        ( -- : get line of input )
 quit         ( -- : interpreter loop )
 r>           ( -- n, R: n --, A )
@@ -1210,10 +1067,10 @@ rot          ( n1 n2 n3 -- n2 n3 n1 )
 rp@          ( -- u, A : return stack depth )
 rshift       ( n1 n2 -- n,A : logical right shift n1 by n2 )
 save-buffers ( --, K : save loaded buffers )
-scr          ( -- a : pointer to last screen loaded )
+
 see          ( --,<string>,T : decompile a word )
 segments!    ( u --,IO : display number on 4x7-segment display )
-
+\ ==== Glossary 12/14 ==========================================
 set-order ( widn ... wid1 n -- : set search order )
 sign      ( --, P : hold '-' character )
 source    ( -- a u : input buffer address and length )
@@ -1229,8 +1086,8 @@ switches  ( -- u, IO : get the state of the onboard switches )
 then      ( C,T : if...then, for...aft...then...next )
 throw     ( n --, R: ??? --- ???, T: throw if n non zero )
 thru      ( k1 k2 -- ,T, K : list blocks from k1 to k2 )
-
-tib      ( -- a, V : terminal input buffer address )
+\ ==== Glossary 13/14 ==========================================
+
 timer    ( -- u, IO : get current timer value )
 timer!   ( u --, IO : set timer compare and control )
 toggle   ( a u -- : xor contents of 'a' with 'u' )
@@ -1245,7 +1102,7 @@ um*      ( u u -- ud : unsigned multiply )
 um/mod   ( ud u -- ur uq, T: ur=ud/u, uq=ud%u )
 until    ( C,I,T,H : begin...until )
 update   ( --, K : make loaded block as dirty )
-
+\ ==== Glossary 14/14 ==========================================
 variable ( --, <string> : create new variable )
 ver      ( -- a, V : version information )
 vga!     ( u a --, IO : store cell on VGA screen )
@@ -1261,4 +1118,4 @@ xor      ( n n -- n, A : bitwise exclusive or )
 
 
 
-
+\ ==============================================================

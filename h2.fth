@@ -160,7 +160,8 @@ location see.inline       " inline "    ( used by "see", for inline words )
 location OK               "ok"          ( used by "prompt" )
 location redefined        " redefined"  ( used by ":" when a word has been redefined )
 location hi-string        "eFORTH V"    ( used by "hi" )
-location loading-string   "loading..."
+location loading-string   "loading..."  ( used in start up routine )
+location failed           "failed"      ( used in start up routine )
 
 ( ======================== System Variables ================= )
 
@@ -624,7 +625,7 @@ choice words that need depth checking to get quite a large coverage )
 
 : CSI $1b emit [char] [ emit ; hidden
 : 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( u -- )
-: ansi swap CSI 10u. emit ; ( n c -- )
+: ansi swap CSI 10u. emit ; hidden ( n c -- )
 : at-xy CSI 10u. $3b emit 10u. [char] H emit ; ( x y -- )
 : page 2 [char] J ansi 1 1 at-xy ; ( -- )
 : sgr [char] m ansi ; ( -- )
@@ -637,11 +638,10 @@ choice words that need depth checking to get quite a large coverage )
 : color 30 + sgr ;
 \ : hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
 \ : show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
-
-: up    1 [char] A ansi ;
-: down  1 [char] B ansi ;
-: left  1 [char] C ansi ;
-: right 1 [char] D ansi ;
+\ : up    1 [char] A ansi ;
+\ : down  1 [char] B ansi ;
+\ : left  1 [char] C ansi ;
+\ : right 1 [char] D ansi ;
 
 ( ==================== Extra Words =================================== )
 
@@ -810,19 +810,19 @@ should be contiguous as well )
 
 : line swap block swap c/l * + c/l ; hidden ( k u -- a u )
 : loadline line evaluate ; hidden ( k u -- )
-: load 0 15 for 2dup >r >r loadline r> r> 1+ next 2drop ;
+: load 0 l/b 1- for 2dup >r >r loadline r> r> 1+ next 2drop ;
 \ : load block b/buf evaluate ;
-: --> 1 +block load ;
-: scr blk ;
+\ : --> 1 +block load ;
+\ : scr blk ;
 : pipe 124 emit ; hidden
 : .line line -trailing $type ; hidden
-: .border border @ if 3 spaces 64 45 nchars cr then ; hidden
+: .border border @ if 3 spaces c/l 45 nchars cr then ; hidden
 : #line border @ if dup 2 u.r then ; hidden ( u -- u : print line number )
 : ?pipe border @ if pipe then ; hidden
 : ?page border @ if page then ; hidden
 : thru over - for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
-: message 16 extract .line cr ; ( u -- )
+: message l/b extract .line cr ; ( u -- )
 : list
 	?page
 	cr
@@ -832,9 +832,18 @@ should be contiguous as well )
 	while 
 		2dup #line ?pipe line $type ?pipe cr 1+ 
 	repeat .border 2drop ;
-\ : index over - cr for dup 5u.r space pipe space dup  0 .line cr 1+ next drop ;
-\ : list-thru over - for dup . dup list 1+ nuf? if rdrop drop exit then next drop ; ( k1 k2 -- )
-\ : list page block cr .border 15 for 15 r@ - 2 u.r pipe dup c/l $type pipe cr c/l + next .border drop ;
+
+: index ( k1 k2 -- : show titles for block k1 to k2 )
+	over - cr 
+	for 
+		dup 5u.r space pipe space dup  0 .line cr 1+ 
+	next drop ; 
+
+: screens ( k1 k2 -- : list blocks k1 to k2 )
+	over - 
+	for 
+		dup . dup list 1+ nuf? if rdrop drop exit then 
+	next drop ; 
 
 ( all words before this are now in the forth vocabulary, it is also set
 later on )
@@ -1217,10 +1226,8 @@ start:
 	cpu-id segments!
 	loading-string print
 	0 0 $8000 transfer
-	0 ' load catch drop
+	0 ' load catch if failed print else .ok then
 	\ loaded @ if 1 list then
-
-	.ok
 	\ login 0 load 1 list
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
