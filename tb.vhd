@@ -83,10 +83,6 @@ architecture testing of tb is
 	signal ka:    std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 8 segment display
 	signal ld:    std_logic_vector(7 downto 0) := (others => '0'); -- leds
 
-	-- UART
-	signal rx:    std_logic := '0';
-	signal tx:    std_logic := '0';
-
 	-- VGA
 	signal o_vga: vga_physical_interface;
 
@@ -95,15 +91,21 @@ architecture testing of tb is
 	signal ps2_keyboard_clk:  std_logic := '0';
 
 	-- UART FIFO
-	signal uart_fifo_rx_data:           std_logic_vector(7 downto 0) := (others => '0');
-	signal uart_fifo_rx_fifo_empty:     std_logic := '0';
-	signal uart_fifo_rx_fifo_full:      std_logic := '0';
-	signal uart_fifo_rx_data_re:        std_logic := '0';
-	signal uart_fifo_tx_fifo_full:      std_logic := '0';
-	signal uart_fifo_tx_fifo_empty:     std_logic := '0';
-	signal uart_fifo_tx_data_we:        std_logic := '0';
-	signal uart_fifo_tx:                std_logic := '0';
-	signal uart_fifo_rx_fifo_not_empty: std_logic := '0';
+--	signal uart_fifo_rx_data:           std_logic_vector(7 downto 0) := (others => '0');
+--	signal uart_fifo_rx_fifo_empty:     std_logic := '0';
+--	signal uart_fifo_rx_fifo_full:      std_logic := '0';
+--	signal uart_fifo_rx_data_re:        std_logic := '0';
+--	signal uart_fifo_tx_fifo_full:      std_logic := '0';
+--	signal uart_fifo_tx_fifo_empty:     std_logic := '0';
+--	signal uart_fifo_tx_data_we:        std_logic := '0';
+--	signal uart_fifo_tx:                std_logic := '0';
+--	signal uart_fifo_rx_fifo_not_empty: std_logic := '0';
+
+	-- UART
+	signal rx:    std_logic := '0';
+	signal tx:    std_logic := '0';
+	signal dout_ack, dout_stb: std_logic := '0';
+	signal dout:  std_logic_vector(7 downto 0) := (others => '0');
 
 	-- Wave form generator
 	signal gen_dout:     std_logic_vector(15 downto 0) := (others => '0');
@@ -158,41 +160,43 @@ begin
 			din_stb   =>  '1',
 			tx        =>  rx,
 			rx        =>  tx,
-			dout_ack  =>  '0');
+			dout_ack  =>  dout_ack,
+			dout_stb  =>  dout_stb,
+			dout      =>  dout);
 
 	-- Example usage of wave form generator
-	uut_gen: work.util.data_source
-		generic map(
-			addr_length  =>  13,
-			data_length  =>  16,
-			file_name    =>  "text.hex",
-			file_type    =>  "hex")
-		port map(
-			clk          =>  clk,
-			rst          =>  rst,
-			ce           =>  '1',
-			cr           =>  '0',
-			dout         =>  gen_dout);
-
-
-	uart_fifo_rx_fifo_not_empty <= not uart_fifo_rx_fifo_empty;
-	uut_uart_fifo: work.uart_pkg.uart_top
-	generic map(
-		baud_rate => uart_baud_rate,
-		clock_frequency => clock_frequency)
-	port map(
-		clk            =>  clk,
-		rst            =>  rst,
-		rx_data        =>  uart_fifo_rx_data,
-		rx_fifo_empty  =>  uart_fifo_rx_fifo_empty,
-		rx_fifo_full   =>  uart_fifo_rx_fifo_full,
-		rx_data_re     =>  uart_fifo_rx_fifo_not_empty,
-		tx_data        =>  uart_fifo_rx_data,
-		tx_fifo_full   =>  uart_fifo_tx_fifo_full,
-		tx_fifo_empty  =>  uart_fifo_tx_fifo_empty,
-		tx_data_we     =>  uart_fifo_rx_fifo_not_empty,
-		tx             =>  uart_fifo_tx,
-		rx             =>  tx);
+--	uut_gen: work.util.data_source
+--		generic map(
+--			addr_length  =>  13,
+--			data_length  =>  16,
+--			file_name    =>  "text.hex",
+--			file_type    =>  "hex")
+--		port map(
+--			clk          =>  clk,
+--			rst          =>  rst,
+--			ce           =>  '1',
+--			cr           =>  '0',
+--			dout         =>  gen_dout);
+--
+--
+--	uart_fifo_rx_fifo_not_empty <= not uart_fifo_rx_fifo_empty;
+--	uut_uart_fifo: work.uart_pkg.uart_top
+--	generic map(
+--		baud_rate => uart_baud_rate,
+--		clock_frequency => clock_frequency)
+--	port map(
+--		clk            =>  clk,
+--		rst            =>  rst,
+--		rx_data        =>  uart_fifo_rx_data,
+--		rx_fifo_empty  =>  uart_fifo_rx_fifo_empty,
+--		rx_fifo_full   =>  uart_fifo_rx_fifo_full,
+--		rx_data_re     =>  uart_fifo_rx_fifo_not_empty,
+--		tx_data        =>  uart_fifo_rx_data,
+--		tx_fifo_full   =>  uart_fifo_tx_fifo_full,
+--		tx_fifo_empty  =>  uart_fifo_tx_fifo_empty,
+--		tx_data_we     =>  uart_fifo_rx_fifo_not_empty,
+--		tx             =>  uart_fifo_tx,
+--		rx             =>  tx);
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
@@ -206,11 +210,44 @@ begin
 		wait;
 	end process;
 
+	output_process: process
+		variable oline: line;
+		variable c: character;
+		variable have_char: boolean := true;
+	begin
+		wait until configured;
+		if not cfg.interactive then
+			wait;
+		end if;
+
+		report "WRITING TO STDOUT";
+		while stop = '0' loop
+			wait until (dout_stb = '1' or stop = '1');
+			if stop = '0' then
+				wait for clk_period;
+				dout_ack <= '1';
+				wait for clk_period;
+				dout_ack <= '0';
+				c := character'val(to_integer(unsigned(dout)));
+				write(oline, c);
+				have_char := true;
+				if dout = x"0d" then
+					writeline(output, oline);
+					have_char := false;
+				end if;
+			end if;
+		end loop;
+		if have_char then
+			writeline(output, oline);
+		end if;
+		wait;
+	end process;
+
 	-- @todo Send the input from STDIN into the UART, and wait for a configurable 
 	-- amount of time, or until the UART has finished writing its value. If we 
 	-- are in interactive mode, we should also run until end of input.
 	-- (perhaps zero as a value for Cycles could indicate running forever)
-	io_process: process
+	input_process: process
 		variable c: character := ' ';
 		variable iline: line;
 		-- variable oline: line;

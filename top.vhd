@@ -227,7 +227,7 @@ begin
 	clk25MHz <= '0' when rst = '1' else not clk25MHz when rising_edge(clk50MHz);
 
 	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
-	assert not(io_wr = '1' or io_re = '1') or not  io_daddr(0) = '1' report "Unaligned register access" severity error;
+	-- assert not(io_wr = '1' or io_re = '1') or not  io_daddr(0) = '1' report "Unaligned register access" severity error;
 
 	vga_data          <= io_dout(vga_data'range);
 	tx_data           <= io_dout(tx_data'range);
