@@ -624,9 +624,10 @@ choice words that need depth checking to get quite a large coverage )
 
 : CSI $1b emit [char] [ emit ; hidden
 : 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( u -- )
+: ansi swap CSI 10u. emit ; ( n c -- )
 : at-xy CSI 10u. $3b emit 10u. [char] H emit ; ( x y -- )
-: page CSI 2 10u. [char] J emit 1 1 at-xy ; ( -- )
-: sgr CSI 10u. [char] m emit ;
+: page 2 [char] J ansi 1 1 at-xy ; ( -- )
+: sgr [char] m ansi ; ( -- )
 : black 0 ;
 : red 1 ;
 : green 2 ;
@@ -636,6 +637,11 @@ choice words that need depth checking to get quite a large coverage )
 : color 30 + sgr ;
 \ : hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
 \ : show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
+
+: up    1 [char] A ansi ;
+: down  1 [char] B ansi ;
+: left  1 [char] C ansi ;
+: right 1 [char] D ansi ;
 
 ( ==================== Extra Words =================================== )
 
@@ -818,8 +824,8 @@ should be contiguous as well )
 : blank =bl fill ;
 : message 16 extract .line cr ; ( u -- )
 : list
-	cr
 	?page
+	cr
 	.border
 	0 begin 
 		dup l/b < 

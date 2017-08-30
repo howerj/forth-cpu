@@ -279,13 +279,17 @@ entity vt100 is
 		o_vga:      out vga_physical_interface);
 end entity;
 
+-- A better way of structuring this would be to process numbers in parallel
+-- with different components, one processing potential attributes, one holding
+-- one to two numbers - the results are then used. This would deal with runs
+-- of attributes, which is allowed.
 architecture rtl of vt100 is
 	constant width:  positive := 80;
 	constant height: positive := 40;
 	constant number: positive := 8;
 
 	type state_type is (RESET, ACCEPT, NORMAL, WRAP, LIMIT, CSI, COMMAND,
-	NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING, ATTRIB1, ATTRIB2);
+	NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING, ATTRIB1, ATTRIB2, ADVANCE);
 	signal state_c, state_n: state_type := RESET;
 
 	constant esc:          unsigned(char'range) := x"1b";
@@ -315,12 +319,17 @@ architecture rtl of vt100 is
 	signal n1_n, n1_c: unsigned(7 downto 0) := (others => '0');
 	signal n2_n, n2_c: unsigned(6 downto 0) := (others => '0');
 
+	signal conceal_n, conceal_c: boolean := false;
+
 	signal x_minus_one:         unsigned(x'range) := (others => '0');
 	signal x_minus_one_limited: unsigned(x'range) := (others => '0');
 	signal x_underflow:         boolean           := false;
 	signal x_plus_one:          unsigned(x'range) := (others => '0');
 	signal x_overflow:          boolean           := false;
 
+	signal y_minus_one:         unsigned(y'range) := (others => '0');
+	signal y_minus_one_limited: unsigned(y'range) := (others => '0');
+	signal y_underflow:         boolean           := false;
 	signal y_plus_one:          unsigned(y'range) := (others => '0');
 	signal y_overflow:          boolean           := false;
 
@@ -350,8 +359,8 @@ begin
 		signal addr_int: integer range 8191 downto 0 := 0; --12 bits
 		signal x_int:    integer range  127 downto 0 := 0; -- 7 bits
 	begin
-		x_int    <=  to_integer(x_n);
-		addr_int <= (to_integer(y_n) * width) + x_int;
+		x_int    <=  to_integer(x_c);
+		addr_int <= (to_integer(y_c) * width) + x_int;
 		addr     <= std_logic_vector(to_unsigned(addr_int, 13)) when state_c /= ERASING else std_logic_vector(count_c);
 	end block;
 
@@ -361,7 +370,10 @@ begin
 	x_overflow          <= true when x_c         > width  - 1 else false;
 	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
 	y_plus_one          <= y_c + 1;
+	y_minus_one         <= y_c - 1;
 	y_overflow          <= true when y_c         > height - 1 else false;
+	y_underflow         <= true when y_minus_one > height - 1 else false;
+	y_minus_one_limited <= (others => '0') when y_underflow else y_minus_one;
 
 	busy                <= '0' when state_c = ACCEPT
 				       or state_c = CSI
@@ -373,9 +385,11 @@ begin
 		signal vga_ctr_we: vga_control_registers_we_interface := vga_control_registers_we_initialize;
 		signal vga_ctr:    vga_control_registers_interface    := vga_control_registers_initialize;
 		signal attr:       unsigned(attr_c'range)             := attr_default;
+		signal char:       std_logic_vector(c_c'range)        := (others => '0');
 	begin
+		char           <= x"2a" when conceal_c else std_logic_vector(c_c);
 		attr           <= attr_c when state_c /= ERASING else attr_default;
-		vga_din        <= std_logic_vector(attr) & std_logic_vector(c_c);
+		vga_din        <= std_logic_vector(attr) & char;
 		vga_ctr.crx    <= std_logic_vector(x_plus_one);
 		vga_ctr.cry    <= std_logic_vector(y_c);
 		vga_ctr.ctl    <= std_logic_vector(ctl_c);
@@ -421,18 +435,20 @@ begin
 			akk_init  <= '0';
 			attr_c    <= attr_n;
 			ctl_c     <= ctl_n;
+			conceal_c <= conceal_n;
 
 			if state_c = RESET then
-				n1_n    <= (others => '0');
-				n2_n    <= (others => '0');
-				x_n     <= (others => '0');
-				y_n     <= (others => '0');
-				c_n     <= (others => '0');
-				count_n <= (others => '0');
-				limit_n <= (others => '0');
-				state_n <= ACCEPT;
-				attr_n  <= attr_default;
-				ctl_n   <= ctl_default;
+				n1_n      <= (others => '0');
+				n2_n      <= (others => '0');
+				x_n       <= (others => '0');
+				y_n       <= (others => '0');
+				c_n       <= (others => '0');
+				count_n   <= (others => '0');
+				limit_n   <= (others => '0');
+				state_n   <= ACCEPT;
+				attr_n    <= attr_default;
+				ctl_n     <= ctl_default;
+				conceal_n <= false;
 			elsif state_c = ACCEPT then
 				if we = '1' then
 					c_n   <= unsigned(char);
@@ -459,10 +475,12 @@ begin
 				when esc =>
 					state_n <= CSI;
 				when others =>
-					x_n     <= x_plus_one;
 					data_we <= '1';
-					state_n <= WRAP;
+					state_n <= ADVANCE;
 				end case;
+			elsif state_c = ADVANCE then
+				x_n     <= x_plus_one;
+				state_n <= WRAP;
 			elsif state_c = CSI then
 				if we = '1' then
 					c_n <= unsigned(char);
@@ -484,8 +502,28 @@ begin
 					n1_n    <= n_o(n1_n'range);
 				end if;
 			elsif state_c = COMMAND1 then
+				-- @bug The cursor commands do not handle 'n',
+				-- this could be solved by repeating the command
+				-- n1_c times.
 				case akk_char_o is
-				when x"4a" => -- ESC CSI n 'J'
+				when x"41" => -- CSI n 'A'
+					y_n <= y_minus_one_limited;
+					state_n <= WRITE;
+				when x"42" => -- CSI n 'B'
+					y_n <= y_plus_one;
+					state_n <= LIMIT;
+				when x"43" => -- CSI n 'C' : CUF Cursor Forward
+					x_n <= x_plus_one;
+					state_n <= LIMIT;
+				when x"44" => -- CSI n 'D' : CUB Cursor Back
+					x_n <= x_minus_one_limited;
+					state_n <= WRITE;
+				when x"45" => -- CSI n 'E'
+				when x"46" => -- CSI n 'F'
+				when x"47" => -- CSI n 'G' : CHA Cursor Horizontal Absolute
+					x_n     <= n1_c(x_n'range);
+					state_n <= LIMIT;
+				when x"4a" => -- CSI n 'J'
 					x_n       <= (others => '0');
 					y_n       <= (others => '0');
 					cursor_we <= '1';
@@ -496,12 +534,12 @@ begin
 				when x"3b" => -- ESC n ';' ...
 					state_n <= NUMBER2;
 					akk_init <= '1';
-				when x"6d" => -- ESC n 'm' : SGR
+				when x"6d" => -- CSI n 'm' : SGR
 					state_n <= ATTRIB1;
-				when x"53" => -- ESC n 'S' : scroll up
+				when x"53" => -- CSI n 'S' : scroll up
 					ctl_n(4) <= '0';
 					state_n  <= WRITE;
-				when x"54" => -- ESC n 'T' : scroll down
+				when x"54" => -- CSI n 'T' : scroll down
 					ctl_n(4) <= '1';
 					state_n  <= WRITE;
 				-- when x"3f" => -- ESC ? 25 (l,h)
@@ -572,9 +610,12 @@ begin
 				end if;
 			elsif state_c = ATTRIB1 then
 				case n1_c is
-				when x"00"  => attr_n <= attr_default;
+				when x"00"  => 
+					attr_n    <= attr_default;
+					conceal_n <= false;
 				when x"01"  => attr_n(6) <= '1'; -- bold
 				when x"07"  => attr_n(7) <= '1'; -- reverse video
+				when x"08"  => conceal_n <= true;
 
 				-- when x"6c" => if n2_c = x"19" then ctl_n(2) <= '0'; end if; -- l, hide cursor
 				-- when x"68" => if n2_c = x"19" then ctl_n(2) <= '1'; end if; -- h, show cursor
@@ -604,6 +645,7 @@ begin
 				end case;
 				state_n <= ATTRIB2;
 			elsif state_c = ATTRIB2 then
+				-- @todo Implement two attributes in a row
 				state_n <= ACCEPT;
 			else
 				state_n <= RESET;
