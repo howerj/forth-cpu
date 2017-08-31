@@ -35,14 +35,15 @@ architecture testing of tb is
 	constant number_of_interrupts:    positive := 8;
 	constant uart_baud_rate:          positive := 115200;
 	constant configuration_file_name: string   := "tb.cfg";
-	constant clk_period:              time     :=  1000 ms / clock_frequency;
+	constant clk_period:              time     := 1000 ms / clock_frequency;
+	constant uart_tx_time:            time     := (10*1000 ms) / 115200;
 
 	-- Test bench configurable options --
 
 	type configurable_items is record
 		number_of_iterations: positive;
 		verbose:              boolean;
-		report_number:        positive;
+		report_number:        natural;
 		interactive:          boolean;
 	end record;
 
@@ -90,22 +91,13 @@ architecture testing of tb is
 	signal ps2_keyboard_data: std_logic := '0';
 	signal ps2_keyboard_clk:  std_logic := '0';
 
-	-- UART FIFO
---	signal uart_fifo_rx_data:           std_logic_vector(7 downto 0) := (others => '0');
---	signal uart_fifo_rx_fifo_empty:     std_logic := '0';
---	signal uart_fifo_rx_fifo_full:      std_logic := '0';
---	signal uart_fifo_rx_data_re:        std_logic := '0';
---	signal uart_fifo_tx_fifo_full:      std_logic := '0';
---	signal uart_fifo_tx_fifo_empty:     std_logic := '0';
---	signal uart_fifo_tx_data_we:        std_logic := '0';
---	signal uart_fifo_tx:                std_logic := '0';
---	signal uart_fifo_rx_fifo_not_empty: std_logic := '0';
-
 	-- UART
-	signal rx:    std_logic := '0';
-	signal tx:    std_logic := '0';
+	signal rx:                 std_logic := '0';
+	signal tx:                 std_logic := '0';
 	signal dout_ack, dout_stb: std_logic := '0';
-	signal dout:  std_logic_vector(7 downto 0) := (others => '0');
+	signal din_ack, din_stb:   std_logic := '0';
+	signal dout:               std_logic_vector(7 downto 0) := (others => '0');
+	signal din:                std_logic_vector(7 downto 0) := (others => '0');
 
 	-- Wave form generator
 	signal gen_dout:     std_logic_vector(15 downto 0) := (others => '0');
@@ -113,8 +105,21 @@ architecture testing of tb is
 	shared variable cfg: configurable_items := set_configuration_items(configuration_default);
 
 	signal configured: boolean := false;
+
+	signal RamCS:     std_logic := 'X';
+	signal MemOE:     std_logic := 'X'; -- negative logic
+	signal MemWR:     std_logic := 'X'; -- negative logic
+	signal MemAdv:    std_logic := 'X'; -- negative logic
+	signal MemWait:   std_logic := 'X'; -- positive!
+	signal FlashCS:   std_logic := 'X';
+	signal FlashRp:   std_logic := 'X';
+	signal MemAdr:    std_logic_vector(26 downto 1) := (others => 'X');
+	signal MemDB:     std_logic_vector(15 downto 0) := (others => 'X');
+
 begin
 ---- Units under test ----------------------------------------------------------
+
+	MemDB <= (others => '0') when MemOE = '1' else (others => 'Z');
 
 	uut: entity work.top
 	generic map(
@@ -138,7 +143,17 @@ begin
 		o_vga       => o_vga,
 
 		ps2_keyboard_data => ps2_keyboard_data,
-		ps2_keyboard_clk  => ps2_keyboard_clk);
+		ps2_keyboard_clk  => ps2_keyboard_clk,
+	
+		RamCS    =>  RamCS,
+		MemOE    =>  MemOE,
+		MemWR    =>  MemWR,
+		MemAdv   =>  MemAdv,
+		MemWait  =>  MemWait,
+		FlashCS  =>  FlashCS,
+		FlashRp  =>  FlashRp,
+		MemAdr   =>  MemAdr,
+		MemDB    =>  MemDB);
 
 	uut_util: entity work.util_tb generic map(clock_frequency => clock_frequency);
 
@@ -156,47 +171,14 @@ begin
 		port map(
 			clk       =>  clk,
 			rst       =>  rst,
-			din       =>  x"AA",
-			din_stb   =>  '1',
+			din       =>  din,
+			din_stb   =>  din_stb,
+			din_ack   =>  din_ack,
 			tx        =>  rx,
 			rx        =>  tx,
 			dout_ack  =>  dout_ack,
 			dout_stb  =>  dout_stb,
 			dout      =>  dout);
-
-	-- Example usage of wave form generator
---	uut_gen: work.util.data_source
---		generic map(
---			addr_length  =>  13,
---			data_length  =>  16,
---			file_name    =>  "text.hex",
---			file_type    =>  "hex")
---		port map(
---			clk          =>  clk,
---			rst          =>  rst,
---			ce           =>  '1',
---			cr           =>  '0',
---			dout         =>  gen_dout);
---
---
---	uart_fifo_rx_fifo_not_empty <= not uart_fifo_rx_fifo_empty;
---	uut_uart_fifo: work.uart_pkg.uart_top
---	generic map(
---		baud_rate => uart_baud_rate,
---		clock_frequency => clock_frequency)
---	port map(
---		clk            =>  clk,
---		rst            =>  rst,
---		rx_data        =>  uart_fifo_rx_data,
---		rx_fifo_empty  =>  uart_fifo_rx_fifo_empty,
---		rx_fifo_full   =>  uart_fifo_rx_fifo_full,
---		rx_data_re     =>  uart_fifo_rx_fifo_not_empty,
---		tx_data        =>  uart_fifo_rx_data,
---		tx_fifo_full   =>  uart_fifo_tx_fifo_full,
---		tx_fifo_empty  =>  uart_fifo_tx_fifo_empty,
---		tx_data_we     =>  uart_fifo_rx_fifo_not_empty,
---		tx             =>  uart_fifo_tx,
---		rx             =>  tx);
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
@@ -216,6 +198,7 @@ begin
 		variable have_char: boolean := true;
 	begin
 		wait until configured;
+
 		if not cfg.interactive then
 			wait;
 		end if;
@@ -224,10 +207,6 @@ begin
 		while stop = '0' loop
 			wait until (dout_stb = '1' or stop = '1');
 			if stop = '0' then
-				wait for clk_period;
-				dout_ack <= '1';
-				wait for clk_period;
-				dout_ack <= '0';
 				c := character'val(to_integer(unsigned(dout)));
 				write(oline, c);
 				have_char := true;
@@ -235,6 +214,10 @@ begin
 					writeline(output, oline);
 					have_char := false;
 				end if;
+				wait for clk_period;
+				dout_ack <= '1';
+				wait for clk_period;
+				dout_ack <= '0';
 			end if;
 		end loop;
 		if have_char then
@@ -253,8 +236,12 @@ begin
 		-- variable oline: line;
 		variable good: boolean := true;
 	begin 
+		din_stb <= '0';
+		din     <= x"00";
 		wait until configured;
 		if not cfg.interactive then
+			din_stb <= '1';
+			din     <= x"AA";
 			wait;
 		end if;
 
@@ -262,13 +249,20 @@ begin
 		while (not endfile(input)) and stop = '0' loop
 			readline(input, iline);
 			good := true;
-			while good loop
+			while good and stop = '0' loop
 				read(iline, c, good);
 				if good then
 					report "" & c;
 				end if;
+				din <=
+				std_logic_vector(to_unsigned(character'pos(c), din'length));
+				din_stb <= '1';
+				wait for clk_period;
+				din_stb <= '0';
+				assert din_ack = '1' severity warning;
+				-- wait for 100 us;
+				wait for 10 ms;
 			end loop;
-			wait for clk_period * 100;
 		end loop;
 		-- stop <= '1';
 		wait;

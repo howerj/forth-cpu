@@ -59,14 +59,10 @@ entity top is
 
 		-- Memory Interface
 		RamCS:    out   std_logic := '1';
-		--QuadSpiFlashCS: out   std_logic := '1';
-		--MemClk:   out   std_logic := '0'; -- negative logic
-
 		MemOE:    out   std_logic := '0'; -- negative logic
 		MemWR:    out   std_logic := '0'; -- negative logic
 		MemAdv:   out   std_logic := '0'; -- negative logic
 		MemWait:  out   std_logic := '0'; -- positive!
-
 		FlashCS:  out   std_logic := '0';
 		FlashRp:  out   std_logic := '1';
 		MemAdr:   out   std_logic_vector(26 downto 1) := (others => '0');

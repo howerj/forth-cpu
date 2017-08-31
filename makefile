@@ -116,7 +116,7 @@ nvram.blk: nvram.txt h2.sym block${EXE}
 #	${DF}block${EXE} < $< > $@
 
 run: h2${EXE} h2.fth nvram.blk
-	${DF}h2 -s 0 -R h2.fth
+	${DF}h2 -R h2.fth
 
 h2nomain.o: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 -DNO_MAIN  $< -c -o $@
@@ -141,6 +141,7 @@ text.hex: text${EXE}
 %.o: %.vhd
 	ghdl -a $<
 
+ram.o: util.o
 led.o: util.o led.vhd
 kbd.o: util.o kbd.vhd
 vga.o: util.o vga.vhd text.hex font.bin
