@@ -13,52 +13,97 @@
 library ieee,work,std;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+
+package h2_pkg is
+	subtype word    is std_logic_vector(15 downto 0);
+	subtype address is std_logic_vector(12 downto 0);
+
+	constant hardware_cpu_id: word   := X"CAFE";
+	constant simulation_cpu_id: word := X"DEAD";
+
+	component h2 is
+		generic(
+			cpu_id:                   word     := hardware_cpu_id; -- Value for the CPU ID instruction
+			interrupt_address_length: positive := 3;               -- Log_2 of the number of interrupts
+			start_address:            natural  := 0;               -- Initial program counter value
+			stack_size_log2:          positive := 6;               -- Log_2 of the Size of the stack
+			use_interrupts:           boolean  := true);           -- Enable Interrupts in the H2 Core
+		port(
+			clk:      in  std_logic;
+			rst:      in  std_logic;
+
+			-- IO interface
+			stop:     in  std_logic; -- Assert high to halt the H2 core
+
+			io_wr:    out std_logic; -- Output Write Enable
+			io_re:    out std_logic; -- Input  Read  Enable
+			io_din:   in  word;      -- Data  Input from register
+			io_dout:  out word;      -- Data  Output to register
+			io_daddr: out word;      -- Data  Address for I/O action
+
+			irq:      in  std_logic; -- Interrupt Request
+			irq_addr: in  std_logic_vector(interrupt_address_length - 1 downto 0); -- Address to jump to on Interrupt Request
+
+			-- RAM interface, Dual port
+			pc:       out address;   -- program counter
+			insn:     in  word;      -- instruction
+
+			dwe:      out std_logic; -- RAM data write enable
+			dre:      out std_logic; -- RAM data read enable
+			din:      in  word;      -- RAM data input
+			dout:     out word;      -- RAM data output
+			daddr:    out address);  -- RAM address
+	end component;
+end;
+
+library ieee,work,std;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 use ieee.math_real.all; -- only needed for calculations relating to generics
+use work.h2_pkg.all;
 
 entity h2 is
 	generic(
-		-- Instruction width should be made to a generic option
-		cpu_id:                   std_logic_vector(15 downto 0) := X"CAFE";
-		interrupt_address_length: positive := 3;
-		start_address:            natural  := 0;
-		stack_size_log2:          positive := 6;
-		use_interrupts:           boolean  := true);
+		cpu_id:                   word     := hardware_cpu_id; -- Value for the CPU ID instruction
+		interrupt_address_length: positive := 3;               -- Log_2 of the number of interrupts
+		start_address:            natural  := 0;               -- Initial program counter value
+		stack_size_log2:          positive := 6;               -- Log_2 of the Size of the stack
+		use_interrupts:           boolean  := true);           -- Enable Interrupts in the H2 Core
 	port(
 		clk:      in  std_logic;
 		rst:      in  std_logic;
 
 		-- IO interface
-		stop:     in  std_logic;
+		stop:     in  std_logic; -- Assert high to halt the H2 core
 
-		io_wr:    out std_logic;
-		io_re:    out std_logic; -- hardware reads can have side effects
-		io_din:   in  std_logic_vector(15 downto 0);
-		io_dout:  out std_logic_vector(15 downto 0);
-		io_daddr: out std_logic_vector(15 downto 0);
+		io_wr:    out std_logic; -- Output Write Enable
+		io_re:    out std_logic; -- Input  Read  Enable
+		io_din:   in  word;      -- Data  Input from register
+		io_dout:  out word;      -- Data  Output to register
+		io_daddr: out word;      -- Data  Address for I/O action
 
-		-- Interrupts; irq = request, irq_addr = place to jump to
-		irq:      in  std_logic;
-		irq_addr: in  std_logic_vector(interrupt_address_length - 1 downto 0);
+		irq:      in  std_logic; -- Interrupt Request
+		irq_addr: in  std_logic_vector(interrupt_address_length - 1 downto 0); -- Address to jump to on Interrupt Request
 
 		-- RAM interface, Dual port
-		pc:       out std_logic_vector(12 downto 0); -- program counter
-		insn:     in  std_logic_vector(15 downto 0); -- instruction
+		pc:       out address;   -- program counter
+		insn:     in  word;      -- instruction
 
-		dwe:      out std_logic; -- data write enable
-		dre:      out std_logic; -- data read enable
-		din:      in  std_logic_vector(15 downto 0);
-		dout:     out std_logic_vector(15 downto 0);
-		daddr:    out std_logic_vector(12 downto 0));
+		dwe:      out std_logic; -- RAM data write enable
+		dre:      out std_logic; -- RAM data read enable
+		din:      in  word;      -- RAM data input
+		dout:     out word;      -- RAM data output
+		daddr:    out address);  -- RAM address
 end;
 
 architecture rtl of h2 is
 
-	signal pc_c:        std_logic_vector(12 downto 0) := std_logic_vector(to_unsigned(start_address, 13));
-	signal pc_n:        std_logic_vector(12 downto 0) := (others => '0');
-	signal pc_plus_one: std_logic_vector(12 downto 0) := (others => '0');
+	signal pc_c:        address := std_logic_vector(to_unsigned(start_address, address'length));
+	signal pc_n:        address := (others => '0');
+	signal pc_plus_one: address := (others => '0');
 
 	constant stack_size: integer := 2 ** stack_size_log2;
-	type     stack_type is array (stack_size - 1 downto 0) of std_logic_vector(15 downto 0);
+	type     stack_type is array (stack_size - 1 downto 0) of word;
 	subtype  depth is unsigned(stack_size_log2 - 1 downto 0);
 
 	signal vstkp_c, vstkp_n:  depth := (others => '0');             -- variable stack pointer
@@ -81,8 +126,8 @@ architecture rtl of h2 is
 
 	signal is_instr: instruction_info_type := ('0', '0', '0', '0', '0');
 
-	signal is_interrupt:     std_logic :=  '0';
-	signal is_ram_write:     std_logic :=  '0';
+	signal is_interrupt: std_logic := '0';
+	signal is_ram_write: std_logic := '0';
 
 	type compare_type is record
 		more:  std_logic;
@@ -95,13 +140,13 @@ architecture rtl of h2 is
 
 	signal int_en_c, int_en_n:     std_logic :=  '0'; -- interrupt enable
 	signal irq_c, irq_n:           std_logic :=  '0'; -- interrupt request
-	signal irq_addr_c, irq_addr_n: std_logic_vector(interrupt_address_length - 1 downto 0) :=  (others => '0');
+	signal irq_addr_c, irq_addr_n: std_logic_vector(irq_addr'range) :=  (others => '0');
 
-	signal tos_c, tos_n: std_logic_vector(15 downto 0) := (others => '0'); -- top of stack
-	signal nos:          std_logic_vector(15 downto 0) := (others => '0'); -- next on stack
-	signal rtos_c:       std_logic_vector(15 downto 0) := (others => '0'); -- top of return stack
-	signal rstk_data:    std_logic_vector(15 downto 0) := (others => '0'); -- return stack input
-	signal aluop:        std_logic_vector( 4 downto 0) := (others => '0'); -- ALU operation
+	signal tos_c, tos_n: word := (others => '0'); -- top of stack
+	signal nos:          word := (others => '0'); -- next on stack
+	signal rtos_c:       word := (others => '0'); -- top of return stack
+	signal rstk_data:    word := (others => '0'); -- return stack input
+	signal aluop:        std_logic_vector(4 downto 0) := (others => '0'); -- ALU operation
 
 begin
 	assert stack_size > 4 report "stack size too small: " & integer'image(stack_size) severity failure;
@@ -191,10 +236,10 @@ begin
 		when "01111" => tos_n <= (others => compare.umore);
 		when "10011" => tos_n <= (others => compare.zero);
 
-		when "01001" => tos_n <= std_logic_vector(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
-		when "01101" => tos_n <= std_logic_vector(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-		when "00010" => tos_n <= std_logic_vector(unsigned(nos) + unsigned(tos_c));
-		when "01010" => tos_n <= std_logic_vector(unsigned(tos_c) - 1);
+		when "01001" => tos_n <= word(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
+		when "01101" => tos_n <= word(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
+		when "00010" => tos_n <= word(unsigned(nos) + unsigned(tos_c));
+		when "01010" => tos_n <= word(unsigned(tos_c) - 1);
 
 		when "01100" =>
 			-- input: 0x4000 - 0x7FFF is external input
@@ -305,7 +350,7 @@ begin
 			irq_n      <= '0';
 			irq_addr_n <= (others => '0');
 			pc_n       <= (others => '0');
-			pc_n(interrupt_address_length - 1 downto 0) <= irq_addr_c;
+			pc_n(irq_addr'range) <= irq_addr_c;
 		else -- Update PC on normal operations
 			if is_instr.branch = '1' or (is_instr.branch0 = '1' and compare.zero = '1') or is_instr.call = '1' then
 				pc_n <=  insn(12 downto 0);

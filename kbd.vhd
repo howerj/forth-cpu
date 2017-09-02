@@ -21,8 +21,6 @@
 --  See https://eewiki.net/pages/viewpage.action?pageId=28279002
 --
 --  @note This file has been renamed and updated from the original.
---  @todo Move more of the components in top.vhd that deal with the
---  interface into this component and add an asynchronous reset.
 --------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -588,7 +586,6 @@ end;
 --
 -- @note This file has been modified from the original one found
 -- on the web from: <https://eewiki.net/pages/viewpage.action?pageId=28279002>
--- @todo make a module that accepts an array std_logic_vector to be debounced.
 --
 --------------------------------------------------------------------------------
 

@@ -11,16 +11,17 @@
 library ieee,work;
 use ieee.std_logic_1164.all;
 use work.util.n_bits;
+use work.h2_pkg.all;
 
 package core_pkg is
 	type cpu_debug_interface is record
-		pc:        std_logic_vector(12 downto 0);
-		insn:      std_logic_vector(15 downto 0);
+		pc:        address;
+		insn:      word;
 		dwe:       std_logic;
 		dre:       std_logic;
-		din:       std_logic_vector(15 downto 0);
-		dout:      std_logic_vector(15 downto 0);
-		daddr:     std_logic_vector(12 downto 0);
+		din:       word;
+		dout:      word;
+		daddr:     address;
 	end record;
 
 	component core is
@@ -37,9 +38,9 @@ package core_pkg is
 
 		io_wr:           out  std_logic; -- I/O Write enable
 		io_re:           out  std_logic; -- hardware *READS* can have side effects
-		io_din:          in   std_logic_vector(15 downto 0);
-		io_dout:         out  std_logic_vector(15 downto 0):= (others => 'X');
-		io_daddr:        out  std_logic_vector(15 downto 0):= (others => 'X');
+		io_din:          in   word;
+		io_dout:         out  word:= (others => 'X');
+		io_daddr:        out  word:= (others => 'X');
 
 		-- Interrupts
 		cpu_irq:         in std_logic;
@@ -73,6 +74,9 @@ library ieee,work;
 use ieee.std_logic_1164.all;
 use work.util.n_bits;
 use work.core_pkg.all;
+use work.h2_pkg.all;
+use work.util.file_format;
+use work.util.FILE_HEX;
 
 entity core is
 	generic(number_of_interrupts: positive := 8);
@@ -88,9 +92,9 @@ entity core is
 
 		io_wr:           out  std_logic; -- I/O Write enable
 		io_re:           out  std_logic; -- hardware *READS* can have side effects
-		io_din:          in   std_logic_vector(15 downto 0);
-		io_dout:         out  std_logic_vector(15 downto 0):= (others => 'X');
-		io_daddr:        out  std_logic_vector(15 downto 0):= (others => 'X');
+		io_din:          in   word;
+		io_dout:         out  word := (others => 'X');
+		io_daddr:        out  word := (others => 'X');
 
 		-- Interrupts
 		cpu_irq:         in std_logic;
@@ -100,19 +104,17 @@ entity core is
 end;
 
 architecture structural of core is
-	constant interrupt_address_length: natural  := n_bits(number_of_interrupts);
-	constant addr_length:              positive := 13;
-	constant data_length:              positive := 16;
-	constant file_name:                string   := "h2.hex";
-	constant file_type:                string   := "hex";
+	constant interrupt_address_length: natural     := n_bits(number_of_interrupts);
+	constant file_name:                string      := "h2.hex";
+	constant file_type:                file_format := FILE_HEX;
 
-	signal pc:    std_logic_vector(addr_length - 1 downto 0) := (others => '0'); -- Program counter
-	signal insn:  std_logic_vector(data_length - 1 downto 0) := (others => '0'); -- Instruction issued by program counter
+	signal pc:    address   := (others => '0'); -- Program counter
+	signal insn:  word      := (others => '0'); -- Instruction issued by program counter
 	signal dwe:   std_logic := '0'; -- Write enable
 	signal dre:   std_logic := '0'; -- Read enable
-	signal din:   std_logic_vector(data_length - 1 downto 0) := (others => '0');
-	signal dout:  std_logic_vector(data_length - 1 downto 0) := (others => '0');
-	signal daddr: std_logic_vector(addr_length - 1 downto 0) := (others => '0');
+	signal din:   word      := (others => '0');
+	signal dout:  word      := (others => '0');
+	signal daddr: address   := (others => '0');
 
 	signal h2_irq:       std_logic := '0';
 	signal h2_irq_addr:  std_logic_vector(interrupt_address_length - 1 downto 0) := (others=>'0');
@@ -142,7 +144,7 @@ begin
 		mask    => cpu_irc_mask,
 		mask_we => cpu_irc_mask_we);
 
-	h2_0: entity work.h2 -- The actual CPU instance (H2)
+	h2_0: work.h2_pkg.h2 -- The actual CPU instance (H2)
 	generic map(interrupt_address_length => interrupt_address_length)
 	port map(
 		clk       =>    clk,
@@ -171,8 +173,8 @@ begin
 
 	mem_h2_0: entity work.dual_port_block_ram
 	generic map(
-		addr_length   => addr_length,
-		data_length   => data_length,
+		addr_length   => address'length,
+		data_length   => word'length,
 		file_name     => file_name,
 		file_type     => file_type)
 	port map(

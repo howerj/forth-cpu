@@ -684,7 +684,6 @@ static terminal_t vga_terminal = {
 	}
 };
 
-
 #define SEGMENT_COUNT   (4)
 #define SEGMENT_SPACING (1.1)
 #define SEGMENT_X       (50)
@@ -777,7 +776,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 	return 0;
 }
 
-/**@warning uses globals! */
+/**@warning uses variables of static storage duration! */
 static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on)
 {
 	assert(soc);
@@ -799,7 +798,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 		}
 		break;
 	case oVT100:
-		if(value & UART_TX_WE) { /**@warning uses a global! */
+		if(value & UART_TX_WE) {
 			vt100_update(&vga_terminal.vt100, value & 0xff);
 			vt100_update(&soc->vt100, value & 0xff);
 		}
@@ -1208,7 +1207,17 @@ static void initialize_rendering(char *arg_0)
 	glutTimerFunc(world.arena_tick_ms, timer_callback, 0);
 }
 
-void finalize(void)
+static void vt100_initialize(vt100_t *v)
+{
+	assert(v);
+	memset(&v->attribute, 0, sizeof(v->attribute));
+	v->attribute.foreground_color = WHITE;
+	v->attribute.background_color = BLACK;
+	for(size_t i = 0; i < v->size; i++)
+		v->attributes[i] = v->attribute;
+}
+
+static void finalize(void)
 {
 	FILE *nvram_fh = NULL;
 	errno = 0;
@@ -1224,6 +1233,7 @@ void finalize(void)
 	fifo_free(uart_rx_fifo);
 	fifo_free(ps2_rx_fifo);
 }
+
 
 int main(int argc, char **argv)
 {
@@ -1268,14 +1278,8 @@ int main(int argc, char **argv)
 		} else {
 			warning("could not load initial VGA memory file %s: %s", VGA_INIT_FILE, strerror(errno));
 		}
-		/**@todo simplify all this with a pointer in terminal_t to a VT100 */
-		vga_terminal.vt100.attribute.foreground_color = WHITE;
-		vga_terminal.vt100.attribute.background_color = BLACK;
-		uart_terminal.vt100.attribute = vga_terminal.vt100.attribute;
-		for(size_t i = 0; i < vga_terminal.vt100.size; i++)
-			vga_terminal.vt100.attributes[i] = vga_terminal.vt100.attribute; 
-		for(size_t i = 0; i < uart_terminal.vt100.size; i++)
-			uart_terminal.vt100.attributes[i] = uart_terminal.vt100.attribute; 
+		vt100_initialize(&vga_terminal.vt100);
+		vt100_initialize(&uart_terminal.vt100);
 	}
 
 	uart_rx_fifo = fifo_new(UART_FIFO_DEPTH);

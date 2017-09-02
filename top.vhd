@@ -179,6 +179,7 @@ begin
 		cpu_irc(6) <= timer_irq;
 		cpu_irc(7) <= btnl_d; -- @todo replace with button change state
 
+
 		cpu_irq    <= '1' when
 				timer_irq         = '1' or
 				rx_fifo_not_empty = '1' or
@@ -468,5 +469,4 @@ begin
 
 -------------------------------------------------------------------------------
 end architecture;
-
 

@@ -12,11 +12,7 @@
  *
  * @todo Make 'hidden' apply to variables, and do the same for constants,
  * removing the need for 'location'.
- * @todo Fix FIFO implementation when it comes to edge cases
- * @todo Simulate all of the Common Flash Memory Interface so the Flash device
- * can be correctly used, see:
- * <https://en.wikipedia.org/wiki/Common_Flash_Memory_Interface> with the
- * devices PC28F128P33BF60 and NP8P128A13T1760E */
+ * @todo Fix FIFO implementation when it comes to edge cases */
 
 /* ========================== Preamble: Types, Macros, Globals ============= */
 
@@ -148,6 +144,7 @@ typedef enum {
 	X(TE0,    "0=",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
 	X(NOP,    "nop",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_T)))\
 	X(CPU_ID, "cpu-id", true,  (OP_ALU_OP | MK_CODE(ALU_OP_CPU_ID))                | MK_DSTACK(DELTA_1))\
+	X(RUP,    "rup",    false, (OP_ALU_OP | MK_CODE(ALU_OP_T))                     | MK_RSTACK(DELTA_1))\
 	X(RDROP,  "rdrop",  true,  (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_RSTACK(DELTA_N1)))
 
 
@@ -489,9 +486,6 @@ static int wrap_getch(bool *debug_on)
 		note("End Of Input - exiting", ESCAPE);
 		exit(EXIT_SUCCESS);
 	}
-	/**@bug Escape is sent to the I/O process if all we intend to do it
-	 * exit back to the debugger, perhaps C signals should be used
-	 * instead */
 	if(ch == ESCAPE && debug_on)
 		*debug_on = true;
 
@@ -938,9 +932,7 @@ static void terminal_parse_attribute(vt100_attribute_t *a, unsigned v)
 	}
 }
 
-/**@todo move this to "h2.c", it can be used to simulate the new terminal
- * interface being built into the hardware */
-int terminal_escape_sequences(vt100_t *t, uint8_t c)
+static int terminal_escape_sequences(vt100_t *t, uint8_t c)
 {
 	assert(t);
 	assert(t->state != TERMINAL_NORMAL_MODE);
@@ -1314,9 +1306,11 @@ static bool address_protected(flash_t *f, uint32_t addr)
 
 /**@todo implement the full standard for the Common Flash Memory Interface, and
  * make the timing based on a simulated calculated time instead multiples of
- * 10us
- * @todo check f->arg1_address == f->arg2_address when it matters
- * @todo implement reading the lock status of registers */
+ * 10us see:
+ * <https://en.wikipedia.org/wiki/Common_Flash_Memory_Interface> with the
+ * devices PC28F128P33BF60 and NP8P128A13T1760E. The lock status of a register
+ * should be read as well as checking f->arg1_address == f->arg2_address for
+ * commands which require this.*/
 static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe, bool we, bool rst, bool cs)
 {
 	assert(f);
@@ -1526,7 +1520,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 			break;
 	case oLeds:       soc->leds           = value; break;
 	case oTimerCtrl:  soc->timer_control  = value; break;
-	case oVT100:        /** @todo implement VT100 terminal */
+	case oVT100:
 		if(value & UART_TX_WE)
 			vt100_update(&soc->vt100, value);
 		if(value & UART_RX_RE)
@@ -2537,6 +2531,7 @@ again:
 		l->line++;
 		goto again;
 	case '(':
+		/**@todo handle words like "(do)" */
 		for(; ')' != (ch = next_char(l));)
 			if(ch == EOF)
 				syntax_error(l, "'(' comment terminated by EOF");
@@ -3521,7 +3516,6 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			l = symbol_table_lookup(t, n->value->p.id);
 			if(l) {
 				value = l->value;
-				/**@bug There should actually be two versions of ".set" depending on what we are using it for */
 				if(l->type == SYMBOL_TYPE_CALL) // || l->type == SYMBOL_TYPE_LABEL)
 					value <<= 1;
 			} else {
@@ -3741,7 +3735,8 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 		/*io->soc->vt100.attributes[i] = (vga_initial_contents[i] >> 8u) & 0xff;*/
 	}
 
-	/**@todo Endian agnostic serialization of block for read and write */
+	/**@warning This is a lazy way to serialization data and will fail on
+	 * different endianess machines, but this does not matter that much */
 	errno = 0;
 	if((nvram_fh = fopen(cmd->nvram, "rb"))) {
 		fread(io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);

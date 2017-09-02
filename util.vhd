@@ -7,8 +7,6 @@
 --| @copyright      Copyright 2017 Richard James Howe
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
---| @todo The block RAM should use an enumeration to specify its file type not
---| a string.
 -------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
@@ -178,11 +176,13 @@ package util is
 		generic(clock_frequency: positive);
 	end component;
 
+	type file_format is (FILE_HEX, FILE_BINARY, FILE_NONE);
+
 	component dual_port_block_ram is
-	generic(addr_length: positive  := 12;
-		data_length: positive  := 16;
-		file_name:   string   := "memory.bin";
-		file_type:   string   := "bin");
+	generic(addr_length: positive    := 12;
+		data_length: positive    := 16;
+		file_name:   string      := "memory.bin";
+		file_type:   file_format := FILE_BINARY);
 	port(
 		-- port A of dual port RAM
 		a_clk:  in  std_logic;
@@ -201,10 +201,10 @@ package util is
 	end component;
 
 	component single_port_block_ram is
-	generic(addr_length: positive := 12;
-		data_length: positive := 16;
-		file_name:   string   := "memory.bin";
-		file_type:   string   := "bin");
+	generic(addr_length: positive    := 12;
+		data_length: positive    := 16;
+		file_name:   string      := "memory.bin";
+		file_type:   file_format := FILE_BINARY);
 	port(
 		clk:  in  std_logic;
 		dwe:  in  std_logic;
@@ -215,10 +215,10 @@ package util is
 	end component;
 
 	component data_source is
-		generic(addr_length: positive := 12;
-			data_length: positive := 16;
-			file_name:   string   := "memory.bin";
-			file_type:   string   := "bin");
+		generic(addr_length: positive    := 12;
+			data_length: positive    := 16;
+			file_name:   string      := "memory.bin";
+			file_type:   file_format := FILE_BINARY);
 		port(
 			clk:     in  std_logic;
 			rst:     in  std_logic;
@@ -287,6 +287,14 @@ package util is
 
 	component debounce_us_tb is
 		generic(clock_frequency: positive);
+	end component;
+
+	component state_changed is
+		port(
+			clk: in  std_logic;
+			rst: in  std_logic;
+			di:  in  std_logic;
+			do:  out std_logic);
 	end component;
 
 	function max(a: natural; b: natural) return natural;
@@ -1625,7 +1633,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use std.textio.all;
-use work.util.hex_char_to_std_logic_vector;
+use work.util.all;
 
 entity dual_port_block_ram is
 
@@ -1635,14 +1643,11 @@ entity dual_port_block_ram is
 	--
 	-- Valid file_type options include:
 	--
-	-- "bin"  - A binary file (ASCII '0' and '1', one number per line)
-	-- "hex"  - A Hex file (ASCII '0-9' 'a-f', 'A-F', one number per line)
-	-- "nil"  - RAM contents will be defaulted to all zeros, no file will
-	--          be read from
+	-- FILE_BINARY - A binary file (ASCII '0' and '1', one number per line)
+	-- FILE_HEX    - A Hex file (ASCII '0-9' 'a-f', 'A-F', one number per line)
+	-- FILE_NONE   - RAM contents will be defaulted to all zeros, no file will
+	--               be read from
 	--
-	-- @todo Change interface so it uses enumerations to specify the file
-	-- type, also hexadecimals also currently do not cope with converting to
-	-- vectors that are not multiples of 4 in length, this should be fixed.
 	-- @todo Read in actual binary data files, see: https://stackoverflow.com/questions/14173652
 	--
 	-- The data length must be divisible by 4 if the "hex" option is
@@ -1651,10 +1656,10 @@ entity dual_port_block_ram is
 	-- These default values for addr_length and data_length have been
 	-- chosen so as to fill the block RAM available on a Spartan 6.
 	--
-	generic(addr_length: positive := 12;
-		data_length: positive := 16;
-		file_name:   string   := "memory.bin";
-		file_type:   string   := "bin");
+	generic(addr_length: positive    := 12;
+		data_length: positive    := 16;
+		file_name:   string      := "memory.bin";
+		file_type:   file_format := FILE_BINARY);
 	port(
 		--| Port A of dual port RAM
 		a_clk:  in  std_logic;
@@ -1677,7 +1682,7 @@ architecture behav of dual_port_block_ram is
 
 	type ram_type is array ((ram_size - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
 
-	impure function initialize_ram(file_name, file_type: in string) return ram_type is
+	impure function initialize_ram(file_name: in string; file_type: in file_format) return ram_type is
 		variable ram_data:   ram_type;
 		file     in_file:    text is in file_name;
 		variable input_line: line;
@@ -1686,14 +1691,14 @@ architecture behav of dual_port_block_ram is
 		variable slv:        std_logic_vector(data_length - 1 downto 0);
 	begin
 		for i in 0 to ram_size - 1 loop
-			if file_type = "nil" then
+			if file_type = FILE_NONE then
 				ram_data(i):=(others => '0');
 			elsif not endfile(in_file) then
 				readline(in_file,input_line);
-				if file_type = "bin" then -- binary
+				if file_type = FILE_BINARY then
 					read(input_line, tmp);
 					ram_data(i) := to_stdlogicvector(tmp);
-				elsif file_type = "hex" then -- hexadecimal
+				elsif file_type = FILE_HEX then 
 					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 					for j in 1 to (data_length/4) loop
 						c:= input_line((data_length/4) - j + 1);
@@ -1701,7 +1706,7 @@ architecture behav of dual_port_block_ram is
 					end loop;
 					ram_data(i) := slv;
 				else
-					report "Incorrect file type given: " & file_type severity failure;
+					report "Incorrect file type given: " & file_format'image(file_type) severity failure;
 				end if;
 			else
 				ram_data(i) := (others => '0');
@@ -1749,13 +1754,13 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use std.textio.all;
-use work.util.hex_char_to_std_logic_vector;
+use work.util.all;
 
 entity single_port_block_ram is
-	generic(addr_length: positive := 12;
-		data_length: positive := 16;
-		file_name:   string   := "memory.bin";
-		file_type:   string   := "bin");
+	generic(addr_length: positive    := 12;
+		data_length: positive    := 16;
+		file_name:   string      := "memory.bin";
+		file_type:   file_format := FILE_BINARY);
 	port(
 		clk:  in  std_logic;
 		dwe:  in  std_logic;
@@ -1770,7 +1775,7 @@ architecture behav of single_port_block_ram is
 
 	type ram_type is array ((ram_size - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
 
-	impure function initialize_ram(file_name, file_type: in string) return ram_type is
+	impure function initialize_ram(file_name: in string; file_type: in file_format) return ram_type is
 		variable ram_data:   ram_type;
 		file     in_file:    text is in file_name;
 		variable input_line: line;
@@ -1779,14 +1784,14 @@ architecture behav of single_port_block_ram is
 		variable slv:        std_logic_vector(data_length - 1 downto 0);
 	begin
 		for i in 0 to ram_size - 1 loop
-			if file_type = "nil" then
+			if file_type = FILE_NONE then
 				ram_data(i):=(others => '0');
 			elsif not endfile(in_file) then
 				readline(in_file,input_line);
-				if file_type = "bin" then -- binary
+				if file_type = FILE_BINARY then
 					read(input_line, tmp);
 					ram_data(i) := to_stdlogicvector(tmp);
-				elsif file_type = "hex" then -- hexadecimal
+				elsif file_type = FILE_HEX then -- hexadecimal
 					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 					for j in 1 to (data_length/4) loop
 						c:= input_line((data_length/4) - j + 1);
@@ -1794,7 +1799,7 @@ architecture behav of single_port_block_ram is
 					end loop;
 					ram_data(i) := slv;
 				else
-					report "Incorrect file type given: " & file_type severity failure;
+					report "Incorrect file type given: " & file_format'image(file_type) severity failure;
 				end if;
 			else
 				ram_data(i) := (others => '0');
@@ -1840,12 +1845,13 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util.single_port_block_ram;
 use work.util.counter;
+use work.util.all;
 
 entity data_source is
-	generic(addr_length: positive := 12;
-		data_length: positive := 16;
-		file_name:   string   := "memory.bin";
-		file_type:   string   := "bin");
+	generic(addr_length: positive    := 12;
+		data_length: positive    := 16;
+		file_name:   string      := "memory.bin";
+		file_type:   file_format := FILE_BINARY);
 	port(
 		clk:     in  std_logic;
 		rst:     in  std_logic;
@@ -1983,6 +1989,7 @@ library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
+use work.util.all;
 
 entity ucpu_tb is
 	generic(
@@ -2017,7 +2024,7 @@ begin
 		addr_length => addr_length,
 		data_length => data_length,
 		file_name   => file_name,
-		file_type   => "bin")
+		file_type   => FILE_BINARY)
 	port map(
 		a_clk   =>  clk,
 		a_dwe   =>  '0',
@@ -2059,7 +2066,7 @@ end architecture;
 ------------------------- uCPU ------------------------------------------------------
 
 ------------------------- Restoring Division ----------------------------------------
--- @todo Add remainder to output, renames signals, make a
+-- @todo Add remainder to output, rename signals, make a
 -- better test bench, add non-restoring division, and describe module
 --
 -- Computes a/b in N cycles
@@ -2324,3 +2331,39 @@ begin
 end architecture;
 
 ------------------------- Debouncer Block -----------------------------------------------------
+
+------------------------- State Changed -------------------------------------------------------
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity state_changed is
+	port(
+		clk: in  std_logic;
+		rst: in  std_logic;
+		di:  in  std_logic;
+		do:  out std_logic);
+end entity;
+
+architecture rtl of state_changed is
+	signal state_c, state_n: std_logic_vector(1 downto 0) := (others => '0');
+begin
+	process(clk, rst)
+	begin
+		if rst = '1' then
+			state_c <= (others => '0');
+		elsif rising_edge(clk) then
+			state_c <= state_n;
+		end if;
+	end process;
+
+	do <= '1' when (state_c(0) xor state_c(1)) = '1' else '0';
+
+	process(di, state_c)
+	begin
+		state_n(0) <= state_c(1);
+		state_n(1) <= di;
+	end process;
+end architecture;
+
+------------------------- Change State --------------------------------------------------------

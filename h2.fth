@@ -234,6 +234,14 @@ location failed           "failed"      ( used in start up routine )
 : rp! ( n -- , R: ??? -- ??? : set the return stack pointer )
 	r> swap begin dup rp@ = 0= while rdrop repeat drop >r ; hidden
 
+: rpick ( n -- u, R: un ... u0 )
+	rdrop
+	dup
+	begin dup while rdrop 1- repeat drop r@ swap
+	begin dup while rup   1- repeat drop
+	rup
+	;
+
 ( With the built in words defined in the assembler, and the words
 defined so far, all of the primitive words needed by eForth should
 be available. "doList" and "doLit" do not need to be implemented as
@@ -690,9 +698,11 @@ as possible so the Forth environment is easy to use. )
 : ?compile state @ 0= if 14 -throw then ; hidden ( fail if not compiling )
 : ?unique dup last search if drop redefined print cr else drop then ; hidden ( a -- a )
 : ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
+: "'" token find if cfa else 13 -throw then ; immediate
+: [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
+: compile ( -- ) r> dup @ , cell+ >r ;
 : ";" ?compile context @ ! ?csp =exit , ( save )  [ ; immediate
 : ":" align ( save ) !csp here last address ,  token ?nul ?unique count + aligned cp ! ] ;
-: "'" token find if cfa else 13 -throw then ; immediate
 : jumpz, 2/ $2000 or , ; hidden
 : jump, 2/ ( $0000 or ) , ; hidden
 : "begin" ?compile here -csp ; immediate
@@ -705,40 +715,41 @@ as possible so the Forth environment is easy to use. )
 : "while" ?compile call "if" ; immediate
 : "repeat" ?compile swap call "again" call "then" ; immediate
 : recurse ?compile last address cfa compile, ; immediate
-: create call ":" ' doVar compile, context @ ! [ ;
+: create call ":" compile doVar context @ ! [ ;
 : >body ( dup @ $4000 or <> if 31 -throw then ) cell+ ;
 : doDoes r> 2/ here 2/ last address cfa dup cell+ doLit ! , ; hidden
-: does> ?compile ' doDoes compile, nop ; immediate
+: does> ?compile compile doDoes nop ; immediate
 : "variable" create 0 , ;
 : ":noname" here ] !csp ;
 : "for" ?compile =>r , here -csp ; immediate
 : doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
-: "next" ?compile ' doNext compile, , +csp ; immediate
+: "next" ?compile compile doNext , +csp ; immediate
 : "aft" ?compile drop here 0 jump, call "begin" swap ; immediate
 : doer create =exit last cfa ! =exit ,  ;
 : make
 	call "'" call "'" make-callable
 	state @
 	if
-		literal literal ' ! compile,
+		literal literal compile ! 
 	else
 		swap !
 	then ; immediate
-: [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
-: compile ( -- ) r> dup @ , cell+ >r ;
-
 
 \ : [leave] rdrop rdrop rdrop ; hidden
-\ : leave ?compile ' [leave] compile, ; immediate
+\ : leave ?compile compile [leave] ; immediate
 \ : [do] r> dup >r swap rot >r >r cell+ >r ; hidden
-\ : do ?compile ' [do] compile, 0 , here ; immediate
+\ : do ?compile compile [do] 0 , here ; immediate
 \ : [loop]
-\    r> r> 1+ r> 2dup <> if >r >r @ >r exit then
-\    >r 1- >r cell+ >r ; hidden
+\     r> r> 1+ r> 2dup <> if >r >r @ >r exit then
+\     >r 1- >r cell+ >r ; hidden
 \ : [unloop] r> rdrop rdrop rdrop >r ; hidden
-\ : loop ' [loop] compile, dup , ' [unloop] compile, cell- here 2/ swap ! ; immediate
+\ : loop compile [loop] dup , compile [unloop] cell- here 2/ swap ! ; immediate
 \ : [i] r> r> tuck >r >r ; hidden
-\ : i ?compile ' [i] compile, ; immediate
+\ : i ?compile compile [i] ; immediate
+\ : [?do]
+\    2dup <> if r> dup >r swap rot >r >r cell+ >r exit then 2drop exit ; hidden
+\ : ?do  ?compile compile [?do] 0 , here ; immediate
+ 
 
 \ : back here cell- @ ; hidden ( a -- : get previous cell )
 \ : call? back $e000 and $4000 = ; hidden ( -- f : is call )
@@ -775,10 +786,10 @@ in which the problem could be solved. )
 : $"| do$ nop ; hidden                             ( -- a : do string NB. nop needed to fool optimizer )
 : ."| do$ print ; hidden                           ( -- : print string )
 : $,' 34 word count + aligned cp ! ; hidden        ( -- )
-: $"  ?compile ' $"| compile, $,' ; immediate      ( -- ; <string> )
-: ."  ?compile ' ."| compile, $,' ; immediate      ( -- ; <string> )
+: $"  ?compile compile $"| $,' ; immediate      ( -- ; <string> )
+: ."  ?compile compile ."| $,' ; immediate      ( -- ; <string> )
 : abort 0 rp! quit ;                               ( --, R: ??? --- ??? : Abort! )
-: abort" ?compile ." ' abort compile, ; immediate
+: abort" ?compile ." compile abort ; immediate
 
 ( ==================== Strings ======================================= )
 
@@ -1022,10 +1033,6 @@ flash memory works by erasing a block of data, setting all bits set,
 writing the memory works by masking in a value, bits can be cleared in
 a memory cell but not set, the can only be set by erasing a block.
 
-@todo Map the SRAM and NVRAM into different parts of the block
-number range, 65536 block numbers and index 64MB of memory, the
-SRAM and NVRAM are both 16MB in size
-
 The Nexys 3 has three memory devices, two of which are accessed over
 a parallel interface. They share the same data and address bus, and
 can be selected with a chip select. The signals to be controlled
@@ -1087,9 +1094,6 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 \  		1 /string
 \  	repeat 2drop cr ;
 
-( @todo The flash word set needs words for reading and decoding status
-information of locks and for extracting information from the query registers )
-
 : sram 0 memory-select ! ;
 : nvram [-1] memory-select ! ; hidden
 : block-mode 0 memory-upper substitute ; hidden ( -- hi )
@@ -1100,7 +1104,7 @@ information of locks and for extracting information from the query registers )
 : flash! dup >r m! r> m! ; hidden ( u u a )
 : flash-status nvram $70 0 m! 0 m@ ( dup $2a and if -34 -throw then ) ; ( -- status )
 : flash-read   $ff 0 m! ;      ( -- )
-: flash-setup  memory-select @ 0= if flush then nvram flash-reset block-mode drop 20 ms ; ( @todo run when 'flash' is called )
+: flash-setup  memory-select @ 0= if flush then nvram flash-reset block-mode drop 20 ms ;
 : flash-wait begin flash-status $80 and until ; hidden
 : flash-clear $50 0 m! ; ( -- clear status )
 : flash-write $40 swap flash! flash-wait ; ( u a -- )
@@ -1115,11 +1119,7 @@ information of locks and for extracting information from the query registers )
 	[-1] memory-select ! flash-clear flash-read
 	m@ 0 memory-select ! swap m! ; hidden
 
-( @todo This should accept two double width addresses and a double width
-length, so large sections of memory can be transfered, also a transfer
-in the opposite direction should be programmed
-
-@todo Memory addresses should be character aligned with the lowest
+( @todo Memory addresses should be character aligned with the lowest
 bit discarded, like normal memory )
 : transfer ( a a u -- : transfer memory block from Flash to SRAM )
 	?dup 0= if 2drop exit then

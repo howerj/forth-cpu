@@ -661,6 +661,9 @@ library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.vga_pkg.all;
+use work.util.file_format;
+use work.util.FILE_HEX;
+use work.util.FILE_BINARY;
 
 entity vga_top is
 	port(
@@ -684,16 +687,16 @@ end;
 architecture behav of vga_top is
 
 	-- Setup for text buffer memory
-	constant text_addr_length: positive := 13;
-	constant text_data_length: positive := 16;
-	constant text_file_name:   string   := "text.hex";
-	constant text_file_type:   string   := "hex";
+	constant text_addr_length: positive    := 13;
+	constant text_data_length: positive    := 16;
+	constant text_file_name:   string      := "text.hex";
+	constant text_file_type:   file_format := FILE_HEX;
 
 	-- Setup for font buffer memory
-	constant font_addr_length: positive := 12;
-	constant font_data_length: positive := 8;
-	constant font_file_name:   string   := "font.bin";
-	constant font_file_type:   string   := "bin";
+	constant font_addr_length: positive    := 12;
+	constant font_data_length: positive    := 8;
+	constant font_file_name:   string      := "font.bin";
+	constant font_file_type:   file_format := FILE_BINARY;
 
 	-- Internal signals for mapping output <--> VGA module
 	signal  foreground_draw_internal:      std_logic := '0';
