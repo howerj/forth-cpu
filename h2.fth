@@ -700,7 +700,7 @@ as possible so the Forth environment is easy to use. )
 : ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
 : "'" token find if cfa else 13 -throw then ; immediate
 : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
-: compile ( -- ) r> dup @ , cell+ >r ;
+: compile  r> dup @ , cell+ >r ; ( -- : Compile next compiled word NB. Works for words, instructions, and numbers below $8000 )
 : ";" ?compile context @ ! ?csp =exit , ( save )  [ ; immediate
 : ":" align ( save ) !csp here last address ,  token ?nul ?unique count + aligned cp ! ] ;
 : jumpz, 2/ $2000 or , ; hidden
@@ -922,7 +922,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 	drop ; hidden
 
 : see ( --, <string> : decompile a word )
-	token find 0= if 11 -throw then
+	token find 0= if 13 -throw then
 	cr colon space dup .id space
 	dup inline?    if see.inline    print then
 	dup immediate? if see.immediate print then
@@ -930,7 +930,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 	cfa decompiler space 59 emit cr ;
 
 \ : see
-\ 	token find 0= if 11 -throw then
+\ 	token find 0= if 13 -throw then
 \ 	begin nuf? while
 \ 		dup @ dup $4000 and $4000
 \ 		= if space .name else . then cell+

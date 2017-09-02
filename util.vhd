@@ -297,6 +297,15 @@ package util is
 			do:  out std_logic);
 	end component;
 
+	component state_block_changed is
+		generic(N: positive);
+		port(
+			clk: in  std_logic;
+			rst: in  std_logic;
+			di:  in  std_logic_vector(N - 1 downto 0);
+			do:  out std_logic_vector(N - 1 downto 0));
+	end component;
+
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
 	function n_bits(x: natural) return natural;
@@ -2319,7 +2328,6 @@ end entity;
 
 architecture structural of debounce_block_us is
 begin
-
 	debouncer: for i in N - 1 downto 0 generate
 		d_instance: work.util.debounce_us
 			generic map(
@@ -2327,7 +2335,6 @@ begin
 				timer_period_us => timer_period_us)
 			port map(clk => clk, di => di(i), do => do(i));
 	end generate;
-
 end architecture;
 
 ------------------------- Debouncer Block -----------------------------------------------------
@@ -2367,3 +2374,27 @@ begin
 end architecture;
 
 ------------------------- Change State --------------------------------------------------------
+
+------------------------- Change State Block --------------------------------------------------
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity state_block_changed is
+	generic(N: positive);
+	port(
+		clk: in  std_logic;
+		rst: in  std_logic;
+		di:  in  std_logic_vector(N - 1 downto 0);
+		do:  out std_logic_vector(N - 1 downto 0));
+end entity;
+
+architecture structural of state_block_changed is
+begin
+	changes: for i in N - 1 downto 0 generate
+		d_instance: work.util.state_changed
+			port map(clk => clk, rst => rst, di => di(i), do => do(i));
+	end generate;
+end architecture;
+
+------------------------- Change State Block --------------------------------------------------

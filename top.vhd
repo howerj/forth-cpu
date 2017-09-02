@@ -19,6 +19,7 @@ use work.vga_pkg.all;
 use work.led_pkg.all;
 use work.kbd_pkg.ps2_kbd_top;
 use work.uart_pkg.uart_core;
+use work.util.state_block_changed;
 
 entity top is
 	generic(
@@ -135,11 +136,12 @@ architecture behav of top is
 	signal leds_reg_we:       std_logic := '0';
 
 	---- Buttons
-	signal btnu_d:            std_logic := '0';  -- button up
-	signal btnd_d:            std_logic := '0';  -- button down
-	signal btnc_d:            std_logic := '0';  -- button centre
-	signal btnl_d:            std_logic := '0';  -- button left
-	signal btnr_d:            std_logic := '0';  -- button right
+	signal btnu_d:            std_logic := '0'; -- button up
+	signal btnd_d:            std_logic := '0'; -- button down
+	signal btnc_d:            std_logic := '0'; -- button centre
+	signal btnl_d:            std_logic := '0'; -- button left
+	signal btnr_d:            std_logic := '0'; -- button right
+	signal button_changed:    std_logic := '0'; -- Any of the buttons have changed state
 
 	-- Switches
 	signal sw_d:              std_logic_vector(sw'range) := (others => '0');
@@ -177,8 +179,7 @@ begin
 		cpu_irc(4) <= tx_fifo_full;
 		cpu_irc(5) <= kbd_char_buf_new;
 		cpu_irc(6) <= timer_irq;
-		cpu_irc(7) <= btnl_d; -- @todo replace with button change state
-
+		cpu_irc(7) <= button_changed;
 
 		cpu_irq    <= '1' when
 				timer_irq         = '1' or
@@ -187,7 +188,7 @@ begin
 				tx_fifo_not_empty = '1' or
 				tx_fifo_full      = '1' or
 				kbd_char_buf_new  = '1' or
-				btnl_d            = '1'
+				button_changed    = '1'
 				else '0';
 	end block;
 
@@ -429,6 +430,35 @@ begin
 		do(2) => btnc_d,
 		do(3) => btnl_d,
 		do(4) => btnr_d);
+	
+	dpad_changed: block 
+		signal changed_signals:     std_logic_vector(4 downto 0) := (others => '0');
+		signal any_changed_signals: std_logic := '0';
+	begin
+		state_changed: work.util.state_block_changed
+		generic map(N => changed_signals'length)
+		port map(
+			clk   => clk,
+			rst   => rst,
+			di(0) => btnu_d,
+			di(1) => btnd_d,
+			di(2) => btnc_d,
+			di(3) => btnl_d,
+			di(4) => btnr_d,
+			do    => changed_signals);
+
+		any_changed_signals <= '1' when changed_signals /= "00000" else '0';
+
+		state_changed_reg: work.util.reg
+		generic map(N => 1)
+		port map(
+			clk   => clk,
+			rst   => rst,
+			di(0) => any_changed_signals,
+			we    => '1',
+			do(0) => button_changed);
+	end block;
+
 	--- Buttons -------------------------------------------------------
 
 	--- Switches ------------------------------------------------------
