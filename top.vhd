@@ -234,25 +234,26 @@ begin
 		signal selector: std_logic_vector(3 downto 0) := (others => '0');
 		signal is_write: boolean := false;
 	begin
-		selector           <= io_daddr(4 downto 1);
-		is_write           <= true when io_wr = '1' else false;
+		selector          <= io_daddr(4 downto 1);
+		is_write          <= true when io_wr = '1' else false;
 
-		tx_data_we         <= io_dout(13) when is_write and selector = x"0" else '0';
-		rx_data_re         <= io_dout(10) when is_write and selector = x"0" else '0';
+		tx_data_we        <= io_dout(13) when is_write and selector = x"0" else '0';
+		rx_data_re        <= io_dout(10) when is_write and selector = x"0" else '0';
 
-		vga_data_we        <= io_dout(13) when is_write and selector = x"1" else '0';
-		kbd_char_re        <= io_dout(10) when is_write and selector = x"1" else '0';
+		vga_data_we       <= io_dout(13) when is_write and selector = x"1" else '0';
+		kbd_char_re       <= io_dout(10) when is_write and selector = x"1" else '0';
 
-		timer_control_we   <= '1'         when is_write and selector = x"2" else '0';
-		ld_we              <= '1'         when is_write and selector = x"3" else '0';
-		leds_reg_we        <= '1'         when is_write and selector = x"4" else '0';
-		cpu_irc_mask_we    <= '1'         when is_write and selector = x"5" else '0';
+		timer_control_we  <= '1'         when is_write and selector = x"2" else '0';
+		ld_we             <= '1'         when is_write and selector = x"3" else '0';
+		mem_data_i_we     <= '1'         when is_write and selector = x"4" else '0';
 
-		mem_addr_26_17_we  <= '1'         when is_write and selector = x"6" else '0';
-		mem_control_we     <= '1'         when is_write and selector = x"6" else '0';
+		mem_addr_26_17_we <= '1'         when is_write and selector = x"5" else '0';
+		mem_control_we    <= '1'         when is_write and selector = x"5" else '0';
 
-		mem_addr_16_1_we   <= '1'         when is_write and selector = x"7" else '0';
-		mem_data_i_we      <= '1'         when is_write and selector = x"8" else '0';
+		mem_addr_16_1_we  <= '1'         when is_write and selector = x"6" else '0';
+
+		leds_reg_we       <= '1'         when is_write and selector = x"7" else '0';
+		cpu_irc_mask_we   <= '1'         when is_write and selector = x"8" else '0';
 	end block;
 
 	io_read: process(

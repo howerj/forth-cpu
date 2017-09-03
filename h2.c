@@ -838,12 +838,12 @@ static int break_point_print(FILE *out, break_point_t *bp)
 	return 0;
 }
 
-#define LED_8_SEGMENT_DISPLAY_CHARSET_HEX  "0123456789AbCdEF"
-#define LED_8_SEGMENT_DISPLAY_CHARSET_BCD  "0123456789 .-   "
+#define LED_7_SEGMENT_DISPLAY_CHARSET_HEX  "0123456789AbCdEF"
+#define LED_7_SEGMENT_DISPLAY_CHARSET_BCD  "0123456789 .-   "
 
-static char l8seg(uint8_t c)
+static char l7seg(uint8_t c)
 {
-	static const char *v = LED_8_SEGMENT_DISPLAY_CHARSET_HEX;
+	static const char *v = LED_7_SEGMENT_DISPLAY_CHARSET_HEX;
 	return v[c & 0xf];
 }
 
@@ -851,21 +851,21 @@ void soc_print(FILE *out, h2_soc_state_t *soc)
 {
 	assert(out);
 	assert(soc);
-	unsigned char led0 = l8seg(soc->led_8_segments >> 12);
-	unsigned char led1 = l8seg(soc->led_8_segments >>  8);
-	unsigned char led2 = l8seg(soc->led_8_segments >>  4);
-	unsigned char led3 = l8seg(soc->led_8_segments);
+	unsigned char led0 = l7seg(soc->led_7_segments >> 12);
+	unsigned char led1 = l7seg(soc->led_7_segments >>  8);
+	unsigned char led2 = l7seg(soc->led_7_segments >>  4);
+	unsigned char led3 = l7seg(soc->led_7_segments);
 
-	fprintf(out, "LEDS:          %02"PRIx8"\n",  soc->leds);
-	/*fprintf(out, "VGA Cursor:    %04"PRIx16"\n", soc->vga_cursor);
-	fprintf(out, "VGA Control:   %04"PRIx16"\n", soc->vga_control);*/
-	fprintf(out, "Timer Control: %04"PRIx16"\n", soc->timer_control);
-	fprintf(out, "Timer:         %04"PRIx16"\n", soc->timer);
-	fprintf(out, "IRC Mask:      %04"PRIx16"\n", soc->irc_mask);
-	fprintf(out, "UART Input:    %02"PRIx8"\n",  soc->uart_getchar_register);
-	fprintf(out, "LED 7seg:      %c%c%c%c\n",    led0, led1, led2, led3);
-	fprintf(out, "Switches:      %02"PRIx8"\n",  soc->switches);
-	fprintf(out, "Waiting:       %s\n",          soc->wait ? "true" : "false");
+	fprintf(out, "LEDS:           %02"PRIx8"\n",  soc->leds);
+	/*fprintf(out, "VGA Cursor:     %04"PRIx16"\n", soc->vga_cursor);
+	fprintf(out, "VGA Control:    %04"PRIx16"\n", soc->vga_control);*/
+	fprintf(out, "Timer Control:  %04"PRIx16"\n", soc->timer_control);
+	fprintf(out, "Timer:          %04"PRIx16"\n", soc->timer);
+	fprintf(out, "IRC Mask:       %04"PRIx16"\n", soc->irc_mask);
+	fprintf(out, "UART Input:     %02"PRIx8"\n",  soc->uart_getchar_register);
+	fprintf(out, "LED 7 segment:  %c%c%c%c\n",    led0, led1, led2, led3);
+	fprintf(out, "Switches:       %02"PRIx8"\n",  soc->switches);
+	fprintf(out, "Waiting:        %s\n",          soc->wait ? "true" : "false");
 }
 
 static void terminal_default_command_sequence(vt100_t *t)
@@ -1526,7 +1526,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 		if(value & UART_RX_RE)
 			soc->ps2_getchar_register = wrap_getch(debug_on);
 		break;
-	case o8SegLED:    soc->led_8_segments = value; break;
+	case o7SegLED:    soc->led_7_segments = value; break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oMemControl:
 	{

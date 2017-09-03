@@ -93,7 +93,7 @@ package vga_pkg is
 	end component;
 
 	component losr is
-	generic (N : integer := 4);
+	generic (N: positive := 4);
 	port
 	(
 		rst:  in  std_logic;
@@ -105,13 +105,13 @@ package vga_pkg is
 	end component;
 
 	component ctrm is
-		generic (M : integer := 8);
-		port (
-			rst: in  std_logic; -- asynchronous rst
-			clk: in  std_logic;
-			ce:  in  std_logic; -- enable counting
-			rs:  in  std_logic; -- synchronous rst
-			do:  out integer range (M-1) downto 0 := 0);
+	generic (M: positive := 8);
+	port (
+		rst: in  std_logic; -- asynchronous rst
+		clk: in  std_logic;
+		ce:  in  std_logic; -- enable counting
+		rs:  in  std_logic; -- synchronous rst
+		do:  out integer range (M-1) downto 0 := 0);
 	end component;
 
 	component vt100 is
@@ -356,12 +356,12 @@ begin
 			n_o    => n_o);
 
 	address: block
-		signal addr_int: integer range 8191 downto 0 := 0; --12 bits
-		signal x_int:    integer range  127 downto 0 := 0; -- 7 bits
+		signal addr_int: unsigned(addr'range) := (others => '0');
+		signal mul: unsigned(15 downto 0)     := (others => '0');
 	begin
-		x_int    <=  to_integer(x_c);
-		addr_int <= (to_integer(y_c) * width) + x_int;
-		addr     <= std_logic_vector(to_unsigned(addr_int, 13)) when state_c /= ERASING else std_logic_vector(count_c);
+		mul      <= to_unsigned(to_integer(y_c) * width, mul'length);
+		addr_int <= mul(addr_int'range) + ("000000" & x_c);
+		addr     <= std_logic_vector(addr_int) when state_c /= ERASING else std_logic_vector(count_c);
 	end block;
 
 	x_minus_one         <= x_c - 1;
@@ -966,7 +966,6 @@ begin
 		-- RAM read, ROM read
 		signal ram_tmp: integer range 3200 downto 0;  --12 bits
 		signal rom_tmp: integer range 3071 downto 0;
-
 	begin
 		u_hctr: work.vga_pkg.ctrm generic map (M => 794) port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
 		u_vctr: work.vga_pkg.ctrm generic map (M => 525) port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
@@ -1061,14 +1060,13 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity ctrm is
-	generic (M : integer := 8);
+	generic (M: positive := 8);
 	port (
 		rst: in  std_logic; -- asynchronous rst
 		clk: in  std_logic;
 		ce:  in  std_logic; -- enable counting
 		rs:  in  std_logic; -- synchronous rst
-		do:  out integer range (M-1) downto 0 := 0
-	);
+		do:  out integer range (M-1) downto 0 := 0);
 end ctrm;
 
 architecture rtl of ctrm is
@@ -1105,7 +1103,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity losr is
-	generic (N : integer := 4);
+	generic (N: positive := 4);
 	port
 	(
 		rst:  in  std_logic;

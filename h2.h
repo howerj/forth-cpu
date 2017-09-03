@@ -215,7 +215,7 @@ typedef struct {
 
 	uint8_t uart_getchar_register, ps2_getchar_register;
 
-	uint16_t led_8_segments;
+	uint16_t led_7_segments;
 
 	uint8_t switches;
 
@@ -254,11 +254,11 @@ typedef enum {
 	oVT100        = 0x4002,
 	oTimerCtrl    = 0x4004,
 	oLeds         = 0x4006,
-	o8SegLED      = 0x4008,
-	oIrcMask      = 0x400A,
-	oMemControl   = 0x400C,
-	oMemAddrLow   = 0x400E,
-	oMemDout      = 0x4010,
+	oMemDout      = 0x4008,
+	oMemControl   = 0x400A,
+	oMemAddrLow   = 0x400C,
+	o7SegLED      = 0x400E,
+	oIrcMask      = 0x4010,
 } h2_output_addr_t;
 
 typedef enum {

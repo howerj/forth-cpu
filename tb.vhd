@@ -86,6 +86,8 @@ architecture testing of tb is
 
 	-- VGA
 	signal o_vga: vga_physical_interface;
+	signal hsync_gone_high: boolean := false;
+	signal vsync_gone_high: boolean := false;
 
 	-- HID
 	signal ps2_keyboard_data: std_logic := '0';
@@ -155,14 +157,15 @@ begin
 		MemAdr   =>  MemAdr,
 		MemDB    =>  MemDB);
 
-	uut_util: entity work.util_tb generic map(clock_frequency => clock_frequency);
+	uut_util: work.util.util_tb generic map(clock_frequency => clock_frequency);
 
 	-- The "io_pins_tb" works correctly, however GHDL 0.29, compiled under
 	-- Windows, cannot fails to simulate this component correctly, and it
 	-- crashes. This does not affect the Linux build of GHDL. It has
 	-- something to do with 'Z' values for std_logic types.
 	--
-	--  uut_io_pins:  entity work.io_pins_tb      generic map(clock_frequency => clock_frequency);
+
+	uut_io_pins: work.util.io_pins_tb      generic map(clock_frequency => clock_frequency);
 
 	uut_uart: work.uart_pkg.uart_core
 		generic map(
@@ -226,10 +229,11 @@ begin
 		wait;
 	end process;
 
-	-- @todo Send the input from STDIN into the UART, and wait for a configurable 
-	-- amount of time, or until the UART has finished writing its value. If we 
-	-- are in interactive mode, we should also run until end of input.
-	-- (perhaps zero as a value for Cycles could indicate running forever)
+
+	-- @note The Input and Output mechanism that allows the tester to
+	-- interact with the running simulation needs more work, it is buggy
+	-- and experimental, but demonstrates the principle - that a VHDL
+	-- test bench can be interacted with at run time.
 	input_process: process
 		variable c: character := ' ';
 		variable iline: line;
@@ -267,6 +271,9 @@ begin
 		-- stop <= '1';
 		wait;
 	end process;
+
+	hsync_gone_high <= true when o_vga.hsync = '1' else hsync_gone_high;
+	vsync_gone_high <= true when o_vga.vsync = '1' else vsync_gone_high;
 
 	-- I/O settings go here.
 	stimulus_process: process
@@ -325,10 +332,13 @@ begin
 			wait for clk_period * 1;
 		end loop;
 
-		-- @note This really should be an assertion that both HSYNC and VSYNC
-		-- went high once
-		assert o_vga.hsync = '1' report "HSYNC not active - H2 failed to initialize VGA module";
-		assert o_vga.vsync = '1' report "VSYNC not active - H2 failed to initialize VGA module";
+		-- It would be nice to test the other peripherals as
+		-- well, the CPU-ID should be written to the LED 7 Segment
+		-- displays, however we only get the cathode and anode
+		-- values out of the unit.
+
+		assert hsync_gone_high report "HSYNC not active - H2 failed to initialize VGA module";
+		assert vsync_gone_high report "VSYNC not active - H2 failed to initialize VGA module";
 
 		stop   <=  '1';
 		wait;

@@ -816,10 +816,10 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oTimerCtrl:
 		soc->timer_control  = value;
 		break;
-	case o8SegLED:
+	case o7SegLED:
 		for(size_t i = 0; i < SEGMENT_COUNT; i++)
 			segments[i].segment = (value >> ((SEGMENT_COUNT - i - 1) * 4)) & 0xf;
-		soc->led_8_segments = value;
+		soc->led_7_segments = value;
 		break;
 	case oIrcMask:    soc->irc_mask       = value; break;
 	case oMemControl:
@@ -932,7 +932,7 @@ static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y)
 	fill_textbox(&t, "Timer Control:  %x", (unsigned)s->timer_control);
 	fill_textbox(&t, "Timer Count:    %x", (unsigned)s->timer);
 	fill_textbox(&t, "IRQ Mask:       %x", (unsigned)s->irc_mask);
-	fill_textbox(&t, "LED 8 Segments: %x", (unsigned)s->led_8_segments);
+	fill_textbox(&t, "LED 7 Segments: %x", (unsigned)s->led_7_segments);
 	fill_textbox(&t, "Switches:       %x", (unsigned)s->switches);
 	fill_textbox(&t, "Memory Control: %x", (unsigned)s->mem_control);
 	fill_textbox(&t, "Memory Address: %x", (unsigned)s->mem_addr_low);

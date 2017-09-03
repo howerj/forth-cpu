@@ -258,11 +258,11 @@ The output register map:
 | oVT100      | 0x4002  | VT100 Terminal Write            |
 | oLeds       | 0x4004  | LED outputs                     |
 | oTimerCtrl  | 0x4006  | Timer control                   |
-| o8SegLED    | 0x4008  | 4 x LED 8 Segment display       |
-| oIrcMask    | 0x400A  | CPU Interrupt Mask              |
-| oMemControl | 0x400C  | Memory Control / Hi Address     |
-| oMemAddrLow | 0x400E  | Memory Lo Address               |
-| oMemDout    | 0x4010  | Memory Data Output              |
+| oMemDout    | 0x4008  | Memory Data Output              |
+| oMemControl | 0x400A  | Memory Control / Hi Address     |
+| oMemAddrLow | 0x400C  | Memory Lo Address               |
+| o7SegLED    | 0x400E  | 4 x LED 8 Segment display       |
+| oIrcMask    | 0x4010  | CPU Interrupt Mask              |
 
 
 The input registers:
@@ -363,30 +363,6 @@ The timer can be reset by writing to RST.
 	TCMP: Timer Compare Value
 
 
-#### o8SegLED
-
-On the [Nexys3][] board there is a bank of 7 segment displays, with a dot
-(8-segment really), which can be used for numeric output. The LED segments
-cannot be directly addressed. Instead the value stored in L8SD is mapped
-to a hexadecimal display value (or a BCD value, but this requires regeneration
-of the SoC and modification of a generic in the VHDL).
-
-The value '0' corresponds to a zero displayed on the LED segment, '15' to an
-'F', etcetera.
-
-There are 4 displays in a row.
-
-	+-------------------------------------------------------------------------------+
-	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
-	+-------------------------------------------------------------------------------+
-	|      L8SD0        |       L8SD1       |       L8SD2       |       L8SD3       |
-	+-------------------------------------------------------------------------------+
-
-	L8SD0: LED 8 Segment Display (leftmost display)
-	L8SD1: LED 8 Segment Display
-	L8SD2: LED 8 Segment Display
-	L8SD3: LED 8 Segment Display (right most display)
-
 #### oIrcMask
 
 The H2 core has a mechanism for interrupts, interrupts have to be enabled or
@@ -402,6 +378,17 @@ enabled within it.
 	+-------------------------------------------------------------------------------+
 
 	IMSK: Interrupt Mask
+
+#### oMemDout
+
+Data to be output to selected address when write enable (WE) issued in
+oMemControl.
+
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|                           Data Ouput                                          |
+	+-------------------------------------------------------------------------------+
 
 #### oMemControl
 
@@ -440,16 +427,29 @@ This is the lower address bits of the RAM.
 	|                           Address Lo                                          |
 	+-------------------------------------------------------------------------------+
 
-#### oMemDout
+#### o7SegLED
 
-Data to be output to selected address when write enable (WE) issued in
-oMemControl.
+On the [Nexys3][] board there is a bank of 7 segment displays, with a dot
+(8-segment really), which can be used for numeric output. The LED segments
+cannot be directly addressed. Instead the value stored in L8SD is mapped
+to a hexadecimal display value (or a BCD value, but this requires regeneration
+of the SoC and modification of a generic in the VHDL).
+
+The value '0' corresponds to a zero displayed on the LED segment, '15' to an
+'F', etcetera.
+
+There are 4 displays in a row.
 
 	+-------------------------------------------------------------------------------+
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	+-------------------------------------------------------------------------------+
-	|                           Data Ouput                                          |
+	|      L7SD0        |       L7SD1       |       L7SD2       |       L7SD3       |
 	+-------------------------------------------------------------------------------+
+
+	L7SD0: LED 7 Segment Display (leftmost display)
+	L7SD1: LED 7 Segment Display
+	L7SD2: LED 7 Segment Display
+	L7SD3: LED 7 Segment Display (right most display)
 
 #### iUart
 
