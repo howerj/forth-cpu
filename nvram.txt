@@ -206,6 +206,38 @@ variable d  0  d ! variable k  0  k !
   repeat y @ x @ ;
 : sin cordic drop ; 
 : cos cordic nip ;
+\ ==== Login Code 1/2 ==========================================
+\ Login and user management system 
+: generate count dup >r crc r> ccitt ; ( b -- u )
+: .user     ." user>" space ; ( -- )
+: .password ." password>" space ; ( -- )
+variable user0 0 user0 !
+: mk.user ( --; <string1>, <string2> )
+  here user0 @ , user0 ! here 0 , bl word count 1+ allot align
+  drop bl word generate swap ! ;
+: ls.user ( -- : list all users in user database )
+  cr user0 @ 
+  begin dup while dup 2 cells + space count type cr @ repeat
+  drop cr ;
+: find.user ( a -- u | 0 : find user in database, return hash )
+  >r user0 @ begin dup while dup 2 cells + count r@ count
+  =string if rdrop exit then @ repeat rdrop drop 0 ;
+\ ==== Login Code 2/2 ==========================================
+: (password) ( u --, <string> )
+  >r begin .password query bl word cr generate
+  r@ = until rdrop ;
+: fake .password query bl word drop cr ;
+: (user) 
+  begin .user query bl word cr find.user ?dup until ;
+: retry ( xt -- : retry word until it succeeds )
+  >r begin r@ catch 0= until rdrop ;
+: user? [ ' (user) literal ] retry ;
+: password? [ ' (password) literal ] retry ;
+: hide-all 0 1 set-order ;
+: login hide-all
+  cr user? cell+ @ conceal password? interactive forth ;
+mk.user guest guest     mk.user archer dangerzone
+mk.user lana  sterling  mk.user cyril  figgis
 \ ==== Extra Code 1/6 ==========================================
 : 2+ 2 + ;                       ( n -- n )
 : 2- 2 - ;                       ( n -- n )

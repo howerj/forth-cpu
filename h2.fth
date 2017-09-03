@@ -299,7 +299,7 @@ they can implemented in terms of instructions )
 : substitute dup @ >r ! r> ; hidden ( u a -- u : substitute value at address )
 : switch 2dup @ >r @ swap ! r> swap ! ; hidden ( a a -- : swap contents )
 : aligned dup 1 and if 1+ then ;          ( b -- a )
-: align cp @ aligned cp ! ; hidden        ( -- )
+: align cp @ aligned cp ! ;               ( -- )
 
 : catch  ( xt -- exception# | 0 : return addr on stack )
 	sp@ >r        ( xt : save data stack depth )
@@ -419,7 +419,7 @@ choice words that need depth checking to get quite a large coverage )
 			count >r swap count r> xor
 			if 2drop rdrop 0 exit then
 		then
-	next 2drop [-1] ; hidden
+	next 2drop [-1] ; 
 
 : address $3fff and ; hidden ( a -- a : mask off address bits )
 : nfa address cell+ ; hidden ( pwd -- nfa : move to name field address)
@@ -601,11 +601,11 @@ choice words that need depth checking to get quite a large coverage )
 	throw ;
 
 : ccitt ( crc c -- crc : calculate polynomial $1021 AKA "x16 + x12 + x5 + 1" )
-	over 256/ xor               ( crc x )
-	dup  4  rshift xor          ( crc x )
-	dup  5  lshift xor          ( crc x )
-	dup  12 lshift xor          ( crc x )
-	swap 8  lshift xor ; hidden ( crc )
+	over 256/ xor        ( crc x )
+	dup  4  rshift xor   ( crc x )
+	dup  5  lshift xor   ( crc x )
+	dup  12 lshift xor   ( crc x )
+	swap 8  lshift xor ; ( crc )
 
 : crc ( b u -- u : calculate ccitt-ffff CRC )
 	$ffff >r
@@ -674,12 +674,16 @@ choice words that need depth checking to get quite a large coverage )
 : input rx? if [-1] else ps2? then ; hidden ( -- c -1 | 0 : UART and PS/2 Input )
 : output dup tx! vga! ; hidden ( c -- : write to UART and VGA display )
 
+: printable? 32 127 within ; hidden ( c -- f )
 : pace 11 emit ; hidden
 : xio  ' accept _expect ! _tap ! _echo ! _prompt ! ; hidden
 : file ' pace ' "drop" ' ktap xio ;
+: star $2A emit ; hidden
+: [conceal] dup 33 127 within if drop star else output then ; hidden
+: conceal ' .ok ' [conceal] ' ktap xio ;
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? _key? ! ' tx! _emit ! hand ;
-: interactive ' input _key? ! ' output _emit ! hand ; hidden
+: interactive ' input _key? ! ' output _emit ! hand ; 
 : io! $8FFF oTimerCtrl ! interactive 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
 : ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr ;
@@ -1158,83 +1162,26 @@ bit discarded, like normal memory )
 
 ( ==================== Memory Interface ============================== )
 
-( ==================== Users and Passwords =========================== )
-
-\ @todo modify emit/ktap to transmit '*' instead of password characters,
-\ and make a password cracker
-\ @todo Move to block storage
-
-\ location user>     "user> "
-\ location password> "password> "
-\ location user0.prev 0
-\ location user0.pass $576F    ( guest )
-\ location user0.name "guest"
-\ location user1.prev 0        .set user1.prev user0.prev
-\ location user1.pass $89CD    ( dangerzone )
-\ location user1.name "archer"
-\ location user2.prev 0        .set user2.prev user1.prev
-\ location user2.pass $8E60    ( sterling )
-\ location user2.name "lana"
-\
-\ location user.pwd  0 .set user.pwd user2.prev
-\
-\ : generate count dup >r crc r> ccitt ; hidden ( a -- u )
-\
-\ : mk.user ( -- ; <string1> <string2> : make a new user with a password  )
-\ 	here user.pwd @ , user.pwd !
-\ 	here 0 ,
-\ 	=bl word count 1+ allot align drop
-\ 	token generate swap ! ;
-\
-\ : ls.user ( -- : list all users )
-\ 	cr
-\ 	user.pwd @
-\ 	begin
-\ 		dup
-\ 	while
-\ 		dup 2 cells + space print cr
-\ 		@
-\ 	repeat drop cr ;
-\
-\ : find.user ( a -- u | 0 : find a user )
-\ 	>r
-\ 	user.pwd @
-\ 	begin
-\ 		dup
-\ 	while
-\ 		dup 2 cells + count r@ count =string if rdrop exit then
-\ 		@
-\ 	repeat rdrop drop 0 ;
-\
-\ : _password? ( u -- : <string> )
-\ 	>r
-\ 	begin
-\ 		password> print
-\ 		query
-\ 		token cr generate r@ =  ( 1000 ms )
-\ 	until rdrop ; hidden
-\
-\ : fake.password password> print query token drop cr ( 1000 ms ) ; hidden
-\ : _user? begin user> print query token cr find.user ?dup until ; hidden
-\ : retry >r begin r@ catch 0= until rdrop ; ( xt -- )
-\ : user?     ' _user?     retry ; hidden
-\ : password? ' _password? retry ; hidden
-\ : login cr user? cell+ @ password? .ok ;
-
-( ==================== Users and Passwords =========================== )
-
 ( ==================== Startup Code ================================== )
+
+: .failed failed print ; hidden
+: boot ( -- )
+	0 0 $8000 transfer
+	0 block c@ printable? if
+		0 load
+	else
+		1 -throw
+	then ; hidden
 
 start:
 .set entry start
+	_boot @execute  ( _boot contains zero by default, does nothing )
 	hi
 	cpu-id segments!
 	loading-string print
-	0 0 $8000 transfer
-	0 ' load catch if failed print else .ok then
+	' boot catch if .failed else .ok then
 	\ loaded @ if 1 list then
 	\ login 0 load 1 list
-	_boot @execute  ( _boot contains zero by default, does nothing )
 	branch quitLoop ( jump to main interpreter loop if _boot returned )
 
 ( ==================== Startup Code ================================== )
