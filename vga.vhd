@@ -303,11 +303,11 @@ architecture rtl of vt100 is
 	constant attr_default: unsigned(7 downto 0) := "00111000";
 	constant ctl_default:  unsigned(4 downto 0) := "01111";
 
-	signal addr:       std_logic_vector(12 downto 0) := (others => '0');
-	signal data_we:    std_logic                     := '0';
-	signal x:          std_logic_vector(6 downto 0)  := (others => '0');
-	signal y:          std_logic_vector(5 downto 0)  := (others => '0');
-	signal cursor_we:  std_logic                     := '0';
+	signal addr:           std_logic_vector(12 downto 0) := (others => '0');
+	signal data_we:        std_logic                     := '0';
+	signal x:              std_logic_vector(6 downto 0)  := (others => '0');
+	signal y:              std_logic_vector(5 downto 0)  := (others => '0');
+	signal cursor_we:      std_logic                     := '0';
 
 	signal x_n, x_c:       unsigned(x'range)    := (others => '0');
 	signal y_n, y_c:       unsigned(y'range)    := (others => '0');
@@ -316,8 +316,8 @@ architecture rtl of vt100 is
 	signal attr_c, attr_n: unsigned(attr_default'range) := attr_default;
 	signal ctl_c, ctl_n:   unsigned(ctl_default'range)  := ctl_default;
 
-	signal n1_n, n1_c: unsigned(7 downto 0) := (others => '0');
-	signal n2_n, n2_c: unsigned(6 downto 0) := (others => '0');
+	signal n1_n, n1_c:     unsigned(7 downto 0) := (others => '0');
+	signal n2_n, n2_c:     unsigned(6 downto 0) := (others => '0');
 
 	signal conceal_n, conceal_c: boolean := false;
 
@@ -325,12 +325,14 @@ architecture rtl of vt100 is
 	signal x_minus_one_limited: unsigned(x'range) := (others => '0');
 	signal x_underflow:         boolean           := false;
 	signal x_plus_one:          unsigned(x'range) := (others => '0');
+	signal x_plus_one_limited:  unsigned(x'range) := (others => '0');
 	signal x_overflow:          boolean           := false;
 
 	signal y_minus_one:         unsigned(y'range) := (others => '0');
 	signal y_minus_one_limited: unsigned(y'range) := (others => '0');
 	signal y_underflow:         boolean           := false;
 	signal y_plus_one:          unsigned(y'range) := (others => '0');
+	signal y_plus_one_limited:  unsigned(y'range) := (others => '0');
 	signal y_overflow:          boolean           := false;
 
 	signal count_c, count_n:    unsigned(addr'range) := (others => '0');
@@ -369,11 +371,14 @@ begin
 	x_underflow         <= true when x_minus_one > width  - 1 else false;
 	x_overflow          <= true when x_c         > width  - 1 else false;
 	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
+	x_plus_one_limited  <= to_unsigned(width - 1, x_c'length) when x_overflow else x_plus_one;
+
 	y_plus_one          <= y_c + 1;
 	y_minus_one         <= y_c - 1;
 	y_overflow          <= true when y_c         > height - 1 else false;
 	y_underflow         <= true when y_minus_one > height - 1 else false;
 	y_minus_one_limited <= (others => '0') when y_underflow else y_minus_one;
+	y_plus_one_limited  <= to_unsigned(height - 1, y_c'length) when y_overflow else y_plus_one;
 
 	busy                <= '0' when state_c = ACCEPT
 				       or state_c = CSI
@@ -415,9 +420,12 @@ begin
 	-- RIS - Erase Display, ESC 'c'
 	-- SGR - Select Graphic Rendition - for colors, CSI n 'm'
 	-- HVP - Horizontal and Vertical Position - CSI n ; m 'f'
-	--
+	-- The cursor commands are also supported: CUU, CUD, CUF, 
+	-- CUB, CNL, CPL and CHA
 	fsm: process(clk, rst)
 		variable limit_value: unsigned(addr'range) := (others => '0');
+		variable repeat:      boolean    := false;
+		variable exit_repeat: state_type := RESET;
 	begin
 		if rst = '1' then
 			state_c <= RESET;
@@ -502,27 +510,39 @@ begin
 					n1_n    <= n_o(n1_n'range);
 				end if;
 			elsif state_c = COMMAND1 then
-				-- @bug The cursor commands do not handle 'n',
-				-- this could be solved by repeating the command
-				-- n1_c times.
+
+				repeat := false;
+
 				case akk_char_o is
-				when x"41" => -- CSI n 'A'
-					y_n <= y_minus_one_limited;
-					state_n <= WRITE;
-				when x"42" => -- CSI n 'B'
-					y_n <= y_plus_one;
-					state_n <= LIMIT;
+				when x"41" => -- CSI n 'A' : CUU Cursor up
+					y_n         <= y_minus_one_limited;
+					exit_repeat := WRITE;
+					repeat      := true;
+				when x"42" => -- CSI n 'B' : CUD Cursor Down
+					y_n         <= y_plus_one_limited; 
+					exit_repeat := LIMIT;
+					repeat      := true;
 				when x"43" => -- CSI n 'C' : CUF Cursor Forward
-					x_n <= x_plus_one;
-					state_n <= LIMIT;
+					x_n         <= x_plus_one_limited;
+					exit_repeat := LIMIT;
+					repeat      := true;
 				when x"44" => -- CSI n 'D' : CUB Cursor Back
-					x_n <= x_minus_one_limited;
-					state_n <= WRITE;
+					x_n         <= x_minus_one_limited;
+					exit_repeat := WRITE;
+					repeat      := true;
 				when x"45" => -- CSI n 'E'
+					y_n         <= y_minus_one_limited;
+					x_n         <= (others => '0');
+					exit_repeat := WRITE;
+					repeat      := true;
 				when x"46" => -- CSI n 'F'
+					y_n         <= y_plus_one_limited;
+					x_n         <= (others => '0');
+					exit_repeat := LIMIT;
+					repeat      := true;
 				when x"47" => -- CSI n 'G' : CHA Cursor Horizontal Absolute
-					x_n     <= n1_c(x_n'range);
-					state_n <= LIMIT;
+					x_n      <= n1_c(x_n'range);
+					state_n  <= LIMIT;
 				when x"4a" => -- CSI n 'J'
 					x_n       <= (others => '0');
 					y_n       <= (others => '0');
@@ -554,6 +574,14 @@ begin
 				when others => -- Error
 					state_n <= ACCEPT;
 				end case;
+
+				if repeat then
+					if n1_c = 0 then
+						state_n <= exit_repeat;
+					else
+						n1_n <= n1_c - 1;
+					end if;
+				end if;
 			elsif state_c = NUMBER2 then
 				if akk_done_o = '1' then
 					state_n <= COMMAND2;
@@ -944,28 +972,31 @@ begin
 	-- counters, hctr, vctr, srcx, srcy, chrx, chry
 	counters: block
 
-		signal hctr_ce: std_logic;
-		signal hctr_rs: std_logic;
-		signal vctr_ce: std_logic;
-		signal vctr_rs: std_logic;
+		signal hctr_ce: std_logic := '0';
+		signal hctr_rs: std_logic := '0';
+		signal vctr_ce: std_logic := '0';
+		signal vctr_rs: std_logic := '0';
 
-		signal chrx_ce: std_logic;
-		signal chrx_rs: std_logic;
-		signal chry_ce: std_logic;
-		signal chry_rs: std_logic;
-		signal scrx_ce: std_logic;
-		signal scrx_rs: std_logic;
-		signal scry_ce: std_logic;
-		signal scry_rs: std_logic;
+		signal chrx_ce: std_logic := '0';
+		signal chrx_rs: std_logic := '0';
+		signal chry_ce: std_logic := '0';
+		signal chry_rs: std_logic := '0';
+		signal scrx_ce: std_logic := '0';
+		signal scrx_rs: std_logic := '0';
+		signal scry_ce: std_logic := '0';
+		signal scry_rs: std_logic := '0';
 
-		signal hctr_639: std_logic;
-		signal vctr_479: std_logic;
-		signal chrx_007: std_logic;
-		signal chry_011: std_logic;
+		signal hctr_639: std_logic := '0';
+		signal vctr_479: std_logic := '0';
+		signal chrx_007: std_logic := '0';
+		signal chry_011: std_logic := '0';
 
 		-- RAM read, ROM read
-		signal ram_tmp: integer range 3200 downto 0;  --12 bits
-		signal rom_tmp: integer range 3071 downto 0;
+		signal ram_tmp: unsigned(11 downto 0) := (others => '0'); -- range 3199 downto 0
+		signal mul:     unsigned(15 downto 0) := (others => '0'); 
+		signal rom_tmp: unsigned(11 downto 0) := (others => '0'); -- range 3071 downto 0;
+
+		-- @todo Rename these signals to something more sensible
 	begin
 		u_hctr: work.vga_pkg.ctrm generic map (M => 794) port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
 		u_vctr: work.vga_pkg.ctrm generic map (M => 525) port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
@@ -995,13 +1026,14 @@ begin
 		chry_ce <= hctr_639 and blank;
 		scry_ce <= chry_011 and hctr_639;
 
-		ram_tmp <=  to_integer(to_unsigned(scry,12) sll 4) +
-				to_integer(to_unsigned(scry,12) sll 6) +
-				scrx;
+		ram_tmp <=  (to_unsigned(scry,ram_tmp'length) sll 4) +
+				(to_unsigned(scry,ram_tmp'length) sll 6) +
+				to_unsigned(scrx,ram_tmp'length);
 
-		text_a  <= std_logic_vector(to_unsigned(ram_tmp, 12));
-		rom_tmp <= to_integer(unsigned(text_d)) * 12 + chry;
-		font_a  <= std_logic_vector(to_unsigned(rom_tmp, 12));
+		text_a  <= std_logic_vector(ram_tmp);
+		mul     <= unsigned(text_d) * 12;
+		rom_tmp <= mul(rom_tmp'range) + chry;
+		font_a  <= std_logic_vector(rom_tmp);
 	end block;
 
 	u_losr: work.vga_pkg.losr generic map (N => 8)
@@ -1070,7 +1102,7 @@ entity ctrm is
 end ctrm;
 
 architecture rtl of ctrm is
-	signal c : integer range (M-1) downto 0:= 0;
+	signal c: integer range (M-1) downto 0:= 0;
 begin
 	do <= c;
 	process(rst, clk)

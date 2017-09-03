@@ -183,6 +183,7 @@ location failed           "failed"      ( used in start up routine )
 : ?dup dup if dup then ;   ( n -- 0 | n n : duplicate value if it is not zero )
 : >  swap < ;              ( n1 n2 -- f : signed greater than, n1 > n2 )
 : u> swap u< ;             ( u1 u2 -- f : unsigned greater than, u1 > u2 )
+: u>= u< invert ;          ( u1 u2 -- f : )
 : <> = invert ;            ( n n -- f : not equal )
 : 0<> 0= invert ;          ( n n -- f : not equal  to zero )
 : 0> 0 > ;                 ( n -- f : greater than zero? )
@@ -646,10 +647,10 @@ choice words that need depth checking to get quite a large coverage )
 : color 30 + sgr ;
 \ : hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
 \ : show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
-\ : up    1 [char] A ansi ;
-\ : down  1 [char] B ansi ;
-\ : left  1 [char] C ansi ;
-\ : right 1 [char] D ansi ;
+\ : up    [char] A ansi ; ( n -- )
+\ : down  [char] B ansi ; ( n -- )
+\ : left  [char] C ansi ; ( n -- )
+\ : right [char] D ansi ; ( n -- )
 
 ( ==================== Extra Words =================================== )
 
@@ -701,6 +702,7 @@ as possible so the Forth environment is easy to use. )
 : "'" token find if cfa else 13 -throw then ; immediate
 : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
 : compile  r> dup @ , cell+ >r ; ( -- : Compile next compiled word NB. Works for words, instructions, and numbers below $8000 )
+: "[char]" char literal ; immediate ( --, <string> : )
 : ";" ?compile context @ ! ?csp =exit , ( save )  [ ; immediate
 : ":" align ( save ) !csp here last address ,  token ?nul ?unique count + aligned cp ! ] ;
 : jumpz, 2/ $2000 or , ; hidden
@@ -734,6 +736,9 @@ as possible so the Forth environment is easy to use. )
 	else
 		swap !
 	then ; immediate
+
+: doConst r> @ ; hidden
+: "constant" create ' doConst make-callable here cell- ! , ;
 
 \ : [leave] rdrop rdrop rdrop ; hidden
 \ : leave ?compile compile [leave] ; immediate

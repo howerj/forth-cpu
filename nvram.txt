@@ -110,10 +110,10 @@ this does not have any special significance and is only there
 to make editing easier. Line lengths are limited to 64
 characters wide, each block contains 16 lines.
 
-\ ==== Constant ================================================
-: constant create , does> @ ; 
-: u>= u< invert ;
-: [char] char [compile] literal ; immediate
+\ ==== Empty Block =============================================
+
+
+
 
 
 
