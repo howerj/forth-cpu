@@ -431,8 +431,8 @@ begin
 		do(2) => btnc_d,
 		do(3) => btnl_d,
 		do(4) => btnr_d);
-	
-	dpad_changed: block 
+
+	dpad_changed: block
 		signal changed_signals:     std_logic_vector(4 downto 0) := (others => '0');
 		signal any_changed_signals: std_logic := '0';
 	begin

@@ -1707,7 +1707,7 @@ architecture behav of dual_port_block_ram is
 				if file_type = FILE_BINARY then
 					read(input_line, tmp);
 					ram_data(i) := to_stdlogicvector(tmp);
-				elsif file_type = FILE_HEX then 
+				elsif file_type = FILE_HEX then
 					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 					for j in 1 to (data_length/4) loop
 						c:= input_line((data_length/4) - j + 1);

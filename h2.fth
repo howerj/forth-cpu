@@ -732,7 +732,7 @@ as possible so the Forth environment is easy to use. )
 	call "'" call "'" make-callable
 	state @
 	if
-		literal literal compile ! 
+		literal literal compile !
 	else
 		swap !
 	then ; immediate
@@ -754,7 +754,7 @@ as possible so the Forth environment is easy to use. )
 \ : [?do]
 \    2dup <> if r> dup >r swap rot >r >r cell+ >r exit then 2drop exit ; hidden
 \ : ?do  ?compile compile [?do] 0 , here ; immediate
- 
+
 
 \ : back here cell- @ ; hidden ( a -- : get previous cell )
 \ : call? back $e000 and $4000 = ; hidden ( -- f : is call )
@@ -843,23 +843,23 @@ should be contiguous as well )
 	?page
 	cr
 	.border
-	0 begin 
-		dup l/b < 
-	while 
-		2dup #line ?pipe line $type ?pipe cr 1+ 
+	0 begin
+		dup l/b <
+	while
+		2dup #line ?pipe line $type ?pipe cr 1+
 	repeat .border 2drop ;
 
 : index ( k1 k2 -- : show titles for block k1 to k2 )
-	over - cr 
-	for 
-		dup 5u.r space pipe space dup  0 .line cr 1+ 
-	next drop ; 
+	over - cr
+	for
+		dup 5u.r space pipe space dup  0 .line cr 1+
+	next drop ;
 
 : screens ( k1 k2 -- : list blocks k1 to k2 )
-	over - 
-	for 
-		dup . dup list 1+ nuf? if rdrop drop exit then 
-	next drop ; 
+	over -
+	for
+		dup . dup list 1+ nuf? if rdrop drop exit then
+	next drop ;
 
 ( all words before this are now in the forth vocabulary, it is also set
 later on )
@@ -987,14 +987,14 @@ irq:
 \ 		dup cell+ 0>
 \ 	while
 \ 		\ 2dup dup . + @ r@ dup .  / . cr
-\ 		2dup + @ r@ / 20 + over 2/ swap at-xy [char] _ emit 
+\ 		2dup + @ r@ / 20 + over 2/ swap at-xy [char] _ emit
 \ 		cell-
 \ 	repeat rdrop 2drop ;
-\ 
+\
 \ \ : 2. swap . . cr ;
 \ : ex1
 \ 	79 for r@  pad r@ 2* + ! next pad 80 ;
- 
+
 ( ==================== Miscellaneous ================================= )
 
 ( ==================== Vocabulary Words ============================== )

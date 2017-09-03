@@ -420,7 +420,7 @@ begin
 	-- RIS - Erase Display, ESC 'c'
 	-- SGR - Select Graphic Rendition - for colors, CSI n 'm'
 	-- HVP - Horizontal and Vertical Position - CSI n ; m 'f'
-	-- The cursor commands are also supported: CUU, CUD, CUF, 
+	-- The cursor commands are also supported: CUU, CUD, CUF,
 	-- CUB, CNL, CPL and CHA
 	fsm: process(clk, rst)
 		variable limit_value: unsigned(addr'range) := (others => '0');
@@ -519,7 +519,7 @@ begin
 					exit_repeat := WRITE;
 					repeat      := true;
 				when x"42" => -- CSI n 'B' : CUD Cursor Down
-					y_n         <= y_plus_one_limited; 
+					y_n         <= y_plus_one_limited;
 					exit_repeat := LIMIT;
 					repeat      := true;
 				when x"43" => -- CSI n 'C' : CUF Cursor Forward
@@ -638,7 +638,7 @@ begin
 				end if;
 			elsif state_c = ATTRIB1 then
 				case n1_c is
-				when x"00"  => 
+				when x"00"  =>
 					attr_n    <= attr_default;
 					conceal_n <= false;
 				when x"01"  => attr_n(6) <= '1'; -- bold
@@ -993,7 +993,7 @@ begin
 
 		-- RAM read, ROM read
 		signal ram_tmp: unsigned(11 downto 0) := (others => '0'); -- range 3199 downto 0
-		signal mul:     unsigned(15 downto 0) := (others => '0'); 
+		signal mul:     unsigned(15 downto 0) := (others => '0');
 		signal rom_tmp: unsigned(11 downto 0) := (others => '0'); -- range 3071 downto 0;
 
 		-- @todo Rename these signals to something more sensible

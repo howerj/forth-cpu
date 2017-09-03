@@ -146,7 +146,7 @@ begin
 
 		ps2_keyboard_data => ps2_keyboard_data,
 		ps2_keyboard_clk  => ps2_keyboard_clk,
-	
+
 		RamCS    =>  RamCS,
 		MemOE    =>  MemOE,
 		MemWR    =>  MemWR,
@@ -239,7 +239,7 @@ begin
 		variable iline: line;
 		-- variable oline: line;
 		variable good: boolean := true;
-	begin 
+	begin
 		din_stb <= '0';
 		din     <= x"00";
 		wait until configured;
