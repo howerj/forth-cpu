@@ -1338,13 +1338,9 @@ a Forth system like in "The Zen of eForth by C. H. Ting".
 * Make a bootloader/program loader as a single, simple program
 * Make diagrams of the SoC layout, take GIFs and pictures of the simulators and
 the running board.
-* Add documentation for the [Nexys3][] board in case it is no longer available
-in the future? Also port to different [FPGA][] boards.
 * Make a javascript based simulator for the H2, perhaps with [emscripten][]
 * Move this file to "h2.md" and make a simpler "readme.md" with a short
 description and flashy GIFs
-* Put a help file, and extra source, in some Forth blocks, which could then be
-  loaded onto the Nexys3.
 * Add notes about picocom, and setting up the hardware:
 * Add a [Wishbone interface][] for each component
 * Put the project up on [opencores][]
@@ -1354,6 +1350,19 @@ function calls and floating point operations and the "uint16\_t" would have to
 be changed to "uintptr\_t". As the interpreter is so small a Forth to "C"
 compiler could just spit out a copy of the interpreter. It should make for
 a very compact system. 
+* Spin off the VT100 VHDL code into a separate project, and the C code in the
+simulator into a simple terminal emulator for Unixen.
+* Add some example games, any of the following: Space Invaders, Tetris, Pong,
+Minesweeper, Sokoban, Sudoku, Hack, 2048, Breakout, Brain F\*ck, Conway's 
+Game of Life, and other terminal based games could be added, see
+<https://codegolf.stackexchange.com/questions/52547/minimal-nethack> for a
+minimal version of Nethack, and <https://github.com/rupa/YOU_ARE_DEAD> for a
+cool 1 dimensional game.
+* Other programs like a compressor, decompressor, ARC4, data base function based
+around blocks, and a meta compiler (removing the need for the C assembler),
+could be added.
+
+
 
 <!-- -->
 

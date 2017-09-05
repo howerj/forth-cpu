@@ -41,6 +41,7 @@
 #define CYCLE_MINIMUM    (10000)
 #define CYCLE_HYSTERESIS (2.0)
 #define TARGET_FPS       (30.0)
+#define BACKGROUND_ON    (false)
 
 typedef struct {
 	double window_height;
@@ -252,11 +253,23 @@ static int draw_string(const char *msg)
 	return draw_block((uint8_t*)msg, strlen(msg));
 }
 
+static scale_t font_attributes(void)
+{
+	scale_t scale = { 0., 0.};
+	scale.y = glutStrokeHeight(world.font_scaled);
+	scale.x = glutStrokeWidth(world.font_scaled, 'M');
+	return scale;
+}
 
 static void draw_vt100_char(double x, double y, double scale_x, double scale_y, double orientation, uint8_t c, vt100_attribute_t *attr, bool blink)
 {
+	/*scale_t scale = font_attributes();
+	double char_width  = scale.x / X_MAX;
+       	double char_height = scale.y / Y_MAX;*/
+
 	if(blink && attr->blink)
 		return;
+
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glLoadIdentity();
@@ -267,14 +280,8 @@ static void draw_vt100_char(double x, double y, double scale_x, double scale_y, 
 		draw_char(attr->conceal ? '*' : c);
 		glEnd();
 	glPopMatrix();
-}
-
-static scale_t font_attributes(void)
-{
-	scale_t scale = { 0., 0.};
-	scale.y = glutStrokeHeight(world.font_scaled);
-	scale.x = glutStrokeWidth(world.font_scaled, 'M');
-	return scale;
+	if(BACKGROUND_ON)
+		draw_rectangle_filled(x, y, 1.20, 1.55, attr->background_color);
 }
 
 static int draw_vt100_block(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, vt100_attribute_t *attr, bool blink)
@@ -587,12 +594,6 @@ void draw_terminal(const world_t *world, terminal_t *t, char *name)
 	size_t cursor_x = v->cursor % v->width;
 	size_t cursor_y = v->cursor / v->width;
 
-	for(size_t i = 0; i < t->vt100.height; i++)
-		draw_vt100_block(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*v->width), v->width, v->attributes + (i*v->width), t->blink_on);
-	draw_string_scaled(t->x, t->y - (v->height * char_height), scale_x, scale_y, 0, name, t->color);
-
-	/* fudge factor = 1/((1/scale_x)/X_MAX) ??? */
-
 	if(now > seconds_to_ticks(world, 1.0)) {
 		t->blink_on = !(t->blink_on);
 		t->blink_count = world->tick;
@@ -601,6 +602,13 @@ void draw_terminal(const world_t *world, terminal_t *t, char *name)
 	/**@note the cursor is deliberately in a different position compared to draw_vga(), due to how the VGA cursor behaves in hardware */
 	if((!(v->blinks) || t->blink_on) && v->cursor_on) /* fudge factor of 1.10? */
 		draw_rectangle_filled(t->x + (char_width * 1.10 * (cursor_x)) , t->y - (char_height * cursor_y), char_width, char_height, WHITE);
+
+
+	for(size_t i = 0; i < t->vt100.height; i++)
+		draw_vt100_block(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*v->width), v->width, v->attributes + (i*v->width), t->blink_on);
+	draw_string_scaled(t->x, t->y - (v->height * char_height), scale_x, scale_y, 0, name, t->color);
+
+	/* fudge factor = 1/((1/scale_x)/X_MAX) ??? */
 
 	glPopMatrix();
 
