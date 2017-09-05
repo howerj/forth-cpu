@@ -597,7 +597,7 @@ begin
 	uut_lfsr:     work.util.lfsr_tb              generic map(clock_frequency => clock_frequency);
 	uut_ucpu:     work.util.ucpu_tb              generic map(clock_frequency => clock_frequency);
 	uut_rdivider: work.util.restoring_divider_tb generic map(clock_frequency => clock_frequency);
-	uut_debouce:  work.util.debounce_us_tb       generic map(clock_frequency => clock_frequency);
+	uut_debounce: work.util.debounce_us_tb       generic map(clock_frequency => clock_frequency);
 
 	stimulus_process: process
 	begin
@@ -2246,7 +2246,7 @@ entity debounce_us is
 	port(
 		clk:   in  std_logic;
 		di:    in  std_logic;
-		do:    out std_logic);
+		do:    out std_logic := '0');
 end entity;
 
 architecture rtl of debounce_us is

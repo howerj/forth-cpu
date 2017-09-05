@@ -304,9 +304,9 @@ begin
 			rstk_we   <= '0';
 			rstk_data <= (others => '0');
 		elsif is_interrupt = '1' then -- Interrupts are similar to a call
-			rstkp_n   <= rstkp_c;
+			rstkp_n   <= rstkp_c + 1;
 			rstk_we   <= '1';
-			rstk_data <= "00" & pc_c & "0"; -- return to current instruction
+			rstk_data <= "00" & pc_plus_one & "0";
 		elsif is_instr.lit = '1' then
 			assert to_integer(vstkp_c) + 1 < stack_size;
 
