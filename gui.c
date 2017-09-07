@@ -6,6 +6,9 @@
  * @todo Allow the setting of the background color of a text string.
  * @todo A terminal emulator as a separate program could be hacked together
  * from the components in this module, this would be a separate program.
+ * @todo Speed up the background color drawing by generating a texture,
+ * see <http://www.glprogramming.com/red/chapter09.html>
+ * @todo Add command line options
  */
 
 #include "h2.h"
@@ -42,6 +45,7 @@
 #define CYCLE_HYSTERESIS (2.0)
 #define TARGET_FPS       (30.0)
 #define BACKGROUND_ON    (false)
+#define SIM_HACKS        (true)
 
 typedef struct {
 	double window_height;
@@ -1297,6 +1301,8 @@ int main(int argc, char **argv)
 	errno = 0;
 	if((nvram_fh = fopen(nvram_file, "rb"))) {
 		fread(h2_io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
+		if(SIM_HACKS)
+			memcpy(h2_io->soc->vram, h2_io->soc->flash.nvram, CHIP_MEMORY_SIZE);
 		fclose(nvram_fh);
 	} else {
 		debug("nvram file read (from %s) failed: %s", nvram_file, strerror(errno));

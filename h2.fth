@@ -360,7 +360,9 @@ choice words that need depth checking to get quite a large coverage )
 : mod  /mod drop ;           ( n n -- r )
 : /    /mod nip ;            ( n n -- q )
 : *    um* drop ;            ( n n -- n )
-: radix base @ dup 2 - 34 u> if 10 base ! 40 -throw then ; hidden
+: decimal 10 base ! ;                       ( -- )
+: hex     16 base ! ;                       ( -- )
+: radix base @ dup 2 - 34 u> if decimal 40 -throw then ; hidden
 : digit  9 over < 7 and + 48 + ; hidden      ( u -- c )
 : extract  0 swap um/mod swap ; hidden       ( n base -- n c )
 : ?hold hld @ cp @ u< if 17 -throw then ; hidden ( -- )
@@ -370,8 +372,6 @@ choice words that need depth checking to get quite a large coverage )
 : #  1depth radix extract digit hold ;       ( u -- u )
 : #s begin # dup while repeat ;              ( u -- 0 )
 : <#  pad hld ! ;                            ( -- )
-: decimal  10 base ! ;                       ( -- )
-: hex  16 base ! ;                           ( -- )
 : str dup >r abs <# #s r> sign #> ; hidden   ( n -- b u : convert a signed integer to a numeric string )
 \ :  .r >r str r> over - spaces type ;       ( n n : print n, right justified by +n )
 : u.r >r <# #s #> r> over - spaces type ;    ( u +n -- : print u right justified by +n)
@@ -516,7 +516,7 @@ choice words that need depth checking to get quite a large coverage )
 : parse >r tib >in @ + #tib @ >in @ - r> parser >in +! -trailing 0 max ; ( c -- b u ; <string> )
 : ) ; immediate
 : "(" 41 parse 2drop ; immediate
-: .( 41 parse type ; immediate
+: .( 41 parse type ; 
 : "\" #tib @ >in ! ; immediate
 : ?length dup word-length u> if 19 -throw then ; hidden
 : word 1depth parse ?length here pack$ ;          ( c -- a ; <string> )
@@ -532,7 +532,7 @@ choice words that need depth checking to get quite a large coverage )
 : .error ( n -- )
 	abs dup 60 < loaded @ and
 	if
-		32 + _message @execute
+		dup l/b / + 32 + _message @execute
 	else
 		negate . cr
 	then ; hidden
@@ -549,7 +549,9 @@ choice words that need depth checking to get quite a large coverage )
 : ?dictionary dup $3f00 u> if 8 -throw then ; hidden
 : , here dup cell+ ?dictionary cp ! ! ; ( u -- )
 : doLit 0x8000 or , ; hidden
+: ?compile state @ 0= if 14 -throw then ; hidden ( fail if not compiling )
 : literal ( n -- : write a literal into the dictionary )
+	?compile
 	dup 0x8000 and ( n > $7fff ? )
 	if
 		invert doLit =invert , ( store inversion of n the invert it )
@@ -700,14 +702,14 @@ as possible so the Forth environment is easy to use. )
 : ?csp sp@ csp @ xor if 22 -throw then ; hidden
 : +csp csp 1+! ; hidden
 : -csp csp 1-! ; hidden
-: ?compile state @ 0= if 14 -throw then ; hidden ( fail if not compiling )
 : ?unique dup last search if drop redefined print cr else drop then ; hidden ( a -- a )
 : ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
 : "'" token find if cfa else 13 -throw then ; immediate
 : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
 : compile  r> dup @ , cell+ >r ; ( -- : Compile next compiled word NB. Works for words, instructions, and numbers below $8000 )
 : "[char]" char literal ; immediate ( --, <string> : )
-: ";" ?compile context @ ! ?csp =exit , ( save )  [ ; immediate
+: ?quit state @ 0= if 56 -throw then ; hidden
+: ";" ?quit ( ?compile ) context @ ! ?csp =exit , ( save )  [ ; immediate
 : ":" align ( save ) !csp here last address ,  token ?nul ?unique count + aligned cp ! ] ;
 : jumpz, 2/ $2000 or , ; hidden
 : jump, 2/ ( $0000 or ) , ; hidden
@@ -831,15 +833,14 @@ should be contiguous as well )
 : line swap block swap c/l * + c/l ; hidden ( k u -- a u )
 : loadline line evaluate ; hidden ( k u -- )
 : load 0 l/b 1- for 2dup >r >r loadline r> r> 1+ next 2drop ;
-\ : load block b/buf evaluate ;
-\ : --> 1 +block load ;
-\ : scr blk ;
 : pipe 124 emit ; hidden
 : .line line -trailing $type ; hidden
 : .border border @ if 3 spaces c/l 45 nchars cr then ; hidden
 : #line border @ if dup 2 u.r then ; hidden ( u -- u : print line number )
 : ?pipe border @ if pipe then ; hidden
 : ?page border @ if page then ; hidden
+( @todo 'thru' should catch -56, or QUIT, and continue with next block )
+\ : ?load ' load catch dup -56 <> if throw then drop ; 
 : thru over - for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
 : message l/b extract .line cr ; ( u -- )
@@ -864,6 +865,9 @@ should be contiguous as well )
 	for
 		dup . dup list 1+ nuf? if rdrop drop exit then
 	next drop ;
+
+\ : --> 1 +block load ;
+\ : scr blk ;
 
 ( all words before this are now in the forth vocabulary, it is also set
 later on )

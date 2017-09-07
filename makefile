@@ -116,7 +116,7 @@ nvram.blk: nvram.txt h2.sym block${EXE}
 #	${DF}block${EXE} < $< > $@
 
 run: h2${EXE} h2.fth nvram.blk
-	${DF}h2 -R h2.fth
+	${DF}h2 -H -R h2.fth
 
 h2nomain.o: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 -DNO_MAIN  $< -c -o $@

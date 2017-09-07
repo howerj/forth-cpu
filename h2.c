@@ -1119,6 +1119,8 @@ void vt100_update(vt100_t *t, uint8_t c)
 			t->cursor++;
 		}
 		if(t->cursor >= t->size) {
+			/**@bug This should copy the default attribute, not the current
+			 * attribute */
 			for(size_t i = 0; i < t->size; i++)
 				memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
 			memset(t->m, ' ', t->size);
@@ -3668,6 +3670,7 @@ typedef struct {
 	long steps;
 	bool full_disassembly;
 	bool debug_mode;
+	bool hacks;
 	const char *nvram;
 } command_args_t;
 
@@ -3686,6 +3689,7 @@ Options:\n\n\
 \t-D\tfull disassembly of input files\n\
 \t-T\tEnter debug mode when running simulation\n\
 \t-a\tassemble file\n\
+\t-H\tenable hacks to make the simulation easier to use\n\
 \t-r\trun hex file\n\
 \t-R\tassemble file then run it\n\
 \t-L #\tload symbol file\n\
@@ -3731,15 +3735,19 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 	io = h2_io_new();
 	assert(VGA_BUFFER_LENGTH <= VT100_MAX_SIZE);
 	for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++) {
+		/** @todo Handle attribute copying as well */
 		io->soc->vt100.m[i]          = vga_initial_contents[i] & 0xff;
 		/*io->soc->vt100.attributes[i] = (vga_initial_contents[i] >> 8u) & 0xff;*/
 	}
 
-	/**@warning This is a lazy way to serialization data and will fail on
-	 * different endianess machines, but this does not matter that much */
+	/**@todo This is a lazy way to serialization data and will fail on
+	 * different endianess machines, but this does not matter that much,
+	 * this needs fixing */
 	errno = 0;
 	if((nvram_fh = fopen(cmd->nvram, "rb"))) {
 		fread(io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
+		if(cmd->hacks)
+			memcpy(io->soc->vram, io->soc->flash.nvram, CHIP_MEMORY_SIZE);
 		fclose(nvram_fh);
 	} else {
 		debug("nvram file read (from %s) failed: %s", cmd->nvram, strerror(errno));
@@ -3751,6 +3759,7 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 
 	errno = 0;
 	if((nvram_fh = fopen(cmd->nvram, "wb"))) {
+		/**@todo make this portable */
 		fwrite(io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
 		/*memory_save(nvram_fh, io->soc->nvram, CHIP_MEMORY_SIZE);*/
 		fclose(nvram_fh);
@@ -3803,7 +3812,6 @@ int h2_main(int argc, char **argv)
 	_setmode(_fileno(stdout), _O_BINARY);
 	_setmode(_fileno(stderr), _O_BINARY);
 #endif
-
 	{ /* attempt to load initial contents of VGA memory */
 		errno = 0;
 		FILE *vga_init = fopen(VGA_INIT_FILE, "rb");
@@ -3884,6 +3892,9 @@ int h2_main(int argc, char **argv)
 			cmd.nvram = argv[++i];
 			note("nvram file %s", cmd.nvram);
 			break;
+		case 'H':
+			cmd.hacks = true;
+			break;
 		default:
 		fail:
 			fatal("invalid argument '%s'\n%s\n", argv[i], help);
@@ -3891,6 +3902,7 @@ int h2_main(int argc, char **argv)
 	}
 	if(!symbols)
 		symbols = symbol_table_new();
+
 done:
 	if(i == argc) {
 		if(command(&cmd, stdin, stdout, symbols, vga_initial_contents) < 0)

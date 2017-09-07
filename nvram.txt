@@ -14,7 +14,7 @@
 
 
 
-\ ==== Short Help ==============================================
+; ==== Short Help ==============================================
 
 
 A short list of commands
@@ -30,7 +30,7 @@ or hexadecimal. It is based on eForth.
 
 
 
-\ ====  The Forth Error Messages: contained within 4 screens ==
+; ==== Forth Error Messages: 1/4 ==============================
   -1 ABORT
   -2 ABORT"
   -3 stack overflow
@@ -46,6 +46,7 @@ or hexadecimal. It is based on eForth.
  -13 undefined word
  -14 interpreting a compile-only word
  -15 invalid FORGET
+; ==== Forth Error Messages: 2/4 ==============================
  -16 attempt to use zero-length string as a name
  -17 pictured numeric output string overflow
  -18 parsed string overflow
@@ -61,8 +62,9 @@ or hexadecimal. It is based on eForth.
  -28 user interrupt
  -29 compiler nesting
  -30 obsolescent feature
+; ==== Forth Error Messages: 3/4 ==============================
  -31 >BODY used on non-CREATEd definition
- -32 invalid name argument [e.g., TO xxx]
+ -32 invalid name argument (e.g., TO xxx)
  -33 block read exception
  -34 block write exception
  -35 invalid block number
@@ -76,6 +78,7 @@ or hexadecimal. It is based on eForth.
  -43 floating-point result out of range
  -44 floating-point stack overflow
  -45 floating-point stack underflow
+; ==== Forth Error Messages: 4/4 ==============================
  -46 floating-point invalid argument
  -47 compilation word list deleted
  -48 invalid POSTPONE
@@ -90,11 +93,8 @@ or hexadecimal. It is based on eForth.
  -57 exception in sending or receiving a character
  -58 [IF], [ELSE], or [THEN] exception
 
-The previous lines are used for printing error messages, the
-Forth word 'message' is used to index into this document.
 
-
-\ ==== Description of this file ================================
+; ==== Description of this file ================================
 The next screens contain extra code that can be loaded into the
 interpreter if needed. Some of the standard Forth words are
 placed here instead of in the image to save on space.
@@ -110,7 +110,7 @@ this does not have any special significance and is only there
 to make editing easier. Line lengths are limited to 64
 characters wide, each block contains 16 lines.
 
-\ ==== Empty Block =============================================
+; ==== Empty Block =============================================
 
 
 
@@ -334,7 +334,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 
 
 
-\ ==== eForth v6.66: Help and Tutorial =========================
+; ==== eForth v6.66: Help and Tutorial =========================
 
 This Forth is modeled after eForth, described in a book by
 C.H. Ting called "eForth Overview", or "The Zen of eForth". It
@@ -350,7 +350,7 @@ Digilent, with words and peripherals designed for it.
 For more see: <https://github.com/howerj/forth-cpu>
 
 
-\ ==== Help: Introduction ======================================
+; ==== Help: Introduction ======================================
 
 Forth is a simple, imperative, stack based language that mixes
 elements of a high level language with a low level language. It
@@ -366,7 +366,7 @@ create reusable and maintainable software components.
 However it is still suitable for a number of purposes; for
 assemblers, to bring up hardware and test it, in memory
 constrained systems, as a boot loader, and for fun.
-\ ==== Help: Philosophy of Forth ===============================
+; ==== Help: Philosophy of Forth ===============================
 Forth itself has its own philosophy, one in which the programmer
 should have a complete understanding of the system, from the
 problem that needs to be solved, the algorithms needed to solve
@@ -382,7 +382,7 @@ it (as with Lisp, and other niche systems) so it is important
 to be pragmatic about Forth. Forth is simply a tool and when
 used correctly can be used productively.
 
-\ ==== Help: Basics 1/6 ========================================
+; ==== Help: Basics 1/6 ========================================
 A Forth system contains an interactive interpreter that parses
 text and either compiles or executes functions, called 'words'
 in Forth terminology. The system uses Reverse Polish Notation
@@ -398,7 +398,7 @@ or not.
 
 This tutorial will describe how to use Forth and how the
 interpreter works internally.
-\ ==== Help: Basics 2/6 ========================================
+; ==== Help: Basics 2/6 ========================================
 To start with, simple expressions can be entered and the
 results displayed. A line is evaluated after the carriage
 return is entered, code will be indented, this can be typed in.
@@ -414,7 +414,7 @@ line has been successfully compiled, unless we are in compile
 mode. '+' obviously does the addition, and '.' pops a value
 off the stack an prints it. Entering a number pushes it onto
 the data stack.
-\ ==== Help: Basics 3/6 ========================================
+; ==== Help: Basics 3/6 ========================================
 The data, or variable, stack is a general purpose stack that
 the programmer uses to pass data to functions, and to return
 data from functions. The stacks are an important concept
@@ -430,7 +430,7 @@ when the second '2' is input, it is also pushed onto the stack.
 The Forth word '+' takes two arguments off the stack, adds them
 together and pushes the result back onto the stack. The word
 '.' pops a single number off the stack and prints it.
-\ ==== Help: Basics 4/6 ========================================
+; ==== Help: Basics 4/6 ========================================
 Manipulating the stack will be difficult at first, but gets
 easier over time. There are standard words for stack
 manipulation and a standard methodology for describing
@@ -446,7 +446,7 @@ is:
 All text between '(' and the ')' is discarded by the Forth
 system. This comment describes a word that accepts two
 signed numbers "n n", and returns a signed number "n".
-\ ==== Help: Basics 5/6 ========================================
+; ==== Help: Basics 5/6 ========================================
 The "--" divides the comment into what the stack looks like
 before execution of the word (to the left of "--") and what it
 looks like after (to the right of "--"). A comment on the
@@ -462,7 +462,7 @@ comments:
 Stack effects are sometimes numbered, which is used to
 so the effects on specific arguments can be documented if
 the order of arguments and return values matter.
-\ ==== Help: Basics 6/6 ========================================
+; ==== Help: Basics 6/6 ========================================
 Some more words with comments:
 
   @    ( a -- u : load value from memory address )
@@ -478,7 +478,7 @@ to describe the type of the arguments that the word accepts.
 an address and a value. "<" takes two signed numbers, "u<"
 takes two unsigned numbers and produces a flag. Type checking
 is not performed by Forth and is up to the programmer.
-\ ==== Help: Stack Comments ====================================
+; ==== Help: Stack Comments ====================================
 Here is a list of stack type descriptions and what they mean:
 | Comment  | Meaning                             |
 |----------|-------------------------------------|
@@ -494,7 +494,7 @@ Here is a list of stack type descriptions and what they mean:
 | nfa      | name field address of a word        |
 | pwd      | previous word address of a word     |
 | <string> | a parsing word                      |
-\ ==== Help: Expressions =======================================
+; ==== Help: Expressions =======================================
 Let us continue on with some interactive examples before we
 start to define new words. Before we saw a trivial example
 of adding two numbers together, we will go over a few more
@@ -510,7 +510,7 @@ Negative numbers can be input by prefixing the number with
 
   -2 4 * . ( Display -8 )
 
-\ ==== Help: Numeric Output 1/2 ================================
+; ==== Help: Numeric Output 1/2 ================================
 The word '.' pops a value off the stack before displaying it,
 if we want to examine the stack without popping the value we
 can print out the entire contents of the stack with '.s':
@@ -526,7 +526,7 @@ prints a memory dump of a region of memory.
 
   dump ( a u -- )
   ?    ( a -- )
-\ ==== Help: Numeric Output 2/2 ================================
+; ==== Help: Numeric Output 2/2 ================================
 Hexadecimal numbers can be entered if the base input and output
 base is 16, or by prefixing the number with '$'.
 
@@ -542,7 +542,7 @@ the stack when they are called. They can be read or set with
 '@' and '!'. For example, "$10 base !" and "hex" are 
 equivalent, as are "$a base !" and "decimal".
 
-\ ==== Help: Word Definitions 1/2 ==============================
+; ==== Help: Word Definitions 1/2 ==============================
 For the moment we have not covered how words are defined and
 is a good time to do so, the word ":" is used to create a new
 word definition and the word ";" is used to terminate one.
@@ -558,7 +558,7 @@ We can then use square like any other word:
   4 square .  ( prints 16 )
   -5 square . ( prints 25 )
 
-\ ==== Help: Word Definitions 2/2 ==============================
+; ==== Help: Word Definitions 2/2 ==============================
 'hex' and 'decimal' are defined as:
 
   : hex $10 base ! ;
@@ -574,7 +574,7 @@ And simple Forth words likewise defined:
   
 It is best to keep all Forth words as short as possible and
 reuse code as much as possible.
-\ ==== Help: Interpreter Loop 1/3 ==============================
+; ==== Help: Interpreter Loop 1/3 ==============================
 All functions, control structures, defining words such as ":",
 and simple functions like "square" or "hex" are simply Forth
 words, which are either defined in terms of other Forth words
@@ -590,7 +590,7 @@ mode, a call to the word is compiled (or an assembly
 instruction is inlined) and numbers of turned into literals
 that push their value when run.
 
-\ ==== Help: Interpreter Loop 2/3 ==============================
+; ==== Help: Interpreter Loop 2/3 ==============================
 There is a special class of words called "immediate" words, ";"
 is an immediate word, when it is encountered instead of being
 compiled into the dictionary it is executed, it compiles an
@@ -606,7 +606,7 @@ end of line respectively.
 Variables, strings, and defining words (defining words are
 that create new words) are all simply Forth words that are
 either compiling or immediate, their is no special syntax.
-\ ==== Help: Interpreter Loop 3/3 ==============================
+; ==== Help: Interpreter Loop 3/3 ==============================
 The command loop goes like this:
 Start) Fetch a space delimited word, find it in the dictionary
    Found) Is the system in compile mode?
@@ -622,7 +622,7 @@ Start) Fetch a space delimited word, find it in the dictionary
 This simple loop is invoked by the work 'quit' which uses
 'query' to fetch and parse the input and 'interpreter' to
 perform the state dependent action.
-\ ==== Help: Control Structures 1/10 ===========================
+; ==== Help: Control Structures 1/10 ===========================
 This will give you some idea what is going on when control
 structures are covered in the following blocks. Control
 structures can only be used within a word definition, that
@@ -638,7 +638,7 @@ Some of the control structures available to Forth are:
   begin ... until
   begin ... again
   begin ... while ... repeat
-\ ==== Help: Control Structures 2/10 ===========================
+; ==== Help: Control Structures 2/10 ===========================
 Recursion is also available with the 'recurse' word. There
 are more advance control flow methods available that will be
 described later (such as 'catch', 'throw' and manipulating the
@@ -654,7 +654,7 @@ negative, their stack effect comments are:
 
   0<     ( n -- f )
   negate ( n -- n )
-\ ==== Help: Control Structures 3/10 ===========================
+; ==== Help: Control Structures 3/10 ===========================
 The word 'abs' is then defined as:
 
   : abs dup 0< if negate then ;
@@ -670,7 +670,7 @@ word 'abs' as soon as we terminate the definition with ";":
    4 abs . ( displays 4 )
 
 This Forth uses two complements to represent negative numbers.
-\ ==== Help: Control Structures 4/10 ===========================
+; ==== Help: Control Structures 4/10 ===========================
 A number can be negated in twos compliment form by performing
 a bitwise not on the number and adding one to it, this is what
 the word 'negate' does.
@@ -686,7 +686,7 @@ two numbers.
    4 3 min . ( prints 3 )
    4 3 max . ( prints 4 )
 
-\ ==== Help: Control Structures 5/10 ===========================
+; ==== Help: Control Structures 5/10 ===========================
 Whilst control structures can be nested very deeply it is
 considered very bad practice to do, instead the definition
 should be refactored so it consists of short (preferably one
@@ -702,7 +702,7 @@ a single character from the input device, it blocks until there
 is input. It uses a word called "key?" which returns a variable
 number of items on the stack depending on whether there is
 new input from the user.
-\ ==== Help: Control Structures 6/10 ===========================
+; ==== Help: Control Structures 6/10 ===========================
 The stack comments for "key?" and "key" are:
 
   key? ( -- c -1 | 0 )
@@ -718,7 +718,7 @@ in terms of "key?" with:
 
 This simply loops until there is a new character of input.
 
-\ ==== Help: Control Structures 7/10 ===========================
+; ==== Help: Control Structures 7/10 ===========================
 Some contrived examples, using the standard metasyntactic
 variable name "foo":
 
@@ -734,7 +734,7 @@ If zero is given this will underflow and wrap around to $FFFF
 and continue the loop 65536 times which is probably not
 intended.
 
-\ ==== Help: Control Structures 8/10 ===========================
+; ==== Help: Control Structures 8/10 ===========================
 Indefinite loops can be made with "begin...again", the
 following word "bar" simply repeatedly prints out "1":
 
@@ -750,7 +750,7 @@ until a variable is not true:
   2       ( <-- then 2 )
   1       ( <-- then 1 )
 
-\ ==== Help: Control Structures 9/10 ===========================
+; ==== Help: Control Structures 9/10 ===========================
 eForth provides another control structure, the "for...next" loop
 which allows the Forth programmer to create counted loops. The
 "for" loop takes a single variable, it stores this variable on
@@ -766,7 +766,7 @@ keeps the conditional value.
   1
   0 ( <-- prints zero as well! )
 
-\ ==== Help: Control Structures 10/10 ==========================
+; ==== Help: Control Structures 10/10 ==========================
 The "for...next" construct can be modified with the "aft" and
 "then" construct, which is not executed on the first run of the
 loop.
@@ -782,7 +782,7 @@ noted that the control structures are defined words themselves
 again, it is possible to redefine and add your own control
 structures. How this is done will be covered later.
 
-\ ==== Help: Return Stack ======================================
+; ==== Help: Return Stack ======================================
 All Forth systems have at least two stacks along with main 
 memory, they can be implemented in hardware like with this Forth
 or in software. One stack is used to pass data to functions and
@@ -798,7 +798,7 @@ interpreter to crash.
 Some looping constructs use the return stack as well to store
 their loop index, and the 'throw/catch' mechanism manipulates
 control flow a lot.
-\ ==== Help: Return Stack ======================================
+; ==== Help: Return Stack ======================================
 Some words for manipulating the return stack are as follows,
 notice the stack comments describe both stacks here:
 
@@ -814,7 +814,7 @@ notice the stack comments describe both stacks here:
 
 
 
-\ ==== Help: Control Structures ================================
+; ==== Help: Control Structures ================================
 
 
 
@@ -830,7 +830,7 @@ notice the stack comments describe both stacks here:
 
 
 
-\ ==== Help: TO DO =============================================
+; ==== Help: TO DO =============================================
 
 * Describe the system internals
 * eForth primitives
@@ -846,7 +846,7 @@ notice the stack comments describe both stacks here:
 
 
 
-\ ==== Block Editor Help 1/5 ===================================
+; ==== Block Editor Help 1/5 ===================================
 
 The traditional way to store Forth source code and data is as
 Forth blocks, a block is a contiguous array of 1024 characters,
@@ -862,7 +862,7 @@ By default the editor words are not in the Forth search order,
 the words in the editor vocabulary would conflict with Forth
 words (and with hexadecimal numbers). To load the block editor
 execute the 'editor' Forth word. Load initial block with '0 b'.
-\ ==== Block Editor Help 2/5 ===================================
+; ==== Block Editor Help 2/5 ===================================
 The block editor is a prime example of Forth simplicity, it
 both simplifies the problem of editing text and reuses the
 Forth interpreter to define a new command language. Each command
@@ -878,7 +878,7 @@ output to decimal. The commands are terse words, only one or
 two characters in length.
 
 
-\ ==== Block Editor Help 3/5 ===================================
+; ==== Block Editor Help 3/5 ===================================
 The third element of the block editor is the elegant, if some-
 what limited, block word set. It completely abstracts aways the
 task of retrieving data from mass storage and saving modified
@@ -894,7 +894,7 @@ block loaded (and listed) is also used. Most editor commands
 are minor modifications on the behavior of these words.
 
 
-\ ==== Block Editor Help 4/5 ===================================
+; ==== Block Editor Help 4/5 ===================================
 The workhorse of the word set is 'block', it takes a block
 number and if that block number is not currently loaded into a
 block buffer (this system only has one block buffer available)
@@ -910,7 +910,7 @@ any blocks (by storing $FFFF in 'blk'). 'list' displays the
 contents of a block, 'load' evaluates a block and '+block'
 moves to a block relative to the currently loaded one.
 
-\ ==== Block Editor Help 5/5 ===================================
+; ==== Block Editor Help 5/5 ===================================
 A quick recap of the block words:
 
 block        ( k -- u : load block into buffer )
@@ -926,7 +926,7 @@ These can be used to define simple editor commands, such as:
   : n 1 +block b ;
   : u update ;
 
-\ ==== Block Editor Commands 1/2 ===============================
+; ==== Block Editor Commands 1/2 ===============================
 
 '#' indicates a numeric argument the command takes:
       n    move to next block
@@ -942,7 +942,7 @@ These can be used to define simple editor commands, such as:
       u    update block
       w    list editor commands
       q    back to Forth interpreter
-\ ==== Block Editor Commands 2/2 ===============================
+; ==== Block Editor Commands 2/2 ===============================
 
 
       l    re-list current block
@@ -958,7 +958,7 @@ editor was derived from the Retro Forth block editor, available
 at: <http://retroforth.org/pages/?PortsOfRetroEditor>
 
 
-\ ==== TO DO ===================================================
+; ==== TO DO ===================================================
 
 * Describe the Nexys 3 system, the system on a chip, the
 * List the instruction set, registers, words defined, eForth
@@ -974,7 +974,7 @@ space for the user
 * Better tools for editing this file would help a lot.
 * Move the block editor to this file
 * Full glossary: 1 block per word definition
-\ ==== Empty Block =============================================
+; ==== Empty Block =============================================
 
 
 
@@ -990,7 +990,7 @@ space for the user
 
 
 
-\ ==== Glossary ================================================
+; ==== Glossary ================================================
 
 
 
@@ -1006,7 +1006,8 @@ space for the user
 
 
 
-\ ==== <  ( n1 n2 -- f : signed less than ) ====================
+; ==== <  ( n1 n2 -- f : signed less than ) ====================
+Signed less than.
 
 
 
@@ -1021,8 +1022,9 @@ space for the user
 
 
 
+; ==== <>  ( u1 u2 -- f : not equal ) ==========================
+Not equal to.
 
-\ ==== <>  ( u1 u2 -- f : not equal ) ==========================
 
 
 
@@ -1036,9 +1038,11 @@ space for the user
 
 
 
+; ==== <#  ( -- : prepare numeric output ) =====================
+This is part of the mechanism for pictured numeric output, 
+which should be used from within a word definition only.
 
 
-\ ==== <#  ( -- : prepare numeric output ) =====================
 
 
 
@@ -1050,11 +1054,13 @@ space for the user
 
 
 
+; ==== =  ( u1 u2 -- f : equality of two numbers ) =============
+This is an assembly instruction for testing whether two numbers
+are equal. 
 
 
 
 
-\ ==== =  ( u1 u2 -- f : equality of two numbers ) =============
 
 
 
@@ -1064,13 +1070,13 @@ space for the user
 
 
 
+; ==== >  ( n1 n2 -- f : signed greater than ) =================
 
 
 
 
 
 
-\ ==== >  ( n1 n2 -- f : signed greater than ) =================
 
 
 
@@ -1080,13 +1086,15 @@ space for the user
 
 
 
+; ==== -  ( n1 n2 -- n : twos compliment subtraction ) =========
+This is a word performs subtraction on two numbers in twos
+compliment format. 
 
 
 
 
 
 
-\ ==== -  ( n1 n2 -- n : twos compliment subtraction ) =========
 
 
 
@@ -1094,6 +1102,7 @@ space for the user
 
 
 
+; ==== ,  ( u -- : compile value into dictionary ) =============
 
 
 
@@ -1102,7 +1111,6 @@ space for the user
 
 
 
-\ ==== ,  ( u -- : compile value into dictionary ) =============
 
 
 
@@ -1110,15 +1118,29 @@ space for the user
 
 
 
+; ==== ;  ( -- : terminate a word definition ) =================
+This word terminates a word definition, linking the newly formed
+word into the dictionary. It is an immediate word and performs
+some basic checking to make sure control structures match up. It
+writes an 'exit' into the word and switches the state back into
+command mode. It has another minor usage, if called within
+command it throws -56, for QUIT. This can be used within a block
+to stop execution of it, if 'thru' is used to load block, this
+error is ignored.
 
+Example:
 
+   : 2+ 2 + ; 
+   : count dup 1+ swap c@ ;
+   :noname 9 . ; execute ( <-- prints 9 )
 
+; ==== :  ( -- ; <string> : start a word definition ) ==========
+Start a word definition. 
 
 
 
 
 
-\ ==== ;  ( -- : terminate a word definition ) =================
 
 
 
@@ -1128,13 +1150,15 @@ space for the user
 
 
 
+; ==== !  ( u a -- : store 'u' at address 'a' ) ================
+Store a value in at an address, this is also used to write to
+the memory mapped peripheral registers.
 
 
 
 
 
 
-\ ==== :  ( -- ; <string> : start a word definition ) ==========
 
 
 
@@ -1142,6 +1166,10 @@ space for the user
 
 
 
+; ==== ?  ( a -- : print value at address ) ====================
+Print a value out from an address, this is effected by the
+output radix stored in 'base'. This word uses the area between
+PAD area and the end of the dictionary.
 
 
 
@@ -1150,11 +1178,15 @@ space for the user
 
 
 
-\ ==== !  ( u a -- : store 'u' at address 'a' ) ================
 
 
 
 
+; ==== /  ( n1 n2 -- q: divide n1 by n2 ) ======================
+Signed and floored division of the second value on the stack by
+the first. This will throw and error if the divisor is zero.
+This is a particularly slow operation, as the H2 CPU does not
+a built in division operation.
 
 
 
@@ -1166,7 +1198,13 @@ space for the user
 
 
 
-\ ==== ?  ( a -- : print value at address ) ====================
+; ==== .  ( n -- : print number out in current base ) ==========
+Print a space, then a signed number (if the output radix is ten
+then a '-' is printed before the number if it is less than zero,
+if the output radix is not ten, then it is just printed out as
+an unsigned number). This word uses the area after the
+dictionary and before the start of the pad area, it is not a
+reentrant function.
 
 
 
@@ -1176,18 +1214,25 @@ space for the user
 
 
 
+; ==== ."  ( -- ; <string> : compile string into word ) ========
+This word is an immediate word that compiles a string into a
+word definition (it should only be used from within a word
+definition). When the word is run it will print out the string.
 
+The string is terminated by a double quote.
 
 
 
 
 
-\ ==== /  ( n1 n2 -- q: divide n1 by n2 ) ======================
 
 
 
 
 
+; ==== .(  ( -- ; <string> : print out line until ')' ) ========
+This word prints out a string until the matching ')' is 
+encountered. It is not an immediate word.
 
 
 
@@ -1198,10 +1243,13 @@ space for the user
 
 
 
-\ ==== .  ( n -- : print number out in current base ) ==========
 
 
 
+; ==== '  ( -- xt ; <string> : return a word execution token ) =
+This word parses the next word in the input stream and returns
+its execution token if the word is found. It is an immediate
+word. If the word is not found it throws an exception.
 
 
 
@@ -1214,7 +1262,10 @@ space for the user
 
 
 
-\ ==== ."  ( -- ; <string> : compile string into word ) ========
+; ==== (  ( -- ; <string> : comment until ')' ) ================
+This is an immediate word used for comments, it discards all
+input until the matching ')' is encountered. It can be used
+within blocks.
 
 
 
@@ -1227,10 +1278,12 @@ space for the user
 
 
 
+; ==== )  ( -- : do nothing ) ==================================
+This is a word that does nothing. It is an immediate word. It
+has no function.
 
 
 
-\ ==== .(  ( -- ; <string> : print out line until ')' ) ========
 
 
 
@@ -1241,12 +1294,14 @@ space for the user
 
 
 
+; ==== [  ( -- : change compile state to command mode ) ========
+An immediate word for changing the state of the interpreter loop
+into the command state. It can be used within a word definition.
 
 
 
 
 
-\ ==== '  ( -- xt ; <string> : return a word execution token ) =
 
 
 
@@ -1255,6 +1310,10 @@ space for the user
 
 
 
+; ==== ]  ( -- : change compile state to compile mode ) ========
+A normal, compiling word, which turns the interpreter state into
+compile mode. Words and numbers after (apart from immediate
+words) are compiled into the dictionary.
 
 
 
@@ -1262,12 +1321,14 @@ space for the user
 
 
 
-\ ==== (  ( -- ; <string> : comment until ')' ) ================
 
 
 
 
 
+; ==== @  ( a -- u : load value from address ) =================
+Retrieve a value from memory location 'a'. It can be used to
+read from the memory mapped registers as well.
 
 
 
@@ -1278,10 +1339,14 @@ space for the user
 
 
 
-\ ==== )  ( -- : do nothing ) ==================================
 
 
 
+; ==== $"  ( -- ; <string> : compile string into word ) ========
+This is an immediate word that can only be used in a word
+definition, it compiles a string into the dictionary, when it
+runs it pushes the address of the counted string compiled into
+the word.
 
 
 
@@ -1293,8 +1358,10 @@ space for the user
 
 
 
+; ==== *  ( u1 u2 -- u3 : multiple two numbers ) ===============
+Multiply two numbers and push the result onto the stack. This is
+a slow operation, as there is not a built in multiply operation.
 
-\ ==== [  ( -- : change compile state to command mode ) ========
 
 
 
@@ -1307,10 +1374,13 @@ space for the user
 
 
 
+; ==== \  ( -- ; <string> : comment until end of line ) ========
+Comment until end of input line, this word works within blocks
+as well, where it is a comment until the end of the block line.
+It is an immediate word.
 
 
 
-\ ==== ]  ( -- : change compile state to compile mode ) ========
 
 
 
@@ -1320,13 +1390,13 @@ space for the user
 
 
 
+; ==== #  ( u -- u : extract numeric character from u ) ========
 
 
 
 
 
 
-\ ==== @  ( a -- u : load value from address ) =================
 
 
 
@@ -1336,13 +1406,13 @@ space for the user
 
 
 
+; ==== #>  ( u -- b u : return converted number string ) =======
 
 
 
 
 
 
-\ ==== $"  ( -- ; <string> : compile string into word ) ========
 
 
 
@@ -1352,13 +1422,13 @@ space for the user
 
 
 
+; ==== +  ( u1 u2 -- u3 : add two numbers together ) ===========
 
 
 
 
 
 
-\ ==== *  ( u1 u2 -- u3 : multiple two numbers ) ===============
 
 
 
@@ -1368,13 +1438,13 @@ space for the user
 
 
 
+; ==== +!  ( u a -- : add 'u' to value 'a' ) ===================
 
 
 
 
 
 
-\ ==== \  ( -- ; <string> : comment until end of line ) ========
 
 
 
@@ -1384,13 +1454,13 @@ space for the user
 
 
 
+; ==== 0<  ( n -- f : 'n' less than zero? ) ====================
 
 
 
 
 
 
-\ ==== #  ( u -- u : extract numeric character from u ) ========
 
 
 
@@ -1400,13 +1470,13 @@ space for the user
 
 
 
+; ==== 0<>  ( n -- f : 'n' not equal to zero? ) ================
 
 
 
 
 
 
-\ ==== #>  ( u -- b u : return converted number string ) =======
 
 
 
@@ -1416,13 +1486,13 @@ space for the user
 
 
 
+; ==== 0=  ( n -- f : 'n' equal to zero? ) =====================
 
 
 
 
 
 
-\ ==== +  ( u1 u2 -- u3 : add two numbers together ) ===========
 
 
 
@@ -1432,13 +1502,13 @@ space for the user
 
 
 
+; ==== 0>  ( n -- f : 'n' greater than zero? ) =================
 
 
 
 
 
 
-\ ==== +!  ( u a -- : add 'u' to value 'a' ) ===================
 
 
 
@@ -1448,13 +1518,13 @@ space for the user
 
 
 
+; ==== 1-  ( u -- u : decrement u ) ============================
 
 
 
 
 
 
-\ ==== 0<  ( n -- f : 'n' less than zero? ) ====================
 
 
 
@@ -1464,13 +1534,13 @@ space for the user
 
 
 
+; ==== 1+  ( u -- u : increment u ) ============================
 
 
 
 
 
 
-\ ==== 0<>  ( n -- f : 'n' not equal to zero? ) ================
 
 
 
@@ -1480,13 +1550,13 @@ space for the user
 
 
 
+; ==== 1+!  ( a -- : increment value at 'a' by one ) ===========
 
 
 
 
 
 
-\ ==== 0=  ( n -- f : 'n' equal to zero? ) =====================
 
 
 
@@ -1496,13 +1566,13 @@ space for the user
 
 
 
+; ==== 2!  ( u1 u2 a -- : store u1 and u2 at two cells ) =======
 
 
 
 
 
 
-\ ==== 0>  ( n -- f : 'n' greater than zero? ) =================
 
 
 
@@ -1512,13 +1582,13 @@ space for the user
 
 
 
+; ==== 2/  ( u -- u : divide 'u' by two ) ======================
 
 
 
 
 
 
-\ ==== 1-  ( u -- u : decrement u ) ============================
 
 
 
@@ -1528,13 +1598,13 @@ space for the user
 
 
 
+; ==== 2@  ( a -- u1 u2 : retrieve two cells ) =================
 
 
 
 
 
 
-\ ==== 1+  ( u -- u : increment u ) ============================
 
 
 
@@ -1544,13 +1614,13 @@ space for the user
 
 
 
+; ==== 2*  ( u -- u : multiply 'u' by two ) ====================
 
 
 
 
 
 
-\ ==== 1+!  ( a -- : increment value at 'a' by one ) ===========
 
 
 
@@ -1560,13 +1630,13 @@ space for the user
 
 
 
+; ==== 2drop  ( u u -- : drop two values from the stack ) ======
 
 
 
 
 
 
-\ ==== 2!  ( u1 u2 a -- : store u1 and u2 at two cells ) =======
 
 
 
@@ -1576,13 +1646,13 @@ space for the user
 
 
 
+; ==== 2dup  ( u1 u2 -- u1 u2 u1 u2 : duplicate two values ) ===
 
 
 
 
 
 
-\ ==== 2/  ( u -- u : divide 'u' by two ) ======================
 
 
 
@@ -1592,13 +1662,13 @@ space for the user
 
 
 
+; ==== abort  ( ? --, R: ? -- ? : throw abort exception ) ======
 
 
 
 
 
 
-\ ==== 2@  ( a -- u1 u2 : retrieve two cells ) =================
 
 
 
@@ -1608,13 +1678,13 @@ space for the user
 
 
 
+; ==== abort" ( ? --, R: ? -- ?, <string>: abort with string ) =
 
 
 
 
 
 
-\ ==== 2*  ( u -- u : multiply 'u' by two ) ====================
 
 
 
@@ -1624,13 +1694,13 @@ space for the user
 
 
 
+; ==== abs  ( n -- u : absolute value of a number ) ============
 
 
 
 
 
 
-\ ==== 2drop  ( u u -- : drop two values from the stack ) ======
 
 
 
@@ -1640,13 +1710,13 @@ space for the user
 
 
 
+; ==== accept  ( b u -- b u : accept a line ) ==================
 
 
 
 
 
 
-\ ==== 2dup  ( u1 u2 -- u1 u2 u1 u2 : duplicate two values ) ===
 
 
 
@@ -1656,13 +1726,13 @@ space for the user
 
 
 
+; ==== aft  ( -- : part of for...aft...then...next ) ===========
 
 
 
 
 
 
-\ ==== abort  ( ? --, R: ? -- ? : throw abort exception ) ======
 
 
 
@@ -1672,13 +1742,13 @@ space for the user
 
 
 
+; ==== again  ( -- : part of begin...again loop ) ==============
 
 
 
 
 
 
-\ ==== abort" ( ? --, R: ? -- ?, <string>: abort with string ) =
 
 
 
@@ -1688,13 +1758,13 @@ space for the user
 
 
 
+; ==== align  ( -- : align dictionary pointer ) ================
 
 
 
 
 
 
-\ ==== abs  ( n -- u : absolute value of a number ) ============
 
 
 
@@ -1704,13 +1774,13 @@ space for the user
 
 
 
+; ==== aligned  ( b -- a : align up an address ) ===============
 
 
 
 
 
 
-\ ==== accept  ( b u -- b u : accept a line ) ==================
 
 
 
@@ -1720,13 +1790,13 @@ space for the user
 
 
 
+; ==== allot  ( n -- : allocate 'n' bytes ) ====================
 
 
 
 
 
 
-\ ==== aft  ( -- : part of for...aft...then...next ) ===========
 
 
 
@@ -1736,13 +1806,13 @@ space for the user
 
 
 
+; ==== and  ( u1 u2 -- u3 : bitwise and of two numbers ) =======
 
 
 
 
 
 
-\ ==== again  ( -- : part of begin...again loop ) ==============
 
 
 
@@ -1752,13 +1822,13 @@ space for the user
 
 
 
+; ==== at-xy  ( x y -- : place cursor at column 'x', row 'y' ) =
 
 
 
 
 
 
-\ ==== align  ( -- : align dictionary pointer ) ================
 
 
 
@@ -1768,13 +1838,13 @@ space for the user
 
 
 
+; ==== background  ( color -- color : change to background ) ===
 
 
 
 
 
 
-\ ==== aligned  ( b -- a : align up an address ) ===============
 
 
 
@@ -1784,13 +1854,13 @@ space for the user
 
 
 
+; ==== base  ( -- a : address of base radix ) ==================
 
 
 
 
 
 
-\ ==== allot  ( n -- : allocate 'n' bytes ) ====================
 
 
 
@@ -1800,13 +1870,13 @@ space for the user
 
 
 
+; ==== b/buf  ( -- u : number of bytes in a block ) ============
 
 
 
 
 
 
-\ ==== and  ( u1 u2 -- u3 : bitwise and of two numbers ) =======
 
 
 
@@ -1816,13 +1886,13 @@ space for the user
 
 
 
+; ==== begin  ( -- : start begin...until/again loop ) ==========
 
 
 
 
 
 
-\ ==== at-xy  ( x y -- : place cursor at column 'x', row 'y' ) =
 
 
 
@@ -1832,13 +1902,13 @@ space for the user
 
 
 
+; ==== bl  ( -- u : value for space character ) ================
 
 
 
 
 
 
-\ ==== background  ( color -- color : change to background ) ===
 
 
 
@@ -1848,13 +1918,13 @@ space for the user
 
 
 
+; ==== black  ( -- u : color for black ) =======================
 
 
 
 
 
 
-\ ==== base  ( -- a : address of base radix ) ==================
 
 
 
@@ -1864,13 +1934,13 @@ space for the user
 
 
 
+; ==== blank  ( b u -- : fill array with blanks ) ==============
 
 
 
 
 
 
-\ ==== b/buf  ( -- u : number of bytes in a block ) ============
 
 
 
@@ -1880,13 +1950,13 @@ space for the user
 
 
 
+; ==== blk  ( -- a : address of last loaded block ) ============
 
 
 
 
 
 
-\ ==== begin  ( -- : start begin...until/again loop ) ==========
 
 
 
@@ -1896,13 +1966,13 @@ space for the user
 
 
 
+; ==== block  ( u -- a : perform block operation ) =============
 
 
 
 
 
 
-\ ==== bl  ( -- u : value for space character ) ================
 
 
 
@@ -1912,13 +1982,13 @@ space for the user
 
 
 
+; ==== +block ( n -- u : return block number relative to blk ) =
 
 
 
 
 
 
-\ ==== black  ( -- u : color for black ) =======================
 
 
 
@@ -1928,13 +1998,13 @@ space for the user
 
 
 
+; ==== blue  ( -- u : return color for blue ) ==================
 
 
 
 
 
 
-\ ==== blank  ( b u -- : fill array with blanks ) ==============
 
 
 
@@ -1944,13 +2014,13 @@ space for the user
 
 
 
+; ==== >body  ( xt -- a : move to body of created word ) =======
 
 
 
 
 
 
-\ ==== blk  ( -- a : address of last loaded block ) ============
 
 
 
@@ -1960,13 +2030,13 @@ space for the user
 
 
 
+; ==== border  ( -- a : variable for list display control ) ====
 
 
 
 
 
 
-\ ==== block  ( u -- a : perform block operation ) =============
 
 
 
@@ -1976,13 +2046,13 @@ space for the user
 
 
 
+; ==== c,  ( c -- : compile character into dictionary ) ========
 
 
 
 
 
 
-\ ==== +block ( n -- u : return block number relative to blk ) =
 
 
 
@@ -1992,13 +2062,13 @@ space for the user
 
 
 
+; ==== c!  ( c b -- : store 'c' at 'b' ) =======================
 
 
 
 
 
 
-\ ==== blue  ( -- u : return color for blue ) ==================
 
 
 
@@ -2008,13 +2078,13 @@ space for the user
 
 
 
+; ==== c@  ( b -- c : retrieve 'c' from 'b' ) ==================
 
 
 
 
 
 
-\ ==== >body  ( xt -- a : move to body of created word ) =======
 
 
 
@@ -2024,13 +2094,13 @@ space for the user
 
 
 
+; ==== catch  ( xt -- n | 0 : catch possible exception ) =======
 
 
 
 
 
 
-\ ==== border  ( -- a : variable for list display control ) ====
 
 
 
@@ -2040,13 +2110,13 @@ space for the user
 
 
 
+; ==== ccitt  ( crc c -- crc : compute CRC step ) ==============
 
 
 
 
 
 
-\ ==== c,  ( c -- : compile character into dictionary ) ========
 
 
 
@@ -2056,13 +2126,13 @@ space for the user
 
 
 
+; ==== cell-  ( a -- a : decrement address by single cell ) ====
 
 
 
 
 
 
-\ ==== c!  ( c b -- : store 'c' at 'b' ) =======================
 
 
 
@@ -2072,13 +2142,13 @@ space for the user
 
 
 
+; ==== cell+  ( a -- a : increment address by single cell ) ====
 
 
 
 
 
 
-\ ==== c@  ( b -- c : retrieve 'c' from 'b' ) ==================
 
 
 
@@ -2088,13 +2158,13 @@ space for the user
 
 
 
+; ==== cells  ( n -- n : convert byte to cell number ) =========
 
 
 
 
 
 
-\ ==== catch  ( xt -- n | 0 : catch possible exception ) =======
 
 
 
@@ -2104,13 +2174,13 @@ space for the user
 
 
 
+; ==== char  ( -- c ; <string> : parse character ) =============
 
 
 
 
 
 
-\ ==== ccitt  ( crc c -- crc : compute CRC step ) ==============
 
 
 
@@ -2120,13 +2190,13 @@ space for the user
 
 
 
+; ==== [char]  ( -- ; <string> : compile character literal ) ===
 
 
 
 
 
 
-\ ==== cell-  ( a -- a : decrement address by single cell ) ====
 
 
 
@@ -2136,13 +2206,13 @@ space for the user
 
 
 
+; ==== cmove  ( b b u -- : move block memory ) =================
 
 
 
 
 
 
-\ ==== cell+  ( a -- a : increment address by single cell ) ====
 
 
 
@@ -2152,13 +2222,13 @@ space for the user
 
 
 
+; ==== color  ( u -- : change display color ) ==================
 
 
 
 
 
 
-\ ==== cells  ( n -- n : convert byte to cell number ) =========
 
 
 
@@ -2168,13 +2238,13 @@ space for the user
 
 
 
+; ==== compile ( -- : compile next word into dictionary ) ======
 
 
 
 
 
 
-\ ==== char  ( -- c ; <string> : parse character ) =============
 
 
 
@@ -2184,13 +2254,13 @@ space for the user
 
 
 
+; ==== [compile]  ( -- xt : compile next immediate word ) ======
 
 
 
 
 
 
-\ ==== [char]  ( -- ; <string> : compile character literal ) ===
 
 
 
@@ -2200,13 +2270,13 @@ space for the user
 
 
 
+; ==== compile,  ( xt -- : compile execution token ) ===========
 
 
 
 
 
 
-\ ==== cmove  ( b b u -- : move block memory ) =================
 
 
 
@@ -2216,13 +2286,13 @@ space for the user
 
 
 
+; ==== conceal  ( -- : emit stars instead of characters ) ======
 
 
 
 
 
 
-\ ==== color  ( u -- : change display color ) ==================
 
 
 
@@ -2232,13 +2302,13 @@ space for the user
 
 
 
+; ==== console  ( -- : UART only mode ) ========================
 
 
 
 
 
 
-\ ==== compile ( -- : compile next word into dictionary ) ======
 
 
 
@@ -2248,13 +2318,13 @@ space for the user
 
 
 
+; ==== constant  ( n -- ; <string> : create constant ) =========
 
 
 
 
 
 
-\ ==== [compile]  ( -- xt : compile next immediate word ) ======
 
 
 
@@ -2264,13 +2334,13 @@ space for the user
 
 
 
+; ==== count  ( a -- b c : retrieve next character in string ) =
 
 
 
 
 
 
-\ ==== compile,  ( xt -- : compile execution token ) ===========
 
 
 
@@ -2280,13 +2350,13 @@ space for the user
 
 
 
+; ==== cpu-id  ( -- u : return CPU-ID ) ========================
 
 
 
 
 
 
-\ ==== conceal  ( -- : emit stars instead of characters ) ======
 
 
 
@@ -2296,13 +2366,13 @@ space for the user
 
 
 
+; ==== cr  ( -- : emit new line ) ==============================
 
 
 
 
 
 
-\ ==== console  ( -- : UART only mode ) ========================
 
 
 
@@ -2312,13 +2382,13 @@ space for the user
 
 
 
+; ==== crc  ( b u -- u : perform CRC over array ) ==============
 
 
 
 
 
 
-\ ==== constant  ( n -- ; <string> : create constant ) =========
 
 
 
@@ -2328,13 +2398,13 @@ space for the user
 
 
 
+; ==== create  ( -- ; <string> : make 'created' word ) =========
 
 
 
 
 
 
-\ ==== count  ( a -- b c : retrieve next character in string ) =
 
 
 
@@ -2344,13 +2414,13 @@ space for the user
 
 
 
+; ==== decimal  ( -- : switch radix to decimal ) ===============
 
 
 
 
 
 
-\ ==== cpu-id  ( -- u : return CPU-ID ) ========================
 
 
 
@@ -2360,13 +2430,13 @@ space for the user
 
 
 
+; ==== dm+  ( a u -- u : print out section of memory ) =========
 
 
 
 
 
 
-\ ==== cr  ( -- : emit new line ) ==============================
 
 
 
@@ -2376,13 +2446,13 @@ space for the user
 
 
 
+; ==== dnegate  ( d -- d : negate a double value ) =============
 
 
 
 
 
 
-\ ==== crc  ( b u -- u : perform CRC over array ) ==============
 
 
 
@@ -2392,13 +2462,13 @@ space for the user
 
 
 
+; ==== doer  ( -- ; <string> : create a 'doer' word ) ==========
 
 
 
 
 
 
-\ ==== create  ( -- ; <string> : make 'created' word ) =========
 
 
 
@@ -2408,13 +2478,13 @@ space for the user
 
 
 
+; ==== does>  ( -- : start 'does' section of word ) ============
 
 
 
 
 
 
-\ ==== decimal  ( -- : switch radix to decimal ) ===============
 
 
 
@@ -2424,13 +2494,13 @@ space for the user
 
 
 
+; ==== drop  ( u -- : drop a value ) ===========================
 
 
 
 
 
 
-\ ==== dm+  ( a u -- u : print out section of memory ) =========
 
 
 
@@ -2440,13 +2510,13 @@ space for the user
 
 
 
+; ==== dump  ( a u -- : dump a section of memory ) =============
 
 
 
 
 
 
-\ ==== dnegate  ( d -- d : negate a double value ) =============
 
 
 
@@ -2456,13 +2526,13 @@ space for the user
 
 
 
+; ==== dup  ( n -- n n : duplicate a value ) ===================
 
 
 
 
 
 
-\ ==== doer  ( -- ; <string> : create a 'doer' word ) ==========
 
 
 
@@ -2472,13 +2542,13 @@ space for the user
 
 
 
+; ==== ?dup  ( n -- n n | 0 : duplicate value if not zero ) ====
 
 
 
 
 
 
-\ ==== does>  ( -- : start 'does' section of word ) ============
 
 
 
@@ -2488,13 +2558,13 @@ space for the user
 
 
 
+; ==== else  ( -- : if...else...then ) =========================
 
 
 
 
 
 
-\ ==== drop  ( u -- : drop a value ) ===========================
 
 
 
@@ -2504,13 +2574,13 @@ space for the user
 
 
 
+; ==== emit  ( c -- : emit a character ) =======================
 
 
 
 
 
 
-\ ==== dump  ( a u -- : dump a section of memory ) =============
 
 
 
@@ -2520,13 +2590,13 @@ space for the user
 
 
 
+; ==== empty-buffers  ( -- : deallocate block buffer ) =========
 
 
 
 
 
 
-\ ==== dup  ( n -- n n : duplicate a value ) ===================
 
 
 
@@ -2536,13 +2606,13 @@ space for the user
 
 
 
+; ==== evaluate  ( a u -- : evaluate block of memory ) =========
 
 
 
 
 
 
-\ ==== ?dup  ( n -- n n | 0 : duplicate value if not zero ) ====
 
 
 
@@ -2552,13 +2622,13 @@ space for the user
 
 
 
+; ==== execute  ( xt -- : execute an execution token ) =========
 
 
 
 
 
 
-\ ==== else  ( -- : if...else...then ) =========================
 
 
 
@@ -2568,13 +2638,13 @@ space for the user
 
 
 
+; ==== @execute  ( a -- : execute token at 'a' if non-zero ) ===
 
 
 
 
 
 
-\ ==== emit  ( c -- : emit a character ) =======================
 
 
 
@@ -2584,13 +2654,13 @@ space for the user
 
 
 
+; ==== exit  ( -- : exit from word ) ===========================
 
 
 
 
 
 
-\ ==== empty-buffers  ( -- : deallocate block buffer ) =========
 
 
 
@@ -2600,13 +2670,13 @@ space for the user
 
 
 
+; ==== expect  ( b u -- : accept, but store 'u' in span ) ======
 
 
 
 
 
 
-\ ==== evaluate  ( a u -- : evaluate block of memory ) =========
 
 
 
@@ -2616,13 +2686,13 @@ space for the user
 
 
 
+; ==== file  ( -- : file transfer mode ) =======================
 
 
 
 
 
 
-\ ==== execute  ( xt -- : execute an execution token ) =========
 
 
 
@@ -2632,13 +2702,13 @@ space for the user
 
 
 
+; ==== fill  ( b u c -- : fill area of memory with 'c' ) =======
 
 
 
 
 
 
-\ ==== @execute  ( a -- : execute token at 'a' if non-zero ) ===
 
 
 
@@ -2648,13 +2718,13 @@ space for the user
 
 
 
+; ==== find  ( a -- pwd 1 | pwd -1 | a 0 : find word ) =========
 
 
 
 
 
 
-\ ==== exit  ( -- : exit from word ) ===========================
 
 
 
@@ -2664,13 +2734,13 @@ space for the user
 
 
 
+; ==== flash  ( -- : add flash words to search order ) =========
 
 
 
 
 
 
-\ ==== expect  ( b u -- : accept, but store 'u' in span ) ======
 
 
 
@@ -2680,13 +2750,13 @@ space for the user
 
 
 
+; ==== flush  ( -- : write dirty blocks, empty-buffers also ) ==
 
 
 
 
 
 
-\ ==== file  ( -- : file transfer mode ) =======================
 
 
 
@@ -2696,13 +2766,13 @@ space for the user
 
 
 
+; ==== for  ( -- : part of for...next loop ) ===================
 
 
 
 
 
 
-\ ==== fill  ( b u c -- : fill area of memory with 'c' ) =======
 
 
 
@@ -2712,13 +2782,13 @@ space for the user
 
 
 
+; ==== forth  ( -- : set minimal search order ) ================
 
 
 
 
 
 
-\ ==== find  ( a -- pwd 1 | pwd -1 | a 0 : find word ) =========
 
 
 
@@ -2728,13 +2798,13 @@ space for the user
 
 
 
+; ==== forth-wordlist  ( -- voc : return Forth vocabulary ) ====
 
 
 
 
 
 
-\ ==== flash  ( -- : add flash words to search order ) =========
 
 
 
@@ -2744,13 +2814,13 @@ space for the user
 
 
 
+; ==== get-order  ( -- vn...v0 u : get search order ) ==========
 
 
 
 
 
 
-\ ==== flush  ( -- : write dirty blocks, empty-buffers also ) ==
 
 
 
@@ -2760,13 +2830,13 @@ space for the user
 
 
 
+; ==== green  ( -- u : green color value ) =====================
 
 
 
 
 
 
-\ ==== for  ( -- : part of for...next loop ) ===================
 
 
 
@@ -2776,13 +2846,13 @@ space for the user
 
 
 
+; ==== here  ( -- a : return dictionary address ) ==============
 
 
 
 
 
 
-\ ==== forth  ( -- : set minimal search order ) ================
 
 
 
@@ -2792,13 +2862,13 @@ space for the user
 
 
 
+; ==== hex  ( -- : set numeric radix to hexadecimal ) ==========
 
 
 
 
 
 
-\ ==== forth-wordlist  ( -- voc : return Forth vocabulary ) ====
 
 
 
@@ -2808,13 +2878,13 @@ space for the user
 
 
 
+; ==== hi  ( -- : initialize and login to system ) =============
 
 
 
 
 
 
-\ ==== get-order  ( -- vn...v0 u : get search order ) ==========
 
 
 
@@ -2824,13 +2894,13 @@ space for the user
 
 
 
+; ==== hld  ( -- : hold variable for pictured numeric output ) =
 
 
 
 
 
 
-\ ==== green  ( -- u : green color value ) =====================
 
 
 
@@ -2840,13 +2910,13 @@ space for the user
 
 
 
+; ==== hold  ( c -- : put byte into numeric output string ) ====
 
 
 
 
 
 
-\ ==== here  ( -- a : return dictionary address ) ==============
 
 
 
@@ -2856,13 +2926,13 @@ space for the user
 
 
 
+; ==== ien  ( f -- f : set interrupt flag ) ====================
 
 
 
 
 
 
-\ ==== hex  ( -- : set numeric radix to hexadecimal ) ==========
 
 
 
@@ -2872,13 +2942,13 @@ space for the user
 
 
 
+; ==== ien?  ( -- f : are interrupts enabled? ) ================
 
 
 
 
 
 
-\ ==== hi  ( -- : initialize and login to system ) =============
 
 
 
@@ -2888,13 +2958,13 @@ space for the user
 
 
 
+; ==== if  ( -- : part of if...then/if...else...then) ==========
 
 
 
 
 
 
-\ ==== hld  ( -- : hold variable for pictured numeric output ) =
 
 
 
@@ -2904,13 +2974,13 @@ space for the user
 
 
 
+; ==== immediate  ( -- : make last defined word immediate ) ====
 
 
 
 
 
 
-\ ==== hold  ( c -- : put byte into numeric output string ) ====
 
 
 
@@ -2920,13 +2990,13 @@ space for the user
 
 
 
+; ==== >in  ( -- a : index into parse input at address ) =======
 
 
 
 
 
 
-\ ==== ien  ( f -- f : set interrupt flag ) ====================
 
 
 
@@ -2936,13 +3006,13 @@ space for the user
 
 
 
+; ==== index  ( k1 k2 -- : print first line of block range ) ===
 
 
 
 
 
 
-\ ==== ien?  ( -- f : are interrupts enabled? ) ================
 
 
 
@@ -2952,13 +3022,13 @@ space for the user
 
 
 
+; ==== interactive  ( -- : interactive I/O mode ) ==============
 
 
 
 
 
 
-\ ==== if  ( -- : part of if...then/if...else...then) ==========
 
 
 
@@ -2968,13 +3038,13 @@ space for the user
 
 
 
+; ==== interpret  ( ??? a -- ??? : interpret word/number ) =====
 
 
 
 
 
 
-\ ==== immediate  ( -- : make last defined word immediate ) ====
 
 
 
@@ -2984,13 +3054,13 @@ space for the user
 
 
 
+; ==== invert  ( u -- u : bitwise invert ) =====================
 
 
 
 
 
 
-\ ==== >in  ( -- a : index into parse input at address ) =======
 
 
 
@@ -3000,13 +3070,13 @@ space for the user
 
 
 
+; ==== io!  ( -- : initialize IO channels ) ====================
 
 
 
 
 
 
-\ ==== index  ( k1 k2 -- : print first line of block range ) ===
 
 
 
@@ -3016,13 +3086,13 @@ space for the user
 
 
 
+; ==== key  ( -- c : block until character read in ) ===========
 
 
 
 
 
 
-\ ==== interactive  ( -- : interactive I/O mode ) ==============
 
 
 
@@ -3032,13 +3102,13 @@ space for the user
 
 
 
+; ==== key?  ( -- c -1 | 0 : non-blocking character read ) =====
 
 
 
 
 
 
-\ ==== interpret  ( ??? a -- ??? : interpret word/number ) =====
 
 
 
@@ -3048,13 +3118,13 @@ space for the user
 
 
 
+; ==== last  ( -- pwd : last defined word ) ====================
 
 
 
 
 
 
-\ ==== invert  ( u -- u : bitwise invert ) =====================
 
 
 
@@ -3064,13 +3134,13 @@ space for the user
 
 
 
+; ==== led!  ( u -- : write value to LEDs ) ====================
 
 
 
 
 
 
-\ ==== io!  ( -- : initialize IO channels ) ====================
 
 
 
@@ -3080,15 +3150,27 @@ space for the user
 
 
 
+; ==== list  ( k -- : list block ) =============================
+The word list loads block 'k' from disk and display the contents
+of this block on the screen. It displays the block as 16 lines
+with a column width of 64. The display format is controlled by
+the 'border' variable, if true it 'list' displays the line
+number and a border around the block, if false, then it just
+display the block line by line without formatting. It is true
+by default.
 
 
 
 
 
 
-\ ==== key  ( -- c : block until character read in ) ===========
 
 
+; ==== literal  ( n -- : compile literal into dictionary ) =====
+This is an immediate word that compiles a number into the
+dictionary. A number takes up between one and two cells in the
+dictionary (negative numbers take up two space, positive only
+one). It is a compile only word.
 
 
 
@@ -3100,9 +3182,9 @@ space for the user
 
 
 
+; ==== load  ( k -- : load and execute block ) =================
 
 
-\ ==== key?  ( -- c -1 | 0 : non-blocking character read ) =====
 
 
 
@@ -3116,9 +3198,9 @@ space for the user
 
 
 
+; ==== loaded  ( -- a : variable, true if boot block loaded ) ==
 
 
-\ ==== last  ( -- pwd : last defined word ) ====================
 
 
 
@@ -3132,9 +3214,10 @@ space for the user
 
 
 
+; ==== lshift  ( u1 u2 -- u3: logical left shift u1 by u2 ) ====
+This performs a logical left shift on 'u1' by 'u2'.
 
 
-\ ==== led!  ( u -- : write value to LEDs ) ====================
 
 
 
@@ -3147,10 +3230,10 @@ space for the user
 
 
 
+; ==== make  ( -- : make part of make/doer words ) =============
 
 
 
-\ ==== list  ( k -- : list block ) =============================
 
 
 
@@ -3163,10 +3246,11 @@ space for the user
 
 
 
+; ==== max  ( n1 n2 -- n3: maximum of two numbers ) ============
+This returns the maximum of two numbers.
 
 
 
-\ ==== literal  ( n -- : compile literal into dictionary ) =====
 
 
 
@@ -3178,11 +3262,11 @@ space for the user
 
 
 
+; ==== message  ( u -- : type line from block ) ================
 
 
 
 
-\ ==== load  ( k -- : load and execute block ) =================
 
 
 
@@ -3194,11 +3278,12 @@ space for the user
 
 
 
+; ==== min  ( n1 n2 -- n3: minimum of two numbers ) ============
+This returns the minimum of two signed numbers.
 
 
 
 
-\ ==== loaded  ( -- a : variable, true if boot block loaded ) ==
 
 
 
@@ -3209,12 +3294,12 @@ space for the user
 
 
 
+; ==== m/mod  ( d n -- r q : signed divide / modulo ) ==========
 
 
 
 
 
-\ ==== lshift  ( u1 u2 -- u3: logical left shift u1 by u2 ) ====
 
 
 
@@ -3225,12 +3310,12 @@ space for the user
 
 
 
+; ==== mod  ( n1 n2 -- r : remainder of n1 divided by n2 ) =====
 
 
 
 
 
-\ ==== make  ( -- : make part of make/doer words ) =============
 
 
 
@@ -3241,12 +3326,12 @@ space for the user
 
 
 
+; ==== /mod  ( n1 n2 -- r q : remainder/divisor ) ==============
 
 
 
 
 
-\ ==== max  ( n1 n2 -- n3: maximum of two numbers ) ============
 
 
 
@@ -3257,12 +3342,15 @@ space for the user
 
 
 
+; ==== ms  ( u -- : wait for 'u' milliseconds ) ================
+'ms' waits for 'u' milliseconds with a busy loop. It is
+predicated on the system running at 100MHz and will need to be
+modified if the system frequency changes.
 
 
 
 
 
-\ ==== message  ( u -- : type line from block ) ================
 
 
 
@@ -3270,6 +3358,7 @@ space for the user
 
 
 
+; ==== negate  ( n -- n : negate a number ) ====================
 
 
 
@@ -3278,7 +3367,6 @@ space for the user
 
 
 
-\ ==== min  ( n1 n2 -- n3: minimum of two numbers ) ============
 
 
 
@@ -3286,6 +3374,7 @@ space for the user
 
 
 
+; ==== next  ( -- : part of for...next loop ) ==================
 
 
 
@@ -3294,7 +3383,6 @@ space for the user
 
 
 
-\ ==== m/mod  ( d n -- r q : signed divide / modulo ) ==========
 
 
 
@@ -3302,6 +3390,7 @@ space for the user
 
 
 
+; ==== nip  ( n1 n2 -- n1 : remove second value on stack ) =====
 
 
 
@@ -3310,7 +3399,6 @@ space for the user
 
 
 
-\ ==== mod  ( n1 n2 -- r : remainder of n1 divided by n2 ) =====
 
 
 
@@ -3318,6 +3406,10 @@ space for the user
 
 
 
+; ==== :noname  ( -- xt : start anonymous function ) ===========
+The ':noname' word is an immediate word that allows the
+creation of words that do not have names, or an anonymous
+function. The word can be executed with the 'execute' function.
 
 
 
@@ -3326,11 +3418,14 @@ space for the user
 
 
 
-\ ==== /mod  ( n1 n2 -- r q : remainder/divisor ) ==============
 
 
 
 
+; ==== nop  ( -- : no-operation - do nothing ) =================
+This is an assembly instruction that is inlined into a word
+when it is compiled into it, it does nothing, it can be used
+for timing purposes or to work around the optimizer.
 
 
 
@@ -3342,8 +3437,8 @@ space for the user
 
 
 
-\ ==== ms  ( u -- : wait for 'u' milliseconds ) ================
 
+; ==== nuf?  ( -- f : true if 'cr' character pressed ) =========
 
 
 
@@ -3358,8 +3453,8 @@ space for the user
 
 
 
-\ ==== negate  ( n -- n : negate a number ) ====================
 
+; ==== number?  ( b u -- n f : is string a number ) ============
 
 
 
@@ -3374,8 +3469,11 @@ space for the user
 
 
 
-\ ==== next  ( -- : part of for...next loop ) ==================
 
+; ==== .ok  ( -- : print okay prompt ) =========================
+'.ok' prints out 'ok' after the successful execution of an
+input line when the Forth interpreter is in the command mode,
+the prompt is suppressed when in compile mode.
 
 
 
@@ -3388,9 +3486,9 @@ space for the user
 
 
 
+; ==== or  ( u1 u2 -- u3: bitwise or of two numbers ) ==========
 
 
-\ ==== nip  ( n1 n2 -- n1 : remove second value on stack ) =====
 
 
 
@@ -3404,9 +3502,9 @@ space for the user
 
 
 
+; ==== over  ( n1 n2 -- n1 n2 n1 : duplicate over ) ============
 
 
-\ ==== :noname  ( -- xt : start anonymous function ) ===========
 
 
 
@@ -3420,9 +3518,9 @@ space for the user
 
 
 
+; ==== pack$  ( b u a -- a : pack string into address ) ========
 
 
-\ ==== nop  ( -- : no-operation - do nothing ) =================
 
 
 
@@ -3436,9 +3534,9 @@ space for the user
 
 
 
+; ==== pad  ( -- a : return address into pad area ) ============
 
 
-\ ==== nuf?  ( -- f : true if 'cr' character pressed ) =========
 
 
 
@@ -3452,9 +3550,9 @@ space for the user
 
 
 
+; ==== page  ( -- : clear page ) ===============================
 
 
-\ ==== number?  ( b u -- n f : is string a number ) ============
 
 
 
@@ -3468,9 +3566,9 @@ space for the user
 
 
 
+; ==== parse  ( b u c -- b u delta : parse string out ) ========
 
 
-\ ==== .ok  ( -- : print okay prompt ) =========================
 
 
 
@@ -3484,9 +3582,9 @@ space for the user
 
 
 
+; ==== pick  ( un...u0 u -- un...u0 u u : pick value ) =========
 
 
-\ ==== or  ( u1 u2 -- u3: bitwise or of two numbers ) ==========
 
 
 
@@ -3500,9 +3598,9 @@ space for the user
 
 
 
+; ==== query  ( -- : get line of input ) =======================
 
 
-\ ==== over  ( n1 n2 -- n1 n2 n1 : duplicate over ) ============
 
 
 
@@ -3516,9 +3614,9 @@ space for the user
 
 
 
+; ==== quit  ( -- : interpreter loop ) =========================
 
 
-\ ==== pack$  ( b u a -- a : pack string into address ) ========
 
 
 
@@ -3532,9 +3630,9 @@ space for the user
 
 
 
+; ==== >r  ( u --, R: -- u : move value to return stack ) ======
 
 
-\ ==== pad  ( -- a : return address into pad area ) ============
 
 
 
@@ -3548,9 +3646,9 @@ space for the user
 
 
 
+; ==== r>  ( -- u, R: u --: move value from return stack ) =====
 
 
-\ ==== page  ( -- : clear page ) ===============================
 
 
 
@@ -3564,9 +3662,9 @@ space for the user
 
 
 
+; ==== r@  ( -- u : R: u -- u: copy top of return stack ) ======
 
 
-\ ==== parse  ( b u c -- b u delta : parse string out ) ========
 
 
 
@@ -3580,9 +3678,9 @@ space for the user
 
 
 
+; ==== random  ( -- u : random number ) ========================
 
 
-\ ==== pick  ( un...u0 u -- un...u0 u u : pick value ) =========
 
 
 
@@ -3596,9 +3694,9 @@ space for the user
 
 
 
+; ==== rdrop  ( --, R: u -- : drop a value from return stack ) =
 
 
-\ ==== query  ( -- : get line of input ) =======================
 
 
 
@@ -3612,9 +3710,9 @@ space for the user
 
 
 
+; ==== recurse  ( -- : recursively call current word ) =========
 
 
-\ ==== quit  ( -- : interpreter loop ) =========================
 
 
 
@@ -3628,9 +3726,9 @@ space for the user
 
 
 
+; ==== red  ( -- u : red color ) ===============================
 
 
-\ ==== >r  ( u --, R: -- u : move value to return stack ) ======
 
 
 
@@ -3644,9 +3742,9 @@ space for the user
 
 
 
+; ==== repeat  ( -- : part of begin...while...repeat ) =========
 
 
-\ ==== r>  ( -- u, R: u --: move value from return stack ) =====
 
 
 
@@ -3660,9 +3758,9 @@ space for the user
 
 
 
+; ==== rot  ( n1 n2 n3 -- n2 n3 n1 : rotate three items ) ======
 
 
-\ ==== r@  ( -- u : R: u -- u: copy top of return stack ) ======
 
 
 
@@ -3676,9 +3774,9 @@ space for the user
 
 
 
+; ==== -rot  ( n1 n2 n3 -- n3 n1 n2 : rotate three items ) =====
 
 
-\ ==== random  ( -- u : random number ) ========================
 
 
 
@@ -3692,9 +3790,9 @@ space for the user
 
 
 
+; ==== rp@  ( -- u : return stack depth ) ======================
 
 
-\ ==== rdrop  ( --, R: u -- : drop a value from return stack ) =
 
 
 
@@ -3708,9 +3806,9 @@ space for the user
 
 
 
+; ==== rpick  ( n -- u, R: un...u0 : pick return stack value ) =
 
 
-\ ==== recurse  ( -- : recursively call current word ) =========
 
 
 
@@ -3724,9 +3822,9 @@ space for the user
 
 
 
+; ==== rshift  ( u1 u2 -- u3 : logical right shift u1 by u2 ) ==
 
 
-\ ==== red  ( -- u : red color ) ===============================
 
 
 
@@ -3740,9 +3838,13 @@ space for the user
 
 
 
+; ==== .s  ( -- : print out variable stack ) ===================
+This word is used for debugging, it prints out the entire
+variable stack up to the current variable stack depth. It uses
+the area between the end of the dictionary and the start of the
+PAD area. It is not a reentrant function.
 
 
-\ ==== repeat  ( -- : part of begin...while...repeat ) =========
 
 
 
@@ -3752,13 +3854,13 @@ space for the user
 
 
 
+; ==== #s  ( u -- 0 : repeat '#' until 0 ) =====================
 
 
 
 
 
 
-\ ==== rot  ( n1 n2 n3 -- n2 n3 n1 : rotate three items ) ======
 
 
 
@@ -3768,13 +3870,13 @@ space for the user
 
 
 
+; ==== save-buffers  ( -- : save dirty blocks ) ================
 
 
 
 
 
 
-\ ==== -rot  ( n1 n2 n3 -- n3 n1 n2 : rotate three items ) =====
 
 
 
@@ -3784,13 +3886,13 @@ space for the user
 
 
 
+; ==== screens  ( k1 k2 -- : list screens k1 to k2 ) ===========
 
 
 
 
 
 
-\ ==== rp@  ( -- u : return stack depth ) ======================
 
 
 
@@ -3800,13 +3902,13 @@ space for the user
 
 
 
+; ==== screen-saver  ( -- : start screen-saver ) ===============
 
 
 
 
 
 
-\ ==== rpick  ( n -- u, R: un...u0 : pick return stack value ) =
 
 
 
@@ -3816,13 +3918,13 @@ space for the user
 
 
 
+; ==== see  ( -- ; <string> : decompile word ) =================
 
 
 
 
 
 
-\ ==== rshift  ( u1 u2 -- u3 : logical right shift u1 by u2 ) ==
 
 
 
@@ -3832,19 +3934,24 @@ space for the user
 
 
 
+; ==== segments!  ( u -- : display 'u' on LED displays ) =======
+Segments writes a single 16-bit value to the four seven segment
+displays on the board. This can be used to display a single
+cell as a hexadecimal value.
 
 
 
 
 
 
-\ ==== .s  ( -- : print out variable stack ) ===================
 
 
 
 
 
 
+; ==== set-order  ( vn...v0 u -- : set search order ) ==========
+This word sets the sort order.
 
 
 
@@ -3854,12 +3961,12 @@ space for the user
 
 
 
-\ ==== #s  ( u -- 0 : repeat '#' until 0 ) =====================
 
 
 
 
 
+; ==== sgr  ( u -- : set ANSI terminal SGR attribute ) =========
 
 
 
@@ -3870,12 +3977,12 @@ space for the user
 
 
 
-\ ==== save-buffers  ( -- : save dirty blocks ) ================
 
 
 
 
 
+; ==== sign  ( n -- : hold '-' if n negative ) =================
 
 
 
@@ -3886,12 +3993,12 @@ space for the user
 
 
 
-\ ==== screens  ( k1 k2 -- : list screens k1 to k2 ) ===========
 
 
 
 
 
+; ==== source  ( -- a u : get source string ) ==================
 
 
 
@@ -3902,12 +4009,12 @@ space for the user
 
 
 
-\ ==== screen-saver  ( -- : start screen-saver ) ===============
 
 
 
 
 
+; ==== source-id  ( -- 0 | -1 : identify input source ) ========
 
 
 
@@ -3918,12 +4025,12 @@ space for the user
 
 
 
-\ ==== see  ( -- ; <string> : decompile word ) =================
 
 
 
 
 
+; ==== sp@  ( -- u : variable stack depth ) ====================
 
 
 
@@ -3934,12 +4041,13 @@ space for the user
 
 
 
-\ ==== segments!  ( u -- : display 'u' on LED displays ) =======
 
 
 
 
 
+; ==== space  ( -- : emit space character ) ====================
+'space' emits a single space.
 
 
 
@@ -3950,11 +4058,12 @@ space for the user
 
 
 
-\ ==== set-order  ( vn...v0 u -- : set search order ) ==========
 
 
 
 
+; ==== spaces  ( n -- : emit 'n' spaces ) ======================
+'spaces' emits 'n' number of spaces.
 
 
 
@@ -3966,10 +4075,10 @@ space for the user
 
 
 
-\ ==== sgr  ( u -- : set ANSI terminal SGR attribute ) =========
 
 
 
+; ==== span  ( -- a : character count from expect, variable ) ==
 
 
 
@@ -3982,10 +4091,10 @@ space for the user
 
 
 
-\ ==== sign  ( n -- : hold '-' if n negative ) =================
 
 
 
+; ==== state  ( -- a : state variable ) ========================
 
 
 
@@ -3998,10 +4107,10 @@ space for the user
 
 
 
-\ ==== source  ( -- a u : get source string ) ==================
 
 
 
+; ==== store  ( u a -- u : store 'u' at 'a' ) ==================
 
 
 
@@ -4014,10 +4123,10 @@ space for the user
 
 
 
-\ ==== source-id  ( -- 0 | -1 : identify input source ) ========
 
 
 
+; ==== =string  ( a1 u2 a1 u2 -- f : string equality ) =========
 
 
 
@@ -4030,10 +4139,10 @@ space for the user
 
 
 
-\ ==== sp@  ( -- u : variable stack depth ) ====================
 
 
 
+; ==== /string  ( b u1 u2 -- b u : advance string by u2 ) ======
 
 
 
@@ -4046,10 +4155,10 @@ space for the user
 
 
 
-\ ==== space  ( -- : emit space character ) ====================
 
 
 
+; ==== swap  ( u1 u2 -- u2 u1 : swap two variables ) ===========
 
 
 
@@ -4062,10 +4171,10 @@ space for the user
 
 
 
-\ ==== spaces  ( n -- : emit 'n' spaces ) ======================
 
 
 
+; ==== switches  ( -- u : get state of switches ) ==============
 
 
 
@@ -4078,10 +4187,10 @@ space for the user
 
 
 
-\ ==== span  ( -- a : character count from expect, variable ) ==
 
 
 
+; ==== then  ( -- : part of if...then or if...else...then ) ====
 
 
 
@@ -4094,10 +4203,10 @@ space for the user
 
 
 
-\ ==== state  ( -- a : state variable ) ========================
 
 
 
+; ==== throw  ( ? n -- ?, R: ? -- ? : throw exception ) ========
 
 
 
@@ -4110,10 +4219,10 @@ space for the user
 
 
 
-\ ==== store  ( u a -- u : store 'u' at 'a' ) ==================
 
 
 
+; ==== thru  ( k1 k2 -- : load from k1 to k2 ) =================
 
 
 
@@ -4126,10 +4235,10 @@ space for the user
 
 
 
-\ ==== =string  ( a1 u2 a1 u2 -- f : string equality ) =========
 
 
 
+; ==== timer  ( -- u : get value of timer ) ====================
 
 
 
@@ -4142,10 +4251,10 @@ space for the user
 
 
 
-\ ==== /string  ( b u1 u2 -- b u : advance string by u2 ) ======
 
 
 
+; ==== timer!  ( -- : set timer ) ==============================
 
 
 
@@ -4158,10 +4267,10 @@ space for the user
 
 
 
-\ ==== swap  ( u1 u2 -- u2 u1 : swap two variables ) ===========
 
 
 
+; ==== tuck  ( n1 n2 -- n2 n1 n2 : tuck value ) ================
 
 
 
@@ -4174,10 +4283,11 @@ space for the user
 
 
 
-\ ==== switches  ( -- : ) ======================================
 
 
 
+; ==== type  ( b u -- : print out a string ) ===================
+'type' prints out a string.
 
 
 
@@ -4190,9 +4300,11 @@ space for the user
 
 
 
-\ ==== then  ( -- : ) ==========================================
 
 
+; ==== u<  ( u1 u2 -- f: unsigned less than ) ==================
+Unsigned less than of two numbers, this is an assembly operation
+that is inlined into a word definition. 
 
 
 
@@ -4206,7 +4318,8 @@ space for the user
 
 
 
-\ ==== throw  ( -- : ) =========================================
+; ==== u>  ( u1 u2 -- f: unsigned greater than ) ===============
+Unsigned greater than, this is not an assembly instruction.
 
 
 
@@ -4221,8 +4334,8 @@ space for the user
 
 
 
+; ==== u>=  ( u1 u2 -- f: unsigned greater or equal to ) =======
 
-\ ==== thru  ( -- : ) ==========================================
 
 
 
@@ -4237,8 +4350,8 @@ space for the user
 
 
 
+; ==== u.  ( u -- : print out number in current base ) =========
 
-\ ==== timer  ( -- : ) =========================================
 
 
 
@@ -4253,8 +4366,10 @@ space for the user
 
 
 
+; ==== um*  ( u u -- ud : unsigned multiply ) ==================
+Unsigned multiple, it takes two single cell numbers and returns
+an unsigned double.
 
-\ ==== timer!  ( -- : ) ========================================
 
 
 
@@ -4267,10 +4382,13 @@ space for the user
 
 
 
+; ==== um+  ( u u -- u carry : unsigned add with carry ) =======
+Unsigned addition with carry, this word is used to implement
+the majority of the arithmetic operations, although it is not
+very useful directly.
 
 
 
-\ ==== tuck  ( -- : ) ==========================================
 
 
 
@@ -4280,16 +4398,23 @@ space for the user
 
 
 
+; ==== um/mod  ( ud u -- ur uq : unsigned modulo divide ) ======
+Unsigned division of an unsigned double cell number by a single
+cell number and leaves the remainder, 'ur' and the quotient,
+'uq'. This is a slow operation as it is not implemented as an
+instruction within the H2 CPU. It will throw and exception if
+the divisor is zero. The word is used to implement the other
+division and modulus operations.
 
 
 
 
 
 
-\ ==== type  ( -- : ) ==========================================
 
 
 
+; ==== until  ( -- : begin...until loop ) ======================
 
 
 
@@ -4302,10 +4427,14 @@ space for the user
 
 
 
-\ ==== u<  ( -- : ) ============================================
 
 
 
+; ==== update  ( -- : mark last loaded block as dirty ) ========
+Marks the last loaded block as being dirty (the last loaded
+block block number is stored in the variable 'blk'). A dirty
+block will be written to disk on when 'flush', 'save-buffers',
+or another block is loaded from disk. 
 
 
 
@@ -4317,8 +4446,8 @@ space for the user
 
 
 
+; ==== u.r  ( u +n -- : print u right justified by +n ) ========
 
-\ ==== u>  ( -- : ) ============================================
 
 
 
@@ -4333,15 +4462,31 @@ space for the user
 
 
 
+; ==== variable  ( -- ; <string> : create a new variable ) =====
+'variable' parses the next space delimited string from the
+input string and makes a new named variable. The variable will
+be initialized with zero, although this is not guaranteed to be
+the case with all Forths. Variables are just normal words that
+push a location onto the dictionary of where the variable is
+stored, it can be accessed with the '!' and '@' words, only
+one cell of storage space is reserved. The created word is
+not an immediate word.
 
-\ ==== u>=  ( -- : ) ===========================================
 
 
 
 
 
 
+; ==== ver  ( -- u : push version information ) ================
+Pushes the version number of the eForth implementation. The
+format of the version is the major version is stored in the
+upper byte and the minor version information is stored in the
+lower byte. 
 
+The minor version number changes on minor updates, the major
+version changes when there are major updates in how the
+interpreter works that could potentially break code.
 
 
 
@@ -4349,8 +4494,8 @@ space for the user
 
 
 
+; ==== while  ( -- : begin...while...repeat loop ) =============
 
-\ ==== u.  ( -- : ) ============================================
 
 
 
@@ -4365,8 +4510,8 @@ space for the user
 
 
 
+; ==== white  ( -- u : push code for white color ) =============
 
-\ ==== um*  ( u u -- ud : unsigned multiply ) ==================
 
 
 
@@ -4381,8 +4526,8 @@ space for the user
 
 
 
+; ==== within  ( u lo hi -- f : is u within a range? ) =========
 
-\ ==== um+  ( u u -- u carry : unsigned add with carry ) =======
 
 
 
@@ -4397,8 +4542,8 @@ space for the user
 
 
 
+; ==== word  ( c -- a; <string> : parse a word ) ===============
 
-\ ==== um/mod  ( ud u -- ur uq : unsigned modulo divide ) ======
 
 
 
@@ -4413,8 +4558,8 @@ space for the user
 
 
 
+; ==== words  ( -- : list all words in dictionary ) ============
 
-\ ==== until  ( -- : ) =========================================
 
 
 
@@ -4429,154 +4574,9 @@ space for the user
 
 
 
-
-\ ==== update  ( -- : mark last loaded block as dirty ) ========
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-\ ==== u.r  ( u +n -- : print u right justified by +n ) ========
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-\ ==== variable  ( -- ; <string> : create a new variable ) =====
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-\ ==== ver  ( -- u : push version information ) ================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-\ ==== while  ( -- : ) =========================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-\ ==== white  ( -- u : push code for white color ) =============
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-\ ==== within  ( u lo hi -- f : is u within a range? ) =========
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-\ ==== word  ( c -- a; <string> : parse a word ) ===============
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-\ ==== words  ( -- : list all words in dictionary ) ============
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-\ ==== xor  ( u1 u2 -- u : bit wise exclusive or ) =============
-
-
+; ==== xor  ( u1 u2 -- u : bit wise exclusive or ) =============
+Bitwise exclusive or of two numbers, this is an assembly word
+that is inlined into a word definition when compiled into it.
 
 
 
