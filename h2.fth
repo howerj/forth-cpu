@@ -362,7 +362,7 @@ choice words that need depth checking to get quite a large coverage )
 : *    um* drop ;            ( n n -- n )
 : decimal 10 base ! ;                       ( -- )
 : hex     16 base ! ;                       ( -- )
-: radix base @ dup 2 - 34 u> if decimal 40 -throw then ; hidden
+: radix base @ dup 2 - 34 u> if hex 40 -throw then ; hidden
 : digit  9 over < 7 and + 48 + ; hidden      ( u -- c )
 : extract  0 swap um/mod swap ; hidden       ( n base -- n c )
 : ?hold hld @ cp @ u< if 17 -throw then ; hidden ( -- )
@@ -668,6 +668,9 @@ choice words that need depth checking to get quite a large coverage )
 
 ( ==================== Advanced I/O Control ========================== )
 
+( @todo Allow raw input and output to be redirected to blocks of
+memory )
+
 : segments! o7SegLED ! ;   ( u -- : display a number on the LED 7 segment display )
 : led!      oLeds ! ;      ( u -- : write to LED lights )
 : switches  iSwitches  @ ; ( -- u : get the state of the switches)
@@ -686,9 +689,9 @@ choice words that need depth checking to get quite a large coverage )
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? _key? ! ' tx! _emit ! hand ;
 : interactive ' input _key? ! ' output _emit ! hand ; 
-: io! $8FFF oTimerCtrl ! interactive 0 ien 0 oIrcMask ! ; ( -- : initialize I/O )
+: io! $8FFF oTimerCtrl ! interactive 0 ien oIrcMask ! ; ( -- : initialize I/O )
 : ver $666 ;
-: hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr ;
+: hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr [ ;
 
 ( ==================== Advanced I/O Control ========================== )
 
@@ -707,7 +710,7 @@ as possible so the Forth environment is easy to use. )
 : "'" token find if cfa else 13 -throw then ; immediate
 : [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
 : compile  r> dup @ , cell+ >r ; ( -- : Compile next compiled word NB. Works for words, instructions, and numbers below $8000 )
-: "[char]" char literal ; immediate ( --, <string> : )
+: "[char]" ?compile char literal ; immediate ( --, <string> : )
 : ?quit state @ 0= if 56 -throw then ; hidden
 : ";" ?quit ( ?compile ) context @ ! ?csp =exit , ( save )  [ ; immediate
 : ":" align ( save ) !csp here last address ,  token ?nul ?unique count + aligned cp ! ] ;

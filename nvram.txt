@@ -30,7 +30,7 @@ or hexadecimal. It is based on eForth.
 
 
 
-; ==== Forth Error Messages: 1/4 ==============================
+; ==== Forth Error Messages: 1/4 ===============================
   -1 ABORT
   -2 ABORT"
   -3 stack overflow
@@ -46,7 +46,7 @@ or hexadecimal. It is based on eForth.
  -13 undefined word
  -14 interpreting a compile-only word
  -15 invalid FORGET
-; ==== Forth Error Messages: 2/4 ==============================
+; ==== Forth Error Messages: 2/4 ===============================
  -16 attempt to use zero-length string as a name
  -17 pictured numeric output string overflow
  -18 parsed string overflow
@@ -62,7 +62,7 @@ or hexadecimal. It is based on eForth.
  -28 user interrupt
  -29 compiler nesting
  -30 obsolescent feature
-; ==== Forth Error Messages: 3/4 ==============================
+; ==== Forth Error Messages: 3/4 ===============================
  -31 >BODY used on non-CREATEd definition
  -32 invalid name argument (e.g., TO xxx)
  -33 block read exception
@@ -78,7 +78,7 @@ or hexadecimal. It is based on eForth.
  -43 floating-point result out of range
  -44 floating-point stack overflow
  -45 floating-point stack underflow
-; ==== Forth Error Messages: 4/4 ==============================
+; ==== Forth Error Messages: 4/4 ===============================
  -46 floating-point invalid argument
  -47 compilation word list deleted
  -48 invalid POSTPONE
@@ -142,7 +142,7 @@ $40 constant c/l $10 constant l/b
 : d (line) c/l blank ;
 : x (block) b/buf blank ; 
 : s update save-buffers ; 
-\ ==== Block Editor 2/2/ =======================================
+\ ==== Block Editor 2/2 ========================================
 : q forth save-buffers ;
 : e forth blk @ load editor ;
 : ia c/l * + (block) + source drop >in @ +
@@ -231,8 +231,8 @@ variable user0 0 user0 !
   begin .user query bl word cr find.user ?dup until ;
 : retry ( xt -- : retry word until it succeeds )
   >r begin r@ catch 0= until rdrop ;
-: user? [ ' (user) literal ] retry ;
-: password? [ ' (password) literal ] retry ;
+: user?     ' (user)     literal retry ;
+: password? ' (password) literal retry ;
 : hide-all 0 1 set-order ;
 : login hide-all
   cr user? cell+ @ conceal password? interactive forth ;
@@ -1007,8 +1007,8 @@ space for the user
 
 
 ; ==== <  ( n1 n2 -- f : signed less than ) ====================
-Signed less than.
-
+Signed less than, this is an assembly word primitive that is
+inlined when it is compiled into a word.
 
 
 
@@ -1071,7 +1071,7 @@ are equal.
 
 
 ; ==== >  ( n1 n2 -- f : signed greater than ) =================
-
+signed greater than
 
 
 
@@ -1103,9 +1103,9 @@ compliment format.
 
 
 ; ==== ,  ( u -- : compile value into dictionary ) =============
-
-
-
+The word ',' compiles a value at the next available location
+in the dictionary, updating the dictionary pointer by the size
+of a cell.
 
 
 
@@ -1519,8 +1519,8 @@ It is an immediate word.
 
 
 ; ==== 1-  ( u -- u : decrement u ) ============================
-
-
+This is an assembly word that is inlined when compiled into a
+word definition, it decrements a value.
 
 
 
@@ -1535,7 +1535,7 @@ It is an immediate word.
 
 
 ; ==== 1+  ( u -- u : increment u ) ============================
-
+This is a regular function that increments a value by one.
 
 
 
@@ -1695,10 +1695,10 @@ It is an immediate word.
 
 
 ; ==== abs  ( n -- u : absolute value of a number ) ============
-
-
-
-
+Returns the absolute value of a signed number, positive values
+stay the same, negative values become positive. Signed numbers
+are stored in twos compliment format, the function fails for
+the number $8000, which is unaffected by abs.
 
 
 
@@ -1791,8 +1791,8 @@ It is an immediate word.
 
 
 ; ==== allot  ( n -- : allocate 'n' bytes ) ====================
-
-
+Allocate 'n' bytes of space in the dictionary, 'n' can be
+either positive, or negative, negative deallocates space.
 
 
 
@@ -1807,9 +1807,9 @@ It is an immediate word.
 
 
 ; ==== and  ( u1 u2 -- u3 : bitwise and of two numbers ) =======
-
-
-
+This performs a bitwise and on two numbers, this is an
+assembly primitive that is inlined when it is compiled into a
+word.
 
 
 
@@ -1855,24 +1855,24 @@ It is an immediate word.
 
 
 ; ==== base  ( -- a : address of base radix ) ==================
+Pushes the address of the base variable onto the variable stack,
+this can be used to change the input and output radix of numbers
+to a base between 2 and 36 inclusive. Characters '0' to '9' are
+used for numbers 0 through 9, and letters 'A' to 'Z' are used
+for numbers 10 to 35, upper case and lower case letter can be
+used, only upper case characters are output.
 
+Setting the base to an invalid value can cause exceptions to
+be thrown in other words.
 
-
-
-
-
-
-
-
-
-
-
-
-
+Example usage:
+   $2 base !
+   base @
+   $8 base !
 
 ; ==== b/buf  ( -- u : number of bytes in a block ) ============
-
-
+This pushes the number of bytes in a block onto the stack, which
+is 1024 in most Forth implementations, including this one.
 
 
 
@@ -1903,7 +1903,7 @@ It is an immediate word.
 
 
 ; ==== bl  ( -- u : value for space character ) ================
-
+This pushes the space character to the stack.
 
 
 
@@ -1935,8 +1935,8 @@ It is an immediate word.
 
 
 ; ==== blank  ( b u -- : fill array with blanks ) ==============
-
-
+This word writes the space character to a byte array, one use
+is to erase a block before it is displayed with 'list'.
 
 
 
@@ -2047,10 +2047,10 @@ It is an immediate word.
 
 
 ; ==== c,  ( c -- : compile character into dictionary ) ========
-
-
-
-
+This words takes a character and writes the character in the
+next available location in the dictionary, and updates the
+dictionary pointer. This word can cause the dictionary number to
+be misaligned, 'align' can be used to remedy this.
 
 
 
@@ -2175,8 +2175,8 @@ It is an immediate word.
 
 
 ; ==== char  ( -- c ; <string> : parse character ) =============
-
-
+This word reads in a space delimited from the input stream and
+and pushes the first character of that word onto the stack.
 
 
 
@@ -2191,11 +2191,11 @@ It is an immediate word.
 
 
 ; ==== [char]  ( -- ; <string> : compile character literal ) ===
-
-
-
-
-
+This is an immediate word that compiles a character into the
+dictionary as a literal value that will be pushed onto the
+stack when the word is run. It parses a space delimited word
+and compiles the first character of that word. It is a compile
+only word.
 
 
 
@@ -2207,8 +2207,8 @@ It is an immediate word.
 
 
 ; ==== cmove  ( b b u -- : move block memory ) =================
-
-
+'cmove' moves a block of characters from one location to 
+another.
 
 
 
@@ -2271,10 +2271,10 @@ It is an immediate word.
 
 
 ; ==== compile,  ( xt -- : compile execution token ) ===========
-
-
-
-
+'compile,' compiles an execution token into the next available
+location in the dictionary, taking up a cell of space. This
+word must be used when compiling in an execution into a word,
+the word ',' will compile an unconditional branch.
 
 
 
@@ -2351,9 +2351,9 @@ It is an immediate word.
 
 
 ; ==== cpu-id  ( -- u : return CPU-ID ) ========================
-
-
-
+This is an assembly instruction that pushes the CPU-ID of the
+CPU onto the stack. It can be used to determine whether the
+system is running in a simulation or on the hardware.
 
 
 
@@ -2543,9 +2543,9 @@ It is an immediate word.
 
 
 ; ==== ?dup  ( n -- n n | 0 : duplicate value if not zero ) ====
-
-
-
+This word duplicates a number if that number is non zero, it
+returns just a single zero if the input number was zero. It
+finds a lot of use in 'begin...while...repeat' loop constructs.
 
 
 
@@ -2575,12 +2575,12 @@ It is an immediate word.
 
 
 ; ==== emit  ( c -- : emit a character ) =======================
-
-
-
-
-
-
+'emit' emits a single character to the output device, this
+device is by default both the UART and the VT100 terminal
+emulator can be displayed on a VGA capable display. The board
+used has VGA output. The output of this word can be redirected
+by words like 'io!', 'stars', 'conceal', 'file', 'console' and
+'interactive'.
 
 
 
@@ -2591,9 +2591,9 @@ It is an immediate word.
 
 
 ; ==== empty-buffers  ( -- : deallocate block buffer ) =========
-
-
-
+'empty-buffers' deallocates any currently loaded block buffers,
+and stores and invalid block number in 'blk'. It can be used
+to discard any changes made to any currently loaded blocks.
 
 
 
@@ -2623,9 +2623,9 @@ It is an immediate word.
 
 
 ; ==== execute  ( xt -- : execute an execution token ) =========
-
-
-
+'execute' takes an execution token, which represents a callable 
+function, and it executes that function. Execution tokens are
+returned by words like "'" (quote), or by ":noname".
 
 
 
@@ -2639,10 +2639,10 @@ It is an immediate word.
 
 
 ; ==== @execute  ( a -- : execute token at 'a' if non-zero ) ===
-
-
-
-
+'@execute' expects an address of a value containing an
+execution token to execute, it retrieves this token from the
+address and executes it if the token is a non-zero value. This
+is primarily uses for vectored word execution.
 
 
 
@@ -2655,20 +2655,20 @@ It is an immediate word.
 
 
 ; ==== exit  ( -- : exit from word ) ===========================
+This word is an assembly instruction that will be inlined into
+a word when it is executed, it will run but have no effect when
+executed in command mode, when compiled into a word it will
+exit that word definition when it is run by returning from that
+word. It is compiled into the end of a word definition by
+the ';' word, which terminates a word.
 
 
 
 
-
-
-
-
-
-
-
-
-
-
+Example:
+   : foo if $f00f . exit then $1337 . ;
+   0 foo $F00F ( <-- prints only '$F00F', $1337 not printed )
+   1 foo $1337 ( <-- prints $1337 only )
 
 ; ==== expect  ( b u -- : accept, but store 'u' in span ) ======
 
@@ -2847,10 +2847,10 @@ It is an immediate word.
 
 
 ; ==== here  ( -- a : return dictionary address ) ==============
-
-
-
-
+'here' returns the current address of where the dictionary
+pointer is, new words will be compiled at this address. The
+dictionary pointer is updated by compiling words and numbers
+into the dictionary, words like ',' and 'compile,'.
 
 
 
@@ -2863,7 +2863,7 @@ It is an immediate word.
 
 
 ; ==== hex  ( -- : set numeric radix to hexadecimal ) ==========
-
+This sets the current output radix to hexadecimal.
 
 
 
@@ -3007,10 +3007,10 @@ It is an immediate word.
 
 
 ; ==== index  ( k1 k2 -- : print first line of block range ) ===
-
-
-
-
+'index' displays the first line in a range of blocks, if the
+blocks are formatted correctly with the first line containing a
+description of the block contents then this works to display an
+index of the blocks.
 
 
 
@@ -3055,8 +3055,8 @@ It is an immediate word.
 
 
 ; ==== invert  ( u -- u : bitwise invert ) =====================
-
-
+Performs a bitwise invert on a number. This is implemented as an
+assembly instruction that is inlined when compiled into a word.
 
 
 
@@ -3071,27 +3071,27 @@ It is an immediate word.
 
 
 ; ==== io!  ( -- : initialize IO channels ) ====================
+'io!' initializes the I/O devices and sets the input and output
+devices to their default values (read from UART and PS/2 
+keyboard, write to the VT100 display, and to UART - both at
+the same time). It also disables the interrupts, and sets the
+timer to a count but not generate interrupts.
 
 
 
 
 
+Example usage:
 
-
-
-
-
-
-
-
+   io! ( ...that's not a very good demonstration... )
 
 
 ; ==== key  ( -- c : block until character read in ) ===========
-
-
-
-
-
+This word blocks until a character has been read in from the
+current input device (or devices). The input devices can be 
+either be the UART or the PS/2 Keyboard. The input devices can
+be changed with the 'io!', 'console', 'conceal', 'interactive'
+and 'file' words.
 
 
 
@@ -3103,12 +3103,12 @@ It is an immediate word.
 
 
 ; ==== key?  ( -- c -1 | 0 : non-blocking character read ) =====
-
-
-
-
-
-
+This is a non-blocking version of 'key', it returns a
+character and true (-1) if a new character has come through
+from input devices, and only 0 if there is no new character.
+The input devices can be either a UART or a PS/2 keyboard, and
+this can be changed with the 'io!', 'console', 'conceal', 'file'
+and 'interactive' words.
 
 
 
@@ -3135,9 +3135,9 @@ It is an immediate word.
 
 
 ; ==== led!  ( u -- : write value to LEDs ) ====================
-
-
-
+'led!' sets the LEDs on the board next to the switches. There
+are eight switches, and the lowest eight bits of the input value
+are used to set the switches, 1 is on, 0 is off.
 
 
 
@@ -3157,8 +3157,8 @@ with a column width of 64. The display format is controlled by
 the 'border' variable, if true it 'list' displays the line
 number and a border around the block, if false, then it just
 display the block line by line without formatting. It is true
-by default.
-
+by default. 'list' will also call 'page' before it displays
+the block if 'border' contains a non-zero value.
 
 
 
@@ -3199,11 +3199,11 @@ one). It is a compile only word.
 
 
 ; ==== loaded  ( -- a : variable, true if boot block loaded ) ==
-
-
-
-
-
+This is a variable which can be set by the user if the loading
+of the boot block was successful, and if the error messages
+exists on disk. The error handling words in QUIT inspect this
+variable to work out if it can lookup error messages and print
+them, or if it should just print out the error number.
 
 
 
@@ -3439,9 +3439,9 @@ for timing purposes or to work around the optimizer.
 
 
 ; ==== nuf?  ( -- f : true if 'cr' character pressed ) =========
-
-
-
+'nuf?' is a non blocking input word that returns true if a
+carriage return was input. It can be used to determine if a
+word should continue execution or not.
 
 
 
@@ -3887,10 +3887,10 @@ PAD area. It is not a reentrant function.
 
 
 ; ==== screens  ( k1 k2 -- : list screens k1 to k2 ) ===========
-
-
-
-
+'screens' displays the range of blocks from k1 to k2 inclusive,
+using the 'list' word (and hence it's output is affected by
+'border'). It is like 'thru', but calls 'list' on blocks instead
+of 'load'.
 
 
 
@@ -3919,11 +3919,11 @@ PAD area. It is not a reentrant function.
 
 
 ; ==== see  ( -- ; <string> : decompile word ) =================
-
-
-
-
-
+'see' is a complex word that can decompile a Forth word, it is
+liable to be buggy. 'see' parses the next space delimited word
+in the dictionary, and if found attempts to disassemble the
+word into instructions and function calls. If not found 'see'
+will throw an exception.
 
 
 
@@ -4031,9 +4031,9 @@ This word sets the sort order.
 
 
 ; ==== sp@  ( -- u : variable stack depth ) ====================
-
-
-
+'sp@' is an assembly instruction which returns the current
+depth of the variable stack. It is inlined when compiled into
+a word.
 
 
 
@@ -4047,8 +4047,8 @@ This word sets the sort order.
 
 
 ; ==== space  ( -- : emit space character ) ====================
-'space' emits a single space.
-
+'space' emits a single space character to the current output
+device.
 
 
 
@@ -4095,13 +4095,13 @@ This word sets the sort order.
 
 
 ; ==== state  ( -- a : state variable ) ========================
-
-
-
-
-
-
-
+'state' is a variable that contains the global state of the
+Forth interpreter loop, which can be in either compile or
+command mode. 'state' contains -1 for command mode, 0 for
+compile mode. It can be set directly to change the interpreter
+state, or read to make words change their behavior based on
+the state (which is generally not the best thing to do). The
+words '[' and ']' can be used to switch the state as well.
 
 
 
@@ -4175,11 +4175,11 @@ This word sets the sort order.
 
 
 ; ==== switches  ( -- u : get state of switches ) ==============
-
-
-
-
-
+'switches' retrieves the state of the two state switches on
+the board, the values are already debounced. There are eight
+switches which each have a single LED next to them (which can
+be controlled with 'led!'). The lowest eight bits are used
+for the switch states, 1 for on, 0 for off.
 
 
 
@@ -4239,9 +4239,9 @@ This word sets the sort order.
 
 
 ; ==== timer  ( -- u : get value of timer ) ====================
-
-
-
+'timer' retrieves the current value of the hardware time in the
+FPGA, this peripheral can be controlled with the 'timer!' word,
+which is used to control the timer.
 
 
 
@@ -4351,9 +4351,9 @@ Unsigned greater than, this is not an assembly instruction.
 
 
 ; ==== u.  ( u -- : print out number in current base ) =========
-
-
-
+'u.' prints out an unsigned number in the current output base,
+this number uses the area at the end of the dictionary and
+the beginning of the PAD area as temporary storage.
 
 
 
@@ -4447,13 +4447,13 @@ or another block is loaded from disk.
 
 
 ; ==== u.r  ( u +n -- : print u right justified by +n ) ========
-
-
-
-
-
-
-
+'u.r' is a general purpose numeric formatting word, it prints
+out the number 'u' as an unsigned number in the current output
+radix, preceded by '+n' spaces, minus the number of spaces 
+needed to display 'u' in the current output radix, or right
+aligned. This function uses the area between the end of the
+dictionary and the beginning of the PAD area as temporary
+storage.
 
 
 
@@ -4559,9 +4559,9 @@ interpreter works that could potentially break code.
 
 
 ; ==== words  ( -- : list all words in dictionary ) ============
-
-
-
+This lists all of the words in the dictionary that are on the
+current search order. Each vocabulary is listed with the address
+of that vocabulary as a prefix.
 
 
 
@@ -4577,6 +4577,22 @@ interpreter works that could potentially break code.
 ; ==== xor  ( u1 u2 -- u : bit wise exclusive or ) =============
 Bitwise exclusive or of two numbers, this is an assembly word
 that is inlined into a word definition when compiled into it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+; ==============================================================
+
+
 
 
 
