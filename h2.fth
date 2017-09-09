@@ -957,12 +957,6 @@ things, the 'decompiler' word could be called manually on an address if desired 
 ( ==================== See =========================================== )
 
 ( ==================== Miscellaneous ================================= )
-( Initial value of timer
-  BIT     MEANING
-  15   -  Enable Timer
-  14   -  Reset Timer Value immediately
-  13   -  Interrupt Enable
-  12-0 -  Value to compare against )
 
 \ Testing for the interrupt mechanism, interrupts do not
 \ work correctly at the moment
@@ -997,7 +991,8 @@ irq:
 
 
 ( This is a clone of the one dimensional rogue like game
-available at <https://github.com/rupa/YOU_ARE_DEAD>
+available at <https://github.com/rupa/YOU_ARE_DEAD>. The
+object is to get to the other size of the screen.
 
 Keys:
   w  Turn into '.'
@@ -1019,16 +1014,16 @@ Block number 7 is used to store the game state.
 : continue variables 4 cells + ;
 : end c/l 1- ;
 : player form @ ;
-: .player position @ 1+ 0 at-xy player emit ;
+: .player position @ 1+ 3 at-xy player emit ;
 : normal [char] x ;
-: .goal c/l 0 at-xy [char] # emit ;
+: .goal c/l 3 at-xy [char] # emit ;
 
 location $score " SCORE: "
 : .score $score count type score @ 5 u.r ;
 location $level " LEVEL: "
 : .level $level count type level @ 5 u.r ;
 
-: show page 0 0 at-xy space memory c/l type 
+: show page cr cr space memory c/l type 
 	.player .goal
 	cr .score .level cr ;
 
@@ -1103,8 +1098,7 @@ location $survived "YOU SURVIVED"
 
 : resume memory drop ' game catch drop ;
 : you-are-dead setup ' game catch drop ;
-: yod you-are-dead ;
-
+: yad you-are-dead ;
 
 ( ==================== Miscellaneous ================================= )
 
@@ -1235,15 +1229,13 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 	[-1] memory-select ! flash-clear flash-read
 	m@ 0 memory-select ! swap m! ; hidden
 
-( @todo Memory addresses should be character aligned with the lowest
-bit discarded, like normal memory )
 : transfer ( a a u -- : transfer memory block from Flash to SRAM )
 	?dup 0= if 2drop exit then
 	1-
 	for
 		2dup
 		flash->sram
-		1+ swap 1+ swap
+		cell+ swap cell+ swap
 	next 2drop ;
 .set flash-voc $pwd
 
@@ -1255,11 +1247,11 @@ bit discarded, like normal memory )
 
 : mblock ( a u k -- f )
 	minvalid
-	512 um* memory-upper ! >r
+	b/buf um* memory-upper ! >r
 	begin
 		dup
 	while
-		over r@ _blockop @execute r> 1+ >r
+		over r@ _blockop @execute r> cell+ >r
 		cell /string
 	repeat
 	rdrop 2drop 0 ; hidden

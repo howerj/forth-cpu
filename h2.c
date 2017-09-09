@@ -1484,7 +1484,7 @@ uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc)
 		warning("SRAM and Flash Chip selects both high");
 
 	if(flash_cs)
-		return h2_io_flash_read(&soc->flash, flash_addr, oe, we, flash_rst);
+		return h2_io_flash_read(&soc->flash, flash_addr>>1, oe, we, flash_rst);
 
 	if(sram_cs && oe && !we)
 		return soc->vram[flash_addr];
@@ -1575,7 +1575,7 @@ static void h2_io_update_default(h2_soc_state_t *soc)
 		bool flash_cs  = soc->mem_control & FLASH_CHIP_SELECT;
 		bool oe        = soc->mem_control & FLASH_MEMORY_OE;
 		bool we        = soc->mem_control & FLASH_MEMORY_WE;
-		h2_io_flash_update(&soc->flash, flash_addr, soc->mem_dout, oe, we, flash_rst, flash_cs);
+		h2_io_flash_update(&soc->flash, flash_addr >> 1, soc->mem_dout, oe, we, flash_rst, flash_cs);
 	}
 }
 

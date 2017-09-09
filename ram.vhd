@@ -61,16 +61,19 @@ architecture rtl of ram_interface is
 	signal mem_control_o:  std_logic_vector(mem_control_i'range) := (others => '0');
 	signal mem_we:         std_logic := '0';
 	signal mem_oe:         std_logic := '0';
+	signal mem_addr_low:   std_logic_vector(mem_addr_16_1'range)  := (others => '0');
+	signal mem_addr_high:  std_logic_vector(mem_addr_26_17'range) := (others => '0');
 begin
+	MemAdr <= '0' & mem_addr_high & mem_addr_low(mem_addr_low'high downto mem_addr_low'low + 1);
 
 	mem_addr_16_1_reg: entity work.reg
-		generic map(N => mem_addr_16_1'high)
+		generic map(N => mem_addr_16_1'length)
 		port map(
 			clk => clk,
 			rst => rst,
 			we  => mem_addr_16_1_we,
 			di  => mem_addr_16_1,
-			do  => MemAdr(mem_addr_16_1'range));
+			do  => mem_addr_low);
 
 	mem_addr_26_17_reg: entity work.reg
 		generic map(N => 10)
@@ -79,7 +82,7 @@ begin
 			rst => rst,
 			we  => mem_addr_26_17_we,
 			di  => mem_addr_26_17,
-			do  => MemAdr(mem_addr_26_17'range));
+			do  => mem_addr_high);
 
 	mem_control_reg: entity work.reg
 		generic map(N => 6)
@@ -91,7 +94,7 @@ begin
 			do  => mem_control_o);
 
 	mem_data_i_reg: entity work.reg
-		generic map(N => mem_data_i'high + 1)
+		generic map(N => mem_data_i'length)
 		port map(
 			clk => clk,
 			rst => rst,

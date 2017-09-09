@@ -472,8 +472,6 @@ begin
 	--- Switches ------------------------------------------------------
 
 	--- Memory Interface ----------------------------------------------
-	-- @todo The memory interface should be WORD aligned, that is, the
-	-- lowest bit of the address should be dropped
 	ram_interface_0: entity work.ram_interface
 	port map(
 		clk                =>  clk,
