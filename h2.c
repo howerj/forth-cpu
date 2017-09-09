@@ -856,16 +856,19 @@ void soc_print(FILE *out, h2_soc_state_t *soc)
 	unsigned char led2 = l7seg(soc->led_7_segments >>  4);
 	unsigned char led3 = l7seg(soc->led_7_segments);
 
-	fprintf(out, "LEDS:           %02"PRIx8"\n",  soc->leds);
-	/*fprintf(out, "VGA Cursor:     %04"PRIx16"\n", soc->vga_cursor);
-	fprintf(out, "VGA Control:    %04"PRIx16"\n", soc->vga_control);*/
-	fprintf(out, "Timer Control:  %04"PRIx16"\n", soc->timer_control);
-	fprintf(out, "Timer:          %04"PRIx16"\n", soc->timer);
-	fprintf(out, "IRC Mask:       %04"PRIx16"\n", soc->irc_mask);
-	fprintf(out, "UART Input:     %02"PRIx8"\n",  soc->uart_getchar_register);
-	fprintf(out, "LED 7 segment:  %c%c%c%c\n",    led0, led1, led2, led3);
-	fprintf(out, "Switches:       %02"PRIx8"\n",  soc->switches);
-	fprintf(out, "Waiting:        %s\n",          soc->wait ? "true" : "false");
+	fprintf(out, "LEDS:             %02"PRIx8"\n",  soc->leds);
+	/*fprintf(out, "VGA Cursor:       %04"PRIx16"\n", soc->vga_cursor);
+	fprintf(out, "VGA Control:      %04"PRIx16"\n", soc->vga_control);*/
+	fprintf(out, "Timer Control:    %04"PRIx16"\n", soc->timer_control);
+	fprintf(out, "Timer:            %04"PRIx16"\n", soc->timer);
+	fprintf(out, "IRC Mask:         %04"PRIx16"\n", soc->irc_mask);
+	fprintf(out, "UART Input:       %02"PRIx8"\n",  soc->uart_getchar_register);
+	fprintf(out, "LED 7 segment:    %c%c%c%c\n",    led0, led1, led2, led3);
+	fprintf(out, "Switches:         %02"PRIx8"\n",  soc->switches);
+	fprintf(out, "Waiting:          %s\n",          soc->wait ? "true" : "false");
+	fprintf(out, "Flash Control:    %04"PRIx16"\n", soc->mem_control);
+	fprintf(out, "Flash Address Lo: %04"PRIx16"\n", soc->mem_addr_low);
+	fprintf(out, "Flash Data Out:   %04"PRIx16"\n", soc->mem_dout);
 }
 
 static void terminal_default_command_sequence(vt100_t *t)
@@ -1484,10 +1487,10 @@ uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc)
 		warning("SRAM and Flash Chip selects both high");
 
 	if(flash_cs)
-		return h2_io_flash_read(&soc->flash, flash_addr>>1, oe, we, flash_rst);
+		return h2_io_flash_read(&soc->flash, flash_addr >> 1, oe, we, flash_rst);
 
 	if(sram_cs && oe && !we)
-		return soc->vram[flash_addr];
+		return soc->vram[flash_addr >> 1];
 	return 0;
 }
 
@@ -1539,7 +1542,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 		bool we        = soc->mem_control & FLASH_MEMORY_WE;
 
 		if(sram_cs && !oe && we)
-			soc->vram[((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
+			soc->vram[(((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low) >> 1] = soc->mem_dout;
 		break;
 	}
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
@@ -3102,6 +3105,7 @@ typedef struct {
 	uint16_t mode;
 	uint16_t pwd; /* previous word register */
 	uint16_t fence; /* mark a boundary before which optimization cannot take place */
+	symbol_t *do_r_minus_one;
 	symbol_t *do_next;
 	symbol_t *do_var;
 } assembler_t;
@@ -3336,9 +3340,9 @@ static built_in_words_t built_in_words[] = {
 
 static void generate_loop_decrement(h2_t *h, assembler_t *a, symbol_table_t *t)
 {
-	a->do_next = a->do_next ? a->do_next : symbol_table_lookup(t, "r1-");
-	if(a->do_next && a->mode & MODE_OPTIMIZATION_ON) {
-		generate(h, a, OP_CALL | a->do_next->value);
+	a->do_r_minus_one = a->do_r_minus_one ? a->do_r_minus_one : symbol_table_lookup(t, "r1-");
+	if(a->do_r_minus_one && a->mode & MODE_OPTIMIZATION_ON) {
+		generate(h, a, OP_CALL | a->do_r_minus_one->value);
 	} else {
 		generate(h, a, CODE_FROMR);
 		generate(h, a, CODE_T_N1);
@@ -3426,16 +3430,27 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 
 	case SYM_FOR_NEXT:
-		generate(h, a, CODE_TOR);
-		hole1 = here(h, a);
-		assemble(h, a, n->o[0], t, e);
-		generate(h, a, CODE_RAT);
-		hole2 = hole(h, a);
-		generate_loop_decrement(h, a, t);
-		generate(h, a, OP_BRANCH | hole1);
-		fix(h, hole2, OP_0BRANCH | here(h, a));
-		generate(h, a, CODE_RDROP);
+	{
+		symbol_t *s = a->do_next ? a->do_next : symbol_table_lookup(t, "doNext");
+		if(s && a->mode & MODE_OPTIMIZATION_ON) {
+			generate(h, a, CODE_TOR);
+			hole1 = here(h, a);
+			assemble(h, a, n->o[0], t, e);
+			generate(h, a, OP_CALL | s->value);
+			generate(h, a, hole1 << 1);
+		} else {
+			generate(h, a, CODE_TOR);
+			hole1 = here(h, a);
+			assemble(h, a, n->o[0], t, e);
+			generate(h, a, CODE_RAT);
+			hole2 = hole(h, a);
+			generate_loop_decrement(h, a, t);
+			generate(h, a, OP_BRANCH | hole1);
+			fix(h, hole2, OP_0BRANCH | here(h, a));
+			generate(h, a, CODE_RDROP);
+		}
 		break;
+	}
 	case SYM_FOR_AFT_THEN_NEXT:
 		generate(h, a, CODE_TOR);
 		assemble(h, a, n->o[0], t, e);

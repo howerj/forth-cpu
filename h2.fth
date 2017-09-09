@@ -203,6 +203,7 @@ location failed           "failed"      ( used in start up routine )
 : c, cp @ c! cp 1+! ;    ( c -- : store 'c' at next available location in the dictionary )
 : 40ns begin dup while 1- repeat drop ; hidden ( n -- : wait for 'n'*40ns + 30us )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
+: doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
 
 : uart? ( a1 a2 -- c -1 | 0 : generic uart input using registers 'a1' and 'a2'  )
 	swap >r dup >r
@@ -269,7 +270,7 @@ they can implemented in terms of instructions )
 : -rot swap >r swap r> ;                  ( n1 n2 n3 -- n3 n1 n2 )
 : min over over < if drop else nip then ; ( n n -- n )
 : max over over > if drop else nip then ; ( n n -- n )
-: >char $7f and dup 127 =bl within if drop [char] _ then ; hidden ( c -- c )
+: >char $7f and dup 127 =bl within if drop [char] _ then ; ( c -- c )
 : tib #tib cell+ @ ; hidden               ( -- a )
 : echo _echo @execute ; hidden            ( c -- )
 : key? _key? @execute ;                   ( -- c -1 | 0 )
@@ -636,40 +637,19 @@ choice words that need depth checking to get quite a large coverage )
 
 : CSI $1b emit [char] [ emit ; hidden
 : 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( u -- )
-: ansi swap CSI 10u. emit ; hidden ( n c -- )
+: ansi swap CSI 10u. emit ; ( n c -- )
 : at-xy CSI 10u. $3b emit 10u. [char] H emit ; ( x y -- )
 : page 2 [char] J ansi 1 1 at-xy ; ( -- )
 : sgr [char] m ansi ; ( -- )
-: black 0 ;
-: red 1 ;
-: green 2 ;
-: blue 4 ;
-: white red green blue + + ;
-: background 10 + ;
-: color 30 + sgr ;
-\ : hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
-\ : show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
-\ : up    [char] A ansi ; ( n -- )
-\ : down  [char] B ansi ; ( n -- )
-\ : left  [char] C ansi ; ( n -- )
-\ : right [char] D ansi ; ( n -- )
 
 ( ==================== Extra Words =================================== )
 
-\ : defined? token find if -1 else drop 0 then ; ( -- pwd -1 | 0, <string> : is a word defined? )
-\ : ?if ' "dup" compile, call "if" ; immediate
-\ : ?dup-if ' "?dup" compile, call "if" ; immediate
 \ : gcd gcdStart: dup if tuck mod branch gcdStart then drop ; ( u1 u2 -- u : greatest common divisor )
 \ : lcm 2dup gcd / * ; ( u1 u2 -- u : lowest common multiple of u1 and u2 )
-( : factorial 0
-   dup 2 < if drop 1 exit then
-   1 swap for aft r@ 1+ * then next ; )
+
 ( ==================== Extra Words =================================== )
 
 ( ==================== Advanced I/O Control ========================== )
-
-( @todo Allow raw input and output to be redirected to blocks of
-memory )
 
 : segments! o7SegLED ! ;   ( u -- : display a number on the LED 7 segment display )
 : led!      oLeds ! ;      ( u -- : write to LED lights )
@@ -734,7 +714,7 @@ as possible so the Forth environment is easy to use. )
 : "variable" create 0 , ;
 : ":noname" here ] !csp ;
 : "for" ?compile =>r , here -csp ; immediate
-: doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
+
 : "next" ?compile compile doNext , +csp ; immediate
 : "aft" ?compile drop here 0 jump, call "begin" swap ; immediate
 : doer create =exit last cfa ! =exit ,  ;
@@ -803,15 +783,12 @@ in which the problem could be solved. )
 : $,' 34 word count + aligned cp ! ; hidden        ( -- )
 : $"  ?compile compile $"| $,' ; immediate         ( -- ; <string> )
 : ."  ?compile compile ."| $,' ; immediate         ( -- ; <string> )
-: abort 0 rp! quit ;                               ( --, R: ??? --- ??? : Abort! )
-: abort" ?compile ." compile abort ; immediate
+\ : abort 0 rp! quit ;                               ( --, R: ??? --- ??? : Abort! )
+\ : abort" ?compile ." compile abort ; immediate
 
 ( ==================== Strings ======================================= )
 
 ( ==================== Block Word Set ================================ )
-
-( @todo implement multiple blocks, with the constraint that blocks
-should be contiguous as well )
 
 : updated? block-dirty @ ; hidden      ( -- f )
 : update [-1] block-dirty ! ;          ( -- )
@@ -870,9 +847,6 @@ should be contiguous as well )
 		dup . dup list 1+ nuf? if rdrop drop exit then
 	next drop ;
 
-\ : --> 1 +block load ;
-\ : scr blk ;
-
 ( all words before this are now in the forth vocabulary, it is also set
 later on )
 .set forth-wordlist $pwd
@@ -929,7 +903,9 @@ things, the 'decompiler' word could be called manually on an address if desired 
 
 : decompile ( a -- a : decompile a single instruction )
 	dup 5u.r colon dup @ 5u.r space
-	dup @ instruction cr
+	dup @ instruction 
+	dup @ ' doNext make-callable = if cell+ dup ? then
+	cr
 	cell+ ; hidden
 
 : decompiler ( a -- : decompile starting at address )
@@ -974,131 +950,6 @@ irq:
 	$0040 oIrcMask !
 	$ffff oTimerCtrl !
 	1 ien drop ;
-
-\ : plot ( a scale-y : plot an array of 80 value after scaling each one )
-\ 	40 / 2* dup 0= if drop 1 then >r
-\ 	79 2* begin
-\ 		dup cell+ 0>
-\ 	while
-\ 		\ 2dup dup . + @ r@ dup .  / . cr
-\ 		2dup + @ r@ / 20 + over 2/ swap at-xy [char] _ emit
-\ 		cell-
-\ 	repeat rdrop 2drop ;
-\
-\ \ : 2. swap . . cr ;
-\ : ex1
-\ 	79 for r@  pad r@ 2* + ! next pad 80 ;
-
-
-( This is a clone of the one dimensional rogue like game
-available at <https://github.com/rupa/YOU_ARE_DEAD>. The
-object is to get to the other size of the screen.
-
-Keys:
-  w  Turn into '.'
-  a  Turn into '~'
-  s  Turn into '>'
-  d  Move right
-  q  Quit
-
-Block number 7 is used to store the game state.
-
-)
-
-: memory 7 block ;
-: variables memory c/l + ;
-: score    variables 0 cells + ;
-: position variables 1 cells + ;
-: level    variables 2 cells + ;
-: form     variables 3 cells + ;
-: continue variables 4 cells + ;
-: end c/l 1- ;
-: player form @ ;
-: .player position @ 1+ 3 at-xy player emit ;
-: normal [char] x ;
-: .goal c/l 3 at-xy [char] # emit ;
-
-location $score " SCORE: "
-: .score $score count type score @ 5 u.r ;
-location $level " LEVEL: "
-: .level $level count type level @ 5 u.r ;
-
-: show page cr cr space memory c/l type 
-	.player .goal
-	cr .score .level cr ;
-
-: select ( n -- c )
-	dup 0=  if drop $3c ( < ) exit then
-	dup 1 = if drop [char] ~  exit then
-	dup 2 = if drop [char] .  exit then 
-	drop bl ;
-
-: generate ( -- generate a level )
-	c/l 1- for
-		random 5 mod ( 3 = most difficult )
-		select memory r@ + c!
-	next 
-	bl memory c! 
-	bl memory end + c! ;
-
-: setup ( -- )
-	-1 continue !
-	memory b/buf 0 fill
-	normal form c!
-	generate ;
-
-: command ( -- f )
-	key
-	dup [char] w = if drop [char] . form c! 0 exit then
-	dup [char] a = if drop [char] ~ form c! 0 exit then 
-	dup [char] d = if drop -1 exit then 
-	dup [char] s = if drop $3c ( < ) form c! 0 exit then 
-	dup [char] q = if drop -56 throw then
-	drop 0 ;
-
-location $die "YOU ARE DEAD"
-: die $die count type cr 0 continue ! -56 throw ;
-location $survived "YOU SURVIVED"
-: survived $survived count type cr .score cr ;
-
-: forms form c@ position @ memory + c@ ; ( -- c c )
-
-: +level
-	0 position !
-	level 1+!
-	random 23 mod 5 min score +!
-	generate ;
-
-: +score random 4 mod 1 min score +! ;
-
-: ?next <> if die else +score then ; ( c c -- )
-
-: monster swap >r forms r> = if ?next else 2drop then ; ( c c -- )
-
-: rules
-	position @ end = if +level exit then
-	forms = if exit then
-	[char] ~  $3c ( < ) monster
-	[char] .  [char] ~  monster
-	$3c ( < ) [char] .  monster
-	\ forms [char] ~  = if $3c ( < ) ?next else drop then
-	\ forms [char] .  = if [char] ~  ?next else drop then
-	\ forms $3c ( < ) = if [char] .  ?next else drop then
-	normal form c!
-	bl position @ memory + c!
-	score 1+!
-	position 1+! ;
-
-: game
-	begin
-	show
-	command if rules then
-	level @ 9 >
-	until survived ;
-
-: resume memory drop ' game catch drop ;
-: you-are-dead setup ' game catch drop ;
-: yad you-are-dead ;
 
 ( ==================== Miscellaneous ================================= )
 

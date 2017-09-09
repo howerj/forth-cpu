@@ -3,7 +3,6 @@
  * @copyright Richard James Howe (2017)
  * @license   MIT
  *
- * @todo Allow the setting of the background color of a text string.
  * @todo A terminal emulator as a separate program could be hacked together
  * from the components in this module, this would be a separate program.
  * @todo Speed up the background color drawing by generating a texture,
@@ -843,7 +842,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 			bool we        = soc->mem_control & FLASH_MEMORY_WE;
 
 			if(sram_cs && !oe && we)
-				soc->vram[((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low] = soc->mem_dout;
+				soc->vram[(((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low) >> 1] = soc->mem_dout;
 			break;
 		}
 	case oMemAddrLow: soc->mem_addr_low   = value; break;

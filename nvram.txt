@@ -300,8 +300,8 @@ mk.user lana  sterling  mk.user cyril  figgis
 : tab 9 emit ; ( -- )
 : drup drop dup ; ( n1 n2 -- n1 n1 )
 : lsb $ff and ; ( u -- u )
-
-
+: --> 1 +block load ;
+: scr blk ;
 \ ==== Extra Code 5/6 ==========================================
 : signum ( n -- -1 | 0 | 1 : Signum function )
   dup 0> if drop  1 exit then
@@ -326,13 +326,13 @@ mk.user lana  sterling  mk.user cyril  figgis
 : @bits swap @ and ;                  ( a u -- u )
 : ?\ if [compile] \ then ; immediate
 : ?( if [compile] ( then ; immediate ( )
-
-
-
-
-
-
-
+: defined? ( -- pwd -1 | 0, <string> : is word defined? )
+  bl word find if -1 else drop 0 then ; 
+: ?if compile dup [compile] if ; immediate
+: ?dup-if compile ?dup [compile] if ; immediate
+: factorial 0 ( u -- )
+   dup 2 < if drop 1 exit then
+   1 swap for aft r@ 1+ * then next ; 
 
 \ ==== Roulette ================================================
 \ Russian Roulette: It would be interesting to do something
@@ -350,20 +350,148 @@ mk.user lana  sterling  mk.user cyril  figgis
 
 
 
+\ ==== Extended ANSI Escape Codes ==============================
+0 constant black 1 constant red 2 constant green 4 constant blue
+red green        + constant yellow
+    green blue   + constant cyan
+red       blue   + constant magenta
+red green blue + + constant white
+: background $a + ;
+: color $1e + sgr ;
+\ : hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
+\ : show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
+: up    [char] A ansi ; ( n -- )
+: down  [char] B ansi ; ( n -- )
+: left  [char] C ansi ; ( n -- )
+: right [char] D ansi ; ( n -- )
+
+
 \ ==== Screen Saver ============================================
 \ An incredibly simple screen saver using ANSI Escape codes
 \ for placement and coloring of random characters
-: >char $7f and dup $80 bl within if drop [char] _ then ;
+
 : screen-saver ( -- )
-	page
-	begin
-		random 80 mod
-		random 40 mod at-xy
-		random >char emit
-		random 8  mod
-		( random 1 and if background then )
-		color
-	again ;
+  page
+  begin
+    random 80 mod
+    random 40 mod at-xy
+    random >char emit
+    random 8  mod
+    ( random 1 and if background then )
+    color
+  again ;
+
+
+; ==== Game: YOU ARE DEAD (HELP) ===============================
+This is a clone of the one dimensional rogue like game
+available at <https://github.com/rupa/YOU_ARE_DEAD>. The
+object is to get to the other side of the screen.
+
+Keys:
+w  Turn into '.'
+a  Turn into '~'
+s  Turn into '>'
+d  Move right
+q  Quit
+
+Block number 7 is used to store the game state.
+
+
+
+\ ==== Game: YOU ARE DEAD 1/6 ==================================
+forth variable yad-voc get-order yad-voc swap 1+ set-order
+$40 constant c/l $10 constant l/b
+: memory 7 block ;
+: variables memory c/l + ;
+: score    variables 0 cells + ;
+: position variables 1 cells + ;
+: level    variables 2 cells + ;
+: form     variables 3 cells + ;
+: continue variables 4 cells + ;
+: end c/l 1- ;
+: player form @ ;
+: .player position @ 1+ 3 at-xy player emit ;
+: .goal c/l 3 at-xy [char] # emit ;
+: .score ." SCORE: " score @ 5 u.r ;
+: .level ." LEVEL: " level @ 5 u.r ;
+\ ==== Game: YOU ARE DEAD 2/6 ==================================
+: show 
+  page cr cr space memory c/l type 
+  .player .goal
+  cr .score space .level cr ;
+
+: select ( n -- c )
+  dup 0=  if drop $3c ( < ) exit then
+  dup 1 = if drop [char] ~  exit then
+  dup 2 = if drop [char] .  exit then 
+  drop bl ;
+
+: die ." YOU ARE DEAD" cr 0 continue ! -56 throw ;
+: survived ." YOU SURVIVED" cr .score cr ;
+: forms form c@ position @ memory + c@ ; ( -- c c )
+
+\ ==== Game: YOU ARE DEAD 3/6 ==================================
+: generate ( -- generate a level )
+  c/l 1- for
+    random 5 mod ( 3 = most difficult )
+    select memory r@ + c!
+  next 
+  bl memory c! bl memory end + c! ;
+: normal [char] x ;
+: setup ( -- )
+  -1 continue !
+  memory b/buf 0 fill
+  normal form c!
+  generate ;
+  
+: +score random 4 mod 1 min score +! ; ( -- )
+: ?next <> if die else +score then ; ( c c -- )
+\ ==== Game: YOU ARE DEAD 4/6 ==================================
+: +level
+  0 position ! level 1+!
+  random 23 mod 5 min score +!
+  generate ;
+
+: monster swap >r forms r> = if ?next else 2drop then ; 
+
+: command ( -- f )
+  dup [char] w = if drop [char] . form c! 0 exit then
+  dup [char] a = if drop [char] ~ form c! 0 exit then 
+  dup [char] d = if drop -1 exit then 
+  dup [char] s = if drop [char] < form c! 0 exit then 
+  dup [char] q = if drop -56 throw then
+  drop 0 ;
+
+\ ==== Game: YOU ARE DEAD 5/6 ==================================
+: rules
+  position @ end = if +level exit then
+  forms = if exit then
+  [char] ~ [char] < monster
+  [char] . [char] ~ monster
+  [char] < [char] . monster
+  normal form c!
+  bl position @ memory + c!
+  score 1+!
+  position 1+! ;
+
+
+
+
+
+\ ==== Game: YOU ARE DEAD 6/6 ==================================
+: game
+  begin
+  show
+  key command if rules then
+  level @ 9 >
+  until survived ;
+
+
+: play setup ' game catch drop ;
+get-order -rot swap rot set-order
+: you-are-dead base @ decimal play base ! ;
+forth
+\ : resume memory drop ' game catch drop ;
 
 
 ; ==== eForth v6.66: Help and Tutorial =========================
@@ -1694,38 +1822,6 @@ This is a regular function that increments a value by one.
 
 
 
-; ==== abort  ( ? --, R: ? -- ? : throw abort exception ) ======
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-; ==== abort" ( ? --, R: ? -- ?, <string>: abort with string ) =
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ; ==== abs  ( n -- u : absolute value of a number ) ============
 Returns the absolute value of a signed number, positive values
 stay the same, negative values become positive. Signed numbers
@@ -1854,23 +1950,23 @@ word.
 
 
 
+; ==== ansi ( n c -- : emit an ANSI escape command ) ===========
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ; ==== at-xy  ( x y -- : place cursor at column 'x', row 'y' ) =
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-; ==== background  ( color -- color : change to background ) ===
 
 
 
@@ -1950,22 +2046,6 @@ This pushes the space character to the stack.
 
 
 
-; ==== black  ( -- u : color for black ) =======================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ; ==== blank  ( b u -- : fill array with blanks ) ==============
 This word writes the space character to a byte array, one use
 is to erase a block before it is displayed with 'list'.
@@ -2015,22 +2095,6 @@ is to erase a block before it is displayed with 'list'.
 
 
 ; ==== +block ( n -- u : return block number relative to blk ) =
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-; ==== blue  ( -- u : return color for blue ) ==================
 
 
 
@@ -2206,6 +2270,22 @@ be misaligned, 'align' can be used to remedy this.
 
 
 
+; ==== >char ( c -- c : convert unprintable string ) ===========
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ; ==== char  ( -- c ; <string> : parse character ) =============
 This word reads in a space delimited from the input stream and
 and pushes the first character of that word onto the stack.
@@ -2241,22 +2321,6 @@ only word.
 ; ==== cmove  ( b b u -- : move block memory ) =================
 'cmove' moves a block of characters from one location to 
 another.
-
-
-
-
-
-
-
-
-
-
-
-
-
-; ==== color  ( u -- : change display color ) ==================
-
-
 
 
 
@@ -2847,22 +2911,6 @@ Example:
 
 
 ; ==== get-order  ( -- vn...v0 u : get search order ) ==========
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-; ==== green  ( -- u : green color value ) =====================
 
 
 
@@ -3758,22 +3806,6 @@ the prompt is suppressed when in compile mode.
 
 
 
-; ==== red  ( -- u : red color ) ===============================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ; ==== repeat  ( -- : part of begin...while...repeat ) =========
 
 
@@ -3999,9 +4031,9 @@ This word sets the sort order.
 
 
 ; ==== sign  ( n -- : hold '-' if n negative ) =================
-
-
-
+'sign' is a word used in conjunction with the pictured numeric
+output routines ('<#', '#s' and '#>'), it holds a '-' is the
+signed number it is given is negative.
 
 
 
@@ -4511,22 +4543,6 @@ interpreter works that could potentially break code.
 
 
 ; ==== while  ( -- : begin...while...repeat loop ) =============
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-; ==== white  ( -- u : push code for white color ) =============
 
 
 
