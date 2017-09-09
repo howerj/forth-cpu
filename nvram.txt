@@ -15,18 +15,18 @@
 
 
 ; ==== Short Help ==============================================
+This is a subroutine threaded Forth, based on eForth. The
+starting base in in hexadecimal. A tutorial, word glossary and
+extra code is stored in block storage. A short list of commands
+follows ('#' are numbers):
+ 
+  words       list all Forth words 
+  see         decompile the next word in the input stream
+  # #2 index  get descriptive titles for blocks from '#' to '#2'
+  # list      list block number '#'
+  # load      execute code in block '#'
+  # #2 thru   execute code in blocks '#' to '#2'
 
-
-A short list of commands
-
-  help       display the tutorial and help
-  words      list all Forth words (in current vocabulary)
-  see        decompile the next word in the input stream
-  0 30 index get titles for blocks 
-  1 list     list block number '1', this block
-
-This is a subroutine threaded Forth, the starting base is 16,
-or hexadecimal. It is based on eForth.
 
 
 
@@ -110,7 +110,7 @@ this does not have any special significance and is only there
 to make editing easier. Line lengths are limited to 64
 characters wide, each block contains 16 lines.
 
-; ==== Empty Block =============================================
+; ==== Scratch Block ===========================================
 
 
 
@@ -127,7 +127,7 @@ characters wide, each block contains 16 lines.
 
 
 \ ==== Block Editor 1/2 ========================================
- ( Block Editor : block $8 )
+( Block Editor: There is a help section later on )
 variable editor-voc 0 editor-voc ! forth
 : editor decimal editor-voc 1 set-order ;
 get-order editor-voc swap 1+ set-order
@@ -231,8 +231,8 @@ variable user0 0 user0 !
   begin .user query bl word cr find.user ?dup until ;
 : retry ( xt -- : retry word until it succeeds )
   >r begin r@ catch 0= until rdrop ;
-: user?     ' (user)     literal retry ;
-: password? ' (password) literal retry ;
+: user?     ' (user)     retry ;
+: password? ' (password) retry ;
 : hide-all 0 1 set-order ;
 : login hide-all
   cr user? cell+ @ conceal password? interactive forth ;
@@ -332,6 +332,38 @@ mk.user lana  sterling  mk.user cyril  figgis
 
 
 
+
+
+\ ==== Roulette ================================================
+\ Russian Roulette: It would be interesting to do something
+\ killed the computer when the player dies 
+
+: click ."  *click*" cr ;
+: bang  ."  BANG!" cr ;
+: roulette random 6 mod if click else bang then ; ( -- )
+
+
+
+
+
+
+
+
+
+\ ==== Screen Saver ============================================
+\ An incredibly simple screen saver using ANSI Escape codes
+\ for placement and coloring of random characters
+: >char $7f and dup $80 bl within if drop [char] _ then ;
+: screen-saver ( -- )
+	page
+	begin
+		random 80 mod
+		random 40 mod at-xy
+		random >char emit
+		random 8  mod
+		( random 1 and if background then )
+		color
+	again ;
 
 
 ; ==== eForth v6.66: Help and Tutorial =========================
@@ -3759,7 +3791,7 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== rot  ( n1 n2 n3 -- n2 n3 n1 : rotate three items ) ======
-
+Rotate the first three elements on the variable stack.
 
 
 
@@ -3775,9 +3807,9 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== -rot  ( n1 n2 n3 -- n3 n1 n2 : rotate three items ) =====
-
-
-
+Rotate the first three elements on the variable stack in the
+opposite direction as 'rot'. If you find yourself using this
+word too much it might be best to refactor your code.
 
 
 
@@ -3791,8 +3823,8 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== rp@  ( -- u : return stack depth ) ======================
-
-
+'rp@' push the return stack depth onto the variable stack, it
+is an assembly instruction.
 
 
 
@@ -3891,22 +3923,6 @@ PAD area. It is not a reentrant function.
 using the 'list' word (and hence it's output is affected by
 'border'). It is like 'thru', but calls 'list' on blocks instead
 of 'load'.
-
-
-
-
-
-
-
-
-
-
-
-; ==== screen-saver  ( -- : start screen-saver ) ===============
-
-
-
-
 
 
 
@@ -4159,8 +4175,8 @@ words '[' and ']' can be used to switch the state as well.
 
 
 ; ==== swap  ( u1 u2 -- u2 u1 : swap two variables ) ===========
-
-
+This is an assembly instruction which will be inlined if 
+compiled into a word. It swaps two variables on the stack.
 
 
 
@@ -4181,12 +4197,12 @@ switches which each have a single LED next to them (which can
 be controlled with 'led!'). The lowest eight bits are used
 for the switch states, 1 for on, 0 for off.
 
-
-
-
-
-
-
+Example usage:
+   : select 1 swap lshift switches swap and 0= 0= ;
+   : sw0 0 select ; : sw1 1 select ; : sw2 2 select ;
+   : sw3 3 select ; : sw4 4 select ; : sw5 5 select ;
+   : sw6 6 select ; : sw7 7 select ;
+   : switches->leds switches led! ;
 
 
 
@@ -4207,12 +4223,12 @@ for the switch states, 1 for on, 0 for off.
 
 
 ; ==== throw  ( ? n -- ?, R: ? -- ? : throw exception ) ========
-
-
-
-
-
-
+'throw' along with 'catch' are the Forth exception handling
+routines, 'throw' throws an exception if the number provided to
+it is non-zero. An exception unwinds the return stack until
+a 'catch' is encountered, the word 'quit' contains the exception
+handler of last resort. Numbers from -255 to 0 are reserved for
+standard Forth errors.
 
 
 
@@ -4255,25 +4271,25 @@ which is used to control the timer.
 
 
 ; ==== timer!  ( -- : set timer ) ==============================
+'timer!' sets the hardware timer control register, allowing the
+timer to be enabled/stopped/reset and setting up the value at
+which the timer wraps around at (or triggers an interrupt). The
+layout of the timer control register is as follows:
 
+  BIT  - MEANING
+  15   - Enable Timer (1 = enabled)
+  14   - Reset Timer
+  13   - Enable Interrupts
+  12-0 - Timer Compare Value
 
-
-
-
-
-
-
-
-
-
-
-
+The word 'timer' can be used to read in the current value of
+the timer.
 
 
 ; ==== tuck  ( n1 n2 -- n2 n1 n2 : tuck value ) ================
-
-
-
+'tuck' is a simple word that manipulates the stack, its stack
+comment describes what it does. It tucks a variable behind
+the second most item on the stack.
 
 
 
@@ -4335,8 +4351,8 @@ Unsigned greater than, this is not an assembly instruction.
 
 
 ; ==== u>=  ( u1 u2 -- f: unsigned greater or equal to ) =======
-
-
+Is 'u1' greater than or equal to 'u2', this is an unsigned
+operation.
 
 
 
@@ -4526,7 +4542,7 @@ interpreter works that could potentially break code.
 
 
 
-; ==== within  ( u lo hi -- f : is u within a range? ) =========
+; ==== within  ( u hi lo -- f : is u within a range? ) =========
 
 
 

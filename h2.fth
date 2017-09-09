@@ -707,8 +707,9 @@ as possible so the Forth environment is easy to use. )
 : -csp csp 1-! ; hidden
 : ?unique dup last search if drop redefined print cr else drop then ; hidden ( a -- a )
 : ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
-: "'" token find if cfa else 13 -throw then ; immediate
-: [compile] ?compile  call "'" compile, ; immediate ( -- ; <string> )
+: find-cfa token find if cfa else 13 -throw then ; hidden
+: "'" find-cfa state @ if literal then ; immediate
+: [compile] ?compile find-cfa compile, ; immediate ( -- ; <string> )
 : compile  r> dup @ , cell+ >r ; ( -- : Compile next compiled word NB. Works for words, instructions, and numbers below $8000 )
 : "[char]" ?compile char literal ; immediate ( --, <string> : )
 : ?quit state @ 0= if 56 -throw then ; hidden
@@ -738,7 +739,7 @@ as possible so the Forth environment is easy to use. )
 : "aft" ?compile drop here 0 jump, call "begin" swap ; immediate
 : doer create =exit last cfa ! =exit ,  ;
 : make
-	call "'" call "'" make-callable
+	find-cfa find-cfa make-callable
 	state @
 	if
 		literal literal compile !
@@ -800,8 +801,8 @@ in which the problem could be solved. )
 : $"| do$ nop ; hidden                             ( -- a : do string NB. nop needed to fool optimizer )
 : ."| do$ print ; hidden                           ( -- : print string )
 : $,' 34 word count + aligned cp ! ; hidden        ( -- )
-: $"  ?compile compile $"| $,' ; immediate      ( -- ; <string> )
-: ."  ?compile compile ."| $,' ; immediate      ( -- ; <string> )
+: $"  ?compile compile $"| $,' ; immediate         ( -- ; <string> )
+: ."  ?compile compile ."| $,' ; immediate         ( -- ; <string> )
 : abort 0 rp! quit ;                               ( --, R: ??? --- ??? : Abort! )
 : abort" ?compile ." compile abort ; immediate
 
@@ -973,24 +974,12 @@ irq:
 	switches led!
 	icount 1+!
 	exit
-
 .set 12 irq
 
 : irqTest ( -- : start timer with interrupts enabled )
 	$0040 oIrcMask !
 	$ffff oTimerCtrl !
 	1 ien drop ;
-
-: screen-saver ( -- )
-	page
-	begin
-		random 80 mod
-		random 40 mod at-xy
-		random >char emit
-		random 8  mod
-		( random 1 and if background then )
-		color
-	again ;
 
 \ : plot ( a scale-y : plot an array of 80 value after scaling each one )
 \ 	40 / 2* dup 0= if drop 1 then >r
@@ -1005,6 +994,117 @@ irq:
 \ \ : 2. swap . . cr ;
 \ : ex1
 \ 	79 for r@  pad r@ 2* + ! next pad 80 ;
+
+
+( This is a clone of the one dimensional rogue like game
+available at <https://github.com/rupa/YOU_ARE_DEAD>
+
+Keys:
+  w  Turn into '.'
+  a  Turn into '~'
+  s  Turn into '>'
+  d  Move right
+  q  Quit
+
+Block number 7 is used to store the game state.
+
+)
+
+: memory 7 block ;
+: variables memory c/l + ;
+: score    variables 0 cells + ;
+: position variables 1 cells + ;
+: level    variables 2 cells + ;
+: form     variables 3 cells + ;
+: continue variables 4 cells + ;
+: end c/l 1- ;
+: player form @ ;
+: .player position @ 1+ 0 at-xy player emit ;
+: normal [char] x ;
+: .goal c/l 0 at-xy [char] # emit ;
+
+location $score " SCORE: "
+: .score $score count type score @ 5 u.r ;
+location $level " LEVEL: "
+: .level $level count type level @ 5 u.r ;
+
+: show page 0 0 at-xy space memory c/l type 
+	.player .goal
+	cr .score .level cr ;
+
+: select ( n -- c )
+	dup 0=  if drop $3c ( < ) exit then
+	dup 1 = if drop [char] ~  exit then
+	dup 2 = if drop [char] .  exit then 
+	drop bl ;
+
+: generate ( -- generate a level )
+	c/l 1- for
+		random 5 mod ( 3 = most difficult )
+		select memory r@ + c!
+	next 
+	bl memory c! 
+	bl memory end + c! ;
+
+: setup ( -- )
+	-1 continue !
+	memory b/buf 0 fill
+	normal form c!
+	generate ;
+
+: command ( -- f )
+	key
+	dup [char] w = if drop [char] . form c! 0 exit then
+	dup [char] a = if drop [char] ~ form c! 0 exit then 
+	dup [char] d = if drop -1 exit then 
+	dup [char] s = if drop $3c ( < ) form c! 0 exit then 
+	dup [char] q = if drop -56 throw then
+	drop 0 ;
+
+location $die "YOU ARE DEAD"
+: die $die count type cr 0 continue ! -56 throw ;
+location $survived "YOU SURVIVED"
+: survived $survived count type cr .score cr ;
+
+: forms form c@ position @ memory + c@ ; ( -- c c )
+
+: +level
+	0 position !
+	level 1+!
+	random 23 mod 5 min score +!
+	generate ;
+
+: +score random 4 mod 1 min score +! ;
+
+: ?next <> if die else +score then ; ( c c -- )
+
+: monster swap >r forms r> = if ?next else 2drop then ; ( c c -- )
+
+: rules
+	position @ end = if +level exit then
+	forms = if exit then
+	[char] ~  $3c ( < ) monster
+	[char] .  [char] ~  monster
+	$3c ( < ) [char] .  monster
+	\ forms [char] ~  = if $3c ( < ) ?next else drop then
+	\ forms [char] .  = if [char] ~  ?next else drop then
+	\ forms $3c ( < ) = if [char] .  ?next else drop then
+	normal form c!
+	bl position @ memory + c!
+	score 1+!
+	position 1+! ;
+
+: game
+	begin
+	show
+	command if rules then
+	level @ 9 >
+	until survived ;
+
+: resume memory drop ' game catch drop ;
+: you-are-dead setup ' game catch drop ;
+: yod you-are-dead ;
+
 
 ( ==================== Miscellaneous ================================= )
 
