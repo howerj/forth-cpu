@@ -162,7 +162,7 @@ begin
 ------- Output assignments (Not in a process) ---------------------------------
 
 	-- @warning These are both temporary measures for testing only!
-	rst        <= btnu_d;
+	-- rst        <= btnu_d;
 	cpu_wait   <= btnc_d;
 
 	irq_block: block
@@ -258,7 +258,7 @@ begin
 
 	io_read: process(
 		io_wr, io_re, io_daddr,
-		sw_d, rx, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
+		sw_d, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
 		kbd_char_buf_new, kbd_char_buf,
 
 		rx_data_n,
@@ -295,7 +295,7 @@ begin
 		when "010" => -- Timer in
 			io_din(timer_counter_o'range) <= timer_counter_o;
 		when "011" => -- Switches and buttons
-			io_din <= "00" & rx & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
+			io_din <= "000" & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
 		when "100" =>
 			io_din             <= mem_data_o;
 		when others => io_din <= (others => '0');

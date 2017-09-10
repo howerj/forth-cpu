@@ -1310,7 +1310,8 @@ static void draw_scene(void)
 		fill_textbox(&t, "CHANGE DISPLAY   F-12");
 	}
 
-	draw_texture(&vga_terminal,  !(count % 2));
+	if(!world.debug_extra)
+		draw_texture(&vga_terminal,  !(count % 2));
 	draw_texture(&uart_terminal, !(count % 2));
 
 	glFlush();
