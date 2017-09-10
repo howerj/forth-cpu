@@ -932,7 +932,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 \ work correctly at the moment
 
 ( @bug Interrupts work in simulation but not in hardware )
-variable icount 0
+( variable icount 0
 
 irq:
 	switches led!
@@ -940,12 +940,12 @@ irq:
 	exit
 .set 12 irq
 
-: irqTest ( -- : start timer with interrupts enabled )
+: irqTest 
 	$0040 oIrcMask !
 	$ffff oTimerCtrl !
 	1 ien drop ;
 
-(
+
 irq2:
 	switches . cr
 	exit

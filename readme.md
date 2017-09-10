@@ -502,8 +502,7 @@ This register contains the current value of the timers counter.
 
 #### iSwitches
 
-iSwitches contains input lines from multiple sources. The RX bit corresponds to
-the UART input line, it is the raw input without any processing. The buttons
+iSwitches contains input lines from multiple sources. The buttons
 (BUP, BDWN, BLFT, BRGH, and BCNT) correspond to a [D-Pad][] on the [Nexys3][]
 board. The switches (TSWI) are the ones mentioned in oLeds, each have an LED
 next to them.
@@ -514,10 +513,9 @@ have to be further processed once read in from these registers.
 	+-------------------------------------------------------------------------------+
 	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
 	+-------------------------------------------------------------------------------+
-	|  X |  X | RX | BUP|BDWN|BLFT|BRGH|BCNT|               TSWI                    |
+	|  X |  X |  X | BUP|BDWN|BLFT|BRGH|BCNT|               TSWI                    |
 	+-------------------------------------------------------------------------------+
 
-	RX:   UART RX Line
 	BUP:  Button Up
 	BDWN: Button Down
 	BLFT: Button Left
