@@ -19,8 +19,8 @@ This is a subroutine threaded Forth, based on eForth. The
 starting base in in hexadecimal. A tutorial, word glossary and
 extra code is stored in block storage. A short list of commands
 follows ('#' are numbers):
- 
-  words       list all Forth words 
+
+  words       list all Forth words
   see         decompile the next word in the input stream
   # #2 index  get descriptive titles for blocks from '#' to '#2'
   # list      list block number '#'
@@ -140,8 +140,8 @@ $40 constant c/l $10 constant l/b
 : n  1 +block b l ;
 : p -1 +block b l ;
 : d (line) c/l blank ;
-: x (block) b/buf blank ; 
-: s update save-buffers ; 
+: x (block) b/buf blank ;
+: s update save-buffers ;
 \ ==== Block Editor 2/2 ========================================
 : q forth save-buffers ;
 : e forth blk @ load editor ;
@@ -180,7 +180,7 @@ $3243 , $1DAC , $0FAD , $07F5 , $03FE , $01FF , $00FF , $007F ,
 $003F , $001F , $000F , $0007 , $0003 , $0001 , $0000 , $0000 ,
 
 : arshift ( n u -- n : arithmetic right shift )
-  2dup rshift >r swap $8000 and 
+  2dup rshift >r swap $8000 and
   if $10 swap - -1 swap lshift else drop 0 then r> or ;
 
 $26DD constant cordic_1K $6487 constant pi/2
@@ -204,10 +204,10 @@ variable d  0  d ! variable k  0  k !
     k 1+!
     1-
   repeat y @ x @ ;
-: sin cordic drop ; 
+: sin cordic drop ;
 : cos cordic nip ;
 \ ==== Login Code 1/2 ==========================================
-\ Login and user management system 
+\ Login and user management system
 : generate count dup >r crc r> ccitt ; ( b -- u )
 : .user     ." user>" space ; ( -- )
 : .password ." password>" space ; ( -- )
@@ -216,7 +216,7 @@ variable user0 0 user0 !
   here user0 @ , user0 ! here 0 , bl word count 1+ allot align
   drop bl word generate swap ! ;
 : ls.user ( -- : list all users in user database )
-  cr user0 @ 
+  cr user0 @
   begin dup while dup 2 cells + space count type cr @ repeat
   drop cr ;
 : find.user ( a -- u | 0 : find user in database, return hash )
@@ -227,7 +227,7 @@ variable user0 0 user0 !
   >r begin .password query bl word cr generate
   r@ = until rdrop ;
 : fake .password query bl word drop cr ;
-: (user) 
+: (user)
   begin .user query bl word cr find.user ?dup until ;
 : retry ( xt -- : retry word until it succeeds )
   >r begin r@ catch 0= until rdrop ;
@@ -310,14 +310,14 @@ mk.user lana  sterling  mk.user cyril  figgis
 : >< dup 8 rshift swap 8 lshift or ; ( u -- u : swap bytes )
 : #digits dup 0= if 1+ exit then base @ log 1+ ;
 : ** ( n u -- n )
-  ?dup if 
-    over >r 
-    begin 
-      dup 1 > 
-    while 
-      swap r@ * swap 1- 
+  ?dup if
+    over >r
+    begin
+      dup 1 >
+    while
+      swap r@ * swap 1-
     repeat rdrop drop
-  else logical 1 and then ; 
+  else logical 1 and then ;
 \ ==== Extra Code 6/7 ==========================================
 : b. base @ swap 2 base ! u. base ! ; ( u -- )
 : h. base @ swap hex u. base ! ;      ( u -- )
@@ -327,7 +327,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 : ?\ if [compile] \ then ; immediate
 : ?( if [compile] ( then ; immediate ( )
 : defined? ( -- pwd -1 | 0, <string> : is word defined? )
-  bl word find if -1 else drop 0 then ; 
+  bl word find if -1 else drop 0 then ;
 : ?if compile dup [compile] if ; immediate
 : ?dup-if compile ?dup [compile] if ; immediate
 : >body ( dup @ $4000 or <> if 31 -throw then ) cell+ ;
@@ -352,7 +352,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 
 \ ==== Roulette ================================================
 \ Russian Roulette: It would be interesting to do something
-\ killed the computer when the player dies 
+\ killed the computer when the player dies
 
 : click ."  *click*" cr ;
 : bang  ."  BANG!" cr ;
@@ -431,15 +431,15 @@ $40 constant c/l $10 constant l/b
 : .score ." SCORE: " score @ 5 u.r ;
 : .level ." LEVEL: " level @ 5 u.r ;
 \ ==== Game: YOU ARE DEAD 2/6 ==================================
-: show 
-  page cr cr space memory c/l type 
+: show
+  page cr cr space memory c/l type
   .player .goal
   cr .score space .level cr ;
 
 : select ( n -- c )
   dup 0=  if drop $3c ( < ) exit then
   dup 1 = if drop [char] ~  exit then
-  dup 2 = if drop [char] .  exit then 
+  dup 2 = if drop [char] .  exit then
   drop bl ;
 
 : die ." YOU ARE DEAD" cr 0 continue ! -56 throw ;
@@ -451,7 +451,7 @@ $40 constant c/l $10 constant l/b
   c/l 1- for
     random 5 mod ( 3 = most difficult )
     select memory r@ + c!
-  next 
+  next
   bl memory c! bl memory end + c! ;
 : normal [char] x ;
 : setup ( -- )
@@ -459,7 +459,7 @@ $40 constant c/l $10 constant l/b
   memory b/buf 0 fill
   normal form c!
   generate ;
-  
+
 : +score random 4 mod 1 min score +! ; ( -- )
 : ?next <> if die else +score then ; ( c c -- )
 \ ==== Game: YOU ARE DEAD 4/6 ==================================
@@ -468,13 +468,13 @@ $40 constant c/l $10 constant l/b
   random 23 mod 5 min score +!
   generate ;
 
-: monster swap >r forms r> = if ?next else 2drop then ; 
+: monster swap >r forms r> = if ?next else 2drop then ;
 
 : command ( -- f )
   dup [char] w = if drop [char] . form c! 0 exit then
-  dup [char] a = if drop [char] ~ form c! 0 exit then 
-  dup [char] d = if drop -1 exit then 
-  dup [char] s = if drop [char] < form c! 0 exit then 
+  dup [char] a = if drop [char] ~ form c! 0 exit then
+  dup [char] d = if drop -1 exit then
+  dup [char] s = if drop [char] < form c! 0 exit then
   dup [char] q = if drop -56 throw then
   drop 0 ;
 
@@ -713,9 +713,9 @@ eForth starts up in base 16, valid bases range anywhere from
 2 to 36. The base can be changed by either setting a variable
 'base' to the desired base, or with the words 'hex' to change
 the base back into hexadecimal, or 'decimal' to change the base
-to '10'. Variables in Forth are words that leave an address on 
-the stack when they are called. They can be read or set with 
-'@' and '!'. For example, "$10 base !" and "hex" are 
+to '10'. Variables in Forth are words that leave an address on
+the stack when they are called. They can be read or set with
+'@' and '!'. For example, "$10 base !" and "hex" are
 equivalent, as are "$a base !" and "decimal".
 
 ; ==== Help: Word Definitions 1/2 ==============================
@@ -723,7 +723,7 @@ For the moment we have not covered how words are defined and
 is a good time to do so, the word ":" is used to create a new
 word definition and the word ";" is used to terminate one.
 Words once defined are added to the 'dictionary', which is
-consists of a linked list of words, hence the name 
+consists of a linked list of words, hence the name
 'dictionary'. We can define new words interactively like we can
 type expressions in, such as:
 
@@ -747,7 +747,7 @@ And simple Forth words likewise defined:
   : 2* 1 lshift ; ( u -- u : multiply a number by 2 )
   : 1+ 1 + ;      ( u -- u : increment a number by 1 )
   : negate invert 1+ ; ( n -- n : negate, twos compliment )
-  
+
 It is best to keep all Forth words as short as possible and
 reuse code as much as possible.
 ; ==== Help: Interpreter Loop 1/3 ==============================
@@ -917,7 +917,7 @@ following word "bar" simply repeatedly prints out "1":
   : bar begin 1 . cr again ;
   bar 1 1 1 1 1 1 ( ... ad infinitum ... )
 
-A looping mechanism that is easier to use is the 
+A looping mechanism that is easier to use is the
 "begin...while...repeat" loop, this continues an operation
 until a variable is not true:
 
@@ -936,7 +936,7 @@ executes for the final zeroth case). The word 'r@' is used to
 push a copy of the top of the return stack, where the for loop
 keeps the conditional value.
 
-  : foobar for r@ . cr next ; 
+  : foobar for r@ . cr next ;
   3 foobar 3 ( <-- prints 3 )
   2
   1
@@ -959,7 +959,7 @@ again, it is possible to redefine and add your own control
 structures. How this is done will be covered later.
 
 ; ==== Help: Return Stack ======================================
-All Forth systems have at least two stacks along with main 
+All Forth systems have at least two stacks along with main
 memory, they can be implemented in hardware like with this Forth
 or in software. One stack is used to pass data to functions and
 to return their results, the data or variable stack, which we
@@ -967,9 +967,9 @@ have already dealt with. The other stack is used for control
 flow and as a place for temporarily storing variables.
 
 Data can be moved to and from the return stacks, but this must
-be done very carefully and only within word definitions, 
-leaving values on the stack by accident can cause the 
-interpreter to crash. 
+be done very carefully and only within word definitions,
+leaving values on the stack by accident can cause the
+interpreter to crash.
 
 Some looping constructs use the return stack as well to store
 their loop index, and the 'throw/catch' mechanism manipulates
@@ -1215,7 +1215,7 @@ Not equal to.
 
 
 ; ==== <#  ( -- : prepare numeric output ) =====================
-This is part of the mechanism for pictured numeric output, 
+This is part of the mechanism for pictured numeric output,
 which should be used from within a word definition only.
 
 
@@ -1232,7 +1232,7 @@ which should be used from within a word definition only.
 
 ; ==== =  ( u1 u2 -- f : equality of two numbers ) =============
 This is an assembly instruction for testing whether two numbers
-are equal. 
+are equal.
 
 
 
@@ -1264,7 +1264,7 @@ signed greater than
 
 ; ==== -  ( n1 n2 -- n : twos compliment subtraction ) =========
 This is a word performs subtraction on two numbers in twos
-compliment format. 
+compliment format.
 
 
 
@@ -1306,12 +1306,12 @@ error is ignored.
 
 Example:
 
-   : 2+ 2 + ; 
+   : 2+ 2 + ;
    : count dup 1+ swap c@ ;
    :noname 9 . ; execute ( <-- prints 9 )
 
 ; ==== :  ( -- ; <string> : start a word definition ) ==========
-Start a word definition. 
+Start a word definition.
 
 
 
@@ -1407,7 +1407,7 @@ The string is terminated by a double quote.
 
 
 ; ==== .(  ( -- ; <string> : print out line until ')' ) ========
-This word prints out a string until the matching ')' is 
+This word prints out a string until the matching ')' is
 encountered. It is not an immediate word.
 
 
@@ -2319,7 +2319,7 @@ only word.
 
 
 ; ==== cmove  ( b b u -- : move block memory ) =================
-'cmove' moves a block of characters from one location to 
+'cmove' moves a block of characters from one location to
 another.
 
 
@@ -2719,7 +2719,7 @@ to discard any changes made to any currently loaded blocks.
 
 
 ; ==== execute  ( xt -- : execute an execution token ) =========
-'execute' takes an execution token, which represents a callable 
+'execute' takes an execution token, which represents a callable
 function, and it executes that function. Execution tokens are
 returned by words like "'" (quote), or by ":noname".
 
@@ -3152,7 +3152,7 @@ assembly instruction that is inlined when compiled into a word.
 
 ; ==== io!  ( -- : initialize IO channels ) ====================
 'io!' initializes the I/O devices and sets the input and output
-devices to their default values (read from UART and PS/2 
+devices to their default values (read from UART and PS/2
 keyboard, write to the VT100 display, and to UART - both at
 the same time). It also disables the interrupts, and sets the
 timer to a count but not generate interrupts.
@@ -3168,7 +3168,7 @@ Example usage:
 
 ; ==== key  ( -- c : block until character read in ) ===========
 This word blocks until a character has been read in from the
-current input device (or devices). The input devices can be 
+current input device (or devices). The input devices can be
 either be the UART or the PS/2 Keyboard. The input devices can
 be changed with the 'io!', 'console', 'conceal', 'interactive'
 and 'file' words.
@@ -3776,7 +3776,7 @@ is restarted.
 
 ; ==== recurse  ( -- : recursively call current word ) =========
 'recurse' is a word that when used within a word definition it
-will recursively call the current word. 
+will recursively call the current word.
 
 
 
@@ -4159,7 +4159,7 @@ are enough characters left to advance the string by.
 
 
 ; ==== swap  ( u1 u2 -- u2 u1 : swap two variables ) ===========
-This is an assembly instruction which will be inlined if 
+This is an assembly instruction which will be inlined if
 compiled into a word. It swaps two variables on the stack.
 
 
@@ -4304,7 +4304,7 @@ the second most item on the stack.
 
 ; ==== u<  ( u1 u2 -- f: unsigned less than ) ==================
 Unsigned less than of two numbers, this is an assembly operation
-that is inlined into a word definition. 
+that is inlined into a word definition.
 
 
 
@@ -4434,7 +4434,7 @@ division and modulus operations.
 Marks the last loaded block as being dirty (the last loaded
 block block number is stored in the variable 'blk'). A dirty
 block will be written to disk on when 'flush', 'save-buffers',
-or another block is loaded from disk. 
+or another block is loaded from disk.
 
 
 
@@ -4449,7 +4449,7 @@ or another block is loaded from disk.
 ; ==== u.r  ( u +n -- : print u right justified by +n ) ========
 'u.r' is a general purpose numeric formatting word, it prints
 out the number 'u' as an unsigned number in the current output
-radix, preceded by '+n' spaces, minus the number of spaces 
+radix, preceded by '+n' spaces, minus the number of spaces
 needed to display 'u' in the current output radix, or right
 aligned. This function uses the area between the end of the
 dictionary and the beginning of the PAD area as temporary
@@ -4482,7 +4482,7 @@ not an immediate word.
 Pushes the version number of the eForth implementation. The
 format of the version is the major version is stored in the
 upper byte and the minor version information is stored in the
-lower byte. 
+lower byte.
 
 The minor version number changes on minor updates, the major
 version changes when there are major updates in how the

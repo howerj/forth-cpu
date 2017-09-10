@@ -598,7 +598,7 @@ static void texture_background(terminal_t *t)
 	uint8_t *img = v->image;
 	const unsigned h = v->height;
 	const unsigned w = v->width;
-    
+
 	for (i = 0; i < h; i++) {
 		uint8_t *row = &img[i*4];
 		unsigned ii = ((h - i - 1)*vt->height) / h;
@@ -653,7 +653,7 @@ static void draw_texture(terminal_t *t, bool update)
 	glBindTexture(GL_TEXTURE_2D, v->name);
 	glMatrixMode(GL_MODELVIEW);
 	glBegin(GL_QUADS);
-		glTexCoord2f(1.0, 0.0); glVertex3f(x,       y+height, 0.0); 
+		glTexCoord2f(1.0, 0.0); glVertex3f(x,       y+height, 0.0);
 		glTexCoord2f(1.0, 1.0); glVertex3f(x+width, y+height, 0.0);
 		glTexCoord2f(0.0, 1.0); glVertex3f(x+width, y,        0.0);
 		glTexCoord2f(0.0, 0.0); glVertex3f(x,       y,        0.0);

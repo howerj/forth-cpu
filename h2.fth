@@ -415,7 +415,7 @@ choice words that need depth checking to get quite a large coverage )
 			count >r swap count r> xor
 			if 2drop rdrop 0 exit then
 		then
-	next 2drop [-1] ; 
+	next 2drop [-1] ;
 
 : address $3fff and ; hidden ( a -- a : mask off address bits )
 : nfa address cell+ ; hidden ( pwd -- nfa : move to name field address)
@@ -512,7 +512,7 @@ choice words that need depth checking to get quite a large coverage )
 : parse >r tib >in @ + #tib @ >in @ - r> parser >in +! -trailing 0 max ; ( c -- b u ; <string> )
 : ) ; immediate
 : "(" 41 parse 2drop ; immediate
-: .( 41 parse type ; 
+: .( 41 parse type ;
 : "\" #tib @ >in ! ; immediate
 : ?length dup word-length u> if 19 -throw then ; hidden
 : word 1depth parse ?length here pack$ ;          ( c -- a ; <string> )
@@ -662,7 +662,7 @@ choice words that need depth checking to get quite a large coverage )
 : conceal ' .ok ' [conceal] ' ktap xio ;
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? _key? ! ' tx! _emit ! hand ;
-: interactive ' input _key? ! ' output _emit ! hand ; 
+: interactive ' input _key? ! ' output _emit ! hand ;
 : io! $8FFF oTimerCtrl ! interactive 0 ien oIrcMask ! ; ( -- : initialize I/O )
 : ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr [ ;
@@ -820,7 +820,7 @@ in which the problem could be solved. )
 : ?pipe border @ if pipe then ; hidden
 : ?page border @ if page then ; hidden
 ( @todo 'thru' should catch -56, or QUIT, and continue with next block )
-\ : ?load ' load catch dup -56 <> if throw then drop ; 
+\ : ?load ' load catch dup -56 <> if throw then drop ;
 : thru over - for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
 : message l/b extract .line cr ; ( u -- )
@@ -897,7 +897,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 
 : decompile ( a -- a : decompile a single instruction )
 	dup 5u.r colon dup @ 5u.r space
-	dup @ instruction 
+	dup @ instruction
 	dup @ ' doNext make-callable = if cell+ dup ? then
 	cr
 	cell+ ; hidden
@@ -945,9 +945,9 @@ irq:
 	$ffff oTimerCtrl !
 	1 ien drop ;
 
-( 
+(
 irq2:
-	switches . cr 
+	switches . cr
 	exit
 .set 14 irq2
 

@@ -348,7 +348,7 @@ int nvram_load_and_transfer(h2_io_t *io, const char *name, bool transfer_to_sram
 	return r;
 }
 
-int nvram_save(h2_io_t *io, const char *name) 
+int nvram_save(h2_io_t *io, const char *name)
 {
 	FILE *output = NULL;
 	int r = 0;
