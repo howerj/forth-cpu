@@ -207,7 +207,7 @@ variable d  0  d ! variable k  0  k !
 : sin cordic drop ;
 : cos cordic nip ;
 \ ==== Login Code 1/2 ==========================================
-\ Login and user management system
+\ Login and user management system: @todo clear up with vocabs
 : generate count dup >r crc r> ccitt ; ( b -- u )
 : .user     ." user>" space ; ( -- )
 : .password ." password>" space ; ( -- )
@@ -508,6 +508,86 @@ get-order -rot swap rot set-order
 : you-are-dead base @ decimal play base ! ;
 forth
 \ : resume memory drop ' game catch drop ;
+
+
+; ==== Brain Fuck Compiler Help 1/2 ============================
+Brainfuck is a simple esoteric language with only 8 commands, it
+is Turing complete which means it can compute any function which
+can be computed - although it is very difficult to do so. The
+commands operate on a block of memory 1024 bytes long. A data
+pointer indexes into the memory. The commands are:
+
+  >  increment the data pointer
+  <  decrement the data pointer
+  +  increment value at data pointer
+  -  decrement value at data pointer
+  .  output byte at data pointer
+  ,  accept one byte and store it at data pointer
+  [  branch forward to ] if byte at data pointer is zero
+  ]  branch back    to [ if byte at data pointer is non-zero
+The compiler discards all other input.
+; ==== Brain Fuck Compiler Help 2/2 ============================
+The following blocks implement the compiler, it translates each
+command in a given string into Forth code, compiling it into a
+new word definition which can then be executed.
+
+Needless to say, it is not a useful language, but it is fun!
+Some example programs are given after the compiler block.
+
+This Forth brain fuck compiler was derived from the one 
+available Rosetta Code, and so is licensed under the
+GNU Free Documentation License [v1.2]. See:
+<https://rosettacode.org/wiki/Execute_Brain****/Forth>
+
+And for more information see:
+ <http://www.hevanet.com/cristofd/brainfuck/short.b>
+ <https://en.wikipedia.org/wiki/Brainfuck>
+\ ==== Brain Fuck Compiler 1/2 =================================
+: left over c!  1- dup c@ ;
+: right over c! 1+ dup c@ ;
+: erase 0 fill ;
+: initialize pad b/buf erase pad 0 ;
+: bf-compile ( c -- )
+  >r
+  r@ [char] [ = if [compile] begin 
+                   compile dup [compile] while then
+  r@ [char] ] = if [compile] repeat            then
+  r@ [char] + = if compile 1+                  then 
+  r@ [char] - = if compile 1-                  then  
+  r@ [char] < = if compile left                then 
+  r@ [char] > = if compile right               then
+  r@ [char] , = if compile drop compile key    then
+  r@ [char] . = if compile dup  compile emit   then rdrop ; 
+\ ==== Brain Fuck Compiler 2/2 =================================
+: bf ( b u --,<string> : compile brainfuck program into a word )
+	>r >r
+	[compile] : 
+	compile initialize
+	r> r> for aft
+		dup 1+ >r c@ bf-compile r>
+	then next
+	drop
+	compile swap
+	compile c@
+	compile 2drop
+	[compile] ; ;
+
+\ Example, making a simple echo like program called 'cat':
+\ : string $" +[,.]" count ; string bf cat
+; ==== Brain Fuck Example Programs =============================
+From: http://www.hevanet.com/cristofd/brainfuck/short.b
+Hello World: ++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]
+>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.
+Clear Screen: ++++++++++[>++++++++++>+<<-]>[>.<-]
+Beep: +++++++.
+Copy Input to Output: ,[.[-],]
+Reverse Input: >,[>,]<[.<]
+Translate text to brain fuck that prints said Text:
++++++[>+++++++++<-],[[>--.++>+<<-]>+.->[<.>-]<<,]
+
+
+
+
 
 
 ; ==== eForth v6.66: Help and Tutorial =========================
@@ -1727,7 +1807,7 @@ This is a regular function that increments a value by one.
 
 
 ; ==== 1+!  ( a -- : increment value at 'a' by one ) ===========
-
+'1+!' increments the value at an address, 'a', by one.
 
 
 
@@ -2463,10 +2543,10 @@ system is running in a simulation or on the hardware.
 
 
 ; ==== cr  ( -- : emit new line ) ==============================
-
-
-
-
+'cr' emits a new line, which consists of a carriage return
+character followed by a linefeed character. This format is used
+as communication occurs over a UART (and the VGA output display
+behaves like a VT100 video terminal).
 
 
 
@@ -2511,13 +2591,13 @@ system is running in a simulation or on the hardware.
 
 
 ; ==== decimal  ( -- : switch radix to decimal ) ===============
-
-
-
-
-
-
-
+'decimal' switches the current output radix into decimal as
+the name suggests. This can be useful when you are lost and do
+not know what the current output radix is, or for performing
+calculations like a human instead of a machine! Hexadecimal
+values can still be input by prefixing the number with '$'.
+Negative numbers will be printed with a leading '-', unlike
+in other output bases, when a '.' is used to print the number.
 
 
 
@@ -2543,10 +2623,10 @@ system is running in a simulation or on the hardware.
 
 
 ; ==== dnegate  ( d -- d : negate a double value ) =============
-
-
-
-
+'dnegate' is the double cell number equivalent of 'negate', it
+negates a double cell number. Positive numbers become negative
+and vice versa. Double cell numbers take up two items on the
+stack as the name suggests.
 
 
 
@@ -2591,10 +2671,10 @@ system is running in a simulation or on the hardware.
 
 
 ; ==== drop  ( u -- : drop a value ) ===========================
-
-
-
-
+'drop' is a simple assembly instruction that will be inlined
+as a single instruction when compiled into a word. It simply
+pops off and discards the topmost value on the variable stack.
+'rdrop' is the return stack equivalent.
 
 
 
@@ -2607,21 +2687,21 @@ system is running in a simulation or on the hardware.
 
 
 ; ==== dump  ( a u -- : dump a section of memory ) =============
+'dump' is a debugging tool that dumps a section of memory
+starting at the address 'a' and proceeds for at least 'u'
+characters. It dumps the memory contents in whatever the
+current output base it, as well as displaying the memory
+contents as characters when the characters are printable.
 
+Example: 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+   0 here dump ( <-- dumps out everything )
+Example Output (condensed to fit on the screen):
+ 0:  104C 0 0 0 0 0 E9B 0                     L_______________
+ 10: 8000 6403 7075 6081 601C 8010 6F04 6576  ___dup_`_`___ove
+ 20: 72 6181 601C 801A 6906 766E 7265 74      r__a_`___invert_
+ 30: 6600 601C 8026 2B01 6203 601C 8034 7304  _f_`&__+_b_`4__s
+ ( and so on...)
 ; ==== dup  ( n -- n n : duplicate a value ) ===================
 
 
@@ -3055,10 +3135,10 @@ This sets the current output radix to hexadecimal.
 
 
 ; ==== immediate  ( -- : make last defined word immediate ) ====
-
-
-
-
+'immediate' is an important word that makes the most recently
+defined word 'immediate', that is it will be executed even
+when in compile mode. All control structure words are 
+immediate words such as 'if', and 'for'.
 
 
 
@@ -3263,14 +3343,14 @@ one). It is a compile only word.
 
 
 ; ==== load  ( k -- : load and execute block ) =================
-
-
-
-
-
-
-
-
+'load' retrieves a block using 'block', and evaluates that
+block, executing whatever is in that block as Forth code,
+'source-id' will return -1 for the duration of this evaluation,
+the input source will be returned to whatever it was before
+the evaluation took place, such as keyboard or UART input,
+once the evaluation has finished. 'load' is used in the
+word 'thru' to do the evaluation of successive blocks off
+mass storage.
 
 
 
@@ -3327,7 +3407,7 @@ This performs a logical left shift on 'u1' by 'u2'.
 
 
 ; ==== max  ( n1 n2 -- n3: maximum of two numbers ) ============
-This returns the maximum of two numbers.
+This returns the maximum of two signed numbers.
 
 
 
@@ -3439,10 +3519,10 @@ modified if the system frequency changes.
 
 
 ; ==== negate  ( n -- n : negate a number ) ====================
-
-
-
-
+'negate' performs the negation of a number into twos compliment
+format, positive numbers become negative and negative numbers
+become positive (with the exclusion of $8000, which stays the
+same).
 
 
 
@@ -3551,9 +3631,9 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== or  ( u1 u2 -- u3: bitwise or of two numbers ) ==========
-
-
-
+'or' performs the bitwise 'or' of two numbers, it is an 
+assembly routine so it inlined into the dictionary as a single
+instruction instead of a call when it is compiled into a word.
 
 
 
@@ -3599,12 +3679,12 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== pad  ( -- a : return address into pad area ) ============
-
-
-
-
-
-
+'pad' returns a pointer into the pad area, which begins at
+least 80 bytes after the end of the dictionary. The 'pad'
+pointer moves when the dictionary pointer moves. It is a useful
+area for temporary storage, but should not be used too much.
+Some words, such as the pictured numeric output words, use the
+area just before the pad area.
 
 
 
@@ -3727,13 +3807,13 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== r@  ( -- u : R: u -- u: copy top of return stack ) ======
-
-
-
-
-
-
-
+'r@' is a useful word that copies the topmost value on the
+return stack, leaving that value in place, and pushes it to
+the variable stack. It is implemented as an assembly routine
+so will be inlined if compiled into a word definition. This
+word is useful when juggling variables on the stack, it is
+also used to access the loop counter in a "for...next" or
+"for...aft...then...next" construct.
 
 
 
@@ -3743,8 +3823,8 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== random  ( -- u : random number ) ========================
-
-
+'random' returns a Pseudo Random Number, it uses a CRC algorithm
+and the system timer to generate the value.
 
 
 
@@ -3871,9 +3951,9 @@ based on the argument given.
 
 
 ; ==== rshift  ( u1 u2 -- u3 : logical right shift u1 by u2 ) ==
-
-
-
+'rshift' performs a logical right shift of 'u1' by 'u2' places,
+it is equivalent to unsigned division by 2 raised to the power
+of 'u2'.
 
 
 
@@ -4031,18 +4111,18 @@ signed number it is given is negative.
 
 
 ; ==== source-id  ( -- 0 | -1 : identify input source ) ========
+'source-id' is used to identify the input source, whether
+the interpreter is reading input from the user (0) or evaluating
+text within a string (-1)
 
+Example usage:
 
+  : test $" source-id . cr " count evaluate ;
+  test        ( prints FFFF or -1 )
+  source-id . ( prints '0')
 
-
-
-
-
-
-
-
-
-
+When a block is evaluated with 'load' -1 is returned by
+'source-id' as it is evaluating the block as a string.
 
 
 
