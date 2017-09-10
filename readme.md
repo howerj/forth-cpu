@@ -542,16 +542,16 @@ or information from the query table.
 
 The following interrupt service routines are defined:
 
-|       Name        | Number |         Description         |
-|-------------------|--------|-----------------------------|
-| isrNone           |   0    | Not used                    |
-| isrRxFifoNotEmpty |   1    | UART RX FIFO Is Not Empty   |
-| isrRxFifoFull     |   2    | UART RX FIFI Is Full        |
-| isrTxFifoNotEmpty |   3    | UART TX FIFO Is Not Empty   |
-| isrTxFifoFull     |   4    | UART TX FIFO Is Full        |
-| isrKbdNew         |   5    | New PS/2 Keyboard Character |
-| isrTimer          |   6    | Timer Counter               |
-| isrBrnLeft        |   7    | Left D-Pad button pressed   |
+|       Name        | Number |         Description           |
+|-------------------|--------|-------------------------------|
+| isrNone           |   0    | Not used                      |
+| isrRxFifoNotEmpty |   1    | UART RX FIFO Is Not Empty     |
+| isrRxFifoFull     |   2    | UART RX FIFI Is Full          |
+| isrTxFifoNotEmpty |   3    | UART TX FIFO Is Not Empty     |
+| isrTxFifoFull     |   4    | UART TX FIFO Is Full          |
+| isrKbdNew         |   5    | New PS/2 Keyboard Character   |
+| isrTimer          |   6    | Timer Counter                 |
+| isrDPadButton     |   7    | Any D-Pad Button Change State |
 
 
 When an interrupt occurs, and interrupts are enabled within the processor, then
@@ -651,8 +651,8 @@ A rough [EBNF][] grammar for the language is as follows:
 	BuiltIn     := ".built-in"
 	Mode        := ".mode"      Literal
 	Allocate    := ".allocate" ( Identifier | Literal )
-	Constant    := "constant" Identifier Literal
-	Variable    := "variable" Identifier ( Literal | String )
+	Constant    := "constant" Identifier Literal "hidden"?
+	Variable    := "variable" Identifier ( Literal | String ) "hidden"?
 	Location    := "Location" Identifier ( Literal | String )
 	Instruction := "@" | "store" | "exit" | ...
 	Definition  := ":" ( Identifier | String) Statement* ";" ( "hidden" | "immediate" | "inline")
@@ -683,7 +683,12 @@ The assembler the following directives:
 	.mode      Change compiler mode
 	.built-in  Assemble built words here
 
-**@todo Describe optimizations that can be performed**
+
+There are several optimizations that can be performed, the ".mode" directive
+controls whether they are active, along with controlling whether word
+definitions are compiled with their headers or not. Optimizations performed
+include merging a call to exit with the previous instruction if it is possible
+to do so and performing tail call optimization where possible.
 
 The built in words, with their instruction encodings:
 

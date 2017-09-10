@@ -8,11 +8,7 @@
  * is based on the J1 processor (see http://excamera.com/sphinx/fpga-j1.html).
  *
  * The processor has been tested on an FPGA and is working.
- * The project can be found at: https://github.com/howerj/forth-cpu
- *
- * @todo Make 'hidden' apply to variables, and do the same for constants,
- * removing the need for 'location'.
- * @todo Fix FIFO implementation when it comes to edge cases */
+ * The project can be found at: https://github.com/howerj/forth-cpu */
 
 /* ========================== Preamble: Types, Macros, Globals ============= */
 
@@ -127,7 +123,7 @@ typedef enum {
 	X(FROMR,  "r>",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)  | MK_RSTACK(DELTA_N1)))\
 	X(RAT,    "r@",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_R)        | T_TO_N  | MK_DSTACK(DELTA_1)))\
 	X(LOAD,   "@",      true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_LOAD)))\
-	X(STORE,  "store",  true,  (OP_ALU_OP | MK_CODE(ALU_OP_N)        | N_TO_ADDR_T | MK_DSTACK(DELTA_N1)))\
+	X(STORE,  "store",  false, (OP_ALU_OP | MK_CODE(ALU_OP_N)        | N_TO_ADDR_T | MK_DSTACK(DELTA_N1)))\
 	X(RSHIFT, "rshift", true,  (OP_ALU_OP | MK_CODE(ALU_OP_N_RSHIFT_T)             | MK_DSTACK(DELTA_N1)))\
 	X(LSHIFT, "lshift", true,  (OP_ALU_OP | MK_CODE(ALU_OP_N_LSHIFT_T)             | MK_DSTACK(DELTA_N1)))\
 	X(EQUAL,  "=",      true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_N)              | MK_DSTACK(DELTA_N1)))\
@@ -142,7 +138,7 @@ typedef enum {
 	X(ISIEN,  "ien?",   true,  (OP_ALU_OP | MK_CODE(ALU_OP_INTERRUPTS_ENABLED) | T_TO_N  | MK_DSTACK(DELTA_1)))\
 	X(RDEPTH, "rp@",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)  | T_TO_N       | MK_DSTACK(DELTA_1)))\
 	X(TE0,    "0=",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
-	X(NOP,    "nop",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_T)))\
+	X(NOP,    "nop",    false, (OP_ALU_OP | MK_CODE(ALU_OP_T)))\
 	X(CPU_ID, "cpu-id", true,  (OP_ALU_OP | MK_CODE(ALU_OP_CPU_ID))                | MK_DSTACK(DELTA_1))\
 	X(RUP,    "rup",    false, (OP_ALU_OP | MK_CODE(ALU_OP_T))                     | MK_RSTACK(DELTA_1))\
 	X(RDROP,  "rdrop",  true,  (OP_ALU_OP | MK_CODE(ALU_OP_T) | MK_RSTACK(DELTA_N1)))
@@ -193,7 +189,6 @@ int logger(log_level_e level, const char *func,
 		exit(EXIT_FAILURE);
 	return r;
 }
-
 
 static const char *reason(void)
 {
@@ -301,6 +296,75 @@ void h2_free(h2_t *h)
 	free(h);
 }
 
+int binary_memory_load(FILE *input, uint16_t *p, size_t length)
+{
+	assert(input);
+	assert(p);
+	for(size_t i = 0; i < length; i++) {
+		errno = 0;
+		int r1 = fgetc(input);
+		int r2 = fgetc(input);
+		if(r1 < 0 || r2 < 0) {
+			debug("memory read failed: %s", strerror(errno));
+			return -1;
+		}
+		p[i] = (((unsigned)r1 & 0xffu)) | (((unsigned)r2 & 0xffu) << 8u);
+	}
+	return 0;
+}
+
+int binary_memory_save(FILE *output, uint16_t *p, size_t length)
+{
+	assert(output);
+	assert(p);
+	for(size_t i = 0; i < length; i++) {
+		errno = 0;
+		int r1 = fputc((p[i])&0xff,output);
+		int r2 = fputc((p[i]>>8u)& 0xff, output);
+		if(r1 < 0 || r2 < 0) {
+			debug("memory write failed: %s", strerror(errno));
+			return -1;
+		}
+	}
+	return 0;
+}
+
+int nvram_load_and_transfer(h2_io_t *io, const char *name, bool transfer_to_sram)
+{
+	assert(io);
+	assert(name);
+	FILE *input = NULL;
+	int r = 0;
+	errno = 0;
+	if((input = fopen(name, "rb"))) {
+		r = binary_memory_load(input, io->soc->flash.nvram, CHIP_MEMORY_SIZE);
+		if(transfer_to_sram)
+			memcpy(io->soc->vram, io->soc->flash.nvram, CHIP_MEMORY_SIZE);
+		fclose(input);
+	} else {
+		error("nvram file read (from %s) failed: %s", name, strerror(errno));
+		r = -1;
+	}
+	return r;
+}
+
+int nvram_save(h2_io_t *io, const char *name) 
+{
+	FILE *output = NULL;
+	int r = 0;
+	assert(io);
+	assert(name);
+	errno = 0;
+	if((output = fopen(name, "wb"))) {
+		r = binary_memory_save(output, io->soc->flash.nvram, CHIP_MEMORY_SIZE);
+		fclose(output);
+	} else {
+		error("nvram file write (to %s) failed: %s", name, strerror(errno));
+		r = -1;
+	}
+	return r;
+}
+
 int memory_load(FILE *input, uint16_t *p, size_t length)
 {
 	assert(input);
@@ -355,13 +419,14 @@ int h2_save(h2_t *h, FILE *output, bool full)
 
 fifo_t *fifo_new(size_t size)
 {
+	assert(size >= 2); /* It does not make sense to have a FIFO less than this size */
 	fifo_data_t *buffer = allocate_or_die(size * sizeof(buffer[0]));
 	fifo_t *fifo = allocate_or_die(sizeof(fifo_t));
 
 	fifo->buffer = buffer;
-	fifo->head = 0;
-	fifo->tail = 0;
-	fifo->size = size;
+	fifo->head   = 0;
+	fifo->tail   = 0;
+	fifo->size   = size;
 
 	return fifo;
 }
@@ -864,7 +929,7 @@ void soc_print(FILE *out, h2_soc_state_t *soc)
 	fprintf(out, "IRC Mask:         %04"PRIx16"\n", soc->irc_mask);
 	fprintf(out, "UART Input:       %02"PRIx8"\n",  soc->uart_getchar_register);
 	fprintf(out, "LED 7 segment:    %c%c%c%c\n",    led0, led1, led2, led3);
-	fprintf(out, "Switches:         %02"PRIx8"\n",  soc->switches);
+	fprintf(out, "Switches:         %04"PRIx16"\n", soc->switches);
 	fprintf(out, "Waiting:          %s\n",          soc->wait ? "true" : "false");
 	fprintf(out, "Flash Control:    %04"PRIx16"\n", soc->mem_control);
 	fprintf(out, "Flash Address Lo: %04"PRIx16"\n", soc->mem_addr_low);
@@ -933,6 +998,19 @@ static void terminal_parse_attribute(vt100_attribute_t *a, unsigned v)
 		if(v >= 40 && v <= 47)
 			a->background_color = v - 40;
 	}
+}
+
+static const vt100_attribute_t vt100_default_attribute = {
+	.foreground_color = WHITE,
+	.background_color = BLACK,
+};
+
+static void terminal_attribute_block_set(vt100_t *t, size_t size, const vt100_attribute_t const *a)
+{
+	assert(t);
+	assert(a);
+	for(size_t i = 0; i < size; i++)
+		memcpy(&t->attributes[i], a, sizeof(*a));
 }
 
 static int terminal_escape_sequences(vt100_t *t, uint8_t c)
@@ -1013,14 +1091,12 @@ static int terminal_escape_sequences(vt100_t *t, uint8_t c)
 			case 1:
 				if(t->command_index) {
 					memset(t->m, ' ', t->size);
-					for(size_t i = 0; i < t->size; i++)
-						memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
+					terminal_attribute_block_set(t, t->size, &vt100_default_attribute);
 					goto success;
 				} /* fall through if number not supplied */
 			case 0:
 				memset(t->m, ' ', t->cursor);
-				for(size_t i = 0; i < t->cursor; i++)
-					memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
+				terminal_attribute_block_set(t, t->cursor, &vt100_default_attribute);
 				goto success;
 			}
 			goto fail;
@@ -1122,12 +1198,7 @@ void vt100_update(vt100_t *t, uint8_t c)
 			t->cursor++;
 		}
 		if(t->cursor >= t->size) {
-			vt100_attribute_t a;
-			memcpy(&a, &t->attribute, sizeof(t->attribute));
-			a.foreground_color = WHITE;
-			a.background_color = BLACK;
-			for(size_t i = 0; i < t->size; i++)
-				memcpy(&t->attributes[i], &a, sizeof(a));
+			terminal_attribute_block_set(t, t->size, &vt100_default_attribute);
 			memset(t->m, ' ', t->size);
 		}
 		t->cursor %= t->size;
@@ -1572,6 +1643,16 @@ static void h2_io_update_default(h2_soc_state_t *soc)
 				soc->timer = 0;
 			}
 		}
+	}
+
+	{ /* DPAD interrupt on change state */
+		uint16_t prev = soc->switches_previous;
+		uint16_t cur  = soc->switches;
+		if((prev & 0xff00) != (cur & 0xff00)) {
+			soc->interrupt           = soc->irc_mask & (1 << isrDPadButton);
+			soc->interrupt_selector |= soc->irc_mask & (1 << isrDPadButton);
+		}
+		soc->switches_previous = soc->switches;
 	}
 
 	{
@@ -2375,7 +2456,7 @@ void token_free(token_t *t)
 {
 	if(!t)
 		return;
-	if(t->type == LEX_IDENTIFIER || t->type == LEX_STRING)
+	if(t->type == LEX_IDENTIFIER || t->type == LEX_STRING || t->type == LEX_LABEL)
 		free(t->p.id);
 	memset(t, 0, sizeof(*t));
 	free(t);
@@ -2403,6 +2484,7 @@ static lexer_t* lexer_new(FILE *input)
 static void lexer_free(lexer_t *l)
 {
 	assert(l);
+	token_free(l->token);
 	memset(l, 0, sizeof(*l));
 	free(l);
 }
@@ -2506,7 +2588,6 @@ static int number(char *s, uint16_t *o, size_t length)
 	return 1;
 }
 
-/** @bug There is a minor memory leak in the lexer: tokens are lost somewhere */
 static void lexer(lexer_t *l)
 {
 	size_t i;
@@ -2538,7 +2619,12 @@ again:
 		l->line++;
 		goto again;
 	case '(':
-		/**@todo handle words like "(do)" */
+		ch = next_char(l);
+		if(!isspace(ch)) {
+			unget_char(l, ch);
+			ch = '(';
+			goto graph;
+		}
 		for(; ')' != (ch = next_char(l));)
 			if(ch == EOF)
 				syntax_error(l, "'(' comment terminated by EOF");
@@ -2561,6 +2647,7 @@ again:
 		break;
 	default:
 		i = 0;
+	graph:
 		if(isgraph(ch)) {
 			while(isgraph(ch)) {
 				if(i >= MAX_ID_LENGTH - 1)
@@ -2782,6 +2869,12 @@ static node_t *defined_by_token(lexer_t *l, parse_e type)
 	return r;
 }
 
+typedef enum {
+	DEFINE_HIDDEN    = 1 << 0,
+	DEFINE_IMMEDIATE = 1 << 1,
+	DEFINE_INLINE    = 1 << 2,
+} define_type_e;
+
 /** @note LEX_LOCATION handled by modifying return node in statement() */
 static node_t *variable_or_constant(lexer_t *l, bool variable)
 {
@@ -2795,6 +2888,11 @@ static node_t *variable_or_constant(lexer_t *l, bool variable)
 	} else {
 		expect(l, LEX_STRING);
 		r->o[0] = defined_by_token(l, SYM_STRING);
+	}
+	if(accept(l, LEX_HIDDEN)) {
+		if(r->bits & DEFINE_HIDDEN)
+			syntax_error(l, "hidden bit already set on latest word definition");
+		r->bits |= DEFINE_HIDDEN;
 	}
 	return r;
 }
@@ -2860,12 +2958,6 @@ static node_t *if1(lexer_t *l)
 	return r;
 }
 
-typedef enum {
-	DEFINE_HIDDEN    = 1 << 0,
-	DEFINE_IMMEDIATE = 1 << 1,
-	DEFINE_INLINE    = 1 << 2,
-} define_type_e;
-
 static node_t *define(lexer_t *l)
 {
 	node_t *r;
@@ -2878,7 +2970,6 @@ static node_t *define(lexer_t *l)
 	use(l, r);
 	r->o[0] = statements(l);
 	expect(l, LEX_ENDDEFINE);
-
 again:
 	if(accept(l, LEX_IMMEDIATE)) {
 		if(r->bits & DEFINE_IMMEDIATE)
@@ -3110,6 +3201,7 @@ typedef struct {
 	symbol_t *do_r_minus_one;
 	symbol_t *do_next;
 	symbol_t *do_var;
+	symbol_t *do_const;
 } assembler_t;
 
 static void update_fence(assembler_t *a, uint16_t pc)
@@ -3334,10 +3426,10 @@ static built_in_words_t built_in_words[] = {
 	/**@note We might want to compile these words, even if we are not
 	 * compiling the other in-line-able, so the compiler can use them for
 	 * variable declaration and for...next loops */
-	/**@warning 1 lshift used, in the original j1.v it is not needed */
-	{ .name = "doVar", .compile = true, .inline_bit = false, .hidden = true, .len = 1, .code = {CODE_FROMR} },
-	{ .name = "r1-",   .compile = true, .inline_bit = false, .hidden = true, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
-	{ .name = NULL,    .compile = true, .inline_bit = false, .hidden = true, .len = 0, .code = {0} }
+	{ .name = "doVar",   .compile = true, .inline_bit = false, .hidden = true, .len = 1, .code = {CODE_FROMR} },
+	{ .name = "doConst", .compile = true, .inline_bit = false, .hidden = true, .len = 2, .code = {CODE_FROMR, CODE_LOAD} },
+	{ .name = "r1-",     .compile = true, .inline_bit = false, .hidden = true, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
+	{ .name = NULL,      .compile = true, .inline_bit = false, .hidden = true, .len = 0, .code = {0} }
 };
 
 static void generate_loop_decrement(h2_t *h, assembler_t *a, symbol_table_t *t)
@@ -3382,10 +3474,21 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		generate_jump(h, a, t, n->token, n->type, e);
 		break;
 	case SYM_CONSTANT:
+		if(a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined && (!(n->bits & DEFINE_HIDDEN))) {
+			a->do_const = a->do_const ? a->do_const : symbol_table_lookup(t, "doConst");
+			assert(a->do_const);
+			hole1 = hole(h, a);
+			fix(h, hole1, a->pwd);
+			a->pwd = hole1 << 1;
+			pack_string(h, a, n->token->p.id, e);
+			generate(h, a, OP_CALL | a->do_const->value);
+			hole1 = hole(h, a);
+			fix(h, hole1, n->o[0]->token->p.number);
+		}
 		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e, false);
 		break;
 	case SYM_VARIABLE:
-		if(a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined) {
+		if(a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined && (!(n->bits & DEFINE_HIDDEN))) {
 			a->do_var = a->do_var ? a->do_var : symbol_table_lookup(t, "doVar");
 			assert(a->do_var);
 			hole1 = hole(h, a);
@@ -3393,6 +3496,8 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			a->pwd = hole1 << 1;
 			pack_string(h, a, n->token->p.id, e);
 			generate(h, a, OP_CALL | a->do_var->value);
+		} else if (!(n->bits & DEFINE_HIDDEN)) {
+			assembly_error(e, "variable used but doVar not defined, use location");
 		}
 		/* fall through */
 	case SYM_LOCATION:
@@ -3733,7 +3838,6 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 	assert(output);
 	assert(cmd);
 	assert(cmd->nvram);
-	FILE *nvram_fh = NULL;
 	h2_t *h = NULL;
 	h2_io_t *io = NULL;
 	int r = 0;
@@ -3752,37 +3856,19 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 	io = h2_io_new();
 	assert(VGA_BUFFER_LENGTH <= VT100_MAX_SIZE);
 	for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++) {
-		/** @todo Handle attribute copying as well */
-		io->soc->vt100.m[i]          = vga_initial_contents[i] & 0xff;
-		/*io->soc->vt100.attributes[i] = (vga_initial_contents[i] >> 8u) & 0xff;*/
+		vt100_attribute_t attr;
+		memset(&attr, 0, sizeof(attr));
+		io->soc->vt100.m[i]   =  vga_initial_contents[i] & 0xff;
+		attr.background_color = (vga_initial_contents[i] >> 8)  & 0x7;
+		attr.foreground_color = (vga_initial_contents[i] >> 11) & 0x7;
+		memcpy(&io->soc->vt100.attributes[i], &attr, sizeof(attr));
 	}
 
-	/**@todo This is a lazy way to serialization data and will fail on
-	 * different endianess machines, but this does not matter that much,
-	 * this needs fixing */
-	errno = 0;
-	if((nvram_fh = fopen(cmd->nvram, "rb"))) {
-		fread(io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
-		if(cmd->hacks)
-			memcpy(io->soc->vram, io->soc->flash.nvram, CHIP_MEMORY_SIZE);
-		fclose(nvram_fh);
-	} else {
-		debug("nvram file read (from %s) failed: %s", cmd->nvram, strerror(errno));
-	}
-
+	nvram_load_and_transfer(io, cmd->nvram, cmd->hacks);
 	h->pc = START_ADDR;
 	debug_note(cmd);
 	r = h2_run(h, io, output, cmd->steps, symbols, cmd->debug_mode);
-
-	errno = 0;
-	if((nvram_fh = fopen(cmd->nvram, "wb"))) {
-		/**@todo make this portable */
-		fwrite(io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
-		/*memory_save(nvram_fh, io->soc->nvram, CHIP_MEMORY_SIZE);*/
-		fclose(nvram_fh);
-	} else {
-		error("nvram file write (to %s) failed: %s", cmd->nvram, strerror(errno));
-	}
+	nvram_save(io, cmd->nvram);
 
 	h2_free(h);
 	h2_io_free(io);

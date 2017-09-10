@@ -238,7 +238,7 @@ variable user0 0 user0 !
   cr user? cell+ @ conceal password? interactive forth ;
 mk.user guest guest     mk.user archer dangerzone
 mk.user lana  sterling  mk.user cyril  figgis
-\ ==== Extra Code 1/6 ==========================================
+\ ==== Extra Code 1/7 ==========================================
 : 2+ 2 + ;                       ( n -- n )
 : 2- 2 - ;                       ( n -- n )
 : >= < invert ;                  ( n n -- f )
@@ -254,7 +254,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 : ?exit if rdrop then ;          ( n --, R: n -- n | )
 : 2rdrop r> rdrop rdrop >r ;     ( R n n -- )
 : 2. swap . . ;                  ( n n -- )
-\ ==== Extra Code 2/6 ==========================================
+\ ==== Extra Code 2/7 ==========================================
 : m* 2dup xor 0< >r abs swap abs um* r> if dnegate then ;
 : */mod  >r m* r> m/mod ;  ( n n n -- r q )
 : */  */mod nip ;          ( n n n -- q )
@@ -270,7 +270,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 : bye [ 0 , ] ;
 : enum dup constant 1+ ; ( n --, <string> )
 : logical 0= 0= ;     ( n -- f )
-\ ==== Extra Code 3/6 ==========================================
+\ ==== Extra Code 3/7 ==========================================
 : square dup * ;      ( n -- )
 : limit rot min max ; ( n lo hi -- n )
 : odd 1 and logical ; ( n -- )
@@ -286,7 +286,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 : 2tuck 2swap 2over ; ( n1 n2 n3 n4 -- n3 n4 n1 n2 n3 n4 )
 : 4drop 2drop 2drop ; ( n1 n2 n3 n4 -- )
 : trip dup dup ; ( n -- n n n )
-\ ==== Extra Code 4/6 ==========================================
+\ ==== Extra Code 4/7 ==========================================
 : log  >r 0 swap ( u base -- u )
   begin swap 1+ swap r@ / dup 0= until
   drop 1- rdrop ;
@@ -302,7 +302,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 : lsb $ff and ; ( u -- u )
 : --> 1 +block load ;
 : scr blk ;
-\ ==== Extra Code 5/6 ==========================================
+\ ==== Extra Code 5/7 ==========================================
 : signum ( n -- -1 | 0 | 1 : Signum function )
   dup 0> if drop  1 exit then
       0< if      -1 exit then
@@ -318,7 +318,7 @@ mk.user lana  sterling  mk.user cyril  figgis
       swap r@ * swap 1- 
     repeat rdrop drop
   else logical 1 and then ; 
-\ ==== Extra Code 6/6 ==========================================
+\ ==== Extra Code 6/7 ==========================================
 : b. base @ swap 2 base ! u. base ! ; ( u -- )
 : h. base @ swap hex u. base ! ;      ( u -- )
 : o. base @ swap 8 base ! u. base ! ; ( u -- )
@@ -330,9 +330,25 @@ mk.user lana  sterling  mk.user cyril  figgis
   bl word find if -1 else drop 0 then ; 
 : ?if compile dup [compile] if ; immediate
 : ?dup-if compile ?dup [compile] if ; immediate
-: factorial 0 ( u -- )
-   dup 2 < if drop 1 exit then
-   1 swap for aft r@ 1+ * then next ; 
+: >body ( dup @ $4000 or <> if 31 -throw then ) cell+ ;
+
+
+
+\ ==== Extra Code 7/7 ==========================================
+: screens ( k1 k2 -- : list blocks k1 to k2 )
+	over -
+	for
+		dup . dup list 1+ nuf? if rdrop drop exit then
+	next drop ;
+
+
+
+
+
+
+
+
+
 
 \ ==== Roulette ================================================
 \ Russian Roulette: It would be interesting to do something
@@ -2110,22 +2126,6 @@ is to erase a block before it is displayed with 'list'.
 
 
 
-; ==== >body  ( xt -- a : move to body of created word ) =======
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ; ==== border  ( -- a : variable for list display control ) ====
 
 
@@ -3502,22 +3502,6 @@ function. The word can be executed with the 'execute' function.
 
 
 
-; ==== nop  ( -- : no-operation - do nothing ) =================
-This is an assembly instruction that is inlined into a word
-when it is compiled into it, it does nothing, it can be used
-for timing purposes or to work around the optimizer.
-
-
-
-
-
-
-
-
-
-
-
-
 ; ==== nuf?  ( -- f : true if 'cr' character pressed ) =========
 'nuf?' is a non blocking input word that returns true if a
 carriage return was input. It can be used to determine if a
@@ -3775,12 +3759,12 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== rdrop  ( --, R: u -- : drop a value from return stack ) =
-
-
-
-
-
-
+'rdrop' is the return stack equivalent of 'drop', it discards
+a single value from the return stack. It is implemented as an
+assembly routine that will be inlined when compiled into a
+word. Care should be taken when manipulating the return stack
+as it can trash it rendering the system inoperable until it
+is restarted.
 
 
 
@@ -3791,8 +3775,8 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== recurse  ( -- : recursively call current word ) =========
-
-
+'recurse' is a word that when used within a word definition it
+will recursively call the current word. 
 
 
 
@@ -3870,9 +3854,9 @@ is an assembly instruction.
 
 
 
-; ==== rpick  ( n -- u, R: un...u0 : pick return stack value ) =
-
-
+; ==== rpick  ( u -- u, R: un...u0 : pick return stack value ) =
+'rpick' picks a value at an arbitrary depth on the return stack
+based on the argument given.
 
 
 
@@ -3919,42 +3903,26 @@ PAD area. It is not a reentrant function.
 
 
 ; ==== #s  ( u -- 0 : repeat '#' until 0 ) =====================
+This word repeatedly calls '#' on a number until it is zero, it
+should only be used within a pictured numeric output construct
+and uses the area between the end of the dictionary and the
+beginning of the pad area. Characters are held starting from
+the pad area working downwards towards the end of the dictionary
+space.
 
 
 
 
 
-
-
-
-
-
-
-
-
-
+Example:
+  : print-number <# #s #> type ;
+  1234 print-number ( <-- prints '1234' )
 
 ; ==== save-buffers  ( -- : save dirty blocks ) ================
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-; ==== screens  ( k1 k2 -- : list screens k1 to k2 ) ===========
-'screens' displays the range of blocks from k1 to k2 inclusive,
-using the 'list' word (and hence it's output is affected by
-'border'). It is like 'thru', but calls 'list' on blocks instead
-of 'load'.
 
 
 
@@ -4015,21 +3983,21 @@ This word sets the sort order.
 
 
 ; ==== sgr  ( u -- : set ANSI terminal SGR attribute ) =========
+'sgr' takes a number and emits it as a 'Select Graphic
+Rendition' command, which is a standard ANSI Escape sequence
+used for terminal control. SGR commands relate to colors and
+how the text is presents, for example numbers $1E to $25 are
+used to set the foreground color, $28 to $2F the background
+color. $0 is used to reset all of the attributes, $8 is used
+to conceal character output, $7 for reverse video. Not all
+SGR commands are processed by the VT100 hardware, and if
+talking to the device over the UART it depends on the terminal
+emulator you are using.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Examples:
+   0 sgr    ( reset terminal SGR attributes )
+   $1f sgr  ( set foreground color to red )
+   $2a sgr  ( set background color to green )
 ; ==== sign  ( n -- : hold '-' if n negative ) =================
 'sign' is a word used in conjunction with the pictured numeric
 output routines ('<#', '#s' and '#>'), it holds a '-' is the
@@ -4158,22 +4126,6 @@ words '[' and ']' can be used to switch the state as well.
 
 
 
-; ==== store  ( u a -- u : store 'u' at 'a' ) ==================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ; ==== =string  ( a1 u2 a1 u2 -- f : string equality ) =========
 
 
@@ -4191,8 +4143,8 @@ words '[' and ']' can be used to switch the state as well.
 
 
 ; ==== /string  ( b u1 u2 -- b u : advance string by u2 ) ======
-
-
+'/string' advances a string 'b u1' by 'u2' characters, if there
+are enough characters left to advance the string by.
 
 
 
@@ -4271,11 +4223,11 @@ standard Forth errors.
 
 
 ; ==== thru  ( k1 k2 -- : load from k1 to k2 ) =================
-
-
-
-
-
+'thru' calls 'load' on a range of blocks from 'k1' to 'k2'
+inclusively. It is used to evaluate a range of blocks and as
+a convent way to load software off of the mass storage device.
+Code and data is stored in Forth blocks, 'thru' is used to load
+that data.
 
 
 

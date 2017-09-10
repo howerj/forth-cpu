@@ -1,14 +1,10 @@
-/**@file      h2.c
+/**@file      gui.c
  * @brief     Simulate the H2 SoC peripherals visually
  * @copyright Richard James Howe (2017)
  * @license   MIT
  *
  * @todo A terminal emulator as a separate program could be hacked together
- * from the components in this module, this would be a separate program.
- * @todo Speed up the background color drawing by generating a texture,
- * see <http://www.glprogramming.com/red/chapter09.html>
- * @todo Add command line options
- */
+ * from the components in this module, this would be a separate program.*/
 
 #include "h2.h"
 #include <assert.h>
@@ -259,9 +255,13 @@ static int draw_string(const char *msg)
 
 static scale_t font_attributes(void)
 {
-	scale_t scale = { 0., 0.};
+	static bool initialized = false;
+	static scale_t scale = { 0., 0.};
+	if(initialized)
+		return scale;
 	scale.y = glutStrokeHeight(world.font_scaled);
 	scale.x = glutStrokeWidth(world.font_scaled, 'M');
+	initialized = true;
 	return scale;
 }
 
@@ -604,8 +604,8 @@ static void texture_background(terminal_t *t)
 		unsigned ii = ((h - i - 1)*vt->height) / h;
 		for (j = 0; j < w; j++) {
 			uint8_t *column = &row[j*h*4];
-			unsigned jj = (vt->width*j) / w;
-			unsigned idx = jj+(ii*vt->width);
+			const unsigned jj = (vt->width*j) / w;
+			const unsigned idx = jj+(ii*vt->width);
 			column[0] = 255 * (vt->attributes[idx].background_color & 1);
 			column[1] = 255 * (vt->attributes[idx].background_color & 2);
 			column[2] = 255 * (vt->attributes[idx].background_color & 4);
@@ -614,6 +614,7 @@ static void texture_background(terminal_t *t)
 	}
 }
 
+/* See <http://www.glprogramming.com/red/chapter09.html> */
 static void draw_texture(terminal_t *t, bool update)
 {
 	vt100_background_texture_t *v = t->texture;
@@ -878,9 +879,6 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 			return r;
 		}
 	case iSwitches:
-		soc->switches = 0;
-		for(size_t i = 0; i < SWITCHES_COUNT; i++)
-			soc->switches |= switches[i].on << i;
 		return soc->switches;
 	case iTimerDin: return soc->timer;
 	case iMemDin:   return h2_io_memory_read_operation(soc);
@@ -936,7 +934,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 			segments[i].segment = (value >> ((SEGMENT_COUNT - i - 1) * 4)) & 0xf;
 		soc->led_7_segments = value;
 		break;
-	case oIrcMask:    soc->irc_mask       = value; break;
+	case oIrcMask:    soc->irc_mask     = value; break;
 	case oMemControl:
 		{
 			soc->mem_control    = value;
@@ -1220,6 +1218,18 @@ static void timer_callback(int value)
 	glutTimerFunc(world.arena_tick_ms, timer_callback, value);
 }
 
+static void update_switches(void)
+{
+	h2_io->soc->switches = 0;
+	for(size_t i = 0; i < SWITCHES_COUNT; i++)
+		h2_io->soc->switches |= switches[i].on << i;
+	h2_io->soc->switches |= dpad.center << (SWITCHES_COUNT+0);
+	h2_io->soc->switches |= dpad.right  << (SWITCHES_COUNT+1);
+	h2_io->soc->switches |= dpad.left   << (SWITCHES_COUNT+2);
+	h2_io->soc->switches |= dpad.down   << (SWITCHES_COUNT+3);
+	h2_io->soc->switches |= dpad.up     << (SWITCHES_COUNT+4);
+}
+
 static void draw_scene(void)
 {
 	static uint64_t next = 0;
@@ -1231,6 +1241,8 @@ static void draw_scene(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	draw_regular_polygon_line(X_MAX/2, Y_MAX/2, PI/4, sqrt(Y_MAX*Y_MAX/2)*0.99, SQUARE, LINE_WIDTH, WHITE);
+
+	update_switches();
 
 	if(next != world.tick) {
 		unsigned long increment = 0;
@@ -1339,14 +1351,7 @@ static void vt100_initialize(vt100_t *v)
 
 static void finalize(void)
 {
-	FILE *nvram_fh = NULL;
-	errno = 0;
-	if((nvram_fh = fopen(nvram_file, "wb"))) {
-		fwrite(h2_io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
-		fclose(nvram_fh);
-	} else {
-		error("nvram file write (to %s) failed: %s", nvram_file, strerror(errno));
-	}
+	nvram_save(h2_io, nvram_file);
 	h2_free(h);
 	h2_io_free(h2_io);
 	fifo_free(uart_tx_fifo);
@@ -1354,11 +1359,9 @@ static void finalize(void)
 	fifo_free(ps2_rx_fifo);
 }
 
-
 int main(int argc, char **argv)
 {
 	FILE *hexfile = NULL;
-	FILE *nvram_fh = NULL;
 	int r = 0;
 
 	assert(Y_MAX > 0. && Y_MIN < Y_MAX && Y_MIN >= 0.);
@@ -1406,15 +1409,7 @@ int main(int argc, char **argv)
 	uart_tx_fifo = fifo_new(UART_FIFO_DEPTH * 100); /** @note x100 to speed things up */
 	ps2_rx_fifo  = fifo_new(8 /** @bug should be 1 - but this does not work, FIFO implementation needs correcting */);
 
-	errno = 0;
-	if((nvram_fh = fopen(nvram_file, "rb"))) {
-		fread(h2_io->soc->flash.nvram, CHIP_MEMORY_SIZE, 1, nvram_fh);
-		if(SIM_HACKS)
-			memcpy(h2_io->soc->vram, h2_io->soc->flash.nvram, CHIP_MEMORY_SIZE);
-		fclose(nvram_fh);
-	} else {
-		debug("nvram file read (from %s) failed: %s", nvram_file, strerror(errno));
-	}
+	nvram_load_and_transfer(h2_io, nvram_file, true);
 
 	atexit(finalize);
 	initialize_rendering(argv[0]);

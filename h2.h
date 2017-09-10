@@ -118,7 +118,7 @@ typedef struct {
 #define PS2_NEW_CHAR_BIT           (8)
 #define PS2_NEW_CHAR               (1 << PS2_NEW_CHAR_BIT)
 
-#define CHIP_MEMORY_SIZE           (16*1024*1024)
+#define CHIP_MEMORY_SIZE           (8*1024*1024) /*NB. size in WORDs not bytes! */
 #define FLASH_MASK_ADDR_UPPER_MASK (0x1ff)
 
 #define FLASH_CHIP_SELECT_BIT      (10)
@@ -217,9 +217,10 @@ typedef struct {
 
 	uint16_t led_7_segments;
 
-	uint8_t switches;
+	uint16_t switches;
+	uint16_t switches_previous;
 
-	uint16_t vram[CHIP_MEMORY_SIZE]; /**@todo move to SRAM peripheral */
+	uint16_t vram[CHIP_MEMORY_SIZE];
 	uint16_t mem_control;
 	uint16_t mem_addr_low;
 	uint16_t mem_dout;
@@ -269,7 +270,7 @@ typedef enum {
 	isrTxFifoFull,
 	isrKbdNew,
 	isrTimer,
-	isrBrnLeft,
+	isrDPadButton,
 } h2_interrupt_address_t;
 
 void *allocate_or_die(size_t length);
@@ -287,6 +288,11 @@ h2_soc_state_t *h2_soc_state_new(void);
 void h2_soc_state_free(h2_soc_state_t *soc);
 h2_io_t *h2_io_new(void);
 void h2_io_free(h2_io_t *io);
+
+int binary_memory_save(FILE *output, uint16_t *p, size_t length);
+int binary_memory_load(FILE *input, uint16_t *p, size_t length);
+int nvram_save(h2_io_t *io, const char *name);
+int nvram_load_and_transfer(h2_io_t *io, const char *name, bool transfer_to_sram);
 
 typedef uint8_t fifo_data_t;
 

@@ -14,18 +14,14 @@ A problem with this Forth is that is uses a singe block buffer, which can cause
 problems when using the block word set from within blocks. The main reason for
 this is due to the limited space on the device.
 
-* Reformat this document to be 64 characters wide maximum, this
-is so it could be stored in block memory.
-
 Forth To Do:
-* Implement rpick
 * Add do...loop, case statements
 * Implement some words from the C library, like all of "ctype.h" and
 put them in block storage. )
 
 ( ======================== System Constants ================= )
 
-constant cell 2
+constant cell 2 hidden
 
 ( The first 8 cells [16 bytes] of memory contain the entry point and interrupt
 service routine call locations, we can set the instruction to be run [such as
@@ -39,45 +35,45 @@ isrTxFifoNotEmpty: .allocate cell ( UART TX FIFO not empty )
 isrTxFifoFull:     .allocate cell ( UART TX FIFO full )
 isrKbdNew:         .allocate cell ( New PS/2 Keyboard character )
 isrTimer:          .allocate cell ( Timer interrupt )
-isrBrnLeft:        .allocate cell ( Left button pressed )
+isrDPadButton:     .allocate cell ( Any D-Pad Button Changed state )
 
 .mode 3   ( Turn word header compilation and optimization on )
 .built-in ( Add the built in words to the dictionary )
 
-constant =exit         $601c ( op code for exit )
-constant =invert       $6600 ( op code for invert )
-constant =>r           $6147 ( op code for >r )
-constant =bl           32    ( blank, or space )
-constant =cr           13    ( carriage return )
-constant =lf           10    ( line feed )
-constant =bs           8     ( back space )
-constant =escape       27    ( escape character )
+constant =exit         $601c hidden ( op code for exit )
+constant =invert       $6600 hidden ( op code for invert )
+constant =>r           $6147 hidden ( op code for >r )
+constant =bl           32    hidden ( blank, or space )
+constant =cr           13    hidden ( carriage return )
+constant =lf           10    hidden ( line feed )
+constant =bs           8     hidden ( back space )
+constant =escape       27    hidden ( escape character )
 
-constant c/l           64    ( characters per line in a block )
-constant l/b           16    ( lines in a block )
+constant c/l           64    hidden ( characters per line in a block )
+constant l/b           16    hidden ( lines in a block )
 
-constant dump-width    16    ( number of columns for 'dump' )
-constant tib-length    80    ( size of terminal input buffer )
-constant pad-length    80    ( pad area begins HERE + pad-length )
-constant word-length   31    ( maximum length of a word )
+constant dump-width    16    hidden ( number of columns for 'dump' )
+constant tib-length    80    hidden ( size of terminal input buffer )
+constant pad-length    80    hidden ( pad area begins HERE + pad-length )
+constant word-length   31    hidden ( maximum length of a word )
 
 ( Outputs: $6000 - $7FFF )
-constant oUart         $4000 ( UART TX/RX Control register )
-constant oVT100        $4002 ( LEDs )
-constant oTimerCtrl    $4004 ( Timer control register )
-constant oLeds         $4006 ( VGA X/Y Cursor position )
-constant oMemDout      $4008 ( Memory output for writes )
-constant oMemControl   $400A ( Memory control and high address bits )
-constant oMemAddrLow   $400C ( Lower memory address bits )
-constant o7SegLED      $400E ( 4x7 Segment display )
-constant oIrcMask      $4010 ( Interrupt Mask )
+constant oUart         $4000 hidden ( UART TX/RX Control register )
+constant oVT100        $4002 hidden ( LEDs )
+constant oTimerCtrl    $4004 hidden ( Timer control register )
+constant oLeds         $4006 hidden ( VGA X/Y Cursor position )
+constant oMemDout      $4008 hidden ( Memory output for writes )
+constant oMemControl   $400A hidden ( Memory control and high address bits )
+constant oMemAddrLow   $400C hidden ( Lower memory address bits )
+constant o7SegLED      $400E hidden ( 4x7 Segment display )
+constant oIrcMask      $4010 hidden ( Interrupt Mask )
 
 ( Inputs: $6000 - $7FFF )
-constant iUart         $4000 ( Matching registers for iUart )
-constant iVT100        $4002 ( Switch control [on/off] )
-constant iTimerDin     $4004 ( Current timer value )
-constant iSwitches     $4006 ( VGA text output, currently broken )
-constant iMemDin       $4008 ( Memory input for reads )
+constant iUart         $4000 hidden ( Matching registers for iUart )
+constant iVT100        $4002 hidden ( Switch control [on/off] )
+constant iTimerDin     $4004 hidden ( Current timer value )
+constant iSwitches     $4006 hidden ( VGA text output, currently broken )
+constant iMemDin       $4008 hidden ( Memory input for reads )
 
 ( Initial value of VGA
 
@@ -90,11 +86,11 @@ constant iMemDin       $4008 ( Memory input for reads )
   2   -  Blue
   1   -  Green
   0   -  Red )
-constant vgaInit       $7A   ( VGA On, Cursor On, Cursor Blinks, Green Text )
+constant vgaInit       $7A   hidden ( VGA On, Cursor On, Cursor Blinks, Green Text )
 
-constant vgaX          80    ( Number of columns in the text mode VGA display )
-constant vgaY          40    ( Number of rows in the text mode VGA display )
-constant vgaTextSize   3200  ( vgaX * vgaY )
+constant vgaX          80    hidden ( Number of columns in the text mode VGA display )
+constant vgaY          40    hidden ( Number of rows in the text mode VGA display )
+constant vgaTextSize   3200  hidden ( vgaX * vgaY )
 
 ( ======================== System Constants ================= )
 
@@ -113,8 +109,8 @@ location _bload     0  ( a u k -- f : load block )
 location _bsave     0  ( a u k -- f : save block )
 location _binvalid  0  ( k -- k : throws error if k invalid )
 location _message   0  ( n -- : display an error message )
-
-location flash-voc  0     ( flash and memory word set )
+location last-def   0  ( last, possibly unlinked, word definition )
+location flash-voc  0  ( flash and memory word set )
 location cp         0  ( Dictionary Pointer: Set at end of file )
 location csp        0  ( current data stack pointer - for error checking )
 location _id        0  ( used for source id )
@@ -129,7 +125,7 @@ variable base       10 ( Current output radix )
 variable span       0  ( Hold character count received by expect   )
 variable loaded     0  ( Used by boot block to indicate it has been loaded  )
 variable border    -1  ( Put border around block begin displayed with 'list' )
-constant #vocs            8 ( number of vocabularies in allowed )
+constant #vocs            8 hidden ( number of vocabularies in allowed )
 variable forth-wordlist   0 ( set at the end near the end of the file )
 location context          0 ( holds current context for vocabulary search order )
 .allocate 14                ( ... space for context )
@@ -138,12 +134,12 @@ location tib-buf          0 ( ... and address )
 .set tib-buf $pc            ( set tib-buf to current dictionary location )
 .allocate tib-length        ( allocate enough for the terminal input buffer )
 .allocate cell              ( plus one extra cell for safety )
-constant block-invalid   -1 ( block invalid number )
-constant block-size    1024 ( size of a block )
+constant block-invalid   -1 hidden ( block invalid number )
+constant b/buf 1024 ( size of a block )
 variable blk             -1 ( current blk loaded )
 location block-dirty      0 ( -1 if loaded block buffer is modified )
 location block-buffer     0 ( block buffer starts here )
-.allocate block-size
+.allocate b/buf
 
 location _blockop         0             ( used in 'mblock' )
 location bcount           0             ( instruction counter used in 'see' )
@@ -241,8 +237,7 @@ location failed           "failed"      ( used in start up routine )
 	dup
 	begin dup while rdrop 1- repeat drop r@ swap
 	begin dup while rup   1- repeat drop
-	rup
-	;
+	rup ;
 
 ( With the built in words defined in the assembler, and the words
 defined so far, all of the primitive words needed by eForth should
@@ -504,10 +499,10 @@ choice words that need depth checking to get quite a large coverage )
 		1 /string
 	repeat rdrop ; hidden
 
-: skipTest if 0> else 0<> then ; hidden    ( n f -- f )
-: scanTest skipTest invert ; hidden        ( n f -- f )
-: skip ' skipTest _test ! lookfor ; hidden ( b u c -- u c )
-: scan ' scanTest _test ! lookfor ; hidden ( b u c -- u c )
+: skipper if 0> else 0<> then ; hidden    ( n f -- f )
+: scanner skipper invert ; hidden         ( n f -- f )
+: skip ' skipper _test ! lookfor ; hidden ( b u c -- u c )
+: scan ' scanner _test ! lookfor ; hidden ( b u c -- u c )
 
 : parser ( b u c -- b u delta )
 	>r over r> swap >r >r
@@ -658,7 +653,6 @@ choice words that need depth checking to get quite a large coverage )
 : timer     iTimerDin  @ ; ( -- u )
 : input rx? if [-1] else ps2? then ; hidden ( -- c -1 | 0 : UART and PS/2 Input )
 : output dup tx! vga! ; hidden ( c -- : write to UART and VGA display )
-
 : printable? 32 127 within ; hidden ( c -- f )
 : pace 11 emit ; hidden
 : xio  ' accept _expect ! _tap ! _echo ! _prompt ! ; hidden
@@ -681,6 +675,14 @@ choice words that need depth checking to get quite a large coverage )
 words used for interpreting Forth. As much error checking is done
 as possible so the Forth environment is easy to use. )
 
+( @note The word ';' currently throws an exception when it is ran in compile
+mode, this is so a Forth block can have it's first word as ';' to stop
+thru from executing it - thru should then ignore it, but it does not at the
+moment. Another useful word would be one that lists the currently loaded
+block then stops evaluation of the loaded block, this would be useful for
+displaying block files as they are read in )
+
+
 : !csp sp@ csp ! ; hidden
 : ?csp sp@ csp @ xor if 22 -throw then ; hidden
 : +csp csp 1+! ; hidden
@@ -693,8 +695,8 @@ as possible so the Forth environment is easy to use. )
 : compile  r> dup @ , cell+ >r ; ( -- : Compile next compiled word NB. Works for words, instructions, and numbers below $8000 )
 : "[char]" ?compile char literal ; immediate ( --, <string> : )
 : ?quit state @ 0= if 56 -throw then ; hidden
-: ";" ?quit ( ?compile ) context @ ! ?csp =exit , ( save )  [ ; immediate
-: ":" align ( save ) !csp here last address ,  token ?nul ?unique count + aligned cp ! ] ;
+: ";" ?quit ( ?compile ) +csp ?csp context @ ! =exit , ( save )  [ ; immediate
+: ":" align ( save ) !csp here dup last-def ! last address ,  token ?nul ?unique count + aligned cp ! ] ;
 : jumpz, 2/ $2000 or , ; hidden
 : jump, 2/ ( $0000 or ) , ; hidden
 : "begin" ?compile here -csp ; immediate
@@ -706,18 +708,17 @@ as possible so the Forth environment is easy to use. )
 : "else" ?compile here 0 jump, swap doThen ; immediate
 : "while" ?compile call "if" ; immediate
 : "repeat" ?compile swap call "again" call "then" ; immediate
-: recurse ?compile last address cfa compile, ; immediate
+: recurse ?compile last-def @ address cfa compile, ; immediate
+\ : tail ?compile last-def @ address cfa jump, ; immediate
 : create call ":" compile doVar context @ ! [ ;
-: >body ( dup @ $4000 or <> if 31 -throw then ) cell+ ;
-: doDoes r> 2/ here 2/ last address cfa dup cell+ doLit ! , ; hidden
+: doDoes r> 2/ here 2/ last-def @ address cfa dup cell+ doLit ! , ; hidden
 : does> ?compile compile doDoes nop ; immediate
 : "variable" create 0 , ;
 : ":noname" here ] !csp ;
 : "for" ?compile =>r , here -csp ; immediate
-
 : "next" ?compile compile doNext , +csp ; immediate
 : "aft" ?compile drop here 0 jump, call "begin" swap ; immediate
-: doer create =exit last cfa ! =exit ,  ;
+: doer create =exit last-def @ cfa ! =exit ,  ;
 : make
 	find-cfa find-cfa make-callable
 	state @
@@ -727,7 +728,6 @@ as possible so the Forth environment is easy to use. )
 		swap !
 	then ; immediate
 
-: doConst r> @ ; hidden
 : "constant" create ' doConst make-callable here cell- ! , ;
 
 \ : [leave] rdrop rdrop rdrop ; hidden
@@ -793,7 +793,6 @@ in which the problem could be solved. )
 : updated? block-dirty @ ; hidden      ( -- f )
 : update [-1] block-dirty ! ;          ( -- )
 : +block blk @ + ;                     ( -- )
-: b/buf block-size ;                   ( -- u )
 : clean-buffers 0 block-dirty ! ; hidden
 : empty-buffers clean-buffers block-invalid blk ! ;  ( -- )
 : save-buffers                         ( -- )
@@ -841,11 +840,6 @@ in which the problem could be solved. )
 		dup 5u.r space pipe space dup  0 .line cr 1+
 	next drop ;
 
-: screens ( k1 k2 -- : list blocks k1 to k2 )
-	over -
-	for
-		dup . dup list 1+ nuf? if rdrop drop exit then
-	next drop ;
 
 ( all words before this are now in the forth vocabulary, it is also set
 later on )
@@ -951,6 +945,16 @@ irq:
 	$ffff oTimerCtrl !
 	1 ien drop ;
 
+( 
+irq2:
+	switches . cr 
+	exit
+.set 14 irq2
+
+: irqTest2
+	$0080 oIrcMask !
+	1 ien drop ; )
+
 ( ==================== Miscellaneous ================================= )
 
 ( ==================== Vocabulary Words ============================== )
@@ -1020,7 +1024,7 @@ as are both of the chip selects.
 .set forth-wordlist $pwd
 .pwd 0
 
-constant memory-upper-mask  $1ff
+constant memory-upper-mask  $1ff hidden
 variable memory-upper       0    ( upper bits of external memory address )
 location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 
