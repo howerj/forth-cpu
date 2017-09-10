@@ -75,23 +75,6 @@ constant iTimerDin     $4004 hidden ( Current timer value )
 constant iSwitches     $4006 hidden ( VGA text output, currently broken )
 constant iMemDin       $4008 hidden ( Memory input for reads )
 
-( Initial value of VGA
-
-  BIT     MEANING
-  7   -  Display Next Screen
-  6   -  Enable VGA
-  5   -  Cursor enable
-  4   -  Cursor blinks
-  3   -  Cursor mode
-  2   -  Blue
-  1   -  Green
-  0   -  Red )
-constant vgaInit       $7A   hidden ( VGA On, Cursor On, Cursor Blinks, Green Text )
-
-constant vgaX          80    hidden ( Number of columns in the text mode VGA display )
-constant vgaY          40    hidden ( Number of rows in the text mode VGA display )
-constant vgaTextSize   3200  hidden ( vgaX * vgaY )
-
 ( ======================== System Constants ================= )
 
 ( ======================== System Variables ================= )

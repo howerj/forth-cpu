@@ -3797,7 +3797,7 @@ typedef struct {
 } command_args_t;
 
 static const char *help = "\
-usage ./h2 [-hvdDarRT] [-s number] [-L symbol.file] [-S symbol.file] (file.hex|file.fth)\n\n\
+usage ./h2 [-hvdDarRTH] [-s number] [-L symbol.file] [-S symbol.file] (file.hex|file.fth)\n\n\
 Brief:     A H2 CPU Assembler, disassembler and Simulator.\n\
 Author:    Richard James Howe\n\
 Site:      https://github.com/howerj/forth-cpu\n\
@@ -3818,6 +3818,7 @@ Options:\n\n\
 \t-S #\tsave symbols to file\n\
 \t-s #\tnumber of steps to run simulation (0 = forever)\n\
 \t-n #\tspecify nvram file\n\
+\t-H #\tenable certain hacks for simulation purposes\n\
 \tfile\thex or forth file to process\n\n\
 Options must precede any files given, if a file has not been\n\
 given as arguments input is taken from stdin. Output is to\n\
