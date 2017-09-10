@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <GL/gl.h>
 #include <GL/glut.h>
 #include <GL/freeglut_ext.h> /* for glutStrokeHeight */
 #include <stdarg.h>
@@ -572,13 +573,92 @@ static dpad_collision_e dpad_collision(dpad_t *d, double x, double y, double rad
 #define TERMINAL_SIZE        (TERMINAL_WIDTH*TERMINAL_HEIGHT)
 
 typedef struct {
+	unsigned width;
+	unsigned height;
+	GLuint name;
+	uint8_t *image;
+} vt100_background_texture_t;
+
+typedef struct {
 	uint64_t blink_count;
 	double x;
 	double y;
 	bool blink_on;
 	color_t color;
 	vt100_t vt100;
+	vt100_background_texture_t *texture;
 } terminal_t;
+
+static void texture_background(terminal_t *t)
+{
+	assert(t);
+	vt100_background_texture_t *v = t->texture;
+	vt100_t *vt = &t->vt100;
+	unsigned i, j;
+	uint8_t *img = v->image;
+	const unsigned h = v->height;
+	const unsigned w = v->width;
+    
+	for (i = 0; i < h; i++) {
+		uint8_t *row = &img[i*4];
+		unsigned ii = ((h - i - 1)*vt->height) / h;
+		for (j = 0; j < w; j++) {
+			uint8_t *column = &row[j*h*4];
+			unsigned jj = (vt->width*j) / w;
+			unsigned idx = jj+(ii*vt->width);
+			column[0] = 255 * (vt->attributes[idx].background_color & 1);
+			column[1] = 255 * (vt->attributes[idx].background_color & 2);
+			column[2] = 255 * (vt->attributes[idx].background_color & 4);
+			column[3] = 255;
+		}
+	}
+}
+
+static void draw_texture(terminal_t *t, bool update)
+{
+	vt100_background_texture_t *v = t->texture;
+	if(!v)
+		return;
+
+	scale_t scale = font_attributes();
+	double char_width  = scale.x / X_MAX;
+       	double char_height = scale.y / Y_MAX;
+	double x = t->x;
+	double y = t->y - (char_height * (t->vt100.height-1.0));
+	double width  = char_width  * t->vt100.width * 1.10;
+	double height = char_height * t->vt100.height;
+
+	glEnable(GL_TEXTURE_2D);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+
+	if(update) {
+		glClearColor (0.0, 0.0, 0.0, 0.0);
+		glShadeModel(GL_FLAT);
+		glEnable(GL_DEPTH_TEST);
+
+		texture_background(t);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+		glGenTextures(1, &v->name);
+		glBindTexture(GL_TEXTURE_2D, v->name);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, v->width, v->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, v->image);
+	}
+
+	glBindTexture(GL_TEXTURE_2D, v->name);
+	glMatrixMode(GL_MODELVIEW);
+	glBegin(GL_QUADS);
+		glTexCoord2f(1.0, 0.0); glVertex3f(x,       y+height, 0.0); 
+		glTexCoord2f(1.0, 1.0); glVertex3f(x+width, y+height, 0.0);
+		glTexCoord2f(0.0, 1.0); glVertex3f(x+width, y,        0.0);
+		glTexCoord2f(0.0, 0.0); glVertex3f(x,       y,        0.0);
+	glEnd();
+	glDisable(GL_TEXTURE_2D);
+}
 
 void draw_terminal(const world_t *world, terminal_t *t, char *name)
 {
@@ -671,6 +751,17 @@ static dpad_t dpad = {
 	.center  =  false,
 };
 
+#define VGA_TEXTURE_WIDTH  (256)
+#define VGA_TEXTURE_HEIGHT (256)
+static uint8_t vga_background_image[VGA_TEXTURE_WIDTH*VGA_TEXTURE_HEIGHT*4];
+
+static vt100_background_texture_t vga_background_texture = {
+	.width  = VGA_TEXTURE_WIDTH,
+	.height = VGA_TEXTURE_HEIGHT,
+	.name   = 0,
+	.image  = (uint8_t*)vga_background_image
+};
+
 static terminal_t vga_terminal = {
 	.blink_count = 0,
 	.x           = X_MIN + 2.0,
@@ -692,7 +783,8 @@ static terminal_t vga_terminal = {
 		.m            = { 0 },
 		.attribute    = { 0 },
 		.attributes   = { { 0 } },
-	}
+	},
+	.texture = &vga_background_texture
 };
 
 #define SEGMENT_COUNT   (4)
@@ -707,6 +799,17 @@ static led_8_segment_t segments[SEGMENT_COUNT] = {
 	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 2.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 0 },
 	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 3.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 0 },
 	{ .x = SEGMENT_X + (SEGMENT_SPACING * SEGMENT_WIDTH * 4.0), .y = SEGMENT_Y, .width = SEGMENT_WIDTH, .height = SEGMENT_HEIGHT, .segment = 0 },
+};
+
+#define UART_TEXTURE_WIDTH  (256)
+#define UART_TEXTURE_HEIGHT (256)
+static uint8_t uart_background_image[UART_TEXTURE_WIDTH*UART_TEXTURE_HEIGHT*4];
+
+static vt100_background_texture_t uart_background_texture = {
+	.width  = UART_TEXTURE_WIDTH,
+	.height = UART_TEXTURE_HEIGHT,
+	.name   = 0,
+	.image  = (uint8_t*)uart_background_image
 };
 
 static terminal_t uart_terminal = {
@@ -730,7 +833,8 @@ static terminal_t uart_terminal = {
 		.m            = { 0 },
 		.attribute    = { 0 },
 		.attributes   = { { 0 } },
-	}
+	},
+	.texture = &uart_background_texture
 };
 
 static h2_t *h = NULL;
@@ -1119,6 +1223,7 @@ static void timer_callback(int value)
 static void draw_scene(void)
 {
 	static uint64_t next = 0;
+	static uint64_t count = 0;
 	double f = fps();
 	if(world.halt_simulation)
 		exit(EXIT_SUCCESS);
@@ -1130,6 +1235,7 @@ static void draw_scene(void)
 	if(next != world.tick) {
 		unsigned long increment = 0;
 		next = world.tick;
+		count++;
 		for(;!fifo_is_empty(uart_tx_fifo);) {
 			uint8_t c = 0;
 			fifo_pop(uart_tx_fifo, &c);
@@ -1191,6 +1297,9 @@ static void draw_scene(void)
 		fill_textbox(&t, "SWITCH INPUT     F-11");
 		fill_textbox(&t, "CHANGE DISPLAY   F-12");
 	}
+
+	draw_texture(&vga_terminal,  !(count % 2));
+	draw_texture(&uart_terminal, !(count % 2));
 
 	glFlush();
 	glutSwapBuffers();

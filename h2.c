@@ -1122,10 +1122,12 @@ void vt100_update(vt100_t *t, uint8_t c)
 			t->cursor++;
 		}
 		if(t->cursor >= t->size) {
-			/**@bug This should copy the default attribute, not the current
-			 * attribute */
+			vt100_attribute_t a;
+			memcpy(&a, &t->attribute, sizeof(t->attribute));
+			a.foreground_color = WHITE;
+			a.background_color = BLACK;
 			for(size_t i = 0; i < t->size; i++)
-				memcpy(&t->attributes[i], &t->attribute, sizeof(t->attribute));
+				memcpy(&t->attributes[i], &a, sizeof(a));
 			memset(t->m, ' ', t->size);
 		}
 		t->cursor %= t->size;
