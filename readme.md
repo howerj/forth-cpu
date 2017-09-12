@@ -642,7 +642,7 @@ A rough [EBNF][] grammar for the language is as follows:
 	Branch      := "branch"  ( Identifier | Literal )
 	0Branch     := "0branch" ( Identifier | Literal )
 	Call        := "call"    ( Identifier | Literal )
-	Set         := ".set"    ( Identifier | Literal ) ( Identifier | Literal )
+	Set         := ".set"    ( Identifier | Literal | String ) ( Identifier | Literal | String )
 	Pc          := ".pc"     ( Identifier | Literal )
 	Pwd         := ".pwd"    ( Identifier | Literal )
 	Break       := ".break"
