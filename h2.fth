@@ -159,7 +159,7 @@ location failed           "failed"      ( used in start up routine )
 : cell- cell - ;           ( a -- a : adjust address to previous cell )
 : cell+ cell + ;           ( a -- a : move address forward to next cell )
 : cells 2* ;               ( n -- n : convert number of cells to number to increment address by )
-: ?dup dup if dup then ;   ( n -- 0 | n n : duplicate value if it is not zero )
+: ?dup dup if dup exit then ;   ( n -- 0 | n n : duplicate value if it is not zero )
 : >  swap < ;              ( n1 n2 -- f : signed greater than, n1 > n2 )
 : u> swap u< ;             ( u1 u2 -- f : unsigned greater than, u1 > u2 )
 : u>= u< invert ;          ( u1 u2 -- f : )
@@ -174,7 +174,7 @@ location failed           "failed"      ( used in start up routine )
 : 1+!  1 swap +! ;         ( a -- : increment value at address by 1 )
 : 1-! [-1] swap +! ; hidden  ( a -- : decrement value at address by 1 )
 : execute >r ;             ( cfa -- : execute a function )
-: c@ dup ( -2 and ) @ swap 1 and if 8 rshift else $ff and then ; ( b -- c )
+: c@ dup ( -2 and ) @ swap 1 and if 8 rshift exit else $ff and exit then ; ( b -- c )
 : c!                       ( c b -- )
 	swap $ff and dup 8 lshift or swap
 	swap over dup ( -2 and ) @ swap 1 and 0 = $ff xor
@@ -242,12 +242,12 @@ they can implemented in terms of instructions )
 : bl =bl ;                                ( -- c )
 : within over - >r - r> u< ;              ( u lo hi -- f )
 : dnegate invert >r invert 1 um+ r> + ;   ( d -- d )
-: abs dup 0< if negate then ;             ( n -- u )
+: abs dup 0< if negate exit then ;        ( n -- u )
 : count  dup 1+ swap c@ ;                 ( cs -- b u )
 : rot >r swap r> swap ;                   ( n1 n2 n3 -- n2 n3 n1 )
 : -rot swap >r swap r> ;                  ( n1 n2 n3 -- n3 n1 n2 )
-: min over over < if drop else nip then ; ( n n -- n )
-: max over over > if drop else nip then ; ( n n -- n )
+: min over over < if drop exit else nip exit then ; ( n n -- n )
+: max over over > if drop exit else nip exit then ; ( n n -- n )
 : >char $7f and dup 127 =bl within if drop [char] _ then ; ( c -- c )
 : tib #tib cell+ @ ; hidden               ( -- a )
 : echo _echo @execute ; hidden            ( c -- )
@@ -270,14 +270,14 @@ they can implemented in terms of instructions )
 : lowercase? [char] a [char] { within ; hidden  ( c -- f : is character lower case? )
 : uppercase? [char] A [char] [ within ; hidden  ( c -- f : is character upper case? )
 \ : >upper dup lowercase? if =bl xor then ; ( c -- c : convert to upper case )
-: >lower dup uppercase? if =bl xor then ; hidden ( c -- c : convert to lower case )
+: >lower dup uppercase? if =bl xor exit then ; hidden ( c -- c : convert to lower case )
 : nchars swap 0 max for aft dup emit then next drop ; hidden ( +n c -- : emit c n times  )
 : spaces =bl nchars ;                     ( +n -- )
 : cmove for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ; ( b b u -- )
 : fill swap for swap aft 2dup c! 1+ then next 2drop ; ( b u c -- )
 : substitute dup @ >r ! r> ; hidden ( u a -- u : substitute value at address )
 : switch 2dup @ >r @ swap ! r> swap ! ; hidden ( a a -- : swap contents )
-: aligned dup 1 and if 1+ then ;          ( b -- a )
+: aligned dup 1 and if 1+ exit then ;          ( b -- a )
 : align cp @ aligned cp ! ;               ( -- )
 
 : catch  ( xt -- exception# | 0 : return addr on stack )
@@ -305,13 +305,13 @@ they can implemented in terms of instructions )
 ( By making all the Forth primitives call '?depth' it should be possible
 to get quite good coverage for stack checking, if not there is only a few
 choice words that need depth checking to get quite a large coverage )
-: ?depth dup 0= if drop exit then sp@ 1- u> if 4 -throw then ; hidden ( u -- )
+: ?depth dup 0= if drop exit then sp@ 1- u> if 4 -throw exit then ; hidden ( u -- )
 : 1depth 1 ?depth ; hidden
 \ : 2depth 2 ?depth ; hidden
 \ : 3depth 3 ?depth ; hidden
 
 : um/mod ( ud u -- ur uq )
-	?dup 0= if 10 -throw then
+	?dup 0= if 10 -throw exit then
 	2dup u<
 	if negate 15
 		for >r dup um+ >r >r dup um+ r> + dup
@@ -327,7 +327,7 @@ choice words that need depth checking to get quite a large coverage )
 		negate >r dnegate r>
 	then
 	>r dup 0< if r@ + then r> um/mod r>
-	if swap negate swap then ;
+	if swap negate swap exit then ;
 
 : um* ( u u -- ud )
 	0 swap ( u1 0 u2 ) 15
@@ -341,10 +341,10 @@ choice words that need depth checking to get quite a large coverage )
 : *    um* drop ;            ( n n -- n )
 : decimal 10 base ! ;                       ( -- )
 : hex     16 base ! ;                       ( -- )
-: radix base @ dup 2 - 34 u> if hex 40 -throw then ; hidden
+: radix base @ dup 2 - 34 u> if hex 40 -throw exit then ; hidden
 : digit  9 over < 7 and + 48 + ; hidden      ( u -- c )
 : extract  0 swap um/mod swap ; hidden       ( n base -- n c )
-: ?hold hld @ cp @ u< if 17 -throw then ; hidden ( -- )
+: ?hold hld @ cp @ u< if 17 -throw exit then ; hidden ( -- )
 : hold  hld @ 1- dup hld ! ?hold c! ;        ( c -- )
 : sign  0< if [char] - hold then ;           ( n -- )
 : #>  drop hld @ pad over - ;                ( w -- b u )
@@ -360,7 +360,7 @@ choice words that need depth checking to get quite a large coverage )
 
 : pack$ ( b u a -- a ) \ null fill
 	aligned dup >r over
-	dup 0 cell um/mod drop
+	dup 0 cell um/mod ( use -2 and instead of um/mod? ) drop
 	- over +  0 swap !  2dup c!  1+ swap cmove  r> ;
 
 : ^h ( bot eot cur c -- bot eot cur )
@@ -429,7 +429,7 @@ choice words that need depth checking to get quite a large coverage )
 	begin
 		dup @
 	while
-		dup @ @ r@ swap search ?dup if >r >r drop r> r> rdrop exit else drop then
+		dup @ @ r@ swap search ?dup if rot rdrop drop exit else drop then
 		cell+
 	repeat drop r> 0 ;
 
@@ -482,7 +482,7 @@ choice words that need depth checking to get quite a large coverage )
 		1 /string
 	repeat rdrop ; hidden
 
-: skipper if 0> else 0<> then ; hidden    ( n f -- f )
+: skipper if 0> exit else 0<> exit then ; hidden    ( n f -- f )
 : scanner skipper invert ; hidden         ( n f -- f )
 : skip ' skipper _test ! lookfor ; hidden ( b u c -- u c )
 : scan ' scanner _test ! lookfor ; hidden ( b u c -- u c )
@@ -497,14 +497,14 @@ choice words that need depth checking to get quite a large coverage )
 : "(" 41 parse 2drop ; immediate
 : .( 41 parse type ;
 : "\" #tib @ >in ! ; immediate
-: ?length dup word-length u> if 19 -throw then ; hidden
+: ?length dup word-length u> if 19 -throw exit then ; hidden
 : word 1depth parse ?length here pack$ ;          ( c -- a ; <string> )
 : token =bl word ; hidden
 : char token count drop c@ ;               ( -- c; <string> )
 : .s ( -- ) cr sp@ for aft r@ pick . then next .s-string print ;
 : unused $4000 here - ; hidden
 : .free unused u. ; hidden
-: preset sp@ ndrop tib #tib cell+ ! 0 >in ! 0 _id ! ; hidden
+: preset sp@ ndrop tib #tib cell+ ! 0 >in ! 0 _id ! ( console / io! ) ; hidden
 : ] [-1] state ! ;
 : [  0 state ! ; immediate
 
@@ -520,22 +520,22 @@ choice words that need depth checking to get quite a large coverage )
 	?dup if
 		[char] ? emit ( print error message )
 		.error
-		\ restore     ( restore dictionary to point before error )
 		preset        ( reset machine )
 		[             ( back into interpret mode )
+		exit
 	then ; hidden
 
-: ?dictionary dup $3f00 u> if 8 -throw then ; hidden
+: ?dictionary dup $3f00 u> if 8 -throw exit then ; hidden
 : , here dup cell+ ?dictionary cp ! ! ; ( u -- )
 : doLit 0x8000 or , ; hidden
-: ?compile state @ 0= if 14 -throw then ; hidden ( fail if not compiling )
+: ?compile state @ 0= if 14 -throw exit then ; hidden ( fail if not compiling )
 : literal ( n -- : write a literal into the dictionary )
 	?compile
 	dup 0x8000 and ( n > $7fff ? )
 	if
-		invert doLit =invert , ( store inversion of n the invert it )
+		invert doLit =invert , exit ( store inversion of n the invert it )
 	else
-		doLit ( turn into literal, write into dictionary )
+		doLit exit ( turn into literal, write into dictionary )
 	then ; immediate
 
 : make-callable 2/ $4000 or ; hidden ( cfa -- instruction )
@@ -547,19 +547,19 @@ choice words that need depth checking to get quite a large coverage )
 		state @
 		if
 			0> if \ immediate
-				cfa execute
+				cfa execute exit
 			else
 				$compile exit
 			then
 		else
-			drop cfa execute
+			drop cfa execute exit
 		then
 	else \ not a word
 		dup count number? if
 			nip
-			state @ if literal then
+			state @ if literal exit then
 		else
-			drop space print 13 -throw
+			drop space print 13 -throw exit
 		then
 	then ;
 
@@ -667,17 +667,17 @@ displaying block files as they are read in )
 
 
 : !csp sp@ csp ! ; hidden
-: ?csp sp@ csp @ xor if 22 -throw then ; hidden
+: ?csp sp@ csp @ xor if 22 -throw exit then ; hidden
 : +csp csp 1+! ; hidden
 : -csp csp 1-! ; hidden
-: ?unique dup last search if drop redefined print cr else drop then ; hidden ( a -- a )
-: ?nul count 0= if 16 -throw then 1- ; hidden ( b -- : check for zero length strings )
-: find-cfa token find if cfa else 13 -throw then ; hidden
-: "'" find-cfa state @ if literal then ; immediate
+: ?unique dup last search if drop redefined print cr exit else drop exit then ; hidden ( a -- a )
+: ?nul count 0= if 16 -throw exit then 1- ; hidden ( b -- : check for zero length strings )
+: find-cfa token find if cfa exit else 13 -throw exit then ; hidden
+: "'" find-cfa state @ if literal exit then ; immediate
 : [compile] ?compile find-cfa compile, ; immediate ( -- ; <string> )
 : compile  r> dup @ , cell+ >r ; ( -- : Compile next compiled word NB. Works for words, instructions, and numbers below $8000 )
 : "[char]" ?compile char literal ; immediate ( --, <string> : )
-: ?quit state @ 0= if 56 -throw then ; hidden
+: ?quit state @ 0= if 56 -throw exit then ; hidden
 : ";" ?quit ( ?compile ) +csp ?csp context @ ! =exit , ( save )  [ ; immediate
 : ":" align ( save ) !csp here dup last-def ! last address ,  token ?nul ?unique count + aligned cp ! ] ;
 : jumpz, 2/ $2000 or , ; hidden
@@ -706,9 +706,9 @@ displaying block files as they are read in )
 	find-cfa find-cfa make-callable
 	state @
 	if
-		literal literal compile !
+		literal literal compile ! exit
 	else
-		swap !
+		swap ! exit
 	then ; immediate
 
 : "constant" create ' doConst make-callable here cell- ! , ;
@@ -789,7 +789,7 @@ in which the problem could be solved. )
 	_binvalid @execute                         ( check validity of block number )
 	dup blk @ = if drop block-buffer exit then ( block already loaded )
 	flush
-	dup >r block-buffer b/buf r> _bload @execute throw
+	dup >r block-buffer b/buf r> _bload @execute throw 
 	blk !
 	block-buffer ;
 
@@ -798,10 +798,10 @@ in which the problem could be solved. )
 : load 0 l/b 1- for 2dup >r >r loadline r> r> 1+ next 2drop ;
 : pipe 124 emit ; hidden
 : .line line -trailing $type ; hidden
-: .border border @ if 3 spaces c/l 45 nchars cr then ; hidden
-: #line border @ if dup 2 u.r then ; hidden ( u -- u : print line number )
-: ?pipe border @ if pipe then ; hidden
-: ?page border @ if page then ; hidden
+: .border border @ if 3 spaces c/l 45 nchars cr exit then ; hidden
+: #line border @ if dup 2 u.r exit then ; hidden ( u -- u : print line number )
+: ?pipe border @ if pipe exit then ; hidden
+: ?page border @ if page exit then ; hidden
 ( @todo 'thru' should catch -56, or QUIT, and continue with next block )
 \ : ?load ' load catch dup -56 <> if throw then drop ;
 : thru over - for dup load 1+ next drop ; ( k1 k2 -- )
@@ -851,7 +851,7 @@ to work / break everything it touches )
 		dup
 	while
 		address dup r@ swap dup @ address swap within ( simplify? )
-		if @ address r@ swap validate rdrop exit then
+		if @ address r> swap validate exit then
 		address @
 	repeat rdrop ; hidden
 
@@ -892,7 +892,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 	drop ; hidden
 
 : see ( --, <string> : decompile a word )
-	token find 0= if 13 -throw then
+	token find 0= if 13 -throw exit then
 	cr colon space dup .id space
 	dup inline?    if see.inline    print then
 	dup immediate? if see.immediate print then
@@ -900,7 +900,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 	cfa decompiler space 59 emit cr ;
 
 \ : see
-\ 	token find 0= if 13 -throw then
+\ 	token find 0= if 13 -throw exit then
 \ 	begin nuf? while
 \ 		dup @ dup $4000 and $4000
 \ 		= if space .name else . then cell+
@@ -948,12 +948,12 @@ irq2:
 	context
 	find-empty-cell
 	dup cell- swap
-	context - 2/ dup >r 1- dup 0< if 50 -throw then
+	context - 2/ dup >r 1- dup 0< if 50 -throw exit then
 	for aft dup @ swap cell- then next @ r> ;
 
 : set-order ( widn ... wid1 n -- : set the current search order )
 	dup [-1]  = if drop forth-wordlist 1 set-order exit then
-	dup #vocs > if 49 -throw then
+	dup #vocs > if 49 -throw exit then
 	context swap for aft tuck ! cell+ then next 0 swap ! ;
 
 \ : root  -1 set-order ; \ should contain set-order, forth-wordlist, forth, and words
@@ -1050,7 +1050,7 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 	5 40ns
 	$0000 mcontrol! ; hidden
 : flash! dup >r m! r> m! ; hidden ( u u a )
-: flash-status nvram $70 0 m! 0 m@ ( dup $2a and if -34 -throw then ) ; ( -- status )
+: flash-status nvram $70 0 m! 0 m@ ( dup $2a and if -34 -throw exit then ) ; ( -- status )
 : flash-read   $ff 0 m! ;      ( -- )
 : flash-setup  memory-select @ 0= if flush then nvram flash-reset block-mode drop 20 ms ;
 : flash-wait begin flash-status $80 and until ; hidden
@@ -1078,7 +1078,7 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 .set flash-voc $pwd
 
 : minvalid ( k -- k : is 'k' a valid block number, throw on error )
-	dup block-invalid = if 35 -throw then ; hidden
+	dup block-invalid = if 35 -throw exit then ; hidden
 
 : c>m swap @ swap m! ; hidden      ( a a --  )
 : m>c m@ swap ! ; hidden ( a a -- )
@@ -1107,7 +1107,7 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 	0 block c@ printable? if
 		0 load
 	else
-		1 -throw
+		1 -throw exit
 	then ; hidden
 
 start:
