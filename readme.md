@@ -13,8 +13,7 @@
 
 This project implements a small stack computer tailored to executing Forth
 based on the [J1][] CPU. The processor has been rewritten in [VHDL][] from
-[Verilog][], and extended slightly. The project is a work in progress and is
-needs a lot of work before become usable.
+[Verilog][], and extended slightly. 
 
 The goals of the project are as follows:
 
@@ -32,6 +31,13 @@ end of life. The [VHDL][] is written in a generic way, with hardware components
 being inferred instead of explicitly instantiated, this should make the code
 fairly portable, although the interfaces to the [Nexys3][] board components are
 specific to the peripherals on that board.
+
+A video of the project in action, on the hardware, can be viewed here:
+<https://howerj.github.io/h2/107.mp4>
+
+The SoC can also be simulated with a simulator written in C, as shown below:
+
+![GUI Simulator](https://raw.githubusercontent.com/howerj/forth-cpu/master/sim2.gif)
 
 # License
 
@@ -1335,6 +1341,10 @@ are.
 
 # To Do
 
+* My [embed][] project, which was derived from the simulator and Forth for this
+project, has an improved version of Forth which could be reintegrated with
+this project. The [embed][] project features a metacompiler suitable for 16-bit
+systems like this one, it could be used in lieu of the Pseudo-Forth compiler.
 * Guide to reusing the VHDL in this project, and component listing
 * Turn the [h2.fth][] into a literate program file, describing how to build up
 a Forth system like in "The Zen of eForth by C. H. Ting".
@@ -1439,7 +1449,7 @@ could be added.
 [Gforth]: https://www.gnu.org/software/gforth/
 [opencores]: https://opencores.org
 [VT100]: https://en.wikipedia.org/wiki/VT100
-
+[embed]: https://github.com/howerj/embed
 <!--
 
 https://www.w3schools.com/css/css_table.asp
