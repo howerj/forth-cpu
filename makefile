@@ -290,6 +290,7 @@ clean:
 	@rm -vrf text.bin h2.hex text.hex
 	@rm -vrf *.pdf *.htm
 	@rm -vrf *.blk *.sym
+	@rm -vrf xst/
 	@rm -vf usage_statistics_webtalk.html
 	@rm -vf mem_h2.binary mem_h2.hexadecimal
 

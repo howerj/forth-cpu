@@ -34,8 +34,6 @@ specific to the peripherals on that board.
 
 A video of the project in action, on the hardware, can be viewed here:
 <https://howerj.github.io/h2/107.mp4>
-![Nexys3 Board](https://howerj.github.io/h2/107.mp4)
-![Nexys3 Board](https://howerj.github.io/h2/107.gif)
 
 The SoC can also be simulated with a simulator written in C, as shown below:
 

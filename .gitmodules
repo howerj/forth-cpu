@@ -1,0 +1,3 @@
+[submodule "info/embed"]
+	path = info/embed
+	url = git@github.com:howerj/embed.git
