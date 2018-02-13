@@ -1097,8 +1097,8 @@ notice the stack comments describe both stacks here:
 * Peripheral access word set
 * Throw/Catch
 * How Forth is implemented
-
-
+* Add appendixes for ASCII character set, ANSI terminal
+codes supported.
 
 
 
@@ -1247,11 +1247,11 @@ space for the user
 
 
 ; ==== Glossary ================================================
-
-
-
-
-
+The next section presents the glossary, which contains one
+word per screen with examples. The glossary may not necessarily
+reflect the exact contents of the dictionary as words are
+removed, added and replaced to save space, but the majority
+should be documented here.
 
 
 
@@ -1903,15 +1903,15 @@ This is a regular function that increments a value by one.
 
 
 ; ==== 2dup  ( u1 u2 -- u1 u2 u1 u2 : duplicate two values ) ===
+This manipulates two items on the stack, like most words with
+a '2' in their name. The stack effect describes the word
+perfectly. Words like these, which produce and manipulate lots
+of stack items should be avoided if possible.
 
-
-
-
-
-
-
-
-
+Usage:
+         ( -- : empty stack )
+   1 2   (  -- 1 2  )
+   2dup  ( 1 2 -- 1 2 1 2 )
 
 
 
@@ -1924,10 +1924,10 @@ stay the same, negative values become positive. Signed numbers
 are stored in twos compliment format, the function fails for
 the number $8000, which is unaffected by abs.
 
+Usage:
 
-
-
-
+  -1 abs .  ( prints '1' )
+   4 abs .  ( prints '4' )
 
 
 
@@ -1967,35 +1967,35 @@ the number $8000, which is unaffected by abs.
 
 
 ; ==== again  ( -- : part of begin...again loop ) ==============
+'again' should only be used as part of a 'begin...again' loop,
+which is a compile time only wordset. Using an 'again' without
+a 'begin' may also be met with an error, as this situtation
+should be caught by the compiler security mechanisms. The
+'begin...again' looping mechanism forms an indefinite or an
+infinite loop, the Forth interpreter/CPU jumps back to the
+corresponding 'begin' unconditionally, and excluding any
+errors/exceptions will do so forever.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+Usage:
+  : invalid-1 again ; ( <- invalid use, no matching 'begin )
+  again        ( <- invalid use, outside a word definition )
+  : test begin 1 . cr again ; 
+  test ( 'test' prints '1' forever )
 
 ; ==== align  ( -- : align dictionary pointer ) ================
+'align' is a word that takes no arguments and returns nothing,
+it acts on the dictionary pointer variable (the internal name
+for which is usually 'cp', the variable is returned by the
+word 'here'). It should be used after allocating a data
+structure in the dictionary which is byte aligned and before
+defining any new words, the word 'align' reserves space up to
+the next cell aligned address by manipulating the dictionary
+pointer variable.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
+   create x 3 allot ( <- dictionary pointer is now unaligned )
+   align            ( <- dictionary pointer is now aligned )
 
 
 ; ==== aligned  ( b -- a : align up an address ) ===============
@@ -3791,12 +3791,12 @@ area just before the pad area.
 
 
 ; ==== r>  ( -- u, R: u --: move value from return stack ) =====
-
-
-
-
-
-
+'r>' also known as 'from r', moves a cell sized value from the
+return stack to the variable stack. It should only be used from
+within a word definition, and only by those that know what they
+are doing. It is possible to crash the interpreter by trashing
+the return stack with this word. The stack comment for this
+word perfectly describes this word.
 
 
 
@@ -4022,13 +4022,13 @@ word into instructions and function calls. If not found 'see'
 will throw an exception.
 
 
+Usage:
 
-
-
-
-
-
-
+   see see
+   see +
+   see :
+   see words
+   see if
 
 ; ==== segments!  ( u -- : display 'u' on LED displays ) =======
 Segments writes a single 16-bit value to the four seven segment
@@ -4040,18 +4040,18 @@ cell as a hexadecimal value.
 
 
 
+Usage:
 
+  $cafe segments!
+  $d1ed segments!
+  $0001 segments!
 
-
-
-
-
-; ==== set-order  ( vn...v0 u -- : set search order ) ==========
-This word sets the sort order.
-
-
-
-
+; ==== set-order  ( vn...v0 n -- : set search order ) ==========
+This word sets the search order for the dictionary search. It
+accepts a variable number of items off of the stack, 'n' is
+the number of those item. A special case for the value of 'n'
+exists, when it is '-1' it sets the order to the minimal
+search order.
 
 
 
@@ -4206,29 +4206,29 @@ words '[' and ']' can be used to switch the state as well.
 
 
 
-; ==== =string  ( a1 u2 a1 u2 -- f : string equality ) =========
+; ==== =string  ( b1 u1 b2 u2 -- f : string equality ) =========
+This word implement a test for string equality, it compares
+two strings specified by two address-length pairs and returns
+a boolean that determined whether the strings are equal or
+not (-1 for true/equal, 0 for false/not-equal). The word is
+unusual as it accepts four parameters on the stack, which is
+bad practice for Forth words which is most circumstances should
+only accept three parameters. This word is used internally for
+doing the dictionary search.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+Usage:
+  : s1 $" Hello " count ;
+  : s2 $" Bye! " count ; 
+  s1 s2 =string . ( prints '0' )
+  s1 s1 =string . ( prints '-1', or 'FFFF' )
 
 ; ==== /string  ( b u1 u2 -- b u : advance string by u2 ) ======
 '/string' advances a string 'b u1' by 'u2' characters, if there
-are enough characters left to advance the string by.
-
-
-
-
+are enough characters left to advance the string by. This is
+obviously a word that is useful when dealing with strings,
+strings in Forth commonly come in two type: counted strings
+and address-length based strings. This word deals with the
+latter type of string.
 
 
 
@@ -4240,16 +4240,16 @@ are enough characters left to advance the string by.
 
 ; ==== swap  ( u1 u2 -- u2 u1 : swap two variables ) ===========
 This is an assembly instruction which will be inlined if
-compiled into a word. It swaps two variables on the stack.
+compiled into a word. It swaps two variables on the stack,
+its stack effect describes the word perfectly.
 
 
 
 
 
-
-
-
-
+Usage:
+   1 2   (     -- 1 2 )
+   swap  ( 1 2 -- 2 1 )
 
 
 
@@ -4271,20 +4271,20 @@ Example usage:
 
 
 ; ==== then  ( -- : part of if...then or if...else...then ) ====
+'then' should only be used inside a word definition and as
+part of an 'if...else...then' or 'if...then' sequence, it is
+used to terminate both sequences with execution continuing 
+after 'then'. The words 'if' and 'else' should also be
+consulted. An exception may be thrown if this word is used
+outside a word definition, or if there is not a corresponding
+if. It is an immediate word.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+Usage:
+   : invalid then ; ( <- invalid usage, no matching 'if' )
+   then      ( <- invalid usage, outside word definition )
+   : example dup if 1+ then ; ( 0 | x -- 0 | x+1 )
+   4 example . ( prints '5' )
+   0 example . ( prints '0' )
 
 ; ==== throw  ( ? n -- ?, R: ? -- ? : throw exception ) ========
 'throw' along with 'catch' are the Forth exception handling
@@ -4360,27 +4360,27 @@ the second most item on the stack.
 
 
 
-
-
-
+Usage:
+   5 7  ( -- 5 7 : two example numbers are entered )
+   tuck ( 5 7 -- 7 5 7 : tuck does its job )
 
 
 
 ; ==== type  ( b u -- : print out a string ) ===================
-'type' prints out a string.
+'type' prints out a string, specified by an address 'b' and
+a length 'u'. The output goes to the same place as 'emit'
+does, which is usually an output device viewable by the
+programmer.
 
+The examples use the words '$"' and 'count' which should be
+consulted as well. '$"' compiles a string literal into the
+dictionary as a counted string, 'count' converts this to
+an Address-Length pair needed by type.
 
-
-
-
-
-
-
-
-
-
-
-
+Usage:
+   : hello cr $" Hello, World!" count type cr ;
+   hello          ( execute newly defined word )
+   Hello, World!  ( it prints 'Hello, World! )
 
 ; ==== u<  ( u1 u2 -- f: unsigned less than ) ==================
 Unsigned less than of two numbers, this is an assembly operation
@@ -4495,18 +4495,18 @@ division and modulus operations.
 
 
 ; ==== until  ( -- : begin...until loop ) ======================
+'until' is a compile only word that should be used as part of
+a 'begin...until' loop within a word definition. It is a
+conditional looping mechanism that pops and tests a value at
+run time, and jumps back to the corresponding 'begin' if the
+value is zero, otherwise execution continues after the 'until'.
 
-
-
-
-
-
-
-
-
-
-
-
+Usage:
+  : invalid until ; ( <- invalid usage, no matching 'begin' )
+  until  ( <- invalid usage, used outside a word definition )
+  : test begin 1- dup . ?dup 0= until cr ." done " cr ;
+  3 test 2 1 0 ( '3 test' prints '2 1 0' )
+  done         ( and also prints 'done' )
 
 
 
@@ -4516,13 +4516,13 @@ block block number is stored in the variable 'blk'). A dirty
 block will be written to disk on when 'flush', 'save-buffers',
 or another block is loaded from disk.
 
-
-
-
-
-
-
-
+Usage:
+   5 block ( block '5' loaded, block buffer address returned )
+   99 !    ( store '99' in block buffer )
+   update  ( mark block as dirty )
+   save-buffers ( write out block buffer back to block '5' )
+   ( block '5' now contains '99' in its first byte, which has )
+   ( been saved to disk )
 
 
 
@@ -4535,12 +4535,12 @@ aligned. This function uses the area between the end of the
 dictionary and the beginning of the PAD area as temporary
 storage.
 
+Usage:
 
-
-
-
-
-
+  Typed   | <- Result -> |
+  4 6 u.r     4 ok
+  99 6 u.r    99 ok
+  99 5 u.r   99 ok
 
 ; ==== variable  ( -- ; <string> : create a new variable ) =====
 'variable' parses the next space delimited string from the
@@ -4591,8 +4591,8 @@ interpreter works that could potentially break code.
 
 
 ; ==== within  ( u hi lo -- f : is u within a range? ) =========
-
-
+'within' is used to test with a value is within a range
+specified with a maximum and minimum value.
 
 
 

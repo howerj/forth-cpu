@@ -8,7 +8,14 @@
  * is based on the J1 processor (see http://excamera.com/sphinx/fpga-j1.html).
  *
  * The processor has been tested on an FPGA and is working.
- * The project can be found at: https://github.com/howerj/forth-cpu */
+ * The project can be found at: https://github.com/howerj/forth-cpu 
+ *
+ * @todo The compiler section could be replace by an embedded Forth interpreter
+ * The one available at <https://github.com/howerj/embed> would work well, the
+ * metacompiler could be retargeted for the H2 processor instead of its own
+ * 16-bit virtual machine. This should cut down on program size and increase
+ * functionality.
+ */
 
 /* ========================== Preamble: Types, Macros, Globals ============= */
 

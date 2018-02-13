@@ -15,9 +15,12 @@ problems when using the block word set from within blocks. The main reason for
 this is due to the limited space on the device.
 
 Forth To Do:
-* Add do...loop, case statements
+* Add do...loop, case statements, put them in block storage
 * Implement some words from the C library, like all of "ctype.h" and
-put them in block storage. )
+put them in block storage. 
+* Implement many of the lessons learned whilst making the
+'embed' Forth interpreter <https://github.com/howerj/embed>, which
+cuts down on the interpreter size, and adds more functionality. )
 
 ( ======================== System Constants ================= )
 
@@ -915,7 +918,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 \ work correctly at the moment
 
 ( @bug Interrupts work in simulation but not in hardware )
-( variable icount 0
+ variable icount 0
 
 irq:
 	switches led!
