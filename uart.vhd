@@ -37,41 +37,41 @@ package uart_pkg is
 	component uart_top is
 	generic (baud_rate: positive; clock_frequency: positive; fifo_depth: positive := 8);
 	port (
-		clk:                 in      std_logic;
-		rst:                 in      std_logic;
+		clk:                 in      std_ulogic;
+		rst:                 in      std_ulogic;
 
-		rx_data:             out     std_logic_vector(7 downto 0);
-		rx_fifo_empty:       out     std_logic;
-		rx_fifo_full:        out     std_logic;
-		rx_data_re:          in      std_logic;
+		rx_data:             out     std_ulogic_vector(7 downto 0);
+		rx_fifo_empty:       out     std_ulogic;
+		rx_fifo_full:        out     std_ulogic;
+		rx_data_re:          in      std_ulogic;
 
-		tx_data:             in      std_logic_vector(7 downto 0);
-		tx_fifo_full:        out     std_logic;
-		tx_fifo_empty:       out     std_logic;
-		tx_data_we:          in      std_logic;
+		tx_data:             in      std_ulogic_vector(7 downto 0);
+		tx_fifo_full:        out     std_ulogic;
+		tx_fifo_empty:       out     std_ulogic;
+		tx_data_we:          in      std_ulogic;
 
-		tx:                  out     std_logic;
-		rx:                  in      std_logic);
+		tx:                  out     std_ulogic;
+		rx:                  in      std_ulogic);
 
 	end component;
 
 	component uart_core is
 		generic (baud_rate: positive; clock_frequency: positive);
 		port (
-			clk:       in      std_logic;
-			rst:       in      std_logic;
-			din:       in      std_logic_vector(7 downto 0);
-			din_stb:   in      std_logic;
-			din_ack:   out     std_logic := '0';
-			din_busy:  out     std_logic;
+			clk:       in      std_ulogic;
+			rst:       in      std_ulogic;
+			din:       in      std_ulogic_vector(7 downto 0);
+			din_stb:   in      std_ulogic;
+			din_ack:   out     std_ulogic := '0';
+			din_busy:  out     std_ulogic;
 
-			dout:      out     std_logic_vector(7 downto 0);
-			dout_stb:  out     std_logic;
-			dout_ack:  in      std_logic;
-			dout_busy: out     std_logic;
+			dout:      out     std_ulogic_vector(7 downto 0);
+			dout_stb:  out     std_ulogic;
+			dout_ack:  in      std_ulogic;
+			dout_busy: out     std_ulogic;
 
-			tx:        out     std_logic;
-			rx:        in      std_logic);
+			tx:        out     std_ulogic;
+			rx:        in      std_ulogic);
 	end component;
 
 end package;
@@ -89,41 +89,41 @@ use work.uart_pkg.uart_core;
 entity uart_top is
 	generic (baud_rate: positive; clock_frequency: positive; fifo_depth: positive := 8);
 	port (
-		clk:                 in      std_logic;
-		rst:                 in      std_logic;
+		clk:                 in      std_ulogic;
+		rst:                 in      std_ulogic;
 
-		rx_data:             out     std_logic_vector(7 downto 0);
-		rx_fifo_empty:       out     std_logic;
-		rx_fifo_full:        out     std_logic;
-		rx_data_re:          in      std_logic;
+		rx_data:             out     std_ulogic_vector(7 downto 0);
+		rx_fifo_empty:       out     std_ulogic;
+		rx_fifo_full:        out     std_ulogic;
+		rx_data_re:          in      std_ulogic;
 
-		tx_data:             in      std_logic_vector(7 downto 0);
-		tx_fifo_full:        out     std_logic;
-		tx_fifo_empty:       out     std_logic;
-		tx_data_we:          in      std_logic;
+		tx_data:             in      std_ulogic_vector(7 downto 0);
+		tx_fifo_full:        out     std_ulogic;
+		tx_fifo_empty:       out     std_ulogic;
+		tx_data_we:          in      std_ulogic;
 
-		tx:                  out     std_logic;
-		rx:                  in      std_logic);
+		tx:                  out     std_ulogic;
+		rx:                  in      std_ulogic);
 end entity;
 
 architecture behav of uart_top is
-	signal rx_sync, rx_uart, tx_uart: std_logic := '0';
+	signal rx_sync, rx_uart, tx_uart: std_ulogic := '0';
 
-	signal din:       std_logic_vector(7 downto 0) := (others => '0');
-	signal din_stb:   std_logic := '0';
-	signal din_ack:   std_logic := '0';
-	signal din_busy:  std_logic := '0';
+	signal din:       std_ulogic_vector(7 downto 0) := (others => '0');
+	signal din_stb:   std_ulogic := '0';
+	signal din_ack:   std_ulogic := '0';
+	signal din_busy:  std_ulogic := '0';
 
-	signal dout:      std_logic_vector(7 downto 0) := (others => '0');
-	signal dout_stb:  std_logic := '0';
-	signal dout_ack:  std_logic := '0';
-	signal dout_busy: std_logic := '0';
+	signal dout:      std_ulogic_vector(7 downto 0) := (others => '0');
+	signal dout_stb:  std_ulogic := '0';
+	signal dout_ack:  std_ulogic := '0';
+	signal dout_busy: std_ulogic := '0';
 
-	signal tx_fifo_re:             std_logic := '0';
-	signal tx_fifo_empty_internal: std_logic := '1';
-	signal tx_fifo_full_internal:  std_logic := '0';
+	signal tx_fifo_re:             std_ulogic := '0';
+	signal tx_fifo_empty_internal: std_ulogic := '1';
+	signal tx_fifo_full_internal:  std_ulogic := '0';
 
-	signal wrote_c, wrote_n: std_logic := '0';
+	signal wrote_c, wrote_n: std_ulogic := '0';
 
 begin
 	uart_deglitch: process (clk, rst)
@@ -226,20 +226,20 @@ use ieee.numeric_std.all;
 entity uart_core is
 	generic(baud_rate: positive; clock_frequency: positive);
 	port(
-		clk:       in      std_logic;
-		rst:       in      std_logic;
-		din:       in      std_logic_vector(7 downto 0);
-		din_stb:   in      std_logic;
-		din_ack:   out     std_logic := '0';
-		din_busy:  out     std_logic;
+		clk:       in      std_ulogic;
+		rst:       in      std_ulogic;
+		din:       in      std_ulogic_vector(7 downto 0);
+		din_stb:   in      std_ulogic;
+		din_ack:   out     std_ulogic := '0';
+		din_busy:  out     std_ulogic;
 
-		dout:      out     std_logic_vector(7 downto 0);
-		dout_stb:  out     std_logic;
-		dout_ack:  in      std_logic;
-		dout_busy: out     std_logic;
+		dout:      out     std_ulogic_vector(7 downto 0);
+		dout_stb:  out     std_ulogic;
+		dout_ack:  in      std_ulogic;
+		dout_busy: out     std_ulogic;
 
-		tx:        out     std_logic;
-		rx:        in      std_logic);
+		tx:        out     std_ulogic;
+		rx:        in      std_ulogic);
 end entity;
 
 architecture behav of uart_core is
@@ -253,9 +253,9 @@ architecture behav of uart_core is
 	constant c_rx_divider_val: integer := clock_frequency / (baud_rate * 16);
 
 	signal baud_counter:            integer range 0 to c_tx_divider_val;
-	signal baud_tick:               std_logic := '0';
+	signal baud_tick:               std_ulogic := '0';
 	signal oversample_baud_counter: integer range 0 to c_rx_divider_val := 0;
-	signal oversample_baud_tick:    std_logic := '0';
+	signal oversample_baud_tick:    std_ulogic := '0';
 
 	----------------------------------------------------------------------------
 	-- transmitter signals
@@ -268,10 +268,10 @@ architecture behav of uart_core is
 
 	signal  uart_tx_state: uart_tx_states := idle;
 
-	signal  uart_tx_data_block:  std_logic_vector(7 downto 0) := (others => '0');
-	signal  uart_tx_data:        std_logic := '1';
+	signal  uart_tx_data_block:  std_ulogic_vector(7 downto 0) := (others => '0');
+	signal  uart_tx_data:        std_ulogic := '1';
 	signal  uart_tx_count:       integer range 0 to uart_tx_count_max := 0;
-	signal  uart_rx_data_in_ack: std_logic := '0';
+	signal  uart_rx_data_in_ack: std_ulogic := '0';
 	----------------------------------------------------------------------------
 	-- receiver signals
 	----------------------------------------------------------------------------
@@ -282,14 +282,14 @@ architecture behav of uart_core is
 	                            rx_send_block);
 
 	signal  uart_rx_state:        uart_rx_states := rx_get_start_bit;
-	signal  uart_rx_bit:          std_logic := '1'; -- @note should the be 0 or 1?
-	signal  uart_rx_data_block:   std_logic_vector(7 downto 0) := (others => '0');
-	signal  uart_rx_data_vec:     std_logic_vector(1 downto 0) := (others => '0');
+	signal  uart_rx_bit:          std_ulogic := '1'; -- @note should the be 0 or 1?
+	signal  uart_rx_data_block:   std_ulogic_vector(7 downto 0) := (others => '0');
+	signal  uart_rx_data_vec:     std_ulogic_vector(1 downto 0) := (others => '0');
 	signal  uart_rx_filter:       unsigned(1 downto 0)  := (others => '1');
 	signal  uart_rx_count:        integer range 0 to uart_rx_count_max  := 0;
-	signal  uart_rx_data_out_stb: std_logic := '0';
+	signal  uart_rx_data_out_stb: std_ulogic := '0';
 	signal  uart_rx_bit_spacing:  unsigned (3 downto 0) := (others => '0');
-	signal  uart_rx_bit_tick:     std_logic := '0';
+	signal  uart_rx_bit_tick:     std_ulogic := '0';
 begin
 
 	din_ack  <= uart_rx_data_in_ack;

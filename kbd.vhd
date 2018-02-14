@@ -32,11 +32,11 @@ package kbd_pkg is
 			clock_frequency:           integer := 50000000; -- system clock frequency in hz
 			ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50mhz)
 		port(
-			clk:        in  std_logic;                     -- system clock input
-			ps2_clk:    in  std_logic;                     -- clock signal from PS2 keyboard
-			ps2_data:   in  std_logic;                     -- data signal from PS2 keyboard
-			ascii_new:  out std_logic := '0';              -- output flag indicating new ascii value
-			ascii_code: out std_logic_vector(6 downto 0)); -- ASCII value
+			clk:        in  std_ulogic;                     -- system clock input
+			ps2_clk:    in  std_ulogic;                     -- clock signal from PS2 keyboard
+			ps2_data:   in  std_ulogic;                     -- data signal from PS2 keyboard
+			ascii_new:  out std_ulogic := '0';              -- output flag indicating new ascii value
+			ascii_code: out std_ulogic_vector(6 downto 0)); -- ASCII value
 	end component;
 
 	component ps2_kbd_core is
@@ -44,19 +44,19 @@ package kbd_pkg is
 		clock_frequency: integer := 50000000;  -- system clock frequency in hz
 		debounce_counter_size: integer := 8);  -- set such that (2^size)/clock_frequency = 5us (size = 8 for 50mhz)
 	port(
-		clk:          in  std_logic; -- system clock
-		ps2_clk:      in  std_logic; -- clock signal from PS/2 keyboard
-		ps2_data:     in  std_logic; -- data signal from PS/2 keyboard
-		ps2_code_new: out std_logic; -- flag that new PS/2 code is available on ps2_code bus
-		ps2_code:     out std_logic_vector(7 downto 0)); -- code received from PS/2
+		clk:          in  std_ulogic; -- system clock
+		ps2_clk:      in  std_ulogic; -- clock signal from PS/2 keyboard
+		ps2_data:     in  std_ulogic; -- data signal from PS/2 keyboard
+		ps2_code_new: out std_ulogic; -- flag that new PS/2 code is available on ps2_code bus
+		ps2_code:     out std_ulogic_vector(7 downto 0)); -- code received from PS/2
 	end component;
 
 	component ps2_debounce is
 		generic(counter_size:  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
 		port(
-			clk:    in  std_logic;
-			button: in  std_logic;  --input signal to be debounced
-			result: out std_logic := '0'); --debounced signal
+			clk:    in  std_ulogic;
+			button: in  std_ulogic;  --input signal to be debounced
+			result: out std_ulogic := '0'); --debounced signal
 	end component;
 
 	component keyboard is
@@ -64,15 +64,15 @@ package kbd_pkg is
 			clock_frequency:           integer := 50000000; -- system clock frequency in hz
 			ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50mhz)
 		port(
-			clk:              in  std_logic;        -- system clock input
-			rst:              in  std_logic;        -- system reset
+			clk:              in  std_ulogic;        -- system clock input
+			rst:              in  std_ulogic;        -- system reset
 
-			ps2_clk:          in  std_logic;        -- clock signal from PS2 keyboard
-			ps2_data:         in  std_logic;        -- data signal from PS2 keyboard
+			ps2_clk:          in  std_ulogic;        -- clock signal from PS2 keyboard
+			ps2_data:         in  std_ulogic;        -- data signal from PS2 keyboard
 
-			kbd_char_re:      in  std_logic;        -- acknowledge kbd_char_buf_new
-			kbd_char_buf_new: out std_logic := '0'; -- output flag indicating new ascii value
-			kbd_char_buf:     out std_logic_vector(6 downto 0)); -- ASCII value
+			kbd_char_re:      in  std_ulogic;        -- acknowledge kbd_char_buf_new
+			kbd_char_buf_new: out std_ulogic := '0'; -- output flag indicating new ascii value
+			kbd_char_buf:     out std_ulogic_vector(6 downto 0)); -- ASCII value
 	end component;
 end package;
 
@@ -86,23 +86,23 @@ entity keyboard is
 		clock_frequency:           integer := 50000000; -- system clock frequency in hz
 		ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50mhz)
 	port(
-		clk:              in  std_logic;        -- system clock input
-		rst:              in  std_logic;        -- system reset
+		clk:              in  std_ulogic;        -- system clock input
+		rst:              in  std_ulogic;        -- system reset
 
-		ps2_clk:          in  std_logic;        -- clock signal from PS2 keyboard
-		ps2_data:         in  std_logic;        -- data signal from PS2 keyboard
+		ps2_clk:          in  std_ulogic;        -- clock signal from PS2 keyboard
+		ps2_data:         in  std_ulogic;        -- data signal from PS2 keyboard
 
-		kbd_char_re:      in  std_logic;        -- acknowledge kbd_char_buf_new
-		kbd_char_buf_new: out std_logic := '0'; -- output flag indicating new ascii value
-		kbd_char_buf:     out std_logic_vector(6 downto 0)); -- ASCII value
+		kbd_char_re:      in  std_ulogic;        -- acknowledge kbd_char_buf_new
+		kbd_char_buf_new: out std_ulogic := '0'; -- output flag indicating new ascii value
+		kbd_char_buf:     out std_ulogic_vector(6 downto 0)); -- ASCII value
 end entity;
 
 architecture rtl of keyboard  is
-	signal kbd_new_c, kbd_new_n:  std_logic := '0';
-	signal kbd_new_edge: std_logic := '0';
-	signal kbd_new:      std_logic := '0';                                -- new ASCII char available
-	signal kbd_char:     std_logic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
-	signal kbd_char_o:   std_logic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
+	signal kbd_new_c, kbd_new_n:  std_ulogic := '0';
+	signal kbd_new_edge: std_ulogic := '0';
+	signal kbd_new:      std_ulogic := '0';                                -- new ASCII char available
+	signal kbd_char:     std_ulogic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
+	signal kbd_char_o:   std_ulogic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
 begin
 	kbd_char_buf_new <= kbd_new_c;
 
@@ -177,27 +177,27 @@ entity ps2_kbd_top is
 		clock_frequency:           integer := 50000000; -- system clock frequency in hz
 		ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50mhz)
 	port(
-		clk:        in  std_logic;                     -- system clock input
-		ps2_clk:    in  std_logic;                     -- clock signal from PS2 keyboard
-		ps2_data:   in  std_logic;                     -- data signal from PS2 keyboard
-		ascii_new:  out std_logic := '0';              -- output flag indicating new ascii value
-		ascii_code: out std_logic_vector(6 downto 0)); -- ASCII value
+		clk:        in  std_ulogic;                     -- system clock input
+		ps2_clk:    in  std_ulogic;                     -- clock signal from PS2 keyboard
+		ps2_data:   in  std_ulogic;                     -- data signal from PS2 keyboard
+		ascii_new:  out std_ulogic := '0';              -- output flag indicating new ascii value
+		ascii_code: out std_ulogic_vector(6 downto 0)); -- ASCII value
 end entity;
 
 architecture rtl of ps2_kbd_top is
 	type machine is(ready, new_code, translate, output); -- needed states
 	signal state: machine;                               -- state machine
-	signal ps2_code_new: std_logic;                      -- new PS2 code flag from ps2_kbd_core component
-	signal ps2_code:     std_logic_vector(7 downto 0);   -- PS2 code input form ps2_kbd_core component
-	signal prev_ps2_code_new: std_logic := '1';          -- value of ps2_code_new flag on previous clock
-	signal break:        std_logic := '0';               -- '1' for break code, '0' for make code
-	signal e0_code:      std_logic := '0';               -- '1' for multi-code commands, '0' for single code commands
-	signal caps_lock:    std_logic := '0';               -- '1' if caps lock is active, '0' if caps lock is inactive
-	signal control_r:    std_logic := '0';               -- '1' if right control key is held down, else '0'
-	signal control_l:    std_logic := '0';               -- '1' if left control key is held down, else '0'
-	signal shift_r:      std_logic := '0';               -- '1' if right shift is held down, else '0'
-	signal shift_l:      std_logic := '0';               -- '1' if left shift is held down, else '0'
-	signal ascii:        std_logic_vector(7 downto 0) := x"FF"; -- internal value of ASCII translation
+	signal ps2_code_new: std_ulogic;                      -- new PS2 code flag from ps2_kbd_core component
+	signal ps2_code:     std_ulogic_vector(7 downto 0);   -- PS2 code input form ps2_kbd_core component
+	signal prev_ps2_code_new: std_ulogic := '1';          -- value of ps2_code_new flag on previous clock
+	signal break:        std_ulogic := '0';               -- '1' for break code, '0' for make code
+	signal e0_code:      std_ulogic := '0';               -- '1' for multi-code commands, '0' for single code commands
+	signal caps_lock:    std_ulogic := '0';               -- '1' if caps lock is active, '0' if caps lock is inactive
+	signal control_r:    std_ulogic := '0';               -- '1' if right control key is held down, else '0'
+	signal control_l:    std_ulogic := '0';               -- '1' if left control key is held down, else '0'
+	signal shift_r:      std_ulogic := '0';               -- '1' if right shift is held down, else '0'
+	signal shift_l:      std_ulogic := '0';               -- '1' if left shift is held down, else '0'
+	signal ascii:        std_ulogic_vector(7 downto 0) := x"FF"; -- internal value of ASCII translation
 
 begin
 
@@ -490,24 +490,24 @@ entity ps2_kbd_core is
 		clock_frequency: integer := 50000000;  -- system clock frequency in hz
 		debounce_counter_size: integer := 8);  -- set such that (2^size)/clock_frequency = 5us (size = 8 for 50mhz)
 	port(
-		clk:          in  std_logic; -- system clock
-		ps2_clk:      in  std_logic; -- clock signal from PS/2 keyboard
-		ps2_data:     in  std_logic; -- data signal from PS/2 keyboard
-		ps2_code_new: out std_logic; -- flag that new PS/2 code is available on ps2_code bus
-		ps2_code:     out std_logic_vector(7 downto 0)); -- code received from PS/2
+		clk:          in  std_ulogic; -- system clock
+		ps2_clk:      in  std_ulogic; -- clock signal from PS/2 keyboard
+		ps2_data:     in  std_ulogic; -- data signal from PS/2 keyboard
+		ps2_code_new: out std_ulogic; -- flag that new PS/2 code is available on ps2_code bus
+		ps2_code:     out std_ulogic_vector(7 downto 0)); -- code received from PS/2
 end entity;
 
 architecture rtl of ps2_kbd_core is
 
-	signal sync_ffs: std_logic_vector(1 downto 0);        -- synchronizer flip-flops for PS/2 signals
-	signal ps2_clk_int: std_logic;                        -- debounced clock signal from PS/2 keyboard
+	signal sync_ffs: std_ulogic_vector(1 downto 0);        -- synchronizer flip-flops for PS/2 signals
+	signal ps2_clk_int: std_ulogic;                        -- debounced clock signal from PS/2 keyboard
 
 	attribute buffer_type: string;
 	attribute buffer_type of ps2_clk_int: signal is "BUFG";
 
-	signal ps2_data_int: std_logic;                       -- debounced data signal from PS/2 keyboard
-	signal ps2_word: std_logic_vector(10 downto 0);       -- stores the ps2 data word
-	signal parity_error: std_logic;                       -- validate parity, start, and stop bits
+	signal ps2_data_int: std_ulogic;                       -- debounced data signal from PS/2 keyboard
+	signal ps2_word: std_ulogic_vector(10 downto 0);       -- stores the ps2 data word
+	signal parity_error: std_ulogic;                       -- validate parity, start, and stop bits
 	signal count_idle: integer range 0 to clock_frequency/18000; --counter to determine PS/2 is idle
 
 begin
@@ -596,14 +596,14 @@ use ieee.numeric_std.all;
 entity ps2_debounce is
 	generic(counter_size:  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
 	port(
-		clk:    in  std_logic;
-		button: in  std_logic;  --input signal to be debounced
-		result: out std_logic := '0'); --debounced signal
+		clk:    in  std_ulogic;
+		button: in  std_ulogic;  --input signal to be debounced
+		result: out std_ulogic := '0'); --debounced signal
 end entity;
 
 architecture rtl of ps2_debounce is
-	signal flipflops:   std_logic_vector(1 downto 0); --input flip flops
-	signal counter_set: std_logic;                    --sync reset to zero
+	signal flipflops:   std_ulogic_vector(1 downto 0); --input flip flops
+	signal counter_set: std_ulogic;                    --sync reset to zero
 	signal counter_out: unsigned(counter_size downto 0) := (others => '0'); --counter output
 begin
 

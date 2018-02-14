@@ -29,13 +29,13 @@ entity timer is
 	generic(
 		timer_length: positive := 16);
 	port(
-		clk:          in  std_logic;
-		rst:          in  std_logic;
+		clk:          in  std_ulogic;
+		rst:          in  std_ulogic;
 
-		we:           in  std_logic; -- write enable for control register
-		control_i:    in  std_logic_vector(timer_length - 1 downto 0); -- control register
-		counter_o:    out std_logic_vector(timer_length - 4 downto 0);
-		irq:          out std_logic); -- generate interrupt
+		we:           in  std_ulogic; -- write enable for control register
+		control_i:    in  std_ulogic_vector(timer_length - 1 downto 0); -- control register
+		counter_o:    out std_ulogic_vector(timer_length - 4 downto 0);
+		irq:          out std_ulogic); -- generate interrupt
 end entity;
 
 architecture behav of timer is
@@ -45,15 +45,15 @@ architecture behav of timer is
 	constant irq_enable_bit:      positive := highest_bit - 2;
 	constant timer_highest_bit:   positive := highest_bit - 3;
 
-	signal control_c, control_n:  std_logic_vector(highest_bit downto 0) := (others => '0');
+	signal control_c, control_n:  std_ulogic_vector(highest_bit downto 0) := (others => '0');
 
-	signal reset_timer:           std_logic  := '0';
-	signal enabled:               std_logic  := '0';
-	signal irq_en:                std_logic  := '0';
+	signal reset_timer:           std_ulogic  := '0';
+	signal enabled:               std_ulogic  := '0';
+	signal irq_en:                std_ulogic  := '0';
 
-	signal timer_reset:           std_logic  := '0';
+	signal timer_reset:           std_ulogic  := '0';
 
-	signal compare:               std_logic_vector(timer_highest_bit downto 0) := (others => '0');
+	signal compare:               std_ulogic_vector(timer_highest_bit downto 0) := (others => '0');
 	signal count:                 unsigned(timer_highest_bit downto 0)         := (others => '0');
 begin
 	assert (timer_length >= 4) report "Timer needs to be at least 4 bits wide: 3 bits for control - 1 for counter" severity failure;
@@ -63,7 +63,7 @@ begin
 	irq_en      <= control_c(irq_enable_bit);
 	compare     <= control_c(timer_highest_bit downto 0);
 
-	counter_o   <= std_logic_vector(count);
+	counter_o   <= std_ulogic_vector(count);
 
 	clockRegisters: process(clk, rst)
 	begin

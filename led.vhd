@@ -16,8 +16,8 @@ use ieee.numeric_std.all;
 package led_pkg is
 	constant character_length: positive := 4;
 
-	subtype led_character is std_logic_vector(character_length - 1 downto 0);
-	subtype led_8_segment is std_logic_vector(7 downto 0);
+	subtype led_character is std_ulogic_vector(character_length - 1 downto 0);
+	subtype led_8_segment is std_ulogic_vector(7 downto 0);
 
 	component led_8_segment_display is
 		generic(
@@ -26,15 +26,15 @@ package led_pkg is
 			refresh_rate_us:        natural := 1500;
 			number_of_led_displays: positive := 4);
 		port(
-			clk:      in   std_logic;
-			rst:      in   std_logic;
+			clk:      in   std_ulogic;
+			rst:      in   std_ulogic;
 
-			leds_we:  in   std_logic;
-			leds:     in   std_logic_vector((number_of_led_displays * character_length) - 1 downto 0);
+			leds_we:  in   std_ulogic;
+			leds:     in   std_ulogic_vector((number_of_led_displays * character_length) - 1 downto 0);
 
 			-- Physical outputs
-			an:       out  std_logic_vector(number_of_led_displays - 1 downto 0);  -- anodes, controls on/off
-			ka:       out  std_logic_vector(7 downto 0)); -- cathodes, data on display
+			an:       out  std_ulogic_vector(number_of_led_displays - 1 downto 0);  -- anodes, controls on/off
+			ka:       out  std_ulogic_vector(7 downto 0)); -- cathodes, data on display
 	end component;
 
 end package;
@@ -69,15 +69,15 @@ entity led_8_segment_display is
 		refresh_rate_us:        natural  := 1500;
 		number_of_led_displays: positive := 4);
 	port(
-		clk:      in   std_logic;
-		rst:      in   std_logic;
+		clk:      in   std_ulogic;
+		rst:      in   std_ulogic;
 
-		leds_we:  in   std_logic;
-		leds:     in   std_logic_vector((number_of_led_displays * character_length) - 1 downto 0);
+		leds_we:  in   std_ulogic;
+		leds:     in   std_ulogic_vector((number_of_led_displays * character_length) - 1 downto 0);
 
 		-- Physical outputs
-		an:       out  std_logic_vector(number_of_led_displays - 1 downto 0);  -- anodes, controls on/off
-		ka:       out  std_logic_vector(7 downto 0)); -- cathodes, data on display
+		an:       out  std_ulogic_vector(number_of_led_displays - 1 downto 0);  -- anodes, controls on/off
+		ka:       out  std_ulogic_vector(7 downto 0)); -- cathodes, data on display
 end;
 
 architecture rtl of led_8_segment_display is
@@ -127,7 +127,7 @@ architecture rtl of led_8_segment_display is
 	--
 
 	function hex_to_8segment(a: led_character) return led_8_segment is
-		variable r: std_logic_vector(7 downto 0);
+		variable r: std_ulogic_vector(7 downto 0);
 	begin
 		case a is
 			when "0000" => r := x"3F"; -- 0
@@ -152,7 +152,7 @@ architecture rtl of led_8_segment_display is
 	end function;
 
 	function bcd_to_8segment(a: led_character) return led_8_segment is
-		variable r: std_logic_vector(7 downto 0);
+		variable r: std_ulogic_vector(7 downto 0);
 	begin
 		case a is
 			when "0000" => r := x"3F"; -- 0
@@ -185,14 +185,14 @@ architecture rtl of led_8_segment_display is
 		end if;
 	end function;
 
-	signal leds_o: std_logic_vector(leds'range) := (others => '0');
+	signal leds_o: std_ulogic_vector(leds'range) := (others => '0');
 
-	signal do_shift:  std_logic := '0';
-	signal shift_reg: std_logic_vector(number_of_led_displays - 1 downto 0) := (0 => '1', others => '0');
+	signal do_shift:  std_ulogic := '0';
+	signal shift_reg: std_ulogic_vector(number_of_led_displays - 1 downto 0) := (0 => '1', others => '0');
 
 
-	signal leds_reg_o: std_logic_vector(leds'range) := (others => '0');
-	signal leds_reg_we_o: std_logic := '0';
+	signal leds_reg_o: std_ulogic_vector(leds'range) := (others => '0');
+	signal leds_reg_we_o: std_ulogic := '0';
 begin
 	an <= invert(shift_reg);
 

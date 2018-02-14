@@ -29,40 +29,40 @@ use ieee.numeric_std.all;
 
 entity ram_interface is
 	port(
-		clk:               in    std_logic;
-		rst:               in    std_logic;
+		clk:               in    std_ulogic;
+		rst:               in    std_ulogic;
 
-		mem_addr_16_1:     in    std_logic_vector(16 downto 1);
-		mem_addr_16_1_we:  in    std_logic;
-		mem_addr_26_17:    in    std_logic_vector(26 downto 17);
-		mem_addr_26_17_we: in    std_logic;
-		mem_control_i:     in    std_logic_vector(5 downto 0);
-		mem_control_we:    in    std_logic;
-		mem_data_i:        in    std_logic_vector(15 downto 0);
-		mem_data_i_we:     in    std_logic;
+		mem_addr_16_1:     in    std_ulogic_vector(16 downto 1);
+		mem_addr_16_1_we:  in    std_ulogic;
+		mem_addr_26_17:    in    std_ulogic_vector(26 downto 17);
+		mem_addr_26_17_we: in    std_ulogic;
+		mem_control_i:     in    std_ulogic_vector(5 downto 0);
+		mem_control_we:    in    std_ulogic;
+		mem_data_i:        in    std_ulogic_vector(15 downto 0);
+		mem_data_i_we:     in    std_ulogic;
 
-		mem_data_o:        out   std_logic_vector(15 downto 0);
+		mem_data_o:        out   std_ulogic_vector(15 downto 0);
 
-		RamCS:             out   std_logic := '1';
+		RamCS:             out   std_ulogic := '1';
 
-		MemOE:             out   std_logic := '0'; -- negative logic
-		MemWR:             out   std_logic := '0'; -- negative logic
-		MemAdv:            out   std_logic := '0'; -- negative logic
-		MemWait:           out   std_logic := '0'; -- positive!
+		MemOE:             out   std_ulogic := '0'; -- negative logic
+		MemWR:             out   std_ulogic := '0'; -- negative logic
+		MemAdv:            out   std_ulogic := '0'; -- negative logic
+		MemWait:           out   std_ulogic := '0'; -- positive!
 
-		FlashCS:           out   std_logic := '0';
-		FlashRp:           out   std_logic := '1';
-		MemAdr:            out   std_logic_vector(26 downto 1) := (others => '0');
-		MemDB:             inout std_logic_vector(15 downto 0) := (others => 'Z'));
+		FlashCS:           out   std_ulogic := '0';
+		FlashRp:           out   std_ulogic := '1';
+		MemAdr:            out   std_ulogic_vector(26 downto 1) := (others => '0');
+		MemDB:             inout std_logic_vector(15 downto 0)  := (others => 'Z'));
 end entity;
 
 architecture rtl of ram_interface is
-	signal mem_data_buf_i: std_logic_vector(mem_data_i'range)    := (others => '0');
-	signal mem_control_o:  std_logic_vector(mem_control_i'range) := (others => '0');
-	signal mem_we:         std_logic := '0';
-	signal mem_oe:         std_logic := '0';
-	signal mem_addr_low:   std_logic_vector(mem_addr_16_1'range)  := (others => '0');
-	signal mem_addr_high:  std_logic_vector(mem_addr_26_17'range) := (others => '0');
+	signal mem_data_buf_i: std_ulogic_vector(mem_data_i'range)    := (others => '0');
+	signal mem_control_o:  std_ulogic_vector(mem_control_i'range) := (others => '0');
+	signal mem_we:         std_ulogic := '0';
+	signal mem_oe:         std_ulogic := '0';
+	signal mem_addr_low:   std_ulogic_vector(mem_addr_16_1'range)  := (others => '0');
+	signal mem_addr_high:  std_ulogic_vector(mem_addr_26_17'range) := (others => '0');
 begin
 	MemAdr <= '0' & mem_addr_high & mem_addr_low(mem_addr_low'high downto mem_addr_low'low + 1);
 
@@ -113,8 +113,8 @@ begin
 	MemOE      <= not mem_oe;
 	MemWR      <= not mem_we;
 
-	mem_data_o <= MemDB when mem_oe = '1' else (others => '0');
-	MemDB      <= mem_data_buf_i when mem_we = '1' else (others => 'Z');
+	mem_data_o <= std_ulogic_vector(MemDB) when mem_oe = '1' else (others => '0');
+	MemDB      <= std_logic_vector(mem_data_buf_i) when mem_we = '1' else (others => 'Z');
 
 end architecture;
 

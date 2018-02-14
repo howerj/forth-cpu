@@ -17,8 +17,8 @@ package core_pkg is
 	type cpu_debug_interface is record
 		pc:        address;
 		insn:      word;
-		dwe:       std_logic;
-		dre:       std_logic;
+		dwe:       std_ulogic;
+		dre:       std_ulogic;
 		din:       word;
 		dout:      word;
 		daddr:     address;
@@ -31,22 +31,22 @@ package core_pkg is
 		debug:           out cpu_debug_interface;
 		-- synthesis translate_on
 
-		clk:             in   std_logic;
-		rst:             in   std_logic;
+		clk:             in   std_ulogic;
+		rst:             in   std_ulogic;
 
-		stop:            in   std_logic; -- Halts the CPU
+		stop:            in   std_ulogic; -- Halts the CPU
 
-		io_wr:           out  std_logic; -- I/O Write enable
-		io_re:           out  std_logic; -- hardware *READS* can have side effects
+		io_wr:           out  std_ulogic; -- I/O Write enable
+		io_re:           out  std_ulogic; -- hardware *READS* can have side effects
 		io_din:          in   word;
 		io_dout:         out  word:= (others => 'X');
 		io_daddr:        out  word:= (others => 'X');
 
 		-- Interrupts
-		cpu_irq:         in std_logic;
-		cpu_irc:         in std_logic_vector(number_of_interrupts - 1 downto 0);
-		cpu_irc_mask:    in std_logic_vector(number_of_interrupts - 1 downto 0);
-		cpu_irc_mask_we: in std_logic);
+		cpu_irq:         in std_ulogic;
+		cpu_irc:         in std_ulogic_vector(number_of_interrupts - 1 downto 0);
+		cpu_irc_mask:    in std_ulogic_vector(number_of_interrupts - 1 downto 0);
+		cpu_irc_mask_we: in std_ulogic);
 	end component;
 
 	component interrupt_request_handler is
@@ -54,17 +54,17 @@ package core_pkg is
 		number_of_interrupts:   positive := 8;
 		lowest_interrupt_first: boolean  := true);
 	port(
-		clk:     in  std_logic;
-		rst:     in  std_logic;
+		clk:     in  std_ulogic;
+		rst:     in  std_ulogic;
 
-		irq_i:   in  std_logic;
-		irc_i:   in  std_logic_vector(number_of_interrupts - 1 downto 0);
+		irq_i:   in  std_ulogic;
+		irc_i:   in  std_ulogic_vector(number_of_interrupts - 1 downto 0);
 
-		mask:    in  std_logic_vector(number_of_interrupts - 1 downto 0);
-		mask_we: in  std_logic;
+		mask:    in  std_ulogic_vector(number_of_interrupts - 1 downto 0);
+		mask_we: in  std_ulogic;
 
-		irq_o:   out std_logic;
-		addr_o:  out std_logic_vector(n_bits(number_of_interrupts) - 1 downto 0));
+		irq_o:   out std_ulogic;
+		addr_o:  out std_ulogic_vector(n_bits(number_of_interrupts) - 1 downto 0));
 	end component;
 end package;
 
@@ -85,22 +85,22 @@ entity core is
 		debug:           out cpu_debug_interface;
 		-- synthesis translate_on
 
-		clk:             in   std_logic;
-		rst:             in   std_logic;
+		clk:             in   std_ulogic;
+		rst:             in   std_ulogic;
 
-		stop:            in   std_logic; -- Halts the CPU
+		stop:            in   std_ulogic; -- Halts the CPU
 
-		io_wr:           out  std_logic; -- I/O Write enable
-		io_re:           out  std_logic; -- hardware *READS* can have side effects
+		io_wr:           out  std_ulogic; -- I/O Write enable
+		io_re:           out  std_ulogic; -- hardware *READS* can have side effects
 		io_din:          in   word;
 		io_dout:         out  word := (others => 'X');
 		io_daddr:        out  word := (others => 'X');
 
 		-- Interrupts
-		cpu_irq:         in std_logic;
-		cpu_irc:         in std_logic_vector(number_of_interrupts - 1 downto 0);
-		cpu_irc_mask:    in std_logic_vector(number_of_interrupts - 1 downto 0);
-		cpu_irc_mask_we: in std_logic);
+		cpu_irq:         in std_ulogic;
+		cpu_irc:         in std_ulogic_vector(number_of_interrupts - 1 downto 0);
+		cpu_irc_mask:    in std_ulogic_vector(number_of_interrupts - 1 downto 0);
+		cpu_irc_mask_we: in std_ulogic);
 end;
 
 architecture structural of core is
@@ -110,14 +110,14 @@ architecture structural of core is
 
 	signal pc:    address   := (others => '0'); -- Program counter
 	signal insn:  word      := (others => '0'); -- Instruction issued by program counter
-	signal dwe:   std_logic := '0'; -- Write enable
-	signal dre:   std_logic := '0'; -- Read enable
+	signal dwe:   std_ulogic := '0'; -- Write enable
+	signal dre:   std_ulogic := '0'; -- Read enable
 	signal din:   word      := (others => '0');
 	signal dout:  word      := (others => '0');
 	signal daddr: address   := (others => '0');
 
-	signal h2_irq:       std_logic := '0';
-	signal h2_irq_addr:  std_logic_vector(interrupt_address_length - 1 downto 0) := (others=>'0');
+	signal h2_irq:       std_ulogic := '0';
+	signal h2_irq_addr:  std_ulogic_vector(interrupt_address_length - 1 downto 0) := (others=>'0');
 begin
 	-- synthesis translate_off
 	debug.pc    <= pc;
@@ -226,28 +226,28 @@ entity interrupt_request_handler is
 		number_of_interrupts:   positive := 8;
 		lowest_interrupt_first: boolean  := true);
 	port(
-		clk:     in  std_logic;
-		rst:     in  std_logic;
+		clk:     in  std_ulogic;
+		rst:     in  std_ulogic;
 
-		irq_i:   in  std_logic;
-		irc_i:   in  std_logic_vector(number_of_interrupts - 1 downto 0);
+		irq_i:   in  std_ulogic;
+		irc_i:   in  std_ulogic_vector(number_of_interrupts - 1 downto 0);
 
-		mask:    in  std_logic_vector(number_of_interrupts - 1 downto 0);
-		mask_we: in  std_logic;
+		mask:    in  std_ulogic_vector(number_of_interrupts - 1 downto 0);
+		mask_we: in  std_ulogic;
 
-		irq_o:   out std_logic;
-		addr_o:  out std_logic_vector(n_bits(number_of_interrupts) - 1 downto 0));
+		irq_o:   out std_ulogic;
+		addr_o:  out std_ulogic_vector(n_bits(number_of_interrupts) - 1 downto 0));
 end;
 
 architecture rtl of interrupt_request_handler is
 	constant addr_length: natural := n_bits(number_of_interrupts);
-	signal irq_n: std_logic := '0';
-	signal irc_n: std_logic_vector(irc_i'range) := (others => '0');
+	signal irq_n: std_ulogic := '0';
+	signal irc_n: std_ulogic_vector(irc_i'range) := (others => '0');
 
-	signal addr:  std_logic_vector(addr_length - 1 downto 0) := (others => '0');
-	signal irq:   std_logic := '0';
+	signal addr:  std_ulogic_vector(addr_length - 1 downto 0) := (others => '0');
+	signal irq:   std_ulogic := '0';
 
-	signal mask_n: std_logic_vector(mask'range) := (others => '0');
+	signal mask_n: std_ulogic_vector(mask'range) := (others => '0');
 begin
 
 	irq_in: entity work.reg
@@ -280,7 +280,7 @@ begin
 			do   =>  mask_n);
 
 	process(irc_n, irq_n, mask_n)
-		variable addr_n: std_logic_vector(addr'range) := (others => '0');
+		variable addr_n: std_ulogic_vector(addr'range) := (others => '0');
 	begin
 		addr_n := priority(irc_n, not lowest_interrupt_first);
 		addr <= addr_n;

@@ -918,7 +918,7 @@ things, the 'decompiler' word could be called manually on an address if desired 
 \ work correctly at the moment
 
 ( @bug Interrupts work in simulation but not in hardware )
- variable icount 0
+( variable icount 0
 
 irq:
 	switches led!

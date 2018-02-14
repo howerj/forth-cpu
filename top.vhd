@@ -32,42 +32,42 @@ entity top is
 		debug:    out cpu_debug_interface;
 -- synthesis translate_on
 
-		clk:      in  std_logic                    := 'X';  -- clock
+		clk:      in  std_ulogic                    := 'X';  -- clock
 		-- Buttons
-		btnu:     in  std_logic                    := 'X';  -- button up
-		btnd:     in  std_logic                    := 'X';  -- button down
-		btnc:     in  std_logic                    := 'X';  -- button centre
-		btnl:     in  std_logic                    := 'X';  -- button left
-		btnr:     in  std_logic                    := 'X';  -- button right
+		btnu:     in  std_ulogic                    := 'X';  -- button up
+		btnd:     in  std_ulogic                    := 'X';  -- button down
+		btnc:     in  std_ulogic                    := 'X';  -- button centre
+		btnl:     in  std_ulogic                    := 'X';  -- button left
+		btnr:     in  std_ulogic                    := 'X';  -- button right
 		-- Switches
-		sw:       in  std_logic_vector(7 downto 0) := (others => 'X'); -- switches
+		sw:       in  std_ulogic_vector(7 downto 0) := (others => 'X'); -- switches
 		-- Simple LED outputs
-		an:       out std_logic_vector(3 downto 0) := (others => '0'); -- anodes   7 segment display
-		ka:       out std_logic_vector(7 downto 0) := (others => '0'); -- cathodes 7 segment display
+		an:       out std_ulogic_vector(3 downto 0) := (others => '0'); -- anodes   7 segment display
+		ka:       out std_ulogic_vector(7 downto 0) := (others => '0'); -- cathodes 7 segment display
 
-		ld:       out std_logic_vector(7 downto 0) := (others => '0'); -- leds
+		ld:       out std_ulogic_vector(7 downto 0) := (others => '0'); -- leds
 
 		-- UART
-		rx:       in  std_logic                    := 'X';  -- uart rx
-		tx:       out std_logic                    := '0';  -- uart tx
+		rx:       in  std_ulogic                    := 'X';  -- uart rx
+		tx:       out std_ulogic                    := '0';  -- uart tx
 
 		-- VGA
 		o_vga:    out vga_physical_interface;
 
 		-- PS/2 Interface
-		ps2_keyboard_data:  in std_logic           := '0';
-		ps2_keyboard_clk:   in std_logic           := '0';
+		ps2_keyboard_data:  in std_ulogic           := '0';
+		ps2_keyboard_clk:   in std_ulogic           := '0';
 
 		-- Memory Interface
-		RamCS:    out   std_logic := '1';
-		MemOE:    out   std_logic := '0'; -- negative logic
-		MemWR:    out   std_logic := '0'; -- negative logic
-		MemAdv:   out   std_logic := '0'; -- negative logic
-		MemWait:  out   std_logic := '0'; -- positive!
-		FlashCS:  out   std_logic := '0';
-		FlashRp:  out   std_logic := '1';
-		MemAdr:   out   std_logic_vector(26 downto 1) := (others => '0');
-		MemDB:    inout std_logic_vector(15 downto 0) := (others => 'Z'));
+		RamCS:    out   std_ulogic := '1';
+		MemOE:    out   std_ulogic := '0'; -- negative logic
+		MemWR:    out   std_ulogic := '0'; -- negative logic
+		MemAdv:   out   std_ulogic := '0'; -- negative logic
+		MemWait:  out   std_ulogic := '0'; -- positive!
+		FlashCS:  out   std_ulogic := '0';
+		FlashRp:  out   std_ulogic := '1';
+		MemAdr:   out   std_ulogic_vector(26 downto 1) := (others => '0');
+		MemDB:    inout std_logic_vector(15 downto 0)  := (others => 'Z'));
 end;
 
 architecture behav of top is
@@ -77,22 +77,22 @@ architecture behav of top is
 	constant timer_period_us:        positive := 20000;
 
 	-- Signals
-	signal rst:      std_logic := '0';
+	signal rst:      std_ulogic := '0';
 	-- CPU H2 IO interface signals.
-	signal cpu_wait: std_logic := '0';
-	signal io_wr:    std_logic := '0';
-	signal io_re:    std_logic := '0';
-	signal io_din:   std_logic_vector(15 downto 0) := (others => '0');
-	signal io_dout:  std_logic_vector(15 downto 0) := (others => '0');
-	signal io_daddr: std_logic_vector(15 downto 0) := (others => '0');
+	signal cpu_wait: std_ulogic := '0';
+	signal io_wr:    std_ulogic := '0';
+	signal io_re:    std_ulogic := '0';
+	signal io_din:   std_ulogic_vector(15 downto 0) := (others => '0');
+	signal io_dout:  std_ulogic_vector(15 downto 0) := (others => '0');
+	signal io_daddr: std_ulogic_vector(15 downto 0) := (others => '0');
 
 	-- CPU H2 Interrupts
-	signal cpu_irq:         std_logic := '0';
-	signal cpu_irc:         std_logic_vector(number_of_interrupts - 1 downto 0) := (others => '0');
-	signal cpu_irc_mask_we: std_logic := '0';
+	signal cpu_irq:         std_ulogic := '0';
+	signal cpu_irc:         std_ulogic_vector(number_of_interrupts - 1 downto 0) := (others => '0');
+	signal cpu_irc_mask_we: std_ulogic := '0';
 
-	signal clk25MHz: std_logic:= '0';
-	signal clk50MHz: std_logic:= '0';
+	signal clk25MHz: std_ulogic:= '0';
+	signal clk50MHz: std_ulogic:= '0';
 
 	attribute buffer_type: string;
 	attribute buffer_type of clk50MHz: signal is "BUFG";
@@ -101,59 +101,59 @@ architecture behav of top is
 	-- Basic IO register
 
 	---- LEDs/Switches
-	signal ld_we:             std_logic := '0';
+	signal ld_we:             std_ulogic := '0';
 
 	---- VGA
-	signal vga_data:          std_logic_vector(7 downto 0) := (others => '0');
-	signal vga_data_we:       std_logic                    := '0';
-	signal vga_data_busy:     std_logic                    := '0';
+	signal vga_data:          std_ulogic_vector(7 downto 0) := (others => '0');
+	signal vga_data_we:       std_ulogic                    := '0';
+	signal vga_data_busy:     std_ulogic                    := '0';
 
 	---- UART
-	signal rx_data:           std_logic_vector(7 downto 0) := (others => '0');
-	signal rx_data_n:         std_logic_vector(7 downto 0) := (others => '0');
-	signal rx_fifo_empty:     std_logic := '0';
-	signal rx_fifo_full:      std_logic := '0';
-	signal rx_data_re:        std_logic := '0';
-	signal rx_data_re_n:      std_logic := '0';
+	signal rx_data:           std_ulogic_vector(7 downto 0) := (others => '0');
+	signal rx_data_n:         std_ulogic_vector(7 downto 0) := (others => '0');
+	signal rx_fifo_empty:     std_ulogic := '0';
+	signal rx_fifo_full:      std_ulogic := '0';
+	signal rx_data_re:        std_ulogic := '0';
+	signal rx_data_re_n:      std_ulogic := '0';
 
-	signal tx_data:           std_logic_vector(7 downto 0) := (others => '0');
-	signal tx_fifo_full:      std_logic := '0';
-	signal tx_fifo_empty:     std_logic := '0';
-	signal tx_data_we:        std_logic := '0';
+	signal tx_data:           std_ulogic_vector(7 downto 0) := (others => '0');
+	signal tx_fifo_full:      std_ulogic := '0';
+	signal tx_fifo_empty:     std_ulogic := '0';
+	signal tx_data_we:        std_ulogic := '0';
 
 	---- Timer
-	signal timer_control_we:  std_logic := '0';
-	signal timer_counter_o:   std_logic_vector(timer_length - 4 downto 0) := (others =>'0');
-	signal timer_irq:         std_logic;
+	signal timer_control_we:  std_ulogic := '0';
+	signal timer_counter_o:   std_ulogic_vector(timer_length - 4 downto 0) := (others =>'0');
+	signal timer_irq:         std_ulogic;
 
 	---- PS/2
-	signal kbd_char_buf_new:  std_logic := '0';
-	signal kbd_char_buf:      std_logic_vector(6 downto 0) := (others => '0'); -- ASCII char
-	signal kbd_char_re:       std_logic := '0';
+	signal kbd_char_buf_new:  std_ulogic := '0';
+	signal kbd_char_buf:      std_ulogic_vector(6 downto 0) := (others => '0'); -- ASCII char
+	signal kbd_char_re:       std_ulogic := '0';
 
 	---- 8 Segment Display
 
-	signal leds_reg_we:       std_logic := '0';
+	signal leds_reg_we:       std_ulogic := '0';
 
 	---- Buttons
-	signal btnu_d:            std_logic := '0'; -- button up
-	signal btnd_d:            std_logic := '0'; -- button down
-	signal btnc_d:            std_logic := '0'; -- button centre
-	signal btnl_d:            std_logic := '0'; -- button left
-	signal btnr_d:            std_logic := '0'; -- button right
-	signal button_changed:    std_logic := '0'; -- Any of the buttons have changed state
+	signal btnu_d:            std_ulogic := '0'; -- button up
+	signal btnd_d:            std_ulogic := '0'; -- button down
+	signal btnc_d:            std_ulogic := '0'; -- button centre
+	signal btnl_d:            std_ulogic := '0'; -- button left
+	signal btnr_d:            std_ulogic := '0'; -- button right
+	signal button_changed:    std_ulogic := '0'; -- Any of the buttons have changed state
 
 	-- Switches
-	signal sw_d:              std_logic_vector(sw'range) := (others => '0');
+	signal sw_d:              std_ulogic_vector(sw'range) := (others => '0');
 
 	-- Memory
-	signal mem_addr_26_17_we: std_logic := '0';
-	signal mem_addr_16_1_we:  std_logic := '0';
-	signal mem_data_i_we:     std_logic := '0';
-	signal mem_data_o:        std_logic_vector(15 downto 0) := (others => '0');
-	signal mem_control_we:    std_logic := '0';
-	signal mem_we:            std_logic := '0';
-	signal mem_oe:            std_logic := '0';
+	signal mem_addr_26_17_we: std_ulogic := '0';
+	signal mem_addr_16_1_we:  std_ulogic := '0';
+	signal mem_data_i_we:     std_ulogic := '0';
+	signal mem_data_o:        std_ulogic_vector(15 downto 0) := (others => '0');
+	signal mem_control_we:    std_ulogic := '0';
+	signal mem_we:            std_ulogic := '0';
+	signal mem_oe:            std_ulogic := '0';
 begin
 -------------------------------------------------------------------------------
 -- The Main components
@@ -166,8 +166,8 @@ begin
 	cpu_wait   <= btnc_d;
 
 	irq_block: block
-		signal rx_fifo_not_empty: std_logic := '0';
-		signal tx_fifo_not_empty: std_logic := '0';
+		signal rx_fifo_not_empty: std_ulogic := '0';
+		signal tx_fifo_not_empty: std_ulogic := '0';
 	begin
 		rx_fifo_not_empty <= not rx_fifo_empty;
 		tx_fifo_not_empty <= not rx_fifo_empty;
@@ -231,7 +231,7 @@ begin
 	tx_data           <= io_dout(tx_data'range);
 
 	io_write: block
-		signal selector: std_logic_vector(3 downto 0) := (others => '0');
+		signal selector: std_ulogic_vector(3 downto 0) := (others => '0');
 		signal is_write: boolean := false;
 	begin
 		selector          <= io_daddr(4 downto 1);
@@ -433,8 +433,8 @@ begin
 		do(4) => btnr_d);
 
 	dpad_changed: block
-		signal changed_signals:     std_logic_vector(4 downto 0) := (others => '0');
-		signal any_changed_signals: std_logic := '0';
+		signal changed_signals:     std_ulogic_vector(4 downto 0) := (others => '0');
+		signal any_changed_signals: std_ulogic := '0';
 	begin
 		state_changed: work.util.state_block_changed
 		generic map(N => changed_signals'length)

@@ -21,35 +21,35 @@ package util is
 	component clock_source_tb is
 		generic(clock_frequency: positive; hold_rst: positive := 1);
 		port(
-			stop:            in     std_logic := '0';
-			clk:             buffer std_logic;
-			clk_with_jitter: out    std_logic := '0';
-			rst:             out    std_logic := '0');
+			stop:            in     std_ulogic := '0';
+			clk:             buffer std_ulogic;
+			clk_with_jitter: out    std_ulogic := '0';
+			rst:             out    std_ulogic := '0');
 	end component;
 
 	component reg
 		generic(N: positive);
 		port(
-			clk: in  std_logic;
-			rst: in  std_logic;
-			we:  in  std_logic;
-			di:  in  std_logic_vector(N - 1 downto 0);
-			do:  out std_logic_vector(N - 1 downto 0));
+			clk: in  std_ulogic;
+			rst: in  std_ulogic;
+			we:  in  std_ulogic;
+			di:  in  std_ulogic_vector(N - 1 downto 0);
+			do:  out std_ulogic_vector(N - 1 downto 0));
 	end component;
 
 	component shift_register
 		generic(N: positive);
 		port(
-			clk:     in  std_logic;
-			rst:     in  std_logic;
-			we:      in  std_logic;
-			di:      in  std_logic;
-			do:      out std_logic;
+			clk:     in  std_ulogic;
+			rst:     in  std_ulogic;
+			we:      in  std_ulogic;
+			di:      in  std_ulogic;
+			do:      out std_ulogic;
 
 			-- optional
-			load_we: in  std_logic := '0';
-			load_i:  in  std_logic_vector(N - 1 downto 0) := (others => '0');
-			load_o:  out std_logic_vector(N - 1 downto 0));
+			load_we: in  std_ulogic := '0';
+			load_i:  in  std_ulogic_vector(N - 1 downto 0) := (others => '0');
+			load_o:  out std_ulogic_vector(N - 1 downto 0));
 	end component;
 
 	component shift_register_tb
@@ -59,9 +59,9 @@ package util is
 	component timer_us
 		generic(clock_frequency: positive; timer_period_us: natural);
 		port(
-			clk: in  std_logic;
-			rst: in  std_logic;
-			co:  out std_logic);
+			clk: in  std_ulogic;
+			rst: in  std_ulogic;
+			co:  out std_ulogic);
 	end component;
 
 	component timer_us_tb
@@ -70,10 +70,10 @@ package util is
 
 	component edge is
 	port(
-		clk:    in  std_logic;
-		rst:    in  std_logic;
-		sin:    in  std_logic;
-       		output: out std_logic);
+		clk:    in  std_ulogic;
+		rst:    in  std_ulogic;
+		sin:    in  std_ulogic;
+       		output: out std_ulogic);
 	end component;
 
 	component edge_tb is
@@ -83,19 +83,19 @@ package util is
 	-- @note half_adder test bench is folded in to full_adder_tb
 	component half_adder is
 		port(
-			a:     in  std_logic;
-			b:     in  std_logic;
-			sum:   out std_logic;
-			carry: out std_logic);
+			a:     in  std_ulogic;
+			b:     in  std_ulogic;
+			sum:   out std_ulogic;
+			carry: out std_ulogic);
 	end component;
 
 	component full_adder is
 		port(
-			x:     in    std_logic;
-			y:     in    std_logic;
-			z:     in    std_logic;
-			sum:   out   std_logic;
-			carry: out   std_logic);
+			x:     in    std_ulogic;
+			y:     in    std_ulogic;
+			z:     in    std_ulogic;
+			sum:   out   std_ulogic;
+			carry: out   std_ulogic);
 	end component;
 
 	component full_adder_tb is
@@ -106,16 +106,16 @@ package util is
 		generic (data_width: positive;
 			fifo_depth: positive);
 		port (
-			clk:   in  std_logic;
-			rst:   in  std_logic;
-			din:   in  std_logic_vector(data_width - 1 downto 0);
-			we:    in  std_logic;
-			re:    in  std_logic;
-			do:    out std_logic_vector(data_width - 1 downto 0);
+			clk:   in  std_ulogic;
+			rst:   in  std_ulogic;
+			din:   in  std_ulogic_vector(data_width - 1 downto 0);
+			we:    in  std_ulogic;
+			re:    in  std_ulogic;
+			do:    out std_ulogic_vector(data_width - 1 downto 0);
 
 			-- optional
-			full:  out std_logic := '0';
-			empty: out std_logic := '1');
+			full:  out std_ulogic := '0';
+			empty: out std_ulogic := '1');
 	end component;
 
 	component fifo_tb is
@@ -126,15 +126,15 @@ package util is
 		generic(
 			N: positive);
 		port(
-			clk:     in  std_logic;
-			rst:     in  std_logic;
-			ce:      in  std_logic;
-			cr:      in  std_logic;
-			dout:    out std_logic_vector(N - 1 downto 0);
+			clk:     in  std_ulogic;
+			rst:     in  std_ulogic;
+			ce:      in  std_ulogic;
+			cr:      in  std_ulogic;
+			dout:    out std_ulogic_vector(N - 1 downto 0);
 
 			-- optional
-			load_we: in  std_logic := '0';
-			load_i:  in  std_logic_vector(N - 1 downto 0) := (others => '0'));
+			load_we: in  std_ulogic := '0';
+			load_i:  in  std_ulogic_vector(N - 1 downto 0) := (others => '0'));
 	end component;
 
 	component counter_tb is
@@ -142,15 +142,15 @@ package util is
 	end component;
 
 	component lfsr is
-		generic(constant tap: std_logic_vector);
+		generic(constant tap: std_ulogic_vector);
 		port
 		(
-			clk: in  std_logic;
-			rst: in  std_logic;
-			ce:  in  std_logic := '1';
-			we:  in  std_logic;
-			di:  in  std_logic_vector(tap'high + 1 to tap'low);
-			do:  out std_logic_vector(tap'high + 1 to tap'low));
+			clk: in  std_ulogic;
+			rst: in  std_ulogic;
+			ce:  in  std_ulogic := '1';
+			we:  in  std_ulogic;
+			di:  in  std_ulogic_vector(tap'high + 1 to tap'low);
+			do:  out std_ulogic_vector(tap'high + 1 to tap'low));
 	end component;
 
 	component lfsr_tb is
@@ -162,13 +162,13 @@ package util is
 			N: positive);
 		port
 		(
-			clk:         in    std_logic;
-			rst:         in    std_logic;
-			control:     in    std_logic_vector(N - 1 downto 0);
-			control_we:  in    std_logic;
-			din:         in    std_logic_vector(N - 1 downto 0);
-			din_we:      in    std_logic;
-			dout:        out   std_logic_vector(N - 1 downto 0);
+			clk:         in    std_ulogic;
+			rst:         in    std_ulogic;
+			control:     in    std_ulogic_vector(N - 1 downto 0);
+			control_we:  in    std_ulogic;
+			din:         in    std_ulogic_vector(N - 1 downto 0);
+			din_we:      in    std_ulogic;
+			dout:        out   std_ulogic_vector(N - 1 downto 0);
 			pins:        inout std_logic_vector(N - 1 downto 0));
 	end component;
 
@@ -185,19 +185,19 @@ package util is
 		file_type:   file_format := FILE_BINARY);
 	port(
 		-- port A of dual port RAM
-		a_clk:  in  std_logic;
-		a_dwe:  in  std_logic;
-		a_dre:  in  std_logic;
-		a_addr: in  std_logic_vector(addr_length - 1 downto 0);
-		a_din:  in  std_logic_vector(data_length - 1 downto 0);
-		a_dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0');
+		a_clk:  in  std_ulogic;
+		a_dwe:  in  std_ulogic;
+		a_dre:  in  std_ulogic;
+		a_addr: in  std_ulogic_vector(addr_length - 1 downto 0);
+		a_din:  in  std_ulogic_vector(data_length - 1 downto 0);
+		a_dout: out std_ulogic_vector(data_length - 1 downto 0) := (others => '0');
 		-- port B of dual port RAM
-		b_clk:  in  std_logic;
-		b_dwe:  in  std_logic;
-		b_dre:  in  std_logic;
-		b_addr: in  std_logic_vector(addr_length - 1 downto 0);
-		b_din:  in  std_logic_vector(data_length - 1 downto 0);
-		b_dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0'));
+		b_clk:  in  std_ulogic;
+		b_dwe:  in  std_ulogic;
+		b_dre:  in  std_ulogic;
+		b_addr: in  std_ulogic_vector(addr_length - 1 downto 0);
+		b_din:  in  std_ulogic_vector(data_length - 1 downto 0);
+		b_dout: out std_ulogic_vector(data_length - 1 downto 0) := (others => '0'));
 	end component;
 
 	component single_port_block_ram is
@@ -206,12 +206,12 @@ package util is
 		file_name:   string      := "memory.bin";
 		file_type:   file_format := FILE_BINARY);
 	port(
-		clk:  in  std_logic;
-		dwe:  in  std_logic;
-		dre:  in  std_logic;
-		addr: in  std_logic_vector(addr_length - 1 downto 0);
-		din:  in  std_logic_vector(data_length - 1 downto 0);
-		dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0'));
+		clk:  in  std_ulogic;
+		dwe:  in  std_ulogic;
+		dre:  in  std_ulogic;
+		addr: in  std_ulogic_vector(addr_length - 1 downto 0);
+		din:  in  std_ulogic_vector(data_length - 1 downto 0);
+		dout: out std_ulogic_vector(data_length - 1 downto 0) := (others => '0'));
 	end component;
 
 	component data_source is
@@ -220,30 +220,30 @@ package util is
 			file_name:   string      := "memory.bin";
 			file_type:   file_format := FILE_BINARY);
 		port(
-			clk:     in  std_logic;
-			rst:     in  std_logic;
+			clk:     in  std_ulogic;
+			rst:     in  std_ulogic;
 
-			ce:      in  std_logic := '1';
-			cr:      in  std_logic;
+			ce:      in  std_ulogic := '1';
+			cr:      in  std_ulogic;
 
-			load:    in  std_logic_vector(addr_length - 1 downto 0) := (others => '0');
-			load_we: in  std_logic := '0';
+			load:    in  std_ulogic_vector(addr_length - 1 downto 0) := (others => '0');
+			load_we: in  std_ulogic := '0';
 
-			dout:    out std_logic_vector(data_length - 1 downto 0));
+			dout:    out std_ulogic_vector(data_length - 1 downto 0));
 	end component;
 
 	component ucpu is
 		generic(width: positive range 8 to 32 := 8);
 		port(
-			clk, rst: in  std_logic;
+			clk, rst: in  std_ulogic;
 
-			pc:       out std_logic_vector(width - 3 downto 0);
-			op:       in  std_logic_vector(width - 1 downto 0);
+			pc:       out std_ulogic_vector(width - 3 downto 0);
+			op:       in  std_ulogic_vector(width - 1 downto 0);
 
-			adr:      out std_logic_vector(width - 3 downto 0);
-			di:       in  std_logic_vector(width - 1 downto 0);
-			re, we:   out std_logic;
-			do:       out std_logic_vector(width - 1 downto 0));
+			adr:      out std_ulogic_vector(width - 3 downto 0);
+			di:       in  std_ulogic_vector(width - 1 downto 0);
+			re, we:   out std_ulogic;
+			do:       out std_ulogic_vector(width - 1 downto 0));
 	end component;
 
 	component ucpu_tb is
@@ -255,14 +255,14 @@ package util is
 	component restoring_divider is
 		generic(N: positive);
 		port(
-			clk:   in  std_logic;
-			rst:   in  std_logic := '0';
+			clk:   in  std_ulogic;
+			rst:   in  std_ulogic := '0';
 
-			a:     in  std_logic_vector(N - 1 downto 0);
-			b:     in  std_logic_vector(N - 1 downto 0);
-			start: in  std_logic;
-			done:  out std_logic;
-			c:     out std_logic_vector(N - 1 downto 0));
+			a:     in  std_ulogic_vector(N - 1 downto 0);
+			b:     in  std_ulogic_vector(N - 1 downto 0);
+			start: in  std_ulogic;
+			done:  out std_ulogic;
+			c:     out std_ulogic_vector(N - 1 downto 0));
 	end component;
 
 	component restoring_divider_tb is
@@ -272,17 +272,17 @@ package util is
 	component debounce_us is
 		generic(clock_frequency: positive; timer_period_us: natural);
 		port(
-			clk:   in  std_logic;
-			di:    in  std_logic;
-			do:    out std_logic);
+			clk:   in  std_ulogic;
+			di:    in  std_ulogic;
+			do:    out std_ulogic);
 	end component;
 
 	component debounce_block_us is
 		generic(N: positive; clock_frequency: positive; timer_period_us: natural);
 		port(
-			clk:   in  std_logic;
-			di:    in  std_logic_vector(N - 1 downto 0);
-			do:    out std_logic_vector(N - 1 downto 0));
+			clk:   in  std_ulogic;
+			di:    in  std_ulogic_vector(N - 1 downto 0);
+			do:    out std_ulogic_vector(N - 1 downto 0));
 	end component;
 
 	component debounce_us_tb is
@@ -291,36 +291,36 @@ package util is
 
 	component state_changed is
 		port(
-			clk: in  std_logic;
-			rst: in  std_logic;
-			di:  in  std_logic;
-			do:  out std_logic);
+			clk: in  std_ulogic;
+			rst: in  std_ulogic;
+			di:  in  std_ulogic;
+			do:  out std_ulogic);
 	end component;
 
 	component state_block_changed is
 		generic(N: positive);
 		port(
-			clk: in  std_logic;
-			rst: in  std_logic;
-			di:  in  std_logic_vector(N - 1 downto 0);
-			do:  out std_logic_vector(N - 1 downto 0));
+			clk: in  std_ulogic;
+			rst: in  std_ulogic;
+			di:  in  std_ulogic_vector(N - 1 downto 0);
+			do:  out std_ulogic_vector(N - 1 downto 0));
 	end component;
 
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
 	function n_bits(x: natural) return natural;
-	function n_bits(x: std_logic_vector) return natural;
-	function reverse (a: in std_logic_vector) return std_logic_vector;
-	function invert(slv:std_logic_vector) return std_logic_vector;
-	function parity(slv:std_logic_vector; even: boolean) return std_logic;
-	function select_bit(indexed, selector: std_logic_vector) return std_logic;
-	function priority(order: std_logic_vector; high: boolean) return natural;
-	function priority(order: std_logic_vector; high: boolean) return std_logic_vector;
-	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector;
-	function mux(a: std_logic; b: std_logic; sel: std_logic) return std_logic;
-	function mux(a, b : std_logic_vector) return std_logic;
-	function decode(encoded: std_logic_vector) return std_logic_vector;
-	function hex_char_to_std_logic_vector(hc: character) return std_logic_vector;
+	function n_bits(x: std_ulogic_vector) return natural;
+	function reverse (a: in std_ulogic_vector) return std_ulogic_vector;
+	function invert(slv:std_ulogic_vector) return std_ulogic_vector;
+	function parity(slv:std_ulogic_vector; even: boolean) return std_ulogic;
+	function select_bit(indexed, selector: std_ulogic_vector) return std_ulogic;
+	function priority(order: std_ulogic_vector; high: boolean) return natural;
+	function priority(order: std_ulogic_vector; high: boolean) return std_ulogic_vector;
+	function mux(a: std_ulogic_vector; b: std_ulogic_vector; sel: std_ulogic) return std_ulogic_vector;
+	function mux(a: std_ulogic; b: std_ulogic; sel: std_ulogic) return std_ulogic;
+	function mux(a, b : std_ulogic_vector) return std_ulogic;
+	function decode(encoded: std_ulogic_vector) return std_ulogic_vector;
+	function hex_char_to_std_ulogic_vector(hc: character) return std_ulogic_vector;
 
 	--- Not synthesizable ---
 
@@ -362,15 +362,15 @@ package body util is
 		return n;
 	end function;
 
-	function n_bits(x: std_logic_vector) return natural is
+	function n_bits(x: std_ulogic_vector) return natural is
 	begin
 		return n_bits(x'high);
 	end function;
 
 	-- https://stackoverflow.com/questions/13584307
-	function reverse (a: in std_logic_vector) return std_logic_vector is
-		variable result: std_logic_vector(a'range);
-		alias aa: std_logic_vector(a'reverse_range) is a;
+	function reverse (a: in std_ulogic_vector) return std_ulogic_vector is
+		variable result: std_ulogic_vector(a'range);
+		alias aa: std_ulogic_vector(a'reverse_range) is a;
 	begin
 		for i in aa'range loop
 			result(i) := aa(i);
@@ -378,8 +378,8 @@ package body util is
 		return result;
 	end;
 
-	function invert(slv: std_logic_vector) return std_logic_vector is
-		variable z: std_logic_vector(slv'range);
+	function invert(slv: std_ulogic_vector) return std_ulogic_vector is
+		variable z: std_ulogic_vector(slv'range);
 	begin
 		for i in slv'range loop
 			z(i) := not(slv(i));
@@ -387,8 +387,8 @@ package body util is
 		return z;
 	end;
 
-	function parity(slv: std_logic_vector; even: boolean) return std_logic is
-		variable z: std_logic := '0';
+	function parity(slv: std_ulogic_vector; even: boolean) return std_ulogic is
+		variable z: std_ulogic := '0';
 	begin
 		if not even then
 			z := '1';
@@ -399,8 +399,8 @@ package body util is
 		return z;
 	end;
 
-	function select_bit(indexed, selector: std_logic_vector) return std_logic is
-		variable z: std_logic := 'X';
+	function select_bit(indexed, selector: std_ulogic_vector) return std_ulogic is
+		variable z: std_ulogic := 'X';
 	begin
 		assert n_bits(indexed) = selector'high + 1 severity failure;
 		for i in indexed'range loop
@@ -411,7 +411,7 @@ package body util is
 		return z;
 	end;
 
-	function priority(order: std_logic_vector; high: boolean) return natural is
+	function priority(order: std_ulogic_vector; high: boolean) return natural is
 		variable p: natural := 0;
 	begin
 		if not high then
@@ -430,28 +430,28 @@ package body util is
 		return p;
 	end;
 
-	function priority(order: std_logic_vector; high: boolean) return std_logic_vector is
+	function priority(order: std_ulogic_vector; high: boolean) return std_ulogic_vector is
 		variable length: natural := n_bits(order'length);
 	begin
-		return std_logic_vector(to_unsigned(priority(order, high), length));
+		return std_ulogic_vector(to_unsigned(priority(order, high), length));
 	end;
 
-	function mux(a: std_logic_vector; b: std_logic_vector; sel: std_logic) return std_logic_vector is
-		variable m: std_logic_vector(a'range) := (others => 'X');
+	function mux(a: std_ulogic_vector; b: std_ulogic_vector; sel: std_ulogic) return std_ulogic_vector is
+		variable m: std_ulogic_vector(a'range) := (others => 'X');
 	begin
 		if sel = '0' then m := a; else m := b; end if;
 		return m;
 	end;
 
-	function mux(a: std_logic; b: std_logic; sel: std_logic) return std_logic is
-		variable m: std_logic := 'X';
+	function mux(a: std_ulogic; b: std_ulogic; sel: std_ulogic) return std_ulogic is
+		variable m: std_ulogic := 'X';
 	begin
 		if sel = '0' then m := a; else m := b; end if;
 		return m;
 	end;
 
-	function mux(a, b : std_logic_vector) return std_logic is
-		variable r: std_logic_vector(b'length - 1 downto 0) := (others => 'X');
+	function mux(a, b : std_ulogic_vector) return std_ulogic is
+		variable r: std_ulogic_vector(b'length - 1 downto 0) := (others => 'X');
 		variable i: integer;
 	begin
 		r := b;
@@ -459,8 +459,8 @@ package body util is
 		return r(i);
 	end;
 
-	function decode(encoded : std_logic_vector) return std_logic_vector is
-		variable r: std_logic_vector((2 ** encoded'length) - 1 downto 0) := (others => '0');
+	function decode(encoded : std_ulogic_vector) return std_ulogic_vector is
+		variable r: std_ulogic_vector((2 ** encoded'length) - 1 downto 0) := (others => '0');
 		variable i: natural;
 	begin
 		i    := to_integer(unsigned(encoded));
@@ -468,8 +468,8 @@ package body util is
 		return r;
 	end;
 
-	function hex_char_to_std_logic_vector(hc: character) return std_logic_vector is
-		variable slv: std_logic_vector(3 downto 0);
+	function hex_char_to_std_ulogic_vector(hc: character) return std_ulogic_vector is
+		variable slv: std_ulogic_vector(3 downto 0);
 	begin
 		case hc is
 		when '0' => slv := "0000";
@@ -498,7 +498,7 @@ package body util is
 		end case;
 		assert (slv /= "XXXX") report " not a valid hex character: " & hc  severity failure;
 		return slv;
-	end hex_char_to_std_logic_vector;
+	end hex_char_to_std_ulogic_vector;
 
 	--- Not synthesizable ---
 
@@ -632,8 +632,8 @@ begin
 		assert  decode("01")              =  "0010"  severity  failure;
 		assert  decode("10")              =  "0100"  severity  failure;
 		assert  decode("11")              =  "1000"  severity  failure;
-		-- n_bits(x: std_logic_vector) return natural;
-		-- mux(a, b : std_logic_vector) return std_logic;
+		-- n_bits(x: std_ulogic_vector) return natural;
+		-- mux(a, b : std_ulogic_vector) return std_ulogic;
 		wait;
 	end process;
 end architecture;
@@ -650,16 +650,16 @@ use ieee.math_real.all;
 entity clock_source_tb is
 	generic(clock_frequency: positive; hold_rst: positive := 1);
 	port(
-		stop:            in     std_logic := '0';
-		clk:             buffer std_logic;
-		clk_with_jitter: out    std_logic := '0';
-		rst:             out    std_logic := '0');
+		stop:            in     std_ulogic := '0';
+		clk:             buffer std_ulogic;
+		clk_with_jitter: out    std_ulogic := '0';
+		rst:             out    std_ulogic := '0');
 end entity;
 
 architecture rtl of clock_source_tb is
 	constant clock_period: time      :=  1000 ms / clock_frequency;
 	signal jitter_delay:   time      := 0 ns;
-	signal jitter_clk:     std_logic := '0';
+	signal jitter_clk:     std_ulogic := '0';
 begin
 	clk_process: process
 		variable seed1, seed2 : positive;
@@ -689,7 +689,7 @@ begin
 
 end architecture;
 
-------------------------- Generic Register of std_logic_vector ----------------------
+------------------------- Generic Register of std_ulogic_vector ----------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -700,15 +700,15 @@ entity reg is
 		N: positive);
 	port
 	(
-		clk: in  std_logic;
-		rst: in  std_logic;
-		we:  in  std_logic;
-		di:  in  std_logic_vector(N - 1 downto 0);
-		do:  out std_logic_vector(N - 1 downto 0));
+		clk: in  std_ulogic;
+		rst: in  std_ulogic;
+		we:  in  std_ulogic;
+		di:  in  std_ulogic_vector(N - 1 downto 0);
+		do:  out std_ulogic_vector(N - 1 downto 0));
 end entity;
 
 architecture rtl of reg is
-	signal r_c, r_n: std_logic_vector(N - 1 downto 0) := (others => '0');
+	signal r_c, r_n: std_ulogic_vector(N - 1 downto 0) := (others => '0');
 begin
 	do <= r_c;
 
@@ -730,7 +730,7 @@ begin
 	end process;
 end;
 
-------------------------- Generic Register of std_logic_vector ----------------------
+------------------------- Generic Register of std_ulogic_vector ----------------------
 
 ------------------------- Shift register --------------------------------------------
 library ieee;
@@ -742,19 +742,19 @@ entity shift_register is
 	generic(N: positive);
 	port
 	(
-		clk:     in  std_logic;
-		rst:     in  std_logic;
-		we:      in  std_logic;
-		di:      in  std_logic;
-		do:      out std_logic;
+		clk:     in  std_ulogic;
+		rst:     in  std_ulogic;
+		we:      in  std_ulogic;
+		di:      in  std_ulogic;
+		do:      out std_ulogic;
 
-		load_we: in  std_logic := '0';
-		load_i:  in  std_logic_vector(N - 1 downto 0) := (others => '0');
-		load_o:  out std_logic_vector(N - 1 downto 0));
+		load_we: in  std_ulogic := '0';
+		load_i:  in  std_ulogic_vector(N - 1 downto 0) := (others => '0');
+		load_o:  out std_ulogic_vector(N - 1 downto 0));
 end entity;
 
 architecture rtl of shift_register is
-	signal r_c, r_n : std_logic_vector(N - 1 downto 0) := (others => '0');
+	signal r_c, r_n : std_ulogic_vector(N - 1 downto 0) := (others => '0');
 begin
 	do     <= r_c(0);
 	load_o <= r_c;
@@ -792,12 +792,12 @@ end entity;
 architecture behav of shift_register_tb is
 	constant N: positive := 8;
 	constant clock_period: time :=  1000 ms / clock_frequency;
-	signal we: std_logic := '0';
-	signal di: std_logic := '0';
-	signal do: std_logic := '0';
+	signal we: std_ulogic := '0';
+	signal di: std_ulogic := '0';
+	signal do: std_ulogic := '0';
 
-	signal clk, rst: std_logic := '0';
-	signal stop: std_logic := '0';
+	signal clk, rst: std_ulogic := '0';
+	signal stop: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -841,9 +841,9 @@ entity timer_us is
 		clock_frequency: positive;
 		timer_period_us: positive := 1);
 	port(
-		clk:  in std_logic := 'X';
-		rst:  in std_logic := 'X';
-		co:  out std_logic := '0');
+		clk:  in std_ulogic := 'X';
+		rst:  in std_ulogic := 'X';
+		co:  out std_ulogic := '0');
 end timer_us;
 
 architecture rtl of timer_us is
@@ -882,9 +882,9 @@ end;
 
 architecture behav of timer_us_tb is
 	constant clock_period: time := 1000 ms / clock_frequency;
-	signal co: std_logic        := 'X';
-	signal clk, rst: std_logic  := '0';
-	signal stop: std_logic      := '0';
+	signal co: std_ulogic        := 'X';
+	signal clk, rst: std_ulogic  := '0';
+	signal stop: std_ulogic      := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -913,15 +913,15 @@ use ieee.std_logic_1164.all;
 
 entity edge is
 port (
-	clk:    in  std_logic;
-	rst:    in  std_logic;
-	sin:    in  std_logic;
-	output: out std_logic);
+	clk:    in  std_ulogic;
+	rst:    in  std_ulogic;
+	sin:    in  std_ulogic;
+	output: out std_ulogic);
 end;
 
 architecture rtl of edge is
-	signal sin_0: std_logic := '0';
-	signal sin_1: std_logic := '0';
+	signal sin_0: std_ulogic := '0';
+	signal sin_1: std_ulogic := '0';
 begin
 	rising_edge_detector: process(clk, rst)
 	begin
@@ -946,11 +946,11 @@ end;
 
 architecture behav of edge_tb is
 	constant clock_period: time := 1000 ms / clock_frequency;
-	signal sin:    std_logic := '0';
-	signal output: std_logic := 'X';
+	signal sin:    std_ulogic := '0';
+	signal output: std_ulogic := 'X';
 
-	signal clk, rst: std_logic := '0';
-	signal stop: std_logic := '0';
+	signal clk, rst: std_ulogic := '0';
+	signal stop: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -987,10 +987,10 @@ use ieee.std_logic_1164.all;
 
 entity half_adder is
 	port(
-		a:     in  std_logic;
-		b:     in  std_logic;
-		sum:   out std_logic;
-		carry: out std_logic);
+		a:     in  std_ulogic;
+		b:     in  std_ulogic;
+		sum:   out std_ulogic;
+		carry: out std_ulogic);
 end entity;
 
 architecture rtl of half_adder is
@@ -1008,15 +1008,15 @@ use ieee.std_logic_1164.all;
 
 entity full_adder is
 	port(
-		x:     in    std_logic;
-		y:     in    std_logic;
-		z:     in    std_logic;
-		sum:   out   std_logic;
-		carry: out   std_logic);
+		x:     in    std_ulogic;
+		y:     in    std_ulogic;
+		z:     in    std_ulogic;
+		sum:   out   std_ulogic;
+		carry: out   std_ulogic);
 end entity;
 
 architecture rtl of full_adder is
-	signal carry1, carry2, sum1: std_logic;
+	signal carry1, carry2, sum1: std_ulogic;
 begin
 	ha1: entity work.half_adder port map(a => x,    b => y, sum => sum1, carry => carry1);
 	ha2: entity work.half_adder port map(a => sum1, b => z, sum => sum,  carry => carry2);
@@ -1032,11 +1032,11 @@ end entity;
 
 architecture behav of full_adder_tb is
 	constant clock_period: time  := 1000 ms / clock_frequency;
-	signal x, y, z:    std_logic := '0';
-	signal sum, carry: std_logic := '0';
+	signal x, y, z:    std_ulogic := '0';
+	signal sum, carry: std_ulogic := '0';
 
-	type stimulus_data   is array (0 to 7)              of std_logic_vector(2 downto 0);
-	type stimulus_result is array (stimulus_data'range) of std_logic_vector(0 to     1);
+	type stimulus_data   is array (0 to 7)              of std_ulogic_vector(2 downto 0);
+	type stimulus_result is array (stimulus_data'range) of std_ulogic_vector(0 to     1);
 
 	constant data: stimulus_data := (
 		0 => "000", 1 => "001",
@@ -1050,8 +1050,8 @@ architecture behav of full_adder_tb is
 		4 => "10",  5 => "01",
 		6 => "01",  7 => "11");
 
-	signal clk, rst: std_logic := '0';
-	signal stop: std_logic     := '0';
+	signal clk, rst: std_ulogic := '0';
+	signal stop: std_ulogic     := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -1069,9 +1069,9 @@ begin
 			wait for clock_period;
 			assert sum = result(i)(0) and carry = result(i)(1)
 				report
-					"For: "       & std_logic'image(x) & std_logic'image(y) & std_logic'image(z) &
-					" Got: "      & std_logic'image(sum)          & std_logic'image(carry) &
-					" Expected: " & std_logic'image(result(i)(0)) & std_logic'image(result(i)(1))
+					"For: "       & std_ulogic'image(x) & std_ulogic'image(y) & std_ulogic'image(z) &
+					" Got: "      & std_ulogic'image(sum)          & std_ulogic'image(carry) &
+					" Expected: " & std_ulogic'image(result(i)(0)) & std_ulogic'image(result(i)(1))
 				severity failure;
 			wait for clock_period;
 		end loop;
@@ -1105,14 +1105,14 @@ entity fifo is
 		data_width: positive;
 		fifo_depth: positive);
 	port(
-		clk:   in  std_logic;
-		rst:   in  std_logic;
-		we:    in  std_logic;
-		din:   in  std_logic_vector (data_width - 1 downto 0);
-		re:    in  std_logic;
-		do:    out std_logic_vector (data_width - 1 downto 0);
-		empty: out std_logic := '1';
-		full:  out std_logic := '0');
+		clk:   in  std_ulogic;
+		rst:   in  std_ulogic;
+		we:    in  std_ulogic;
+		din:   in  std_ulogic_vector (data_width - 1 downto 0);
+		re:    in  std_ulogic;
+		do:    out std_ulogic_vector (data_width - 1 downto 0);
+		empty: out std_ulogic := '1';
+		full:  out std_ulogic := '0');
 end fifo;
 
 architecture behavioral of fifo is
@@ -1120,7 +1120,7 @@ begin
 
 	-- memory pointer process
 	fifo_proc: process (clk, rst)
-		type fifo_memory is array (0 to fifo_depth - 1) of std_logic_vector (data_width - 1 downto 0);
+		type fifo_memory is array (0 to fifo_depth - 1) of std_ulogic_vector (data_width - 1 downto 0);
 		variable memory: fifo_memory;
 
 		variable head: natural range 0 to fifo_depth - 1;
@@ -1198,18 +1198,18 @@ architecture behavior of fifo_tb is
 	constant data_width: positive := 8;
 	constant fifo_depth: positive := 16;
 
-	signal din:      std_logic_vector(data_width - 1 downto 0) := (others => '0');
-	signal re:       std_logic := '0';
-	signal we:       std_logic := '0';
+	signal din:      std_ulogic_vector(data_width - 1 downto 0) := (others => '0');
+	signal re:       std_ulogic := '0';
+	signal we:       std_ulogic := '0';
 
-	signal do:       std_logic_vector(data_width - 1 downto 0) := (others => '0');
-	signal empty:    std_logic := '0';
-	signal full:     std_logic := '0';
+	signal do:       std_ulogic_vector(data_width - 1 downto 0) := (others => '0');
+	signal empty:    std_ulogic := '0';
+	signal full:     std_ulogic := '0';
 
-	signal clk, rst: std_logic := '0';
-	signal stop_w:   std_logic := '0';
-	signal stop_r:   std_logic := '0';
-	signal stop:     std_logic := '0';
+	signal clk, rst: std_ulogic := '0';
+	signal stop_w:   std_ulogic := '0';
+	signal stop_r:   std_ulogic := '0';
+	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -1236,7 +1236,7 @@ begin
 
 		for i in 1 to 32 loop
 			counter := counter + 1;
-			din <= std_logic_vector(counter);
+			din <= std_ulogic_vector(counter);
 			wait for clock_period * 1;
 			we <= '1';
 			wait for clock_period * 1;
@@ -1247,7 +1247,7 @@ begin
 
 		for i in 1 to 32 loop
 			counter := counter + 1;
-			din <= std_logic_vector(counter);
+			din <= std_ulogic_vector(counter);
 			wait for clock_period * 1;
 			we <= '1';
 			wait for clock_period * 1;
@@ -1284,20 +1284,20 @@ entity counter is
 	generic(
 		N: positive);
 	port(
-		clk:     in  std_logic;
-		rst:     in  std_logic;
-		ce:      in  std_logic;
-		cr:      in  std_logic;
-		dout:    out std_logic_vector(N - 1 downto 0);
+		clk:     in  std_ulogic;
+		rst:     in  std_ulogic;
+		ce:      in  std_ulogic;
+		cr:      in  std_ulogic;
+		dout:    out std_ulogic_vector(N - 1 downto 0);
 
-		load_we: in  std_logic := '0';
-		load_i:  in  std_logic_vector(N - 1 downto 0) := (others => '0'));
+		load_we: in  std_ulogic := '0';
+		load_i:  in  std_ulogic_vector(N - 1 downto 0) := (others => '0'));
 end entity;
 
 architecture rtl of counter is
 	signal c_c, c_n: unsigned(N - 1 downto 0) := (others => '0');
 begin
-	dout <= std_logic_vector(c_c);
+	dout <= std_ulogic_vector(c_c);
 
 	process(clk, rst)
 	begin
@@ -1337,15 +1337,15 @@ architecture behavior of counter_tb is
 	constant length:       positive := 2;
 
 	-- inputs
-	signal ce: std_logic := '0';
-	signal cr: std_logic := '0';
+	signal ce: std_ulogic := '0';
+	signal cr: std_ulogic := '0';
 
 	-- outputs
-	signal dout: std_logic_vector(length - 1 downto 0);
+	signal dout: std_ulogic_vector(length - 1 downto 0);
 
 	-- test data
-	type stimulus_data   is array (0 to 16)             of std_logic_vector(1 downto 0);
-	type stimulus_result is array (stimulus_data'range) of std_logic_vector(0 to     1);
+	type stimulus_data   is array (0 to 16)             of std_ulogic_vector(1 downto 0);
+	type stimulus_result is array (stimulus_data'range) of std_ulogic_vector(0 to     1);
 
 	constant data: stimulus_data := (
 		 0 => "00",  1 => "00",
@@ -1369,8 +1369,8 @@ architecture behavior of counter_tb is
 		14 => "10", 15 => "11",
 		16 => "00");
 
-	signal clk, rst: std_logic := '0';
-	signal stop:     std_logic := '0';
+	signal clk, rst: std_ulogic := '0';
+	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -1395,7 +1395,7 @@ begin
 			wait for clock_period;
 			assert dout = result(i)
 				report
-					"For: ce("    & std_logic'image(ce) & ") cr(" & std_logic'image(cr) & ") " &
+					"For: ce("    & std_ulogic'image(ce) & ") cr(" & std_ulogic'image(cr) & ") " &
 					" Got: "      & integer'image(to_integer(unsigned(dout))) &
 					" Expected: " & integer'image(to_integer(unsigned(result(i))))
 				severity failure;
@@ -1415,7 +1415,7 @@ end architecture;
 --
 -- Some optimal taps
 --
--- Taps start at the left most std_logic element of tap at '0' and proceed to
+-- Taps start at the left most std_ulogic element of tap at '0' and proceed to
 -- the highest bit. To instantiate an instance of the LFSR set tap to a
 -- standard logic vector one less the size of LFSR that you want. An 8-bit
 -- LFSR can be made by setting it 'tap' to "0111001". The LFSR will need to
@@ -1438,19 +1438,19 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity lfsr is
-	generic(constant tap: std_logic_vector);
+	generic(constant tap: std_ulogic_vector);
 	port
 	(
-		clk: in  std_logic;
-		rst: in  std_logic;
-		we:  in  std_logic;
-		ce:  in  std_logic := '1';
-		di:  in  std_logic_vector(tap'high + 1 downto tap'low);
-		do:  out std_logic_vector(tap'high + 1 downto tap'low));
+		clk: in  std_ulogic;
+		rst: in  std_ulogic;
+		we:  in  std_ulogic;
+		ce:  in  std_ulogic := '1';
+		di:  in  std_ulogic_vector(tap'high + 1 downto tap'low);
+		do:  out std_ulogic_vector(tap'high + 1 downto tap'low));
 end entity;
 
 architecture rtl of lfsr is
-	signal r_c, r_n : std_logic_vector(di'range) := (others => '0');
+	signal r_c, r_n : std_ulogic_vector(di'range) := (others => '0');
 begin
 	do <= r_c;
 
@@ -1494,11 +1494,11 @@ end entity;
 
 architecture behavior of lfsr_tb is
 	constant clock_period: time     := 1000 ms / clock_frequency;
-	signal we: std_logic := '0';
-	signal do, di: std_logic_vector(7 downto 0) := (others => '0');
+	signal we: std_ulogic := '0';
+	signal do, di: std_ulogic_vector(7 downto 0) := (others => '0');
 
-	signal clk, rst: std_logic := '0';
-	signal stop:     std_logic := '0';
+	signal clk, rst: std_ulogic := '0';
+	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -1543,19 +1543,19 @@ entity io_pins is
 		N: positive);
 	port
 	(
-		clk:         in    std_logic;
-		rst:         in    std_logic;
-		control:     in    std_logic_vector(N - 1 downto 0);
-		control_we:  in    std_logic;
-		din:         in    std_logic_vector(N - 1 downto 0);
-		din_we:      in    std_logic;
-		dout:        out   std_logic_vector(N - 1 downto 0);
+		clk:         in    std_ulogic;
+		rst:         in    std_ulogic;
+		control:     in    std_ulogic_vector(N - 1 downto 0);
+		control_we:  in    std_ulogic;
+		din:         in    std_ulogic_vector(N - 1 downto 0);
+		din_we:      in    std_ulogic;
+		dout:        out   std_ulogic_vector(N - 1 downto 0);
 		pins:        inout std_logic_vector(N - 1 downto 0));
 end entity;
 
 architecture rtl of io_pins is
-	signal control_o: std_logic_vector(control'range) := (others => '0');
-	signal din_o:     std_logic_vector(din'range)     := (others => '0');
+	signal control_o: std_ulogic_vector(control'range) := (others => '0');
+	signal din_o:     std_ulogic_vector(din'range)     := (others => '0');
 begin
 
 	control_r: entity work.reg generic map(N => N) port map(clk => clk, rst => rst, di => control, we => control_we, do => control_o);
@@ -1580,17 +1580,17 @@ architecture behavior of io_pins_tb is
 	constant clock_period: time := 1000 ms / clock_frequency;
 	constant N: positive := 8;
 
-	signal control: std_logic_vector(N - 1 downto 0) := (others => '0');
-	signal din:     std_logic_vector(N - 1 downto 0) := (others => '0');
-	signal dout:    std_logic_vector(N - 1 downto 0) := (others => '0');
-	signal pins:    std_logic_vector(N - 1 downto 0) := (others => 'L'); -- !
+	signal control: std_ulogic_vector(N - 1 downto 0) := (others => '0');
+	signal din:     std_ulogic_vector(N - 1 downto 0) := (others => '0');
+	signal dout:    std_ulogic_vector(N - 1 downto 0) := (others => '0');
+	signal pins:    std_logic_vector(N - 1 downto 0)  := (others => 'L'); -- !
 
-	signal control_we: std_logic := '0';
-	signal din_we: std_logic     := '0';
+	signal control_we: std_ulogic := '0';
+	signal din_we: std_ulogic     := '0';
 
 
-	signal clk, rst: std_logic := '0';
-	signal stop:     std_logic := '0';
+	signal clk, rst: std_ulogic := '0';
+	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -1671,25 +1671,25 @@ entity dual_port_block_ram is
 		file_type:   file_format := FILE_BINARY);
 	port(
 		--| Port A of dual port RAM
-		a_clk:  in  std_logic;
-		a_dwe:  in  std_logic;
-		a_dre:  in  std_logic;
-		a_addr: in  std_logic_vector(addr_length - 1 downto 0);
-		a_din:  in  std_logic_vector(data_length - 1 downto 0);
-		a_dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0');
+		a_clk:  in  std_ulogic;
+		a_dwe:  in  std_ulogic;
+		a_dre:  in  std_ulogic;
+		a_addr: in  std_ulogic_vector(addr_length - 1 downto 0);
+		a_din:  in  std_ulogic_vector(data_length - 1 downto 0);
+		a_dout: out std_ulogic_vector(data_length - 1 downto 0) := (others => '0');
 		--| Port B of dual port RAM
-		b_clk:  in  std_logic;
-		b_dwe:  in  std_logic;
-		b_dre:  in  std_logic;
-		b_addr: in  std_logic_vector(addr_length - 1 downto 0);
-		b_din:  in  std_logic_vector(data_length - 1 downto 0);
-		b_dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0'));
+		b_clk:  in  std_ulogic;
+		b_dwe:  in  std_ulogic;
+		b_dre:  in  std_ulogic;
+		b_addr: in  std_ulogic_vector(addr_length - 1 downto 0);
+		b_din:  in  std_ulogic_vector(data_length - 1 downto 0);
+		b_dout: out std_ulogic_vector(data_length - 1 downto 0) := (others => '0'));
 end entity;
 
 architecture behav of dual_port_block_ram is
 	constant ram_size: positive := 2 ** addr_length;
 
-	type ram_type is array ((ram_size - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
+	type ram_type is array ((ram_size - 1 ) downto 0) of std_ulogic_vector(data_length - 1 downto 0);
 
 	impure function initialize_ram(file_name: in string; file_type: in file_format) return ram_type is
 		variable ram_data:   ram_type;
@@ -1697,7 +1697,7 @@ architecture behav of dual_port_block_ram is
 		variable input_line: line;
 		variable tmp:        bit_vector(data_length - 1 downto 0);
 		variable c:          character;
-		variable slv:        std_logic_vector(data_length - 1 downto 0);
+		variable slv:        std_ulogic_vector(data_length - 1 downto 0);
 	begin
 		for i in 0 to ram_size - 1 loop
 			if file_type = FILE_NONE then
@@ -1706,12 +1706,12 @@ architecture behav of dual_port_block_ram is
 				readline(in_file,input_line);
 				if file_type = FILE_BINARY then
 					read(input_line, tmp);
-					ram_data(i) := to_stdlogicvector(tmp);
+					ram_data(i) := std_ulogic_vector(to_stdlogicvector(tmp));
 				elsif file_type = FILE_HEX then
 					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 					for j in 1 to (data_length/4) loop
 						c:= input_line((data_length/4) - j + 1);
-						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_logic_vector(c);
+						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_ulogic_vector(c);
 					end loop;
 					ram_data(i) := slv;
 				else
@@ -1771,18 +1771,18 @@ entity single_port_block_ram is
 		file_name:   string      := "memory.bin";
 		file_type:   file_format := FILE_BINARY);
 	port(
-		clk:  in  std_logic;
-		dwe:  in  std_logic;
-		dre:  in  std_logic;
-		addr: in  std_logic_vector(addr_length - 1 downto 0);
-		din:  in  std_logic_vector(data_length - 1 downto 0);
-		dout: out std_logic_vector(data_length - 1 downto 0) := (others => '0'));
+		clk:  in  std_ulogic;
+		dwe:  in  std_ulogic;
+		dre:  in  std_ulogic;
+		addr: in  std_ulogic_vector(addr_length - 1 downto 0);
+		din:  in  std_ulogic_vector(data_length - 1 downto 0);
+		dout: out std_ulogic_vector(data_length - 1 downto 0) := (others => '0'));
 end entity;
 
 architecture behav of single_port_block_ram is
 	constant ram_size: positive := 2 ** addr_length;
 
-	type ram_type is array ((ram_size - 1 ) downto 0) of std_logic_vector(data_length - 1 downto 0);
+	type ram_type is array ((ram_size - 1 ) downto 0) of std_ulogic_vector(data_length - 1 downto 0);
 
 	impure function initialize_ram(file_name: in string; file_type: in file_format) return ram_type is
 		variable ram_data:   ram_type;
@@ -1790,7 +1790,7 @@ architecture behav of single_port_block_ram is
 		variable input_line: line;
 		variable tmp:        bit_vector(data_length - 1 downto 0);
 		variable c:          character;
-		variable slv:        std_logic_vector(data_length - 1 downto 0);
+		variable slv:        std_ulogic_vector(data_length - 1 downto 0);
 	begin
 		for i in 0 to ram_size - 1 loop
 			if file_type = FILE_NONE then
@@ -1799,12 +1799,12 @@ architecture behav of single_port_block_ram is
 				readline(in_file,input_line);
 				if file_type = FILE_BINARY then
 					read(input_line, tmp);
-					ram_data(i) := to_stdlogicvector(tmp);
+					ram_data(i) := std_ulogic_vector(to_stdlogicvector(tmp));
 				elsif file_type = FILE_HEX then -- hexadecimal
 					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 					for j in 1 to (data_length/4) loop
 						c:= input_line((data_length/4) - j + 1);
-						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_logic_vector(c);
+						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_ulogic_vector(c);
 					end loop;
 					ram_data(i) := slv;
 				else
@@ -1862,20 +1862,20 @@ entity data_source is
 		file_name:   string      := "memory.bin";
 		file_type:   file_format := FILE_BINARY);
 	port(
-		clk:     in  std_logic;
-		rst:     in  std_logic;
+		clk:     in  std_ulogic;
+		rst:     in  std_ulogic;
 
-		ce:      in  std_logic := '1';
-		cr:      in  std_logic;
+		ce:      in  std_ulogic := '1';
+		cr:      in  std_ulogic;
 
-		load:    in  std_logic_vector(addr_length - 1 downto 0) := (others => '0');
-		load_we: in  std_logic := '0';
+		load:    in  std_ulogic_vector(addr_length - 1 downto 0) := (others => '0');
+		load_we: in  std_ulogic := '0';
 
-		dout:    out std_logic_vector(data_length - 1 downto 0));
+		dout:    out std_ulogic_vector(data_length - 1 downto 0));
 end entity;
 
 architecture structural of data_source is
-	signal addr: std_logic_vector(addr_length - 1 downto 0);
+	signal addr: std_ulogic_vector(addr_length - 1 downto 0);
 begin
 	count: work.util.counter
 		generic map(
@@ -1939,25 +1939,25 @@ use ieee.numeric_std.all;
 entity ucpu is
 	generic(width: positive range 8 to 32 := 8);
 	port(
-		clk, rst: in  std_logic;
+		clk, rst: in  std_ulogic;
 
-		pc:       out std_logic_vector(width - 3 downto 0);
-		op:       in  std_logic_vector(width - 1 downto 0);
+		pc:       out std_ulogic_vector(width - 3 downto 0);
+		op:       in  std_ulogic_vector(width - 1 downto 0);
 
-		adr:      out std_logic_vector(width - 3 downto 0);
-		di:       in  std_logic_vector(width - 1 downto 0);
-		re, we:   out std_logic;
-		do:       out std_logic_vector(width - 1 downto 0));
+		adr:      out std_ulogic_vector(width - 3 downto 0);
+		di:       in  std_ulogic_vector(width - 1 downto 0);
+		re, we:   out std_ulogic;
+		do:       out std_ulogic_vector(width - 1 downto 0));
 end entity;
 
 architecture rtl of ucpu is
 	signal a_c,   a_n:       unsigned(di'high + 1 downto di'low) := (others => '0'); -- accumulator
 	signal pc_c,  pc_n:      unsigned(pc'range)                  := (others => '0');
-	signal alu:              std_logic_vector(1 downto 0)        := (others => '0');
-	signal state_c, state_n: std_logic                           := '0'; -- FETCH/Single cycle instruction or EXECUTE
+	signal alu:              std_ulogic_vector(1 downto 0)        := (others => '0');
+	signal state_c, state_n: std_ulogic                           := '0'; -- FETCH/Single cycle instruction or EXECUTE
 begin
-	pc          <= std_logic_vector(pc_n);
-	do          <= std_logic_vector(a_c(do'range));
+	pc          <= std_ulogic_vector(pc_n);
+	do          <= std_ulogic_vector(a_c(do'range));
 	alu         <= op(op'high downto op'high - 1);
 	adr         <= op(adr'range);
 	we          <= '1' when alu = "10" else '0'; -- STORE
@@ -2012,17 +2012,17 @@ architecture testing of ucpu_tb is
 	constant data_length: positive := 8;
 	constant addr_length: positive := data_length - 2;
 
-	signal a_addr: std_logic_vector(addr_length - 1 downto 0);
-	signal a_dout: std_logic_vector(data_length - 1 downto 0) := (others => '0');
+	signal a_addr: std_ulogic_vector(addr_length - 1 downto 0);
+	signal a_dout: std_ulogic_vector(data_length - 1 downto 0) := (others => '0');
 
-	signal b_dwe:  std_logic;
-	signal b_dre:  std_logic;
-	signal b_addr: std_logic_vector(addr_length - 1 downto 0);
-	signal b_din:  std_logic_vector(data_length - 1 downto 0);
-	signal b_dout: std_logic_vector(data_length - 1 downto 0) := (others => '0');
+	signal b_dwe:  std_ulogic;
+	signal b_dre:  std_ulogic;
+	signal b_addr: std_ulogic_vector(addr_length - 1 downto 0);
+	signal b_din:  std_ulogic_vector(data_length - 1 downto 0);
+	signal b_dout: std_ulogic_vector(data_length - 1 downto 0) := (others => '0');
 
-	signal clk, rst: std_logic := '0';
-	signal stop:     std_logic := '0';
+	signal clk, rst: std_ulogic := '0';
+	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -2090,13 +2090,13 @@ use ieee.numeric_std.all;
 entity restoring_divider is
 	generic(N: positive);
 	port(
-		clk:   in  std_logic;
-		rst:   in  std_logic := '0';
+		clk:   in  std_ulogic;
+		rst:   in  std_ulogic := '0';
 
 		a:     in  unsigned(N - 1 downto 0);
 		b:     in  unsigned(N - 1 downto 0);
-		start: in  std_logic;
-		done:  out std_logic;
+		start: in  std_ulogic;
+		done:  out std_ulogic;
 		c:     out unsigned(N - 1 downto 0));
 end entity;
 
@@ -2105,7 +2105,7 @@ architecture rtl of restoring_divider is
 	signal b_c, b_n: unsigned(b'range) := (others => '0');
 	signal m_c, m_n: unsigned(b'range) := (others => '0');
 	signal o_c, o_n: unsigned(c'range) := (others => '0');
-	signal e_c, e_n: std_logic         := '0';
+	signal e_c, e_n: std_ulogic         := '0';
 	signal count_c, count_n: unsigned(work.util.n_bits(N) downto 0) := (others => '0');
 begin
 	c <= o_n;
@@ -2188,10 +2188,10 @@ architecture testing of restoring_divider_tb is
 	signal a: unsigned(N - 1 downto 0) := (others => '0');
 	signal b: unsigned(N - 1 downto 0) := (others => '0');
 	signal c: unsigned(N - 1 downto 0) := (others => '0');
-	signal start, done: std_logic := '0';
+	signal start, done: std_ulogic := '0';
 
-	signal clk, rst: std_logic := '0';
-	signal stop:     std_logic := '0';
+	signal clk, rst: std_ulogic := '0';
+	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -2244,14 +2244,14 @@ use ieee.numeric_std.all;
 entity debounce_us is
 	generic(clock_frequency: positive; timer_period_us: natural);
 	port(
-		clk:   in  std_logic;
-		di:    in  std_logic;
-		do:    out std_logic := '0');
+		clk:   in  std_ulogic;
+		di:    in  std_ulogic;
+		do:    out std_ulogic := '0');
 end entity;
 
 architecture rtl of debounce_us is
-	signal ff: std_logic_vector(1 downto 0) := (others => '0');
-	signal rst, done: std_logic             := '0';
+	signal ff: std_ulogic_vector(1 downto 0) := (others => '0');
+	signal rst, done: std_ulogic             := '0';
 begin
 	timer: work.util.timer_us
 		generic map(
@@ -2288,9 +2288,9 @@ end entity;
 architecture testing of debounce_us_tb is
 	constant clk_period: time     := 1000 ms / clock_frequency;
 
-	signal di,  do:  std_logic := '0';
-	signal clk, rst: std_logic := '0';
-	signal stop:     std_logic := '0';
+	signal di,  do:  std_ulogic := '0';
+	signal clk, rst: std_ulogic := '0';
+	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -2321,9 +2321,9 @@ use ieee.numeric_std.all;
 entity debounce_block_us is
 	generic(N: positive; clock_frequency: positive; timer_period_us: natural);
 	port(
-		clk:   in  std_logic;
-		di:    in  std_logic_vector(N - 1 downto 0);
-		do:    out std_logic_vector(N - 1 downto 0));
+		clk:   in  std_ulogic;
+		di:    in  std_ulogic_vector(N - 1 downto 0);
+		do:    out std_ulogic_vector(N - 1 downto 0));
 end entity;
 
 architecture structural of debounce_block_us is
@@ -2346,14 +2346,14 @@ use ieee.numeric_std.all;
 
 entity state_changed is
 	port(
-		clk: in  std_logic;
-		rst: in  std_logic;
-		di:  in  std_logic;
-		do:  out std_logic);
+		clk: in  std_ulogic;
+		rst: in  std_ulogic;
+		di:  in  std_ulogic;
+		do:  out std_ulogic);
 end entity;
 
 architecture rtl of state_changed is
-	signal state_c, state_n: std_logic_vector(1 downto 0) := (others => '0');
+	signal state_c, state_n: std_ulogic_vector(1 downto 0) := (others => '0');
 begin
 	process(clk, rst)
 	begin
@@ -2383,10 +2383,10 @@ use ieee.numeric_std.all;
 entity state_block_changed is
 	generic(N: positive);
 	port(
-		clk: in  std_logic;
-		rst: in  std_logic;
-		di:  in  std_logic_vector(N - 1 downto 0);
-		do:  out std_logic_vector(N - 1 downto 0));
+		clk: in  std_ulogic;
+		rst: in  std_ulogic;
+		di:  in  std_ulogic_vector(N - 1 downto 0);
+		do:  out std_ulogic_vector(N - 1 downto 0));
 end entity;
 
 architecture structural of state_block_changed is

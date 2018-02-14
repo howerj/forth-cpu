@@ -65,24 +65,24 @@ architecture testing of tb is
 
 	-- Test bench configurable options --
 
-	signal stop:  std_logic :=  '0';
+	signal stop:  std_ulogic :=  '0';
 	signal debug: cpu_debug_interface;
 
-	signal clk:   std_logic := '0';
-	signal rst:   std_logic := '0';
+	signal clk:   std_ulogic := '0';
+	signal rst:   std_ulogic := '0';
 
---	signal  cpu_wait: std_logic := '0'; -- CPU wait flag
+--	signal  cpu_wait: std_ulogic := '0'; -- CPU wait flag
 
 	-- Basic I/O
-	signal btnu:  std_logic := '0';  -- button up
-	signal btnd:  std_logic := '0';  -- button down
-	signal btnc:  std_logic := '0';  -- button centre
-	signal btnl:  std_logic := '0';  -- button left
-	signal btnr:  std_logic := '0';  -- button right
-	signal sw:    std_logic_vector(7 downto 0) := (others => '0'); -- switches
-	signal an:    std_logic_vector(3 downto 0) := (others => '0'); -- anodes   8 segment display
-	signal ka:    std_logic_vector(7 downto 0) := (others => '0'); -- kathodes 8 segment display
-	signal ld:    std_logic_vector(7 downto 0) := (others => '0'); -- leds
+	signal btnu:  std_ulogic := '0';  -- button up
+	signal btnd:  std_ulogic := '0';  -- button down
+	signal btnc:  std_ulogic := '0';  -- button centre
+	signal btnl:  std_ulogic := '0';  -- button left
+	signal btnr:  std_ulogic := '0';  -- button right
+	signal sw:    std_ulogic_vector(7 downto 0) := (others => '0'); -- switches
+	signal an:    std_ulogic_vector(3 downto 0) := (others => '0'); -- anodes   8 segment display
+	signal ka:    std_ulogic_vector(7 downto 0) := (others => '0'); -- kathodes 8 segment display
+	signal ld:    std_ulogic_vector(7 downto 0) := (others => '0'); -- leds
 
 	-- VGA
 	signal o_vga: vga_physical_interface;
@@ -90,32 +90,32 @@ architecture testing of tb is
 	signal vsync_gone_high: boolean := false;
 
 	-- HID
-	signal ps2_keyboard_data: std_logic := '0';
-	signal ps2_keyboard_clk:  std_logic := '0';
+	signal ps2_keyboard_data: std_ulogic := '0';
+	signal ps2_keyboard_clk:  std_ulogic := '0';
 
 	-- UART
-	signal rx:                 std_logic := '0';
-	signal tx:                 std_logic := '0';
-	signal dout_ack, dout_stb: std_logic := '0';
-	signal din_ack, din_stb:   std_logic := '0';
-	signal dout:               std_logic_vector(7 downto 0) := (others => '0');
-	signal din:                std_logic_vector(7 downto 0) := (others => '0');
+	signal rx:                 std_ulogic := '0';
+	signal tx:                 std_ulogic := '0';
+	signal dout_ack, dout_stb: std_ulogic := '0';
+	signal din_ack, din_stb:   std_ulogic := '0';
+	signal dout:               std_ulogic_vector(7 downto 0) := (others => '0');
+	signal din:                std_ulogic_vector(7 downto 0) := (others => '0');
 
 	-- Wave form generator
-	signal gen_dout:     std_logic_vector(15 downto 0) := (others => '0');
+	signal gen_dout:     std_ulogic_vector(15 downto 0) := (others => '0');
 
 	shared variable cfg: configurable_items := set_configuration_items(configuration_default);
 
 	signal configured: boolean := false;
 
-	signal RamCS:     std_logic := 'X';
-	signal MemOE:     std_logic := 'X'; -- negative logic
-	signal MemWR:     std_logic := 'X'; -- negative logic
-	signal MemAdv:    std_logic := 'X'; -- negative logic
-	signal MemWait:   std_logic := 'X'; -- positive!
-	signal FlashCS:   std_logic := 'X';
-	signal FlashRp:   std_logic := 'X';
-	signal MemAdr:    std_logic_vector(26 downto 1) := (others => 'X');
+	signal RamCS:     std_ulogic := 'X';
+	signal MemOE:     std_ulogic := 'X'; -- negative logic
+	signal MemWR:     std_ulogic := 'X'; -- negative logic
+	signal MemAdv:    std_ulogic := 'X'; -- negative logic
+	signal MemWait:   std_ulogic := 'X'; -- positive!
+	signal FlashCS:   std_ulogic := 'X';
+	signal FlashRp:   std_ulogic := 'X';
+	signal MemAdr:    std_ulogic_vector(26 downto 1) := (others => 'X');
 	signal MemDB:     std_logic_vector(15 downto 0) := (others => 'X');
 
 begin
@@ -162,7 +162,7 @@ begin
 	-- The "io_pins_tb" works correctly, however GHDL 0.29, compiled under
 	-- Windows, cannot fails to simulate this component correctly, and it
 	-- crashes. This does not affect the Linux build of GHDL. It has
-	-- something to do with 'Z' values for std_logic types.
+	-- something to do with 'Z' values for std_ulogic types.
 	--
 
 	uut_io_pins: work.util.io_pins_tb      generic map(clock_frequency => clock_frequency);
@@ -259,7 +259,7 @@ begin
 					report "" & c;
 				end if;
 				din <=
-				std_logic_vector(to_unsigned(character'pos(c), din'length));
+				std_ulogic_vector(to_unsigned(character'pos(c), din'length));
 				din_stb <= '1';
 				wait for clk_period;
 				din_stb <= '0';
@@ -280,19 +280,19 @@ begin
 		variable w: line;
 		variable count: integer := 0;
 
-		function stringify(slv: std_logic_vector) return string is
+		function stringify(slv: std_ulogic_vector) return string is
 		begin
 			return integer'image(to_integer(unsigned(slv)));
 		end stringify;
 
-		procedure element(l: inout line; we: boolean; name: string; slv: std_logic_vector) is
+		procedure element(l: inout line; we: boolean; name: string; slv: std_ulogic_vector) is
 		begin
 			if we then
 				write(l, name & "(" & stringify(slv) & ") ");
 			end if;
 		end procedure;
 
-		procedure element(l: inout line; name: string; slv: std_logic_vector) is
+		procedure element(l: inout line; name: string; slv: std_ulogic_vector) is
 		begin
 			element(l, true, name, slv);
 		end procedure;

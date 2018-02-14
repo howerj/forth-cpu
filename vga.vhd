@@ -25,23 +25,23 @@ use ieee.numeric_std.all;
 
 package vga_pkg is
 	type vga_physical_interface is record
-		red:   std_logic_vector(2 downto 0);
-		green: std_logic_vector(2 downto 0);
-		blue:  std_logic_vector(1 downto 0);
-		hsync: std_logic;
-		vsync: std_logic;
+		red:   std_ulogic_vector(2 downto 0);
+		green: std_ulogic_vector(2 downto 0);
+		blue:  std_ulogic_vector(1 downto 0);
+		hsync: std_ulogic;
+		vsync: std_ulogic;
 	end record;
 
 	type vga_control_registers_we_interface is record
-		crx: std_logic; -- Write enable for cursor X position register
-		cry: std_logic; -- Write enable for VGA control register
-		ctl: std_logic; -- Write enable for cursor Y position register
+		crx: std_ulogic; -- Write enable for cursor X position register
+		cry: std_ulogic; -- Write enable for VGA control register
+		ctl: std_ulogic; -- Write enable for cursor Y position register
 	end record;
 
 	type vga_control_registers_interface is record
-		crx:    std_logic_vector(6 downto 0); -- Cursor position X
-		cry:    std_logic_vector(5 downto 0); -- Cursor position Y
-		ctl:    std_logic_vector(4 downto 0); -- Control register
+		crx:    std_ulogic_vector(6 downto 0); -- Cursor position X
+		cry:    std_ulogic_vector(5 downto 0); -- Cursor position Y
+		ctl:    std_ulogic_vector(4 downto 0); -- Control register
 	end record;
 
 	constant vga_control_registers_initialize: vga_control_registers_interface := (
@@ -56,15 +56,15 @@ package vga_pkg is
 
 	component vga_top is
 	port(
-		clk:         in  std_logic;
-		clk25MHz:    in  std_logic;
-		rst:         in  std_logic;
+		clk:         in  std_ulogic;
+		clk25MHz:    in  std_ulogic;
+		rst:         in  std_ulogic;
 
 		-- VGA Text buffer interface
-		vga_we_ram:  in  std_logic; -- Write enable RAM
-		vga_din:     in  std_logic_vector(15 downto 0);
-		vga_addr:    in  std_logic_vector(12 downto 0);
-		vga_dout:    out std_logic_vector(15 downto 0):= (others => '0');
+		vga_we_ram:  in  std_ulogic; -- Write enable RAM
+		vga_din:     in  std_ulogic_vector(15 downto 0);
+		vga_addr:    in  std_ulogic_vector(12 downto 0);
+		vga_dout:    out std_ulogic_vector(15 downto 0):= (others => '0');
 
 		-- VGA control registers
 		i_vga_control_we: in vga_control_registers_we_interface;
@@ -75,54 +75,54 @@ package vga_pkg is
 
 	component vga_core is
 	port (
-		rst:       in  std_logic;
-		clk25MHz:  in  std_logic;
-		text_a:    out std_logic_vector(11 downto 0); -- text buffer
-		text_d:    in  std_logic_vector( 7 downto 0);
-		font_a:    out std_logic_vector(11 downto 0); -- font buffer
-		font_d:    in  std_logic_vector( 7 downto 0);
+		rst:       in  std_ulogic;
+		clk25MHz:  in  std_ulogic;
+		text_a:    out std_ulogic_vector(11 downto 0); -- text buffer
+		text_d:    in  std_ulogic_vector( 7 downto 0);
+		font_a:    out std_ulogic_vector(11 downto 0); -- font buffer
+		font_d:    in  std_ulogic_vector( 7 downto 0);
 		 --
-		ocrx:      in  std_logic_vector(6 downto 0);
-		ocry:      in  std_logic_vector(5 downto 0);
-		octl:      in  std_logic_vector(3 downto 0);
+		ocrx:      in  std_ulogic_vector(6 downto 0);
+		ocry:      in  std_ulogic_vector(5 downto 0);
+		octl:      in  std_ulogic_vector(3 downto 0);
 		--
-		foreground_draw: out std_logic;
-		background_draw: out std_logic;
-		hsync:     out std_logic;
-		vsync:     out std_logic);
+		foreground_draw: out std_ulogic;
+		background_draw: out std_ulogic;
+		hsync:     out std_ulogic;
+		vsync:     out std_ulogic);
 	end component;
 
 	component losr is
 	generic (N: positive := 4);
 	port
 	(
-		rst:  in  std_logic;
-		clk:  in  std_logic;
-		load: in  std_logic;
-		ce:   in  std_logic;
-		do:   out std_logic := '0';
-		di:   in  std_logic_vector(N - 1 downto 0));
+		rst:  in  std_ulogic;
+		clk:  in  std_ulogic;
+		load: in  std_ulogic;
+		ce:   in  std_ulogic;
+		do:   out std_ulogic := '0';
+		di:   in  std_ulogic_vector(N - 1 downto 0));
 	end component;
 
 	component ctrm is
 	generic (M: positive := 8);
 	port (
-		rst: in  std_logic; -- asynchronous rst
-		clk: in  std_logic;
-		ce:  in  std_logic; -- enable counting
-		rs:  in  std_logic; -- synchronous rst
+		rst: in  std_ulogic; -- asynchronous rst
+		clk: in  std_ulogic;
+		ce:  in  std_ulogic; -- enable counting
+		rs:  in  std_ulogic; -- synchronous rst
 		do:  out integer range (M-1) downto 0 := 0);
 	end component;
 
 	component vt100 is
 	port(
-		clk:        in  std_logic;
-		clk25MHz:   in  std_logic;
-		rst:        in  std_logic;
-		we:         in  std_logic;
-		char:       in  std_logic_vector(7 downto 0);
+		clk:        in  std_ulogic;
+		clk25MHz:   in  std_ulogic;
+		rst:        in  std_ulogic;
+		we:         in  std_ulogic;
+		char:       in  std_ulogic_vector(7 downto 0);
 
-		busy:       out std_logic;
+		busy:       out std_ulogic;
 		o_vga:      out vga_physical_interface);
 	end component;
 
@@ -130,14 +130,14 @@ package vga_pkg is
 		generic(
 			N:      positive := 16);
 		port(
-			clk:    in  std_logic;
-			rst:    in  std_logic;
-			we:     in  std_logic;
-			init:   in  std_logic;
-			char:   in  std_logic_vector(7 downto 0);
-			char_o: out std_logic_vector(7 downto 0);
-			done_o: out std_logic;
-			ready:  out std_logic;
+			clk:    in  std_ulogic;
+			rst:    in  std_ulogic;
+			we:     in  std_ulogic;
+			init:   in  std_ulogic;
+			char:   in  std_ulogic_vector(7 downto 0);
+			char_o: out std_ulogic_vector(7 downto 0);
+			done_o: out std_ulogic;
+			ready:  out std_ulogic;
 			n_o:    out unsigned(N - 1 downto 0));
 	end component;
 
@@ -161,14 +161,14 @@ entity accumulator is
 	generic(
 		N:      positive := 16);
 	port(
-		clk:    in  std_logic;
-		rst:    in  std_logic;
-		we:     in  std_logic;
-		init:   in  std_logic;
-		char:   in  std_logic_vector(7 downto 0);
-		char_o: out std_logic_vector(7 downto 0);
-		done_o: out std_logic;
-		ready:  out std_logic;
+		clk:    in  std_ulogic;
+		rst:    in  std_ulogic;
+		we:     in  std_ulogic;
+		init:   in  std_ulogic;
+		char:   in  std_ulogic_vector(7 downto 0);
+		char_o: out std_ulogic_vector(7 downto 0);
+		done_o: out std_ulogic;
+		ready:  out std_ulogic;
 		n_o:    out unsigned(N - 1 downto 0));
 end entity;
 
@@ -179,7 +179,7 @@ architecture rlt of accumulator is
 	signal n_c, n_n: unsigned(n_o'range)  := (others => '0');
 	signal f_c, f_n: boolean              := true;
 begin
-	char_o <= std_logic_vector(c_c);
+	char_o <= std_ulogic_vector(c_c);
 	n_o    <= n_c;
 	ready  <= '1' when state_c = WAITING else '0';
 
@@ -269,13 +269,13 @@ use work.vga_pkg.all;
 
 entity vt100 is
 	port(
-		clk:        in  std_logic;
-		clk25MHz:   in  std_logic;
-		rst:        in  std_logic;
-		we:         in  std_logic;
-		char:       in  std_logic_vector(7 downto 0);
+		clk:        in  std_ulogic;
+		clk25MHz:   in  std_ulogic;
+		rst:        in  std_ulogic;
+		we:         in  std_ulogic;
+		char:       in  std_ulogic_vector(7 downto 0);
 
-		busy:       out std_logic;
+		busy:       out std_ulogic;
 		o_vga:      out vga_physical_interface);
 end entity;
 
@@ -303,11 +303,11 @@ architecture rtl of vt100 is
 	constant attr_default: unsigned(7 downto 0) := "00111000";
 	constant ctl_default:  unsigned(4 downto 0) := "01111";
 
-	signal addr:           std_logic_vector(12 downto 0) := (others => '0');
-	signal data_we:        std_logic                     := '0';
-	signal x:              std_logic_vector(6 downto 0)  := (others => '0');
-	signal y:              std_logic_vector(5 downto 0)  := (others => '0');
-	signal cursor_we:      std_logic                     := '0';
+	signal addr:           std_ulogic_vector(12 downto 0) := (others => '0');
+	signal data_we:        std_ulogic                     := '0';
+	signal x:              std_ulogic_vector(6 downto 0)  := (others => '0');
+	signal y:              std_ulogic_vector(5 downto 0)  := (others => '0');
+	signal cursor_we:      std_ulogic                     := '0';
 
 	signal x_n, x_c:       unsigned(x'range)    := (others => '0');
 	signal y_n, y_c:       unsigned(y'range)    := (others => '0');
@@ -338,11 +338,11 @@ architecture rtl of vt100 is
 	signal count_c, count_n:    unsigned(addr'range) := (others => '0');
 	signal limit_c, limit_n:    unsigned(addr'high - 3 downto 0) := (others => '0');
 
-	signal akk_done_o:  std_logic := '0';
-	signal akk_ready_o: std_logic := '0';
-	signal akk_init:    std_logic := '0';
+	signal akk_done_o:  std_ulogic := '0';
+	signal akk_ready_o: std_ulogic := '0';
+	signal akk_init:    std_ulogic := '0';
 	signal n_o:         unsigned(number - 1 downto 0) := (others => '0');
-	signal akk_char_o:  std_logic_vector(char'range)  := (others => '0');
+	signal akk_char_o:  std_ulogic_vector(char'range)  := (others => '0');
 begin
 	accumulator_0: work.vga_pkg.accumulator
 		generic map(N => number)
@@ -363,7 +363,7 @@ begin
 	begin
 		mul      <= to_unsigned(to_integer(y_c) * width, mul'length);
 		addr_int <= mul(addr_int'range) + ("000000" & x_c);
-		addr     <= std_logic_vector(addr_int) when state_c /= ERASING else std_logic_vector(count_c);
+		addr     <= std_ulogic_vector(addr_int) when state_c /= ERASING else std_ulogic_vector(count_c);
 	end block;
 
 	x_minus_one         <= x_c - 1;
@@ -386,18 +386,18 @@ begin
 				       or state_c = NUMBER2 else '1';
 
 	vga_blk: block
-		signal vga_din:    std_logic_vector(15 downto 0)      := (others => '0');
+		signal vga_din:    std_ulogic_vector(15 downto 0)      := (others => '0');
 		signal vga_ctr_we: vga_control_registers_we_interface := vga_control_registers_we_initialize;
 		signal vga_ctr:    vga_control_registers_interface    := vga_control_registers_initialize;
 		signal attr:       unsigned(attr_c'range)             := attr_default;
-		signal char:       std_logic_vector(c_c'range)        := (others => '0');
+		signal char:       std_ulogic_vector(c_c'range)        := (others => '0');
 	begin
-		char           <= x"2a" when conceal_c else std_logic_vector(c_c);
+		char           <= x"2a" when conceal_c else std_ulogic_vector(c_c);
 		attr           <= attr_c when state_c /= ERASING else attr_default;
-		vga_din        <= std_logic_vector(attr) & char;
-		vga_ctr.crx    <= std_logic_vector(x_plus_one);
-		vga_ctr.cry    <= std_logic_vector(y_c);
-		vga_ctr.ctl    <= std_logic_vector(ctl_c);
+		vga_din        <= std_ulogic_vector(attr) & char;
+		vga_ctr.crx    <= std_ulogic_vector(x_plus_one);
+		vga_ctr.cry    <= std_ulogic_vector(y_c);
+		vga_ctr.ctl    <= std_ulogic_vector(ctl_c);
 		vga_ctr_we.crx <= cursor_we;
 		vga_ctr_we.cry <= cursor_we;
 		vga_ctr_we.ctl <= cursor_we;
@@ -695,15 +695,15 @@ use work.util.FILE_BINARY;
 
 entity vga_top is
 	port(
-		clk:              in  std_logic;
-		clk25MHz:         in  std_logic;
-		rst:              in  std_logic;
+		clk:              in  std_ulogic;
+		clk25MHz:         in  std_ulogic;
+		rst:              in  std_ulogic;
 
 		-- VGA Text buffer interface
-		vga_we_ram:       in  std_logic; -- Write enable RAM
-		vga_din:          in  std_logic_vector(15 downto 0);
-		vga_addr:         in  std_logic_vector(12 downto 0);
-		vga_dout:         out std_logic_vector(15 downto 0) := (others => '0');
+		vga_we_ram:       in  std_ulogic; -- Write enable RAM
+		vga_din:          in  std_ulogic_vector(15 downto 0);
+		vga_addr:         in  std_ulogic_vector(12 downto 0);
+		vga_dout:         out std_ulogic_vector(15 downto 0) := (others => '0');
 
 		-- VGA control registers
 		i_vga_control_we: in vga_control_registers_we_interface;
@@ -727,32 +727,32 @@ architecture behav of vga_top is
 	constant font_file_type:   file_format := FILE_BINARY;
 
 	-- Internal signals for mapping output <--> VGA module
-	signal  foreground_draw_internal:      std_logic := '0';
+	signal  foreground_draw_internal:      std_ulogic := '0';
 
 	-- Text RAM signals, RAM <--> VGA module
-	signal  text_dout:       std_logic_vector(15 downto 0) := (others => '0');
-	signal  text_din:        std_logic_vector(15 downto 0) := (others => '0');
-	signal  text_addr:       std_logic_vector(11 downto 0) := (others => '0');
-	signal  text_addr_full:  std_logic_vector(12 downto 0) := (others => '0');
+	signal  text_dout:       std_ulogic_vector(15 downto 0) := (others => '0');
+	signal  text_din:        std_ulogic_vector(15 downto 0) := (others => '0');
+	signal  text_addr:       std_ulogic_vector(11 downto 0) := (others => '0');
+	signal  text_addr_full:  std_ulogic_vector(12 downto 0) := (others => '0');
 
 	-- Font ROM signals, ROM<-->VGA module
-	signal  font_addr:       std_logic_vector(11 downto 0) := (others => '0');
-	signal  font_dout:       std_logic_vector( 7 downto 0) := (others => '0');
+	signal  font_addr:       std_ulogic_vector(11 downto 0) := (others => '0');
+	signal  font_dout:       std_ulogic_vector( 7 downto 0) := (others => '0');
 
 	signal  control_c, control_n: vga_control_registers_interface := vga_control_registers_initialize;
 
-	signal  foreground_draw: std_logic := '0';
-	signal  background_draw: std_logic := '0';
+	signal  foreground_draw: std_ulogic := '0';
+	signal  background_draw: std_ulogic := '0';
 begin
 
 	color_block: block
-		signal red_on:   std_logic := '0';
-		signal green_on: std_logic := '0';
-		signal blue_on:  std_logic := '0';
-		signal bold:     std_logic := '0';
-		signal reverse:  std_logic := '0';
-		signal set:      std_logic_vector(2 downto 0) := "110";
-		signal final:    std_logic_vector(2 downto 0) := "111";
+		signal red_on:   std_ulogic := '0';
+		signal green_on: std_ulogic := '0';
+		signal blue_on:  std_ulogic := '0';
+		signal bold:     std_ulogic := '0';
+		signal reverse:  std_ulogic := '0';
+		signal set:      std_ulogic_vector(2 downto 0) := "110";
+		signal final:    std_ulogic_vector(2 downto 0) := "111";
 	begin
 		bold        <= text_dout(14);
 		reverse     <= text_dout(15);
@@ -871,30 +871,30 @@ use work.vga_pkg.losr;
 
 entity vga_core is
 	port (
-		rst:      in  std_logic;
-		clk25MHz: in  std_logic;
-		text_a:   out std_logic_vector(11 downto 0); -- text buffer
-		text_d:   in  std_logic_vector( 7 downto 0);
-		font_a:   out std_logic_vector(11 downto 0); -- font buffer
-		font_d:   in  std_logic_vector( 7 downto 0);
+		rst:      in  std_ulogic;
+		clk25MHz: in  std_ulogic;
+		text_a:   out std_ulogic_vector(11 downto 0); -- text buffer
+		text_d:   in  std_ulogic_vector( 7 downto 0);
+		font_a:   out std_ulogic_vector(11 downto 0); -- font buffer
+		font_d:   in  std_ulogic_vector( 7 downto 0);
 		 --
-		ocrx:     in  std_logic_vector(6 downto 0);
-		ocry:     in  std_logic_vector(5 downto 0);
-		octl:     in  std_logic_vector(3 downto 0);
+		ocrx:     in  std_ulogic_vector(6 downto 0);
+		ocry:     in  std_ulogic_vector(5 downto 0);
+		octl:     in  std_ulogic_vector(3 downto 0);
 		--
-		foreground_draw: out std_logic; -- If '1', we should draw the character
-		background_draw: out std_logic;
-		hsync:     out std_logic;
-		vsync:     out std_logic);
+		foreground_draw: out std_ulogic; -- If '1', we should draw the character
+		background_draw: out std_ulogic;
+		hsync:     out std_ulogic;
+		vsync:     out std_ulogic);
 end entity;
 
 architecture rtl of vga_core is
 
-	signal foreground_draw_int, background_draw_int: std_logic := '0';
-	signal hsync_int: std_logic := '1';
-	signal vsync_int: std_logic := '1';
+	signal foreground_draw_int, background_draw_int: std_ulogic := '0';
+	signal hsync_int: std_ulogic := '1';
+	signal vsync_int: std_ulogic := '1';
 
-	signal blank: std_logic := '0';
+	signal blank: std_ulogic := '0';
 	signal hctr:  integer range 793 downto 0 := 0;
 	signal vctr:  integer range 524 downto 0 := 0;
 
@@ -904,17 +904,17 @@ architecture rtl of vga_core is
 	signal chry:  integer range 11 downto 0 := 0;  -- chr high  < 12 (4 bits)
 	signal chrx:  integer range 7  downto 0 := 0;  -- chr width < 08 (3 bits)
 
-	signal losr_ce: std_logic := '0';
-	signal losr_ld: std_logic := '0';
-	signal losr_do: std_logic := '0';
-	signal y:       std_logic := '0';  -- character luminance pixel value (0 or 1)
+	signal losr_ce: std_ulogic := '0';
+	signal losr_ld: std_ulogic := '0';
+	signal losr_do: std_ulogic := '0';
+	signal y:       std_ulogic := '0';  -- character luminance pixel value (0 or 1)
 
 	-- control io register
-	signal ctl:       std_logic_vector(7 downto 0):= (others =>'0');
-	signal vga_en:    std_logic := '0';
-	signal cur_en:    std_logic := '0';
-	signal cur_mode:  std_logic := '0';
-	signal cur_blink: std_logic := '0';
+	signal ctl:       std_ulogic_vector(7 downto 0):= (others =>'0');
+	signal vga_en:    std_ulogic := '0';
+	signal cur_en:    std_ulogic := '0';
+	signal cur_mode:  std_ulogic := '0';
+	signal cur_blink: std_ulogic := '0';
 
 begin
 
@@ -972,24 +972,24 @@ begin
 	-- counters, hctr, vctr, srcx, srcy, chrx, chry
 	counters: block
 
-		signal hctr_ce: std_logic := '0';
-		signal hctr_rs: std_logic := '0';
-		signal vctr_ce: std_logic := '0';
-		signal vctr_rs: std_logic := '0';
+		signal hctr_ce: std_ulogic := '0';
+		signal hctr_rs: std_ulogic := '0';
+		signal vctr_ce: std_ulogic := '0';
+		signal vctr_rs: std_ulogic := '0';
 
-		signal chrx_ce: std_logic := '0';
-		signal chrx_rs: std_logic := '0';
-		signal chry_ce: std_logic := '0';
-		signal chry_rs: std_logic := '0';
-		signal scrx_ce: std_logic := '0';
-		signal scrx_rs: std_logic := '0';
-		signal scry_ce: std_logic := '0';
-		signal scry_rs: std_logic := '0';
+		signal chrx_ce: std_ulogic := '0';
+		signal chrx_rs: std_ulogic := '0';
+		signal chry_ce: std_ulogic := '0';
+		signal chry_rs: std_ulogic := '0';
+		signal scrx_ce: std_ulogic := '0';
+		signal scrx_rs: std_ulogic := '0';
+		signal scry_ce: std_ulogic := '0';
+		signal scry_rs: std_ulogic := '0';
 
-		signal hctr_639: std_logic := '0';
-		signal vctr_479: std_logic := '0';
-		signal chrx_007: std_logic := '0';
-		signal chry_011: std_logic := '0';
+		signal hctr_639: std_ulogic := '0';
+		signal vctr_479: std_ulogic := '0';
+		signal chrx_007: std_ulogic := '0';
+		signal chry_011: std_ulogic := '0';
 
 		-- RAM read, ROM read
 		signal ram_tmp: unsigned(11 downto 0) := (others => '0'); -- range 3199 downto 0
@@ -1030,10 +1030,10 @@ begin
 				(to_unsigned(scry,ram_tmp'length) sll 6) +
 				to_unsigned(scrx,ram_tmp'length);
 
-		text_a  <= std_logic_vector(ram_tmp);
+		text_a  <= std_ulogic_vector(ram_tmp);
 		mul     <= unsigned(text_d) * 12;
 		rom_tmp <= mul(rom_tmp'range) + chry;
-		font_a  <= std_logic_vector(rom_tmp);
+		font_a  <= std_ulogic_vector(rom_tmp);
 	end block;
 
 	u_losr: work.vga_pkg.losr generic map (N => 8)
@@ -1051,11 +1051,11 @@ begin
 
 	-- Hardware Cursor
 	hw_cursor: block
-		signal small:   std_logic := '0';
-		signal curen2:  std_logic := '0';
-		signal slowclk: std_logic := '0';
-		signal curpos:  std_logic := '0';
-		signal yint:    std_logic := '0';
+		signal small:   std_ulogic := '0';
+		signal curen2:  std_ulogic := '0';
+		signal slowclk: std_ulogic := '0';
+		signal curpos:  std_ulogic := '0';
+		signal yint:    std_ulogic := '0';
 		signal crx:     integer range 79 downto 0;
 		signal cry:     integer range 39 downto 0;
 		signal counter: unsigned(22 downto 0) := (others => '0');
@@ -1094,10 +1094,10 @@ use ieee.numeric_std.all;
 entity ctrm is
 	generic (M: positive := 8);
 	port (
-		rst: in  std_logic; -- asynchronous rst
-		clk: in  std_logic;
-		ce:  in  std_logic; -- enable counting
-		rs:  in  std_logic; -- synchronous rst
+		rst: in  std_ulogic; -- asynchronous rst
+		clk: in  std_ulogic;
+		ce:  in  std_ulogic; -- enable counting
+		rs:  in  std_ulogic; -- synchronous rst
 		do:  out integer range (M-1) downto 0 := 0);
 end ctrm;
 
@@ -1138,18 +1138,18 @@ entity losr is
 	generic (N: positive := 4);
 	port
 	(
-		rst:  in  std_logic;
-		clk:  in  std_logic;
-		load: in  std_logic;
-		ce:   in  std_logic;
-		do:   out std_logic := '0';
-		di:   in  std_logic_vector(N - 1 downto 0));
+		rst:  in  std_ulogic;
+		clk:  in  std_ulogic;
+		load: in  std_ulogic;
+		ce:   in  std_ulogic;
+		do:   out std_ulogic := '0';
+		di:   in  std_ulogic_vector(N - 1 downto 0));
 end losr;
 
 architecture rtl of losr is
 begin
 	process(rst, clk)
-		variable data : std_logic_vector(N - 1 downto 0) := (others => '0');
+		variable data : std_ulogic_vector(N - 1 downto 0) := (others => '0');
 	begin
 		if rst = '1' then
 			data := (others => '0');
