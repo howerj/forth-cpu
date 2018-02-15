@@ -920,13 +920,13 @@ things, the 'decompiler' word could be called manually on an address if desired 
 \ work correctly at the moment
 
 ( @bug Interrupts work in simulation but not in hardware )
-variable icount 0
+variable #irq 0
 
 : doIrq 
 	0 ien drop
 	switches led!
-	icount 1+!
-	icount @ segments!
+	#irq 1+!
+	#irq @ segments!
         1 ien drop ; hidden
 
 irqTask: doIrq nop exit 
@@ -939,7 +939,7 @@ irqTask: doIrq nop exit
 .set 12 irqTask
 .set 14 irqTask
 
-: irq $0040 oIrcMask !  $efff oTimerCtrl !  1 ien drop ;
+: irq $0040 oIrcMask ! $efff oTimerCtrl !  1 ien drop ;
 
 
 \ : irqTest2

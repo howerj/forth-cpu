@@ -308,13 +308,10 @@ begin
 			rstk_data <= "00" & pc_c & "0";
 		elsif is_instr.lit = '1' then
 			assert to_integer(vstkp_c) + 1 < stack_size;
-
 			vstkp_n   <= vstkp_c + 1;
-			rstk_data <= "00" & pc_plus_one & "0";
 		elsif is_instr.alu = '1' then
 			assert (not insn(6) = '1') or ((to_integer(rstkp_c) + to_integer(signed(rd))) < stack_size);
 			assert                        ((to_integer(vstkp_c) + to_integer(signed(dd))) < stack_size);
-
 			rstk_we   <= insn(6);
 			rstk_data <= tos_c;
 			vstkp_n   <= vstkp_c + unsigned(dd);
@@ -324,7 +321,6 @@ begin
 		elsif is_instr.call = '1' then
 			rstkp_n   <= rstkp_c + 1;
 			rstk_we   <= '1';
-			rstk_data <= "00" & pc_plus_one & "0";
 		end if;
 	end process;
 
