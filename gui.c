@@ -1,8 +1,10 @@
 /**@file      gui.c
- * @brief     Simulate the H2 SoC peripherals visually
+ * @brief     GUI Simulator for the H2 SoC 
  * @copyright Richard James Howe (2017)
  * @license   MIT
  *
+ * @todo Implement reset/reload, and save/load state
+ * @todo Implement button interrupts
  * @todo A terminal emulator as a separate program could be hacked together
  * from the components in this module, this would be a separate program.*/
 
