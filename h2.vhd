@@ -301,17 +301,15 @@ begin
 		rstk_data <= "00" & pc_plus_one & "0";
 
 		if stop = '1' then -- Do nothing
-			rstk_we   <= '0';
-			rstk_data <= (others => '0');
+			null;
 		elsif is_interrupt = '1' then -- Interrupts are similar to a call
 			rstkp_n   <= rstkp_c + 1;
 			rstk_we   <= '1';
-			rstk_data <= "00" & pc_plus_one & "0";
+			rstk_data <= "00" & pc_c & "0";
 		elsif is_instr.lit = '1' then
 			assert to_integer(vstkp_c) + 1 < stack_size;
 
 			vstkp_n   <= vstkp_c + 1;
-			rstk_we   <= '0';
 			rstk_data <= "00" & pc_plus_one & "0";
 		elsif is_instr.alu = '1' then
 			assert (not insn(6) = '1') or ((to_integer(rstkp_c) + to_integer(signed(rd))) < stack_size);
@@ -352,12 +350,11 @@ begin
 			pc_n       <= (others => '0');
 			pc_n(irq_addr'range) <= irq_addr_c;
 		else -- Update PC on normal operations
+			pc_n <=  pc_plus_one;
 			if is_instr.branch = '1' or (is_instr.branch0 = '1' and compare.zero = '1') or is_instr.call = '1' then
 				pc_n <=  insn(12 downto 0);
 			elsif is_instr.alu = '1' and insn(4) = '1' then
 				pc_n <=  rtos_c(13 downto 1);
-			else
-				pc_n <=  pc_plus_one;
 			end if;
 		end if;
 	end process;

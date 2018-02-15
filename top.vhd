@@ -173,21 +173,22 @@ begin
 		tx_fifo_not_empty <= not rx_fifo_empty;
 
 		cpu_irc(0) <= '0';
-		cpu_irc(1) <= rx_fifo_not_empty;
-		cpu_irc(2) <= rx_fifo_full;
-		cpu_irc(3) <= tx_fifo_not_empty;
-		cpu_irc(4) <= tx_fifo_full;
-		cpu_irc(5) <= kbd_char_buf_new;
+		-- @todo Change these to edge triggered 
+		-- cpu_irc(1) <= rx_fifo_not_empty;
+		-- cpu_irc(2) <= rx_fifo_full;
+		-- cpu_irc(3) <= tx_fifo_not_empty;
+		-- cpu_irc(4) <= tx_fifo_full;
+		-- cpu_irc(5) <= kbd_char_buf_new;
 		cpu_irc(6) <= timer_irq;
 		cpu_irc(7) <= button_changed;
 
 		cpu_irq    <= '1' when
 				timer_irq         = '1' or
-				rx_fifo_not_empty = '1' or
-				rx_fifo_full      = '1' or
-				tx_fifo_not_empty = '1' or
-				tx_fifo_full      = '1' or
-				kbd_char_buf_new  = '1' or
+			--	rx_fifo_not_empty = '1' or
+			--	rx_fifo_full      = '1' or
+			--	tx_fifo_not_empty = '1' or
+			--	tx_fifo_full      = '1' or
+			--	kbd_char_buf_new  = '1' or
 				button_changed    = '1'
 				else '0';
 	end block;

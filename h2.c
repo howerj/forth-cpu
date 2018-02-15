@@ -15,6 +15,8 @@
  * metacompiler could be retargeted for the H2 processor instead of its own
  * 16-bit virtual machine. This should cut down on program size and increase
  * functionality.
+ * @todo Allow state to be saved/loaded by serializing the objects within
+ * here. This would allow the simulation state to be saved and resumed.
  */
 
 /* ========================== Preamble: Types, Macros, Globals ============= */
@@ -1130,7 +1132,7 @@ static int terminal_escape_sequences(vt100_t *t, uint8_t c)
 				goto success;
 			case 'H':
 			case 'f':
-				terminal_at_xy(t, t->n2, t->n1, true);
+				terminal_at_xy(t, MIN(t->n2-1,t->n2), MIN(t->n1-1,t->n1), true);
 				goto success;
 			}
 			goto fail;

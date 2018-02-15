@@ -105,10 +105,10 @@ This file is first converted by a utility into a fixed width
 format, which can then be loaded onto the target board with
 the same utility used to uploaded the bitfile to the FPGA.
 
-Form feeds are used to mark the boundaries between blocks,
-this does not have any special significance and is only there
-to make editing easier. Line lengths are limited to 64
-characters wide, each block contains 16 lines.
+Line lengths are limited to 64 characters wide, each block 
+contains 16 lines. The first line should contain a 
+description of the block so that when it is displayed with
+'index' a glossary can be viewed, allowing quick navigation.
 
 ; ==== Scratch Block ===========================================
 
@@ -437,7 +437,7 @@ $40 constant c/l $10 constant l/b
   cr .score space .level cr ;
 
 : select ( n -- c )
-  dup 0=  if drop $3c ( < ) exit then
+  dup 0=  if drop [char] <  exit then
   dup 1 = if drop [char] ~  exit then
   dup 2 = if drop [char] .  exit then
   drop bl ;
@@ -1098,10 +1098,10 @@ notice the stack comments describe both stacks here:
 * Throw/Catch
 * How Forth is implemented
 * Add appendixes for ASCII character set, ANSI terminal
-codes supported.
-
-
-
+codes supported, the Nexy3 board, twos compliment format,
+list of characters supported, etcetera.
+* A short dictionary of English words, or a short
+encyclopedia could be made and stored in blocks
 ; ==== Block Editor Help 1/5 ===================================
 
 The traditional way to store Forth source code and data is as
@@ -1256,15 +1256,15 @@ should be documented here.
 Hexadecimal and decimal numbers are used, and which base is
 in operation should be inferred from context.
 
-
-
-
-
-
-
+The glossary shows how blocks can be used as a way to
+organize information, a concise description (that if needs
+be could span multiple blocks) describes each word. The first
+line can be used to create a table of contents with 'index'.
+This way of organizing blocks maps well onto dictionaries,
+encyclopedias, and all alphabetically organizable information.
 ; ==== <  ( n1 n2 -- f : signed less than ) ====================
-Signed less than, this is an assembly word primitive that is
-inlined when it is compiled into a word.
+Signed less than.
+
 
 
 
@@ -1327,7 +1327,9 @@ are equal.
 
 
 ; ==== >  ( n1 n2 -- f : signed greater than ) =================
-signed greater than
+Signed greater than, if 'n1' is greater than 'n2' true (-1) is
+returned, else false (0) is returned. This operates on signed
+numbers stored in twos compliment format.
 
 
 
@@ -1340,11 +1342,9 @@ signed greater than
 
 
 
+; ==== -  ( n1 n2 -- n : subtraction ) =========================
+This is word performs subtraction of 'n2' from 'n1'.
 
-
-; ==== -  ( n1 n2 -- n : twos compliment subtraction ) =========
-This is a word performs subtraction on two numbers in twos
-compliment format.
 
 
 
@@ -1391,19 +1391,19 @@ Example:
    :noname 9 . ; execute ( <-- prints 9 )
 
 ; ==== :  ( -- ; <string> : start a word definition ) ==========
-Start a word definition.
+':' is a complex word that does many things. It is not an
+immediate word, but it is a parsing word that reads in the
+next space delimited word and compiles a word header into the
+dictionary. It also switches the interpreter state into compile
+mode, until switched back non-immediate words will now be
+compiled into this word definition and numbers compiled into
+it as literals. ':' is how most new words (or functions) are
+defined within Forth. The word ';' should also be consulted.
 
+Usage
 
-
-
-
-
-
-
-
-
-
-
+  : example 2 + . cr ; ( <- makes a new word called 'example' )
+  2 example            ( <- the new word prints '4' )
 
 
 ; ==== !  ( u a -- : store 'u' at address 'a' ) ================
@@ -1475,31 +1475,31 @@ This word is an immediate word that compiles a string into a
 word definition (it should only be used from within a word
 definition). When the word is run it will print out the string.
 
-The string is terminated by a double quote.
+The string is terminated by a double quote. A version of this
+word which does no printing but instead returns a pointer to
+a counted string is available, and it is called '$"'.
 
+Usage:
 
-
-
-
-
-
-
+  : hello cr ." Hello, World! " cr ;
+  hello
+  Hello, World! ( <- 'Hello, World!' is printed )
 
 
 ; ==== .(  ( -- ; <string> : print out line until ')' ) ========
 This word prints out a string until the matching ')' is
-encountered. It is not an immediate word.
+encountered. It is not an immediate word. It is a parsing
+word.
 
 
 
 
 
 
+Usage:
 
-
-
-
-
+  .( Hello, World! ) cr
+  Hello, World!  ( <- 'Hello, World!' is printed )
 
 
 ; ==== '  ( -- xt ; <string> : return a word execution token ) =
@@ -1775,8 +1775,8 @@ Usage:
 
 
 ; ==== 1-  ( u -- u : decrement u ) ============================
-This is an assembly word that is inlined when compiled into a
-word definition, it decrements a value.
+'1-' decrements the top most stack item.
+
 
 
 
@@ -2031,9 +2031,9 @@ which may break things.
 
 
 ; ==== and  ( u1 u2 -- u3 : bitwise and of two numbers ) =======
-This performs a bitwise and on two numbers, this is an
-assembly primitive that is inlined when it is compiled into a
-word.
+This performs a bitwise and on two numbers.
+
+
 
 
 
@@ -2671,10 +2671,10 @@ stack as the name suggests.
 
 
 ; ==== drop  ( u -- : drop a value ) ===========================
-'drop' is a simple assembly instruction that will be inlined
-as a single instruction when compiled into a word. It simply
-pops off and discards the topmost value on the variable stack.
-'rdrop' is the return stack equivalent.
+'drop' simply pops off and discards the topmost value on the 
+variable stack.  'rdrop' is the return stack equivalent.
+
+
 
 
 
@@ -2783,15 +2783,15 @@ to discard any changes made to any currently loaded blocks.
 
 
 ; ==== evaluate  ( a u -- : evaluate block of memory ) =========
+'evaluate' takes a string specified by an address 'a' and a
+length 'u' and evaluates it as if it were typed in by the
+user. 'source-id' is set to '-1' for the duration of this
+so code can work out it is being evaluated and not typed in.
 
+Usage:
 
-
-
-
-
-
-
-
+  : s1 $" 2 2 + . cr " count ;
+  s1 evaluate ( prints '4' )
 
 
 
@@ -2911,18 +2911,18 @@ Example:
 
 
 ; ==== flash  ( -- : add flash words to search order ) =========
+The flash related word set requires its own glossary and
+description. It is for manipulating the onboard memory, not
+just the Flash chip on the Nexys3 but the SRAM as well (as
+both devices share data, address and most control lines).
 
+The startup sequences loads blocks from Flash to SRAM, the
+SRAM can be modified freely, but committing data to Flash is
+a manual process as erasing and writing to Flash too many times
+can cause it to wear out.
 
-
-
-
-
-
-
-
-
-
-
+The source code should be consulted for a list of the memory
+related words, their usage and other such information.
 
 
 
@@ -2991,10 +2991,10 @@ Example:
 
 
 ; ==== get-order  ( -- vn...v0 u : get search order ) ==========
-
-
-
-
+'get-order' is the counter part to 'set-order', it takes a
+variable number of arguments off of the stack, denoted by 'u',
+which each represent a word list. It used for inspecting the
+current search order in use by the interpreter.
 
 
 
@@ -3039,6 +3039,8 @@ Usage:
 
 
 ; ==== hi  ( -- : initialize and login to system ) =============
+'hi' initializes the system and calls the routine that prints
+the login prompt.
 
 
 
@@ -3052,14 +3054,12 @@ Usage:
 
 
 
-
-
-; ==== hld  ( -- : hold variable for pictured numeric output ) =
-
-
-
-
-
+; ==== hld ( -- a : hold count for pictured numeric output ) ===
+'hld' is a variable which contains the current hold count for
+the pictured numeric output. As characters are added to the
+output buffer with the word 'hold', this value is increment. It
+is reset by '<#'. The value for 'hld' may actually be a count
+or a pointer.
 
 
 
@@ -3071,19 +3071,19 @@ Usage:
 
 
 ; ==== hold  ( c -- : put byte into numeric output string ) ====
+'hold' puts a byte into the hold buffer, which is used by the
+Pictured Numeric Output (PNO) routines as a temporary buffer to
+create a string that represents the number to be output. The
+PNO related routines include; 'hold', 'hld', '<#', '#', '#s',
+and '#>'. They are used by words like '.' and 'u.'. The
+hold buffer is not that large, at has a minimum size of eighty
+characters, so should not be used for large strings.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
+  : (u.u) <# # # [char] . hold # # #> ;
+  : u.u base @ >r hex (u.u) type r> base ! ;
+  $1234 u.u ( prints '12.34' )
 
 
 ; ==== ien  ( f -- f : set interrupt flag ) ====================
@@ -3215,17 +3215,17 @@ index of the blocks.
 
 
 ; ==== invert  ( u -- u : bitwise invert ) =====================
-Performs a bitwise invert on a number. This is implemented as an
-assembly instruction that is inlined when compiled into a word.
+'invert' performs a bitwise invert on a number. For a
+twos compliment negation see 'negate'.
 
 
+Usage:
 
-
-
-
-
-
-
+  hex
+     0 invert . ( prints 'FFFF' )
+     4 invert . ( prints 'FFFB' )
+  FFFF invert . ( prints '0' )
+  AAAA invert . ( prints '5555' )
 
 
 
@@ -3320,11 +3320,11 @@ display the block line by line without formatting. It is true
 by default. 'list' will also call 'page' before it displays
 the block if 'border' contains a non-zero value.
 
+Usage:
 
-
-
-
-
+   1 list
+   2 list
+   ( ..ad infinitum )
 
 ; ==== literal  ( n -- : compile literal into dictionary ) =====
 This is an immediate word that compiles a number into the
@@ -3332,10 +3332,10 @@ dictionary. A number takes up between one and two cells in the
 dictionary (negative numbers take up two space, positive only
 one). It is a compile only word.
 
+Usage:
 
-
-
-
+  : example [ 2 2 + ] literal ;
+  example . ( prints '4' )
 
 
 
@@ -3407,10 +3407,10 @@ This performs a logical left shift on 'u1' by 'u2'.
 
 
 ; ==== max  ( n1 n2 -- n3: maximum of two numbers ) ============
-This returns the maximum of two signed numbers.
-
-
-
+This returns the maximum of two signed numbers. This is a
+signed operation! Some Forths define an unsigned version
+called 'umax'. See 'min' for the minimum of two signed
+numbers.
 
 
 
@@ -3486,11 +3486,11 @@ Usage:
 
 
 
-; ==== /mod  ( n1 n2 -- r q : remainder/divisor ) ==============
-
-
-
-
+; ==== /mod  ( n1 n2 -- r q : remainder/quotient ) =============
+'/mod' divides 'n1' by 'n2' and returns the remainder ('r') 
+and the quotient ('q') of that operation. Given '/mod', the
+definitions of 'mod' and '/' naturally follow. They are
+actually all implemented in the far more useful 'um/mod' word.
 
 
 
@@ -3526,12 +3526,12 @@ same).
 
 
 
+Usage:
 
-
-
-
-
-
+  decimal
+   1 negate . ( '-1' )
+   0 negate . ( '0' )
+  -4 negate . ( '4' )
 
 
 ; ==== next  ( -- : part of for...next loop ) ==================
@@ -3551,8 +3551,8 @@ same).
 
 
 ; ==== nip  ( n1 n2 -- n1 : remove second value on stack ) =====
-
-
+The stack comment describes this word perfectly, 'nip' removes
+the secondmost item on the stack, leaving the topmost intact.
 
 
 
@@ -3573,14 +3573,14 @@ function. The word can be executed with the 'execute' function.
 
 
 
+Usage:
 
-
-
-
-
-
-
-
+  :noname 2 2 + ; execute . ( prints '4' )
+  : (;) ' rdrop compile, 0 state ! ;
+  : compose >r >r :noname r> compile, r> compile, (;) ;
+  : x 2 2 ;
+  : y + . ;
+  ' x ' y compose execute ( prints '4' )
 
 ; ==== nuf?  ( -- f : true if 'cr' character pressed ) =========
 'nuf?' is a non blocking input word that returns true if a
@@ -3631,9 +3631,9 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== or  ( u1 u2 -- u3: bitwise or of two numbers ) ==========
-'or' performs the bitwise 'or' of two numbers, it is an 
-assembly routine so it inlined into the dictionary as a single
-instruction instead of a call when it is compiled into a word.
+'or' performs the bitwise 'or' of two numbers.
+
+
 
 
 
@@ -3743,9 +3743,9 @@ Usage:
   22 33 44 1 pick . ( prints '33' )
   22 33 44 2 pick . ( prints '22' )
 ; ==== query  ( -- : get line of input ) =======================
-
-
-
+'query' gets a new line of input from the current input device,
+and places that line in the Terminal Input Buffer, which can
+be accessed by 'source'.
 
 
 
@@ -3759,18 +3759,18 @@ Usage:
 
 
 ; ==== quit  ( -- : interpreter loop ) =========================
+For some reason the interpreter loop is evoked by the word
+'quit', which is what it is traditionally called. This is not
+a good name, but nonetheless is the standard name for it. The
+interpreter loop fetches a line of input, parses a word, 
+evaluates it, catches/displays any errors and flushes the
+current line if there are any, and continues to do this until
+the current line contains no new space delimited words/numbers,
+whereupon it fetches a new line and repeats the process again.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
+  quit ( <- invokes another interpreter loop... )
 
 
 
@@ -3809,11 +3809,11 @@ Usage:
 ; ==== r@  ( -- u : R: u -- u: copy top of return stack ) ======
 'r@' is a useful word that copies the topmost value on the
 return stack, leaving that value in place, and pushes it to
-the variable stack. It is implemented as an assembly routine
-so will be inlined if compiled into a word definition. This
-word is useful when juggling variables on the stack, it is
-also used to access the loop counter in a "for...next" or
-"for...aft...then...next" construct.
+the variable stack.  This word is useful when juggling 
+variables on the stack, it is also used to access the loop 
+counter in a "for...next" or "for...aft...then...next" 
+construct.
+
 
 
 
@@ -3840,9 +3840,9 @@ and the system timer to generate the value.
 
 ; ==== rdrop  ( --, R: u -- : drop a value from return stack ) =
 'rdrop' is the return stack equivalent of 'drop', it discards
-a single value from the return stack. It is implemented as an
-assembly routine that will be inlined when compiled into a
-word. Care should be taken when manipulating the return stack
+a single value from the return stack. 
+
+Care should be taken when manipulating the return stack
 as it can trash it rendering the system inoperable until it
 is restarted.
 
@@ -3887,11 +3887,11 @@ will recursively call the current word.
 
 
 ; ==== rot  ( n1 n2 n3 -- n2 n3 n1 : rotate three items ) ======
-Rotate the first three elements on the variable stack.
-
-
-
-
+Rotate the first three elements on the variable stack. The
+stack comment describes the word completely. If you find your
+self using this word too much, you need to rethink and refactor
+your Forth. 'rot' is a useful word, but it should be used
+sparingly. '-rot' reverses the 'rot' operation.
 
 
 
@@ -4095,6 +4095,10 @@ signed number it is given is negative.
 
 
 ; ==== source  ( -- a u : get source string ) ==================
+'source' retrieves the address and length of the current
+Terminal Input Buffer (TIB). This contains the current line
+that is being processed, this is the line that is retrieved
+by the word 'query'.
 
 
 
@@ -4102,13 +4106,9 @@ signed number it is given is negative.
 
 
 
+Usage:
 
-
-
-
-
-
-
+  source type ( a simple quine )
 
 ; ==== source-id  ( -- 0 | -1 : identify input source ) ========
 'source-id' is used to identify the input source, whether
@@ -4128,8 +4128,8 @@ When a block is evaluated with 'load' -1 is returned by
 
 ; ==== sp@  ( -- u : variable stack depth ) ====================
 'sp@' is an assembly instruction which returns the current
-depth of the variable stack. It is inlined when compiled into
-a word.
+depth of the variable stack. 
+
 
 
 
@@ -4159,18 +4159,18 @@ device.
 
 
 ; ==== spaces  ( n -- : emit 'n' spaces ) ======================
-'spaces' emits 'n' number of spaces.
+'spaces' emits 'n' number of spaces, if 'n' is greater than 
+zero. This is a useful word for formatting.
 
 
 
 
+Usage:
 
-
-
-
-
-
-
+  0 spaces ok
+  1 spaces  ok
+  2 spaces   ok
+ -1 spaces ok
 
 
 
@@ -4199,12 +4199,12 @@ state, or read to make words change their behavior based on
 the state (which is generally not the best thing to do). The
 words '[' and ']' can be used to switch the state as well.
 
+Usage:
 
-
-
-
-
-
+  : ] -1 state ! ;
+  : [  0 state ! ; immediate
+  : example [ 2 2 + ] literal ;
+  example . ( prints '4' )
 
 ; ==== =string  ( b1 u1 b2 u2 -- f : string equality ) =========
 This word implement a test for string equality, it compares
@@ -4239,9 +4239,10 @@ latter type of string.
 
 
 ; ==== swap  ( u1 u2 -- u2 u1 : swap two variables ) ===========
-This is an assembly instruction which will be inlined if
-compiled into a word. It swaps two variables on the stack,
-its stack effect describes the word perfectly.
+It swaps two variables on the stack, its stack effect describes 
+the word perfectly. This is a simple word that will be used
+quite a lot, memorize it quickly!
+
 
 
 
@@ -4250,7 +4251,6 @@ its stack effect describes the word perfectly.
 Usage:
    1 2   (     -- 1 2 )
    swap  ( 1 2 -- 2 1 )
-
 
 
 
@@ -4295,28 +4295,28 @@ handler of last resort. Numbers from -255 to 0 are reserved for
 standard Forth errors.
 
 
+Usage:
 
-
-
-
-
-
+   : fail $1000 throw ;
+   : partially-executed cr ." Hello " fail ." World!" cr ;
+   : catches-throw ' partially-executed catch u. ;
+   catches-throw ( prints only 'Hello' then '1000' )
 
 ; ==== thru  ( k1 k2 -- : load from k1 to k2 ) =================
 'thru' calls 'load' on a range of blocks from 'k1' to 'k2'
 inclusively. It is used to evaluate a range of blocks and as
-a convent way to load software off of the mass storage device.
+a convenient way to load software off of mass storage.
 Code and data is stored in Forth blocks, 'thru' is used to load
-that data.
+that data. The word 'index' can be used to give an overview
+of blocks, as the convention is to have the first line of the
+block as a description.
 
 
 
 
+Usage:
 
-
-
-
-
+   8 9 thru ( evaluate blocks 8 and 9 )
 
 ; ==== timer  ( -- u : get value of timer ) ====================
 'timer' retrieves the current value of the hardware time in the
@@ -4383,8 +4383,8 @@ Usage:
    Hello, World!  ( it prints 'Hello, World! )
 
 ; ==== u<  ( u1 u2 -- f: unsigned less than ) ==================
-Unsigned less than of two numbers, this is an assembly operation
-that is inlined into a word definition.
+Unsigned less than of two numbers.
+
 
 
 
@@ -4464,9 +4464,9 @@ an unsigned double cell number.
 
 ; ==== um+  ( u u -- u carry : unsigned add with carry ) =======
 Unsigned addition with carry, this word is used to implement
-the majority of the arithmetic operations, although it is not
-very useful directly.
-
+the some of the arithmetic operations, although it is not
+very useful directly. 'um+' is used directly to implement 'um*'
+which in turn is used to implement '*'.
 
 
 
@@ -4607,12 +4607,12 @@ specified with a maximum and minimum value.
 
 
 ; ==== word  ( c -- a; <string> : parse a word ) ===============
-
-
-
-
-
-
+'word' parses the next word in the input stream and returns an
+address to a counted string. 'counted strings' have their first
+byte as their string length, which can be extracted with the
+word 'count'. The delimiter is given as 'c', a special case
+exists when 'c' is a space, as all characters up to the ASCII
+space are treated as delimiters.
 
 
 
@@ -4639,14 +4639,190 @@ of that vocabulary as a prefix.
 
 
 ; ==== xor  ( u1 u2 -- u : bit wise exclusive or ) =============
-Bitwise exclusive or of two numbers, this is an assembly word
-that is inlined into a word definition when compiled into it.
+Bitwise exclusive or of two numbers.
 
 
 
 
 
 
+
+
+
+
+
+
+
+
+; ==============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+; ==== ASCII Character Table ===================================
+The following section presents a database of all of the ASCII
+characters, from 0 through to 127 inclusive. The format of the
+database is; decimal, octal, hex then binary value, character
+(or name) and finally a column with a short description.
+Columns are separated by spaces. There is one entry per line,
+with the first line of each block containing an index entry
+instead of an ASCII character description.
+
+
+
+
+
+
+
+
+; ==== ASCII: NUL (0) to SO (14) ===============================
+  0 000 00 00000000 NUL    Null char
+  1 001 01 00000001 SOH    Start of Heading
+  2 002 02 00000010 STX    Start of Text
+  3 003 03 00000011 ETX    End of Text
+  4 004 04 00000100 EOT    End of Transmission
+  5 005 05 00000101 ENQ    Enquiry
+  6 006 06 00000110 ACK    Acknowledgment
+  7 007 07 00000111 BEL    Bell
+  8 010 08 00001000 BS     Back Space
+  9 011 09 00001001 HT     Horizontal Tab
+ 10 012 0A 00001010 LF     Line Feed
+ 11 013 0B 00001011 VT     Vertical Tab
+ 12 014 0C 00001100 FF     Form Feed
+ 13 015 0D 00001101 CR     Carriage Return
+ 14 016 0E 00001110 SO     Shift Out / X-On
+; ==== ASCII: SI (15) to GS (29) ===============================
+ 15 017 0F 00001111 SI     Shift In / X-Off
+ 16 020 10 00010000 DLE    Data Line Escape
+ 17 021 11 00010001 DC1    Device Control 1 (oft. XON)
+ 18 022 12 00010010 DC2    Device Control 2
+ 19 023 13 00010011 DC3    Device Control 3 (oft. XOFF)
+ 20 024 14 00010100 DC4    Device Control 4
+ 21 025 15 00010101 NAK    Negative Acknowledgement
+ 22 026 16 00010110 SYN    Synchronous Idle
+ 23 027 17 00010111 ETB    End of Transmit Block
+ 24 030 18 00011000 CAN    Cancel
+ 25 031 19 00011001 EM     End of Medium
+ 26 032 1A 00011010 SUB    Substitute
+ 27 033 1B 00011011 ESC    Escape
+ 28 034 1C 00011100 FS     File Separator
+ 29 035 1D 00011101 GS     Group Separator
+; ==== ASCII: RS (30) to Comma (44) ============================
+ 30 036 1E 00011110 RS     Record Separator
+ 31 037 1F 00011111 US     Unit Separator
+ 32 040 20 00100000 SPACE  Space
+ 33 041 21 00100001 !      Exclamation mark
+ 34 042 22 00100010 "      Double quotes (or speech marks)
+ 35 043 23 00100011 #      Number
+ 36 044 24 00100100 $      Dollar
+ 37 045 25 00100101 %      Procenttecken
+ 38 046 26 00100110 &      Ampersand
+ 39 047 27 00100111 '      Single quote
+ 40 050 28 00101000 (      Open parenthesis (or open bracket)
+ 41 051 29 00101001 )      Close parenthesis (or close bracket)
+ 42 052 2A 00101010 *      Asterisk
+ 43 053 2B 00101011 +      Plus
+ 44 054 2C 00101100 ,      Comma
+; ==== ASCII: Hyphen (45) to Semicolon (59) ====================
+ 45 055 2D 00101101 -      Hyphen
+ 46 056 2E 00101110 .      Period, dot or full stop
+ 47 057 2F 00101111 /      Slash or divide
+ 48 060 30 00110000 0      Zero
+ 49 061 31 00110001 1      One
+ 50 062 32 00110010 2      Two
+ 51 063 33 00110011 3      Three
+ 52 064 34 00110100 4      Four
+ 53 065 35 00110101 5      Five
+ 54 066 36 00110110 6      Six
+ 55 067 37 00110111 7      Seven
+ 56 070 38 00111000 8      Eight
+ 57 071 39 00111001 9      Nine
+ 58 072 3A 00111010 :      Colon
+ 59 073 3B 00111011 ;      Semicolon
+; ==== ASCII: Less than (60) to Uppercase J (74) ===============
+ 60 074 3C 00111100 <      Less than
+ 61 075 3D 00111101 =      Equals
+ 62 076 3E 00111110 >      Greater than
+ 63 077 3F 00111111 ?      Question mark
+ 64 100 40 01000000 @      At symbol
+ 65 101 41 01000001 A      Uppercase A
+ 66 102 42 01000010 B      Uppercase B
+ 67 103 43 01000011 C      Uppercase C
+ 68 104 44 01000100 D      Uppercase D
+ 69 105 45 01000101 E      Uppercase E
+ 70 106 46 01000110 F      Uppercase F
+ 71 107 47 01000111 G      Uppercase G
+ 72 110 48 01001000 H      Uppercase H
+ 73 111 49 01001001 I      Uppercase I
+ 74 112 4A 01001010 J      Uppercase J
+; ==== ASCII: Uppercase K (75) to Uppercase Y (89) =============
+ 75 113 4B 01001011 K      Uppercase K
+ 76 114 4C 01001100 L      Uppercase L
+ 77 115 4D 01001101 M      Uppercase M
+ 78 116 4E 01001110 N      Uppercase N
+ 79 117 4F 01001111 O      Uppercase O
+ 80 120 50 01010000 P      Uppercase P
+ 81 121 51 01010001 Q      Uppercase Q
+ 82 122 52 01010010 R      Uppercase R
+ 83 123 53 01010011 S      Uppercase S
+ 84 124 54 01010100 T      Uppercase T
+ 85 125 55 01010101 U      Uppercase U
+ 86 126 56 01010110 V      Uppercase V
+ 87 127 57 01010111 W      Uppercase W
+ 88 130 58 01011000 X      Uppercase X
+ 89 131 59 01011001 Y      Uppercase Y
+; ==== ASCII: Uppercase Z (90) to Lowercase h (104) ============
+ 90 132 5A 01011010 Z      Uppercase Z
+ 91 133 5B 01011011 [      Opening bracket
+ 92 134 5C 01011100 \      Backslash
+ 93 135 5D 01011101 ]      Closing bracket
+ 94 136 5E 01011110 ^      Caret - circumflex
+ 95 137 5F 01011111 _      Underscore
+ 96 140 60 01100000 `      Grave accent
+ 97 141 61 01100001 a      Lowercase a
+ 98 142 62 01100010 b      Lowercase b
+ 99 143 63 01100011 c      Lowercase c
+100 144 64 01100100 d      Lowercase d
+101 145 65 01100101 e      Lowercase e
+102 146 66 01100110 f      Lowercase f
+103 147 67 01100111 g      Lowercase g
+104 150 68 01101000 h      Lowercase h
+; ==== ASCII: Lowercase i (105) to Lowercase w (119) ===========
+105 151 69 01101001 i      Lowercase i
+106 152 6A 01101010 j      Lowercase j
+107 153 6B 01101011 k      Lowercase k
+108 154 6C 01101100 l      Lowercase l
+109 155 6D 01101101 m      Lowercase m
+110 156 6E 01101110 n      Lowercase n
+111 157 6F 01101111 o      Lowercase o
+112 160 70 01110000 p      Lowercase p
+113 161 71 01110001 q      Lowercase q
+114 162 72 01110010 r      Lowercase r
+115 163 73 01110011 s      Lowercase s
+116 164 74 01110100 t      Lowercase t
+117 165 75 01110101 u      Lowercase u
+118 166 76 01110110 v      Lowercase v
+119 167 77 01110111 w      Lowercase w
+; ==== ASCII: Lowercase x (120) to DEL (127) ===================
+120 170 78 01111000 x      Lowercase x
+121 171 79 01111001 y      Lowercase y
+122 172 7A 01111010 z      Lowercase z
+123 173 7B 01111011 {      Opening brace
+124 174 7C 01111100 |      Vertical bar
+125 175 7D 01111101 }      Closing brace
+126 176 7E 01111110 ~      Equivalency sign - tilde
+127 177 7F 01111111 DEL    Delete
 
 
 

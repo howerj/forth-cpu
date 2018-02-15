@@ -16,6 +16,8 @@ this is due to the limited space on the device.
 
 Forth To Do:
 * Add do...loop, case statements, put them in block storage
+* Reformat this so it can be stored in block storage, with
+a maximum line length of 64 bytes
 * Implement some words from the C library, like all of "ctype.h" and
 put them in block storage. 
 * Implement many of the lessons learned whilst making the
@@ -918,28 +920,31 @@ things, the 'decompiler' word could be called manually on an address if desired 
 \ work correctly at the moment
 
 ( @bug Interrupts work in simulation but not in hardware )
-( variable icount 0
+variable icount 0
 
-irq:
+: doIrq 
+	0 ien drop
 	switches led!
 	icount 1+!
-	exit
-.set 12 irq
+	icount @ segments!
+        1 ien drop ; hidden
 
-: irqTest 
-	$0040 oIrcMask !
-	$ffff oTimerCtrl !
-	1 ien drop ;
+irqTask: doIrq nop exit 
+
+.set 2 irqTask
+.set 4 irqTask
+.set 6 irqTask
+.set 8 irqTask
+.set 10 irqTask
+.set 12 irqTask
+.set 14 irqTask
+
+: irq $0040 oIrcMask !  $efff oTimerCtrl !  1 ien drop ;
 
 
-irq2:
-	switches . cr
-	exit
-.set 14 irq2
-
-: irqTest2
-	$0080 oIrcMask !
-	1 ien drop ; )
+\ : irqTest2
+\	$0080 oIrcMask !
+\	1 ien drop ; )
 
 ( ==================== Miscellaneous ================================= )
 
@@ -1117,6 +1122,7 @@ start:
 .set entry start
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	hi
+	\ irq
 	cpu-id segments!
 	loading-string print
 	' boot catch if .failed else .ok then
