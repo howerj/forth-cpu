@@ -939,7 +939,7 @@ irqTask: doIrq nop exit
 .set 12 irqTask
 .set 14 irqTask
 
-: irq $0040 oIrcMask ! $efff oTimerCtrl !  1 ien drop ;
+: irq $0040 oIrcMask ! $e07f oTimerCtrl !  1 ien drop ;
 
 
 \ : irqTest2
@@ -1122,6 +1122,7 @@ start:
 .set entry start
 	_boot @execute  ( _boot contains zero by default, does nothing )
 	hi
+	\ hex io! [
 	\ irq
 	cpu-id segments!
 	loading-string print

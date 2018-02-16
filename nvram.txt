@@ -2303,14 +2303,14 @@ be misaligned, 'align' can be used to remedy this.
 
 
 ; ==== cell-  ( a -- a : decrement address by single cell ) ====
-
-
-
-
-
-
-
-
+'cell-' is the opposite of 'cell+', it decrements an address
+value by a cell. On this 16-bit Forth a cell consists of two
+bytes, but on a 32-bit one it would decrement by four. Note
+that this word does not ensure the resulting address is
+aligned, if an unaligned addressed was passed in and unaligned
+address will pop out, and an aligned address will stay so. This
+word is needed so Forth code can be written that is portable
+across different word size computers.
 
 
 
@@ -2319,8 +2319,8 @@ be misaligned, 'align' can be used to remedy this.
 
 
 ; ==== cell+  ( a -- a : increment address by single cell ) ====
-
-
+'cell+' increments an address by the size of a cell, see
+'cell-' for further description on this.
 
 
 
@@ -2510,13 +2510,13 @@ the word ',' will compile an unconditional branch.
 
 
 
-; ==== count  ( a -- b c : retrieve next character in string ) =
-
-
-
-
-
-
+; ==== count  ( b -- b c : retrieve next character in string ) =
+'count' is a very useful word when dealing with strings,
+especially counted strings. It retrieves a character from an
+address and increments that address by one character. This can
+be used to advance through a string, and with counted strings
+it can be used to retrieve the string length which is stored
+in the first byte of the string.
 
 
 
@@ -2559,36 +2559,36 @@ behaves like a VT100 video terminal).
 
 
 ; ==== crc  ( b u -- u : perform CRC over array ) ==============
+'crc' performs a Cyclic Redundancy Check (CRC) over an array
+specified by an address ('b') and length ('u') pair. It
+returns the result in a single cell. There are many different
+ways of computing a CRC which depending on starting value,
+what operation to perform at the end of the calculation and
+what polynomial is used. 'crc' used the word 'ccitt' to do
+the actual calculation on each byte, using the CCITT 
+polynomial, which is a standard polynomial. See 'ccitt' for
+more information. CRCs can be used for error detection.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
-
+  : s1 $" hello" count ;
+  hex x crc . ( prints 'D26E' )
 
 ; ==== create  ( -- ; <string> : make 'created' word ) =========
+'create' is a very useful word that allows the creation of
+new words. It parses the next space delimited string from the
+input stream and creates a word which when run returns a
+pointer to its code field. It can be used to make words which
+create new words, and 'does>' can be used to give those new
+words different actions. The 'create'/'does>' combination is
+a really important concept in Forth and has been called 'The
+Pearl of Forth'.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
-
+  create x 2 cells allot
+  : constant create , does> @ ;
+  4 constant y ( a new constant called 'y' has been made )
 
 ; ==== decimal  ( -- : switch radix to decimal ) ===============
 'decimal' switches the current output radix into decimal as
@@ -2607,19 +2607,19 @@ in other output bases, when a '.' is used to print the number.
 
 
 ; ==== dm+  ( a u -- u : print out section of memory ) =========
+'dm+' prints out a section of memory in numeric forth, it
+prints out the contents starting from address 'a' and advancing
+for 'u' bytes, rounded down to the nearest aligned cell
+location. It is a factor of 'dump' and is useful as a debugging
+tool in itself. It will print out the values in the current
+output radix, as stored in the 'base' variable. A crude memory
+dump can be performed with '0 here dm+'. No newlines are
+printed, but spaces are printed between cell values.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
+  $40 $200 dm+ ( print $200 bytes starting from address $40 )
+  0 here dm+   ( crude dump of Forth core )
 
 
 ; ==== dnegate  ( d -- d : negate a double value ) =============
@@ -2703,48 +2703,48 @@ Example Output (condensed to fit on the screen):
  30: 6600 601C 8026 2B01 6203 601C 8034 7304  _f_`&__+_b_`4__s
  ( and so on...)
 ; ==== dup  ( n -- n n : duplicate a value ) ===================
+The stack comment explains this word completely, it simply
+duplicates the topmost item on the variable stack. This is a
+common Forth word that should be memorized - you should not
+need to look it up here! Other common stack manipulation words
+include 'swap', 'over', 'nip', 'tuck', '2dup', 'drop', and
+'2drop' amongst others. If you find keeping track of the stack
+difficult, try to rethink and refactor your code, stack
+juggling gets easier over time but nothing beats out removing
+complex combinations of 'dup', 'swap', 'over' and the like.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
+  5 dup ( 5 -- 5 5 )
 
 
 ; ==== ?dup  ( n -- n n | 0 : duplicate value if not zero ) ====
 This word duplicates a number if that number is non zero, it
 returns just a single zero if the input number was zero. It
-finds a lot of use in 'begin...while...repeat' loop constructs.
+finds a lot of use in 'begin...while...repeat' loop constructs,
+as well as in other looping constructs.
 
+Usage:
 
-
-
-
-
-
+  : ?dup dup if dup then ;
+  0 ?dup .s ( 0 -- 0 )
+  3 ?dup .s ( 3 -- 3 3 )
 
 
 
 
 
 ; ==== else  ( -- : if...else...then ) =========================
+'else' is a word which forms part of the 'if...else...then'
+clause, it can only be used from within a Forth word
+definition and should always be used with the matching 'if'
+and 'then'. 
 
+Usage:
 
-
-
-
-
-
-
-
-
+  : example cr if ." Hello!" else ." Goodbye!" then cr ;
+  1 example ( prints 'Hello!' )
+  0 example ( prints 'Goodbye!' )
 
 
 
@@ -2760,9 +2760,9 @@ by words like 'io!', 'stars', 'conceal', 'file', 'console' and
 
 
 
+Usage:
 
-
-
+  $6b emit ( prints 'k' )
 
 
 
@@ -2958,7 +2958,7 @@ related words, their usage and other such information.
 
 
 
-; ==== forth  ( -- : set minimal search order ) ================
+; ==== forth  ( -- : set search order to the default ) =========
 
 
 
@@ -3391,8 +3391,8 @@ This performs a logical left shift on 'u1' by 'u2'.
 
 
 ; ==== make  ( -- : make part of make/doer words ) =============
-
-
+'make' is a state aware word that operates on words made with
+'doer', it should not be used with other words.
 
 
 
@@ -3631,7 +3631,7 @@ the prompt is suppressed when in compile mode.
 
 
 ; ==== or  ( u1 u2 -- u3: bitwise or of two numbers ) ==========
-'or' performs the bitwise 'or' of two numbers.
+'or' performs the bitwise 'or' of two numbers. 
 
 
 
@@ -3663,14 +3663,14 @@ Usage:
 
 
 ; ==== pack$  ( b u a -- a : pack string into address ) ========
-
-
-
-
-
-
-
-
+'pack$' is a useful word when dealing with short Forth
+strings, it is used by the interpreter for packing the word
+name into the words header. It takes a string specified by
+'b u', 'b' being an address of a string, and 'u' beings its
+length, and copies the string starting at address 'a', the
+first byte of the new string is the length of the string, so
+it requires an extra byte be available at 'a'. It then returns
+a pointer to this newly packed, counted string.
 
 
 
@@ -3683,14 +3683,14 @@ Usage:
 least 80 bytes after the end of the dictionary. The 'pad'
 pointer moves when the dictionary pointer moves. It is a useful
 area for temporary storage, but should not be used too much.
-Some words, such as the pictured numeric output words, use the
-area just before the pad area.
+Some words, such as the Pictured Numeric Output (PNO) words, 
+use the area just before the pad area.
 
+Usage:
 
-
-
-
-
+  3 pad !
+  4 pad cell+ !
+  pad @ pad cell+ @ + . ( prints '7' )
 
 
 
@@ -3856,19 +3856,19 @@ is restarted.
 
 ; ==== recurse  ( -- : recursively call current word ) =========
 'recurse' is a word that when used within a word definition it
-will recursively call the current word.
+will recursively call the current word. This is not a tail
+call, if this word is used incorrectly it will blow up the
+return stack. Some Forths use the construct 'recurse exit'
+to implement tail calls, reliant on a peephole optimizer
+built into 'exit' to change the call into a branch, this Forth
+does not do this. This word is necessary as the word currently
+being defined has not been linked into the dictionary yet, to
+permit previous versions of the word to be used in the new
+definition. This word is a compile only word.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
+  : pick ?dup if swap >r 1- recurse r> swap exit then dup ; 
 
 ; ==== repeat  ( -- : part of begin...while...repeat ) =========
 
@@ -4019,17 +4019,17 @@ Example:
 liable to be buggy. 'see' parses the next space delimited word
 in the dictionary, and if found attempts to disassemble the
 word into instructions and function calls. If not found 'see'
-will throw an exception.
-
-
+will throw an exception. The results of 'see' are 
+implementation dependent. Given a very good implementation
+of 'see' it would be possible to dispense with the source
+code entirely in text form, the binary could be disassembled,
+the code modified, and then it could be reintegrated into
+dictionary - the idea is purely speculative, comments would
+be missing and this version of 'see' is not good enough.
+Not many languages have a disassembler built-in!
 Usage:
-
-   see see
-   see +
-   see :
-   see words
-   see if
-
+   
+  see word
 ; ==== segments!  ( u -- : display 'u' on LED displays ) =======
 Segments writes a single 16-bit value to the four seven segment
 displays on the board. This can be used to display a single

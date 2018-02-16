@@ -10,6 +10,9 @@
  * The processor has been tested on an FPGA and is working.
  * The project can be found at: https://github.com/howerj/forth-cpu 
  *
+ * @todo Generate VCD or GHW files directly so that GTKWave can view
+ * the resulting trace. See 
+ * <http://www.ic.unicamp.br/~ducatte/mc542/Docs/gtkwave.pdf>
  * @todo The compiler section could be replace by an embedded Forth interpreter
  * The one available at <https://github.com/howerj/embed> would work well, the
  * metacompiler could be retargeted for the H2 processor instead of its own
@@ -790,36 +793,76 @@ static const char *disassemble_jump(symbol_table_t *symbols, symbol_type_e type,
 	return r;
 }
 
-static int disassembler_instruction(uint16_t instruction, FILE *output, symbol_table_t *symbols)
+
+#define CSI "\033["
+#define ANSI_RESET   (CSI "0m")
+#define ANSI_BLACK   (CSI "30m")
+#define ANSI_RED     (CSI "31m")
+#define ANSI_GREEN   (CSI "32m")
+#define ANSI_YELLOW  (CSI "33m")
+#define ANSI_BLUE    (CSI "34m")
+#define ANSI_MAGENTA (CSI "35m")
+#define ANSI_CYAN    (CSI "36m")
+#define ANSI_WHITE   (CSI "37m")
+
+typedef enum {
+	DCM_NONE,
+	DCM_X11,
+	DCM_ANSI,
+	DCM_MAX_DCM
+} disassemble_color_method_e;
+
+typedef enum {
+	DC_LITERAL,
+	DC_ALU,
+	DC_CALL,
+	DC_0BRANCH,
+	DC_BRANCH,
+	DC_ERROR,  /* Invalid instruction */
+	DC_RESET,  /* Reset color */
+} decompilation_color_e;
+
+static int disassemble_instruction(uint16_t instruction, FILE *output, symbol_table_t *symbols, disassemble_color_method_e dcm)
 {
 	int r = 0;
 	unsigned short literal, address;
 	char *s = NULL;
 	assert(output);
+	assert(dcm < DCM_MAX_DCM);
+
+	static const char *colors[3][7] = { /* for colorizing decompilation stream with in-band signalling */
+		/* LITERAL     ALU            CALL        0BRANCH      BRANCH    ERROR      RESET */
+		[DCM_NONE] = { "",           "",           "",         "",          "",        "",       "" },         /* No-Color */
+		[DCM_X11]  = { "?HotPink?",  "?SkyBlue?",  "?GreenYellow?",  "?Khaki?",  "?MediumTurquoise?",  "?FireBrick?",  "" },         /* X11/GTKWave */
+		[DCM_ANSI] = { ANSI_MAGENTA, ANSI_BLUE,    ANSI_GREEN, ANSI_YELLOW, ANSI_CYAN, ANSI_RED, ANSI_RESET }, /* ANSI Escape Sequences */
+	};
+
+	const char **color = colors[dcm];
 
 	literal = instruction & 0x7FFF;
 	address = instruction & 0x1FFF;
 
 	if (IS_LITERAL(instruction))
-		r = fprintf(output, "%hx", literal);
+		r = fprintf(output, "%s%hx%s", color[DC_LITERAL], literal, color[DC_RESET]);
 	else if (IS_ALU_OP(instruction))
-		r = fprintf(output, "%s", s = disassembler_alu(instruction));
+		r = fprintf(output, "%s%s%s", color[DC_ALU], s = disassembler_alu(instruction), color[DC_RESET]);
 	else if (IS_CALL(instruction))
-		r = fprintf(output, "call %hx %s",    address, disassemble_jump(symbols, SYMBOL_TYPE_CALL, address));
+		r = fprintf(output, "%scall%s %hx %s",  color[DC_CALL], color[DC_RESET], address, disassemble_jump(symbols, SYMBOL_TYPE_CALL, address));
 	else if (IS_0BRANCH(instruction))
-		r = fprintf(output, "0branch %hx %s", address, disassemble_jump(symbols, SYMBOL_TYPE_LABEL, address));
+		r = fprintf(output, "%s0branch%s %hx %s", color[DC_0BRANCH], color[DC_RESET], address, disassemble_jump(symbols, SYMBOL_TYPE_LABEL, address));
 	else if (IS_BRANCH(instruction))
-		r = fprintf(output, "branch %hx %s",  address, disassemble_jump(symbols, SYMBOL_TYPE_LABEL, address));
+		r = fprintf(output, "%sbranch%s %hx %s",  color[DC_BRANCH], color[DC_RESET], address, disassemble_jump(symbols, SYMBOL_TYPE_LABEL, address));
 	else
-		r = fprintf(output, "?(%hx)", instruction);
+		r = fprintf(output, "%s?(%hx)%s", color[DC_ERROR], instruction, color[DC_RESET]);
 	free(s);
 	return r < 0 ? -1 : 0;
 }
 
-int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
+int h2_disassemble(disassemble_color_method_e dcm, FILE *input, FILE *output, symbol_table_t *symbols)
 {
 	assert(input);
 	assert(output);
+	assert(dcm < DCM_MAX_DCM);
 	char line[80] = {0};
 	while(!feof(input)) {
 		memset(line, 0, sizeof(line));
@@ -830,7 +873,7 @@ int h2_disassemble(FILE *input, FILE *output, symbol_table_t *symbols)
 				error("invalid input to disassembler: %s", line);
 				return -1;
 			}
-			if(disassembler_instruction(instruction, output, symbols) < 0) {
+			if(disassemble_instruction(instruction, output, symbols, dcm) < 0) {
 				error("disassembly failed");
 				return -1;
 			}
@@ -1779,7 +1822,7 @@ static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, co
 		return r;
 	if(fputc('\t', output) != '\t')
 		return -1;
-	r = disassembler_instruction(instruction, output, symbols);
+	r = disassemble_instruction(instruction, output, symbols, DCM_NONE);
 	if(r < 0)
 		return r;
 	if(fputc('\n', output) != '\n')
@@ -2066,7 +2109,7 @@ again:
 			}
 			for(uint16_t i = num1; i < num2; i++) {
 				fprintf(ds->output, "%04"PRIx16 ":\t", i);
-				disassembler_instruction(h->core[i], ds->output, symbols);
+				disassemble_instruction(h->core[i], ds->output, symbols, DCM_NONE);
 				fputc('\n', ds->output);
 			}
 			break;
@@ -3817,11 +3860,12 @@ typedef struct {
 	bool full_disassembly;
 	bool debug_mode;
 	bool hacks;
+	disassemble_color_method_e dcm;
 	const char *nvram;
 } command_args_t;
 
 static const char *help = "\
-usage ./h2 [-hvdDarRTH] [-s number] [-L symbol.file] [-S symbol.file] (file.hex|file.fth)\n\n\
+usage ./h2 [-hvdDarRTH] [-sc number] [-L symbol.file] [-S symbol.file] (file.hex|file.fth)\n\n\
 Brief:     A H2 CPU Assembler, disassembler and Simulator.\n\
 Author:    Richard James Howe\n\
 Site:      https://github.com/howerj/forth-cpu\n\
@@ -3843,6 +3887,7 @@ Options:\n\n\
 \t-s #\tnumber of steps to run simulation (0 = forever)\n\
 \t-n #\tspecify nvram file\n\
 \t-H #\tenable certain hacks for simulation purposes\n\
+\t-c #\tset colorization method for disassembly\n\
 \tfile\thex or forth file to process\n\n\
 Options must precede any files given, if a file has not been\n\
 given as arguments input is taken from stdin. Output is to\n\
@@ -3907,7 +3952,7 @@ int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symb
 	assert(cmd);
 	switch(cmd->cmd) {
 	case DEFAULT_COMMAND:      /* fall through */
-	case DISASSEMBLE_COMMAND:  return h2_disassemble(input, output, symbols);
+	case DISASSEMBLE_COMMAND:  return h2_disassemble(cmd->dcm, input, output, symbols);
 	case ASSEMBLE_COMMAND:     return h2_assemble_file(input, output, symbols);
 	case RUN_COMMAND:          return assemble_run_command(cmd, input, output, symbols, false, vga_initial_contents);
 	case ASSEMBLE_RUN_COMMAND: return assemble_run_command(cmd, input, output, symbols, true,  vga_initial_contents);
@@ -3930,6 +3975,7 @@ int h2_main(int argc, char **argv)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.steps = DEFAULT_STEPS;
 	cmd.nvram = nvram_file;
+	cmd.dcm   = DCM_X11;
 
 	static uint16_t vga_initial_contents[VGA_BUFFER_LENGTH] = { 0 };
 
@@ -4007,6 +4053,21 @@ int h2_main(int argc, char **argv)
 			optarg = argv[++i];
 			newsymfile = fopen_or_die(optarg, "wb");
 			break;
+		case 'c':
+		{
+			long dcm = DCM_NONE;
+			if(i >= (argc - 1))
+				goto fail;
+			optarg = argv[++i];
+			if(string_to_long(0, &dcm, optarg))
+				goto fail;
+			cmd.dcm = dcm;
+			if(cmd.dcm >= DCM_MAX_DCM) {
+				fprintf(stderr, "Invalid Colorization Method: %u\n", cmd.dcm);
+				goto fail;
+			}
+			break;
+		}
 		case 's':
 			if(i >= (argc - 1))
 				goto fail;
