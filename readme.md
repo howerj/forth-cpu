@@ -35,6 +35,10 @@ specific to the peripherals on that board.
 A video of the project in action, on the hardware, can be viewed here:
 ![Nexys-3 Board](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/107.mp4)
 
+And a lower quality version of the same video that should play automatically:
+
+![Nexys-3 Board](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/107.gif)
+
 The SoC can also be simulated with a simulator written in C, as shown below:
 
 ![GUI Simulator](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/sim2.gif)
@@ -940,7 +944,7 @@ or from mouse clicks.
 
 Below is an image of a running session in the GUI simulator:
 
-![H2 GUI Simulator](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/107.mp4 "Running GUI H2 SoC Simulator")
+![H2 GUI Simulator](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/forth-cpu-gui.png "Running GUI H2 SoC Simulator")
 
 Building can be done with
 
