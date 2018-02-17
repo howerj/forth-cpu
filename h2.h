@@ -347,5 +347,4 @@ int memory_save(FILE *output, uint16_t *p, size_t length);
 
 void vt100_update(vt100_t *t, uint8_t c);
 
-
 #endif

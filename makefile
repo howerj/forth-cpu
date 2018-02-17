@@ -162,8 +162,14 @@ simulation: tb.ghw h2${EXE}
 
 
 # gtkwave -S signals -f tb.ghw &> /dev/null&
+
+ifeq ($(OS),Windows_NT)
 viewer: simulation
 	gtkwave -S signals -f tb.ghw 
+else
+viewer: simulation
+	gtkwave -S signals -f tb.ghw &> /dev/null&
+endif
 
 USB?=/dev/ttyUSB0
 
