@@ -167,7 +167,7 @@ begin
 		port map(
 			clk   => clk,
 			rst   => rst,
-			din   => dout,
+			di    => dout,
 			we    => dout_stb,
 			re    => rx_data_re,
 			do    => rx_data,
@@ -181,7 +181,7 @@ begin
 		port map(
 			clk   => clk,
 			rst   => rst,
-			din   => tx_data,
+			di    => tx_data,
 			we    => tx_data_we,
 			re    => tx_fifo_re,
 			do    => din,

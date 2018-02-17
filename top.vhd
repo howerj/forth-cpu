@@ -168,28 +168,47 @@ begin
 	irq_block: block
 		signal rx_fifo_not_empty: std_ulogic := '0';
 		signal tx_fifo_not_empty: std_ulogic := '0';
+
+		signal rx_fifo_not_empty_edge: std_ulogic := '0';
+		signal rx_fifo_full_edge: std_ulogic := '0';
+		signal tx_fifo_not_empty_edge: std_ulogic := '0';
+		signal tx_fifo_full_edge: std_ulogic := '0';
 	begin
 		rx_fifo_not_empty <= not rx_fifo_empty;
 		tx_fifo_not_empty <= not rx_fifo_empty;
 
+		irq_edges: work.util.rising_edge_detectors
+		generic map(N => 4)
+		port map(
+			clk   => clk,
+			rst   => rst,
+			di(0) => rx_fifo_not_empty,
+			di(1) => rx_fifo_full,
+			di(2) => tx_fifo_not_empty,
+			di(3) => tx_fifo_full,
+
+			do(0) => rx_fifo_not_empty_edge,
+			do(1) => rx_fifo_full_edge,
+			do(2) => tx_fifo_not_empty_edge,
+			do(3) => tx_fifo_full_edge);
+
 		cpu_irc(0) <= '0';
-		-- @todo Change these to edge triggered 
-		-- cpu_irc(1) <= rx_fifo_not_empty;
-		-- cpu_irc(2) <= rx_fifo_full;
-		-- cpu_irc(3) <= tx_fifo_not_empty;
-		-- cpu_irc(4) <= tx_fifo_full;
+		cpu_irc(1) <= rx_fifo_not_empty_edge;
+		cpu_irc(2) <= rx_fifo_full_edge;
+		cpu_irc(3) <= tx_fifo_not_empty_edge;
+		cpu_irc(4) <= tx_fifo_full_edge;
 		-- cpu_irc(5) <= kbd_char_buf_new;
 		cpu_irc(6) <= timer_irq;
 		cpu_irc(7) <= button_changed;
 
 		cpu_irq    <= '1' when
-				timer_irq         = '1' or
-			--	rx_fifo_not_empty = '1' or
-			--	rx_fifo_full      = '1' or
-			--	tx_fifo_not_empty = '1' or
-			--	tx_fifo_full      = '1' or
-			--	kbd_char_buf_new  = '1' or
-				button_changed    = '1'
+				timer_irq              = '1' or
+				rx_fifo_not_empty_edge = '1' or
+				rx_fifo_full_edge      = '1' or
+				tx_fifo_not_empty_edge = '1' or
+				tx_fifo_full_edge      = '1' or
+			--	kbd_char_buf_new       = '1' or
+				button_changed         = '1'
 				else '0';
 	end block;
 

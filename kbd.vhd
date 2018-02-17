@@ -146,12 +146,12 @@ begin
 
 	-- Process a kbd_new into a single edge for the rest of the
 	-- system.
-	ps2_edge_new_character_0: entity work.edge
+	ps2_edge_new_character_0: entity work.rising_edge_detector
 	port map(
-		clk    => clk,
-		rst    => rst,
-		sin    => kbd_new,
-		output => kbd_new_edge);
+		clk => clk,
+		rst => rst,
+		di  => kbd_new,
+		do  => kbd_new_edge);
 
 	ps2_0: work.kbd_pkg.ps2_kbd_top
 	generic map(

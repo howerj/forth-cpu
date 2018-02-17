@@ -3,10 +3,8 @@
  * @copyright Richard James Howe (2017)
  * @license   MIT
  *
- * @todo Implement reset/reload, and save/load state
- * @todo Implement button interrupts
- * @todo A terminal emulator as a separate program could be hacked together
- * from the components in this module, this would be a separate program.*/
+ * @todo Implement reset/reload, and save/load state */
+
 
 #include "h2.h"
 #include <assert.h>
@@ -73,7 +71,7 @@ static world_t world = {
 	.window_scale_y              = 1.0,
 	.tick                        = 0,
 	.halt_simulation             = false,
-	.arena_tick_ms               = 30, /**@todo This should be automatically adjusted based on frame rate */
+	.arena_tick_ms               = 30,
 	.use_uart_input              = true,
 	.debug_extra                 = false,
 	.step                        = false,

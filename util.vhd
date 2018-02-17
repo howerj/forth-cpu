@@ -68,17 +68,27 @@ package util is
 		generic(clock_frequency: positive);
 	end component;
 
-	component edge is
+	component rising_edge_detector is
 	port(
 		clk:    in  std_ulogic;
 		rst:    in  std_ulogic;
-		sin:    in  std_ulogic;
-       		output: out std_ulogic);
+		di:     in  std_ulogic;
+       		do:     out std_ulogic);
 	end component;
 
-	component edge_tb is
+	component rising_edge_detector_tb is
 		generic(clock_frequency: positive);
 	end component;
+
+	component rising_edge_detectors is
+	generic(N: positive);
+	port(
+		clk:    in  std_ulogic;
+		rst:    in  std_ulogic;
+		di:     in  std_ulogic_vector(N - 1 downto 0);
+       		do:     out std_ulogic_vector(N - 1 downto 0));
+	end component;
+
 
 	-- @note half_adder test bench is folded in to full_adder_tb
 	component half_adder is
@@ -108,7 +118,7 @@ package util is
 		port (
 			clk:   in  std_ulogic;
 			rst:   in  std_ulogic;
-			din:   in  std_ulogic_vector(data_width - 1 downto 0);
+			di:    in  std_ulogic_vector(data_width - 1 downto 0);
 			we:    in  std_ulogic;
 			re:    in  std_ulogic;
 			do:    out std_ulogic_vector(data_width - 1 downto 0);
@@ -590,7 +600,6 @@ architecture behav of util_tb is
 begin
 	uut_shiftReg: work.util.shift_register_tb    generic map(clock_frequency => clock_frequency);
 	uut_timer_us: work.util.timer_us_tb          generic map(clock_frequency => clock_frequency);
-	uut_edge:     work.util.edge_tb              generic map(clock_frequency => clock_frequency);
 	uut_full_add: work.util.full_adder_tb        generic map(clock_frequency => clock_frequency);
 	uut_fifo:     work.util.fifo_tb              generic map(clock_frequency => clock_frequency);
 	uut_counter:  work.util.counter_tb           generic map(clock_frequency => clock_frequency);
@@ -598,6 +607,7 @@ begin
 	uut_ucpu:     work.util.ucpu_tb              generic map(clock_frequency => clock_frequency);
 	uut_rdivider: work.util.restoring_divider_tb generic map(clock_frequency => clock_frequency);
 	uut_debounce: work.util.debounce_us_tb       generic map(clock_frequency => clock_frequency);
+	uut_rising_edge_detector: work.util.rising_edge_detector_tb generic map(clock_frequency => clock_frequency);
 
 	stimulus_process: process
 	begin
@@ -907,47 +917,47 @@ end;
 
 ------------------------- Microsecond Timer -----------------------------------------
 
-------------------------- Edge Detector ---------------------------------------------
+------------------------- Rising Edge Detector --------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 
-entity edge is
-port (
+entity rising_edge_detector is
+port(
 	clk:    in  std_ulogic;
 	rst:    in  std_ulogic;
-	sin:    in  std_ulogic;
-	output: out std_ulogic);
+	di:     in  std_ulogic;
+	do:     out std_ulogic);
 end;
 
-architecture rtl of edge is
+architecture rtl of rising_edge_detector is
 	signal sin_0: std_ulogic := '0';
 	signal sin_1: std_ulogic := '0';
 begin
-	rising_edge_detector: process(clk, rst)
+	red: process(clk, rst)
 	begin
 		if rst = '1' then
 			sin_0 <= '0';
 			sin_1 <= '0';
 		elsif rising_edge(clk) then
-			sin_0 <= sin;
+			sin_0 <= di;
 			sin_1 <= sin_0;
 		end if;
 	end process;
-	output <= not sin_1 and sin_0;
+	do <= not sin_1 and sin_0;
 end architecture;
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity edge_tb is
+entity rising_edge_detector_tb is
 	generic(clock_frequency: positive);
 end;
 
-architecture behav of edge_tb is
+architecture behav of rising_edge_detector_tb is
 	constant clock_period: time := 1000 ms / clock_frequency;
-	signal sin:    std_ulogic := '0';
-	signal output: std_ulogic := 'X';
+	signal di:  std_ulogic := '0';
+	signal do: std_ulogic := 'X';
 
 	signal clk, rst: std_ulogic := '0';
 	signal stop: std_ulogic := '0';
@@ -956,22 +966,22 @@ begin
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
 		port map(stop => stop, clk => clk, rst => rst);
 
-	uut: entity work.edge
-		port map(clk => clk, rst => rst, sin => sin, output => output);
+	uut: entity work.rising_edge_detector
+		port map(clk => clk, rst => rst, di => di, do => do);
 
 	stimulus_process: process
 	begin
 		wait for clock_period * 5;
-		assert output = '0' severity failure;
+		assert do = '0' severity failure;
 		wait for clock_period;
-		sin <= '1';
+		di <= '1';
 		wait for clock_period * 0.5;
-		assert output = '1' severity failure;
+		assert do = '1' severity failure;
 		wait for clock_period * 1.5;
-		sin <= '0';
-		assert output = '0' severity failure;
+		di <= '0';
+		assert do = '0' severity failure;
 		wait for clock_period;
-		assert output = '0' severity failure;
+		assert do = '0' severity failure;
 
 		assert stop = '0' report "Test bench not run to completion";
 		stop <= '1';
@@ -979,7 +989,27 @@ begin
 	end process;
 end architecture;
 
-------------------------- Edge Detector ---------------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity rising_edge_detectors is
+generic(N: positive);
+port(
+	clk:    in  std_ulogic;
+	rst:    in  std_ulogic;
+	di:     in  std_ulogic_vector(N - 1 downto 0);
+	do:     out std_ulogic_vector(N - 1 downto 0));
+end entity;
+
+architecture structural of rising_edge_detectors is
+begin
+	changes: for i in N - 1 downto 0 generate
+		d_instance: work.util.rising_edge_detector
+			port map(clk => clk, rst => rst, di => di(i), do => do(i));
+	end generate;
+end architecture;
+
+------------------------- Rising Edge Detector --------------------------------------
 
 ------------------------- Half Adder ------------------------------------------------
 library ieee;
@@ -1108,7 +1138,7 @@ entity fifo is
 		clk:   in  std_ulogic;
 		rst:   in  std_ulogic;
 		we:    in  std_ulogic;
-		din:   in  std_ulogic_vector (data_width - 1 downto 0);
+		di:    in  std_ulogic_vector (data_width - 1 downto 0);
 		re:    in  std_ulogic;
 		do:    out std_ulogic_vector (data_width - 1 downto 0);
 		empty: out std_ulogic := '1';
@@ -1157,7 +1187,7 @@ begin
 			if we = '1' then
 				if looped = false or head /= tail then
 					-- write data to memory
-					memory(head) := din;
+					memory(head) := di;
 
 					-- increment head pointer as needed
 					if head = fifo_depth - 1 then
@@ -1198,7 +1228,7 @@ architecture behavior of fifo_tb is
 	constant data_width: positive := 8;
 	constant fifo_depth: positive := 16;
 
-	signal din:      std_ulogic_vector(data_width - 1 downto 0) := (others => '0');
+	signal di:      std_ulogic_vector(data_width - 1 downto 0) := (others => '0');
 	signal re:       std_ulogic := '0';
 	signal we:       std_ulogic := '0';
 
@@ -1222,7 +1252,7 @@ begin
 		port map (
 			clk   => clk,
 			rst   => rst,
-			din   => din,
+			di    => di,
 			we    => we,
 			re    => re,
 			do    => do,
@@ -1236,7 +1266,7 @@ begin
 
 		for i in 1 to 32 loop
 			counter := counter + 1;
-			din <= std_ulogic_vector(counter);
+			di <= std_ulogic_vector(counter);
 			wait for clock_period * 1;
 			we <= '1';
 			wait for clock_period * 1;
@@ -1247,7 +1277,7 @@ begin
 
 		for i in 1 to 32 loop
 			counter := counter + 1;
-			din <= std_ulogic_vector(counter);
+			di <= std_ulogic_vector(counter);
 			wait for clock_period * 1;
 			we <= '1';
 			wait for clock_period * 1;
