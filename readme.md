@@ -33,14 +33,15 @@ fairly portable, although the interfaces to the [Nexys3][] board components are
 specific to the peripherals on that board.
 
 A video of the project in action, on the hardware, can be viewed here:
-<https://howerj.github.io/h2/107.mp4>
-![Simulation](https://howerj.github.io/h2/107.mp4)
+![Nexys-3 Board](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/107.mp4)
 
 The SoC can also be simulated with a simulator written in C, as shown below:
 
-![GUI Simulator](https://raw.githubusercontent.com/howerj/forth-cpu/master/info/sim2.gif)
 ![GUI Simulator](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/sim2.gif)
 
+The System Architecture is as follows:
+
+![System Architecture](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/system.svg)
 
 # License
 
@@ -795,7 +796,7 @@ turns the instruction trace of the H2 from a series of numbers into the
 instructions and branch destinations that they represent. This makes debugging
 the VHDL much easier.
 
-![H2 Disassembly Results](info/forth-cpu-wave.png "Dissembled Instructions in GTKWave")
+![H2 Disassembly Results](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/forth-cpu-wave.png "Dissembled Instructions in GTKWave")
 
 The purple trace shows the disassembled instructions.
 
@@ -939,7 +940,7 @@ or from mouse clicks.
 
 Below is an image of a running session in the GUI simulator:
 
-![H2 GUI Simulator](info/forth-cpu-gui.png "Running GUI H2 SoC Simulator")
+![H2 GUI Simulator](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/107.mp4 "Running GUI H2 SoC Simulator")
 
 Building can be done with
 
