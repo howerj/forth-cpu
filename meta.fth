@@ -1,4 +1,10 @@
 0 <ok> ! ( Turn off 'ok' prompt )
+
+\ NOTE: This file was originally from <https://github.com/howerj/embed>,
+\ and is a metacompiler for the 'embed' virtual machine, it will need porting
+\ so it works with the H2, however the embed VM is derived from the simulator
+\ for the H2, so porting should be fairly easy.
+
 \ # meta.fth
 \ 
 \ | Project    | A Small Forth VM/Implementation   |

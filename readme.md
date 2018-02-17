@@ -39,7 +39,7 @@ A video of the project in action, on the hardware, can be viewed here:
 The SoC can also be simulated with a simulator written in C, as shown below:
 
 ![GUI Simulator](https://raw.githubusercontent.com/howerj/forth-cpu/master/info/sim2.gif)
-![GUI Simulator](howerj.github.io/h2/sim2.gif)
+![GUI Simulator](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/sim2.gif)
 
 
 # License
