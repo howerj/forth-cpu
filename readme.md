@@ -34,10 +34,13 @@ specific to the peripherals on that board.
 
 A video of the project in action, on the hardware, can be viewed here:
 <https://howerj.github.io/h2/107.mp4>
+![Simulation](https://howerj.github.io/h2/107.mp4)
 
 The SoC can also be simulated with a simulator written in C, as shown below:
 
 ![GUI Simulator](https://raw.githubusercontent.com/howerj/forth-cpu/master/info/sim2.gif)
+![GUI Simulator](howerj.github.io/h2/sim2.gif)
+
 
 # License
 

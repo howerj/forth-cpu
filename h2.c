@@ -4048,7 +4048,7 @@ static const uw_t embed_image[] = { /* MAGIC! */
 0x411a, 0x4309, 0x05a7, 0x1542, 0x6901, 0x8000, 0x6180, 0x0aa4,
 };
 
-static forth_t *embed_new(void)
+forth_t *embed_new(void)
 {
 	forth_t *h = allocate_or_die(sizeof(*h));
 	memcpy(h->core, embed_image, sizeof(embed_image));
@@ -4059,7 +4059,7 @@ static forth_t *embed_new(void)
 	return h;
 }
 
-static void embed_free(forth_t *h)
+void embed_free(forth_t *h)
 {
 	assert(h);
 	free(h);
@@ -4076,7 +4076,7 @@ static int embed_save(forth_t *h, const char *name, size_t start, size_t length)
 	return r;
 }
 
-static int embed_forth(forth_t *h, FILE *in, FILE *out, const char *block)
+int embed_forth(forth_t *h, FILE *in, FILE *out, const char *block)
 {
 	static const uw_t delta[] = { 0, 1, -2, -1};
 	assert(h && in && out);
