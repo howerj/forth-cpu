@@ -929,7 +929,9 @@ variable #irq 0
 	#irq @ segments!
         1 ien drop ; hidden
 
-irqTask: doIrq nop exit 
+irqTask: doIrq nop exit
+
+ \ doIrq nop exit 
 
 .set 2 irqTask
 .set 4 irqTask
@@ -1120,9 +1122,9 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 start:
 .set entry start
 	_boot @execute  ( _boot contains zero by default, does nothing )
-	hi
-	\ hex io! [
+	hex io! [
 	\ irq
+	hi
 	cpu-id segments!
 	loading-string print
 	' boot catch if .failed else .ok then

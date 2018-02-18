@@ -46,6 +46,7 @@ The SoC can also be simulated with a simulator written in C, as shown below:
 The System Architecture is as follows:
 
 ![System Architecture](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/system.svg)
+![System Architecture](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/system.png)
 
 # License
 

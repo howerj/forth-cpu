@@ -157,7 +157,7 @@ begin
 	is_instr.branch0 <= '1' when insn(15 downto 13) = "001" else '0';
 	is_instr.call    <= '1' when insn(15 downto 13) = "010" else '0';
 	is_interrupt     <= '1' when irq_c = '1' and int_en_c = '1' and use_interrupts else '0';
-	is_ram_write     <= '1' when is_instr.alu = '1' and insn(5) = '1' else '0';
+	is_ram_write     <= '1' when is_interrupt = '0' and is_instr.alu = '1' and insn(5) = '1' else '0';
 	compare.more     <= '1' when signed(tos_c)   > signed(nos)   else '0';
 	compare.umore    <= '1' when unsigned(tos_c) > unsigned(nos) else '0';
 	compare.equal    <= '1' when tos_c = nos else '0';
@@ -175,7 +175,7 @@ begin
 	io_wr            <= '1' when is_ram_write = '1' and tos_c(15 downto 14) /= "00" else '0';
 	dd               <= (0 => insn(0), others => insn(1)); -- sign extend
 	rd               <= (0 => insn(2), others => insn(3)); -- sign extend
-	dstk_we          <= '1' when is_instr.lit = '1' or (is_instr.alu = '1' and insn(7) = '1') else '0';
+	dstk_we          <= '1' when is_interrupt = '0' and (is_instr.lit = '1' or (is_instr.alu = '1' and insn(7) = '1')) else '0';
 
 	stack_write: process(clk)
 	begin

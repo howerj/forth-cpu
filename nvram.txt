@@ -336,10 +336,10 @@ mk.user lana  sterling  mk.user cyril  figgis
 
 \ ==== Extra Code 7/7 ==========================================
 : screens ( k1 k2 -- : list blocks k1 to k2 )
-	over -
-	for
-		dup . dup list 1+ nuf? if rdrop drop exit then
-	next drop ;
+  over -
+  for
+    dup . dup list 1+ nuf? if rdrop drop exit then
+  next drop ;
 
 
 
@@ -560,17 +560,17 @@ And for more information see:
   r@ [char] . = if compile dup  compile emit   then rdrop ; 
 \ ==== Brain F*ck Compiler 2/2 =================================
 : bf ( b u --,<string> : compile brainfuck program into a word )
-	>r >r
-	[compile] : 
-	compile initialize
-	r> r> for aft
-		dup 1+ >r c@ bf-compile r>
-	then next
-	drop
-	compile swap
-	compile c@
-	compile 2drop
-	[compile] ; ;
+  >r >r
+  [compile] : 
+  compile initialize
+  r> r> for aft
+    dup 1+ >r c@ bf-compile r>
+  then next
+  drop
+  compile swap
+  compile c@
+  compile 2drop
+  [compile] ; ;
 
 \ Example, making a simple echo like program called 'cat':
 \ : string $" +[,.]" count ; string bf cat
@@ -3871,14 +3871,14 @@ Usage:
   : pick ?dup if swap >r 1- recurse r> swap exit then dup ; 
 
 ; ==== repeat  ( -- : part of begin...while...repeat ) =========
-
-
-
-
-
-
-
-
+'repeat' terminates a 'begin...while...repeat' loop. It is a
+word that should only be used as part of a 
+'begin...while...repeat' clause, and should only be used
+from within a word definition. It is an immediate word. The
+words 'begin' and 'while' should also be consulted. 'repeat'
+unconditionally jumps back to the 'begin', it is 'while' that
+does the test and potentially jumps past this 'repeat' if the
+value it pops from variable stack is zero.
 
 
 
@@ -4144,7 +4144,7 @@ depth of the variable stack.
 
 ; ==== space  ( -- : emit space character ) ====================
 'space' emits a single space character to the current output
-device.
+device. That is all.
 
 
 
@@ -4175,18 +4175,18 @@ Usage:
 
 
 ; ==== span  ( -- a : character count from expect, variable ) ==
+'span' is a variable which contains the latest character count
+from 'expect'. Consult 'expect' for more information.
 
 
 
 
 
 
+Usage:
 
-
-
-
-
-
+   4000 20 expect
+   span @
 
 
 

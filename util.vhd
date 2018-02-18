@@ -611,37 +611,37 @@ begin
 
 	stimulus_process: process
 	begin
-		assert  max(5, 4)                 =  5       severity  failure;
-		assert  work.util.min(5, 4)       =  4       severity  failure;
-		assert  n_bits(1)                 =  1       severity  failure;
-		assert  n_bits(2)                 =  1       severity  failure;
-		assert  n_bits(7)                 =  3       severity  failure;
-		assert  n_bits(8)                 =  3       severity  failure;
-		assert  n_bits(9)                 =  4       severity  failure;
-		assert  reverse("1")              =  "1"     severity  failure;
-		assert  reverse("0")              =  "0"     severity  failure;
-		assert  reverse("10")             =  "01"    severity  failure;
-		assert  reverse("11")             =  "11"    severity  failure;
-		assert  reverse("0101")           =  "1010"  severity  failure;
-		assert  invert("1")               =  "0"     severity  failure;
-		assert  invert("0")               =  "1"     severity  failure;
-		assert  invert("0101")            =  "1010"  severity  failure;
-		assert  select_bit("01000", "01") =  '1'     severity  failure;
-		assert  parity("0", true)         =  '0'     severity  failure;
-		assert  parity("1", true)         =  '1'     severity  failure;
-		assert  parity("11", true)        =  '0'     severity  failure;
-		assert  parity("1010001", true)   =  '1'     severity  failure;
-		assert  parity("0", false)        =  '1'     severity  failure;
-		assert  parity("1", false)        =  '0'     severity  failure;
-		assert  parity("11", false)       =  '1'     severity  failure;
-		assert  parity("1010001", false)  =  '0'     severity  failure;
-		assert  priority("01001", false)  =  1       severity  failure;
-		assert  mux("1010", "0101", '0')  =  "1010"  severity  failure;
-		assert  mux("1010", "0101", '1')  =  "0101"  severity  failure;
-		assert  decode("00")              =  "0001"  severity  failure;
-		assert  decode("01")              =  "0010"  severity  failure;
-		assert  decode("10")              =  "0100"  severity  failure;
-		assert  decode("11")              =  "1000"  severity  failure;
+		assert max(5, 4)                 =  5      severity failure;
+		assert work.util.min(5, 4)       =  4      severity failure;
+		assert n_bits(1)                 =  1      severity failure;
+		assert n_bits(2)                 =  1      severity failure;
+		assert n_bits(7)                 =  3      severity failure;
+		assert n_bits(8)                 =  3      severity failure;
+		assert n_bits(9)                 =  4      severity failure;
+		assert reverse("1")              =  "1"    severity failure;
+		assert reverse("0")              =  "0"    severity failure;
+		assert reverse("10")             =  "01"   severity failure;
+		assert reverse("11")             =  "11"   severity failure;
+		assert reverse("0101")           =  "1010" severity failure;
+		assert invert("1")               =  "0"    severity failure;
+		assert invert("0")               =  "1"    severity failure;
+		assert invert("0101")            =  "1010" severity failure;
+		assert select_bit("01000", "01") =  '1'    severity failure;
+		assert parity("0", true)         =  '0'    severity failure;
+		assert parity("1", true)         =  '1'    severity failure;
+		assert parity("11", true)        =  '0'    severity failure;
+		assert parity("1010001", true)   =  '1'    severity failure;
+		assert parity("0", false)        =  '1'    severity failure;
+		assert parity("1", false)        =  '0'    severity failure;
+		assert parity("11", false)       =  '1'    severity failure;
+		assert parity("1010001", false)  =  '0'    severity failure;
+		assert priority("01001", false)  =  1      severity failure;
+		assert mux("1010", "0101", '0')  =  "1010" severity failure;
+		assert mux("1010", "0101", '1')  =  "0101" severity failure;
+		assert decode("00")              =  "0001" severity failure;
+		assert decode("01")              =  "0010" severity failure;
+		assert decode("10")              =  "0100" severity failure;
+		assert decode("11")              =  "1000" severity failure;
 		-- n_bits(x: std_ulogic_vector) return natural;
 		-- mux(a, b : std_ulogic_vector) return std_ulogic;
 		wait;
@@ -2344,6 +2344,7 @@ end architecture;
 ------------------------- Debouncer -----------------------------------------------------------
 
 ------------------------- Debouncer Block -----------------------------------------------------
+
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
