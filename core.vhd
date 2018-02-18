@@ -6,6 +6,9 @@
 --| @copyright  Copyright 2013,2017 Richard James Howe.
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
+--|
+--| @todo Make a test bench for the H2 core for executing small sections of
+--| code, in succession, and testing the response. 
 --------------------------------------------------------------------------------
 
 library ieee,work;

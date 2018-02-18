@@ -50,9 +50,9 @@ package h2_pkg is
 
 			dwe:      out std_ulogic; -- RAM data write enable
 			dre:      out std_ulogic; -- RAM data read enable
-			din:      in  word;      -- RAM data input
-			dout:     out word;      -- RAM data output
-			daddr:    out address);  -- RAM address
+			din:      in  word;       -- RAM data input
+			dout:     out word;       -- RAM data output
+			daddr:    out address);   -- RAM address
 	end component;
 end;
 
@@ -108,12 +108,12 @@ architecture rtl of h2 is
 
 	signal vstkp_c, vstkp_n:  depth := (others => '0');             -- variable stack pointer
 	signal vstk_ram: stack_type     := (others => (others => '0')); -- variable stack
-	signal dstk_we: std_ulogic       := '0';                        -- variable stack write enable
+	signal dstk_we: std_ulogic      := '0';                         -- variable stack write enable
 	signal dd: depth                := (others => '0');             -- variable stack delta
 
 	signal rstkp_c, rstkp_n:  depth := (others => '0');             -- return stack pointer
 	signal rstk_ram: stack_type     := (others => (others => '0')); -- return stack
-	signal rstk_we: std_ulogic       := '0';                        -- return stack write enable
+	signal rstk_we: std_ulogic      := '0';                         -- return stack write enable
 	signal rd: depth                := (others => '0');             -- return stack delta
 
 	type instruction_info_type is record
@@ -176,6 +176,27 @@ begin
 	dd               <= (0 => insn(0), others => insn(1)); -- sign extend
 	rd               <= (0 => insn(2), others => insn(3)); -- sign extend
 	dstk_we          <= '1' when is_interrupt = '0' and (is_instr.lit = '1' or (is_instr.alu = '1' and insn(7) = '1')) else '0';
+
+	next_state: process(clk, rst)
+	begin
+		if rst = '1' then
+			vstkp_c    <= (others => '0');
+			rstkp_c    <= (others => '0');
+			pc_c       <= std_ulogic_vector(to_unsigned(start_address, pc_c'length));
+			tos_c      <= (others => '0');
+			int_en_c   <= '0';
+			irq_c      <= '0';
+			irq_addr_c <= (others => '0');
+		elsif rising_edge(clk) then
+			vstkp_c    <= vstkp_n;
+			rstkp_c    <= rstkp_n;
+			pc_c       <= pc_n;
+			tos_c      <= tos_n;
+			int_en_c   <= int_en_n;
+			irq_c      <= irq_n;
+			irq_addr_c <= irq_addr_n;
+		end if;
+	end process;
 
 	stack_write: process(clk)
 	begin
@@ -263,37 +284,11 @@ begin
 	end if;
 	end process;
 
-	next_state: process(clk, rst)
-	begin
-		if rst = '1' then
-			vstkp_c    <= (others => '0');
-			rstkp_c    <= (others => '0');
-			pc_c       <= std_ulogic_vector(to_unsigned(start_address, pc_c'length));
-			tos_c      <= (others => '0');
-			int_en_c   <= '0';
-			irq_c      <= '0';
-			irq_addr_c <= (others => '0');
-		elsif rising_edge(clk) then
-			vstkp_c    <= vstkp_n;
-			rstkp_c    <= rstkp_n;
-			pc_c       <= pc_n;
-			tos_c      <= tos_n;
-			int_en_c   <= int_en_n;
-			irq_c      <= irq_n;
-			irq_addr_c <= irq_addr_n;
-		end if;
-	end process;
-
 	stack_update: process(
-		pc_c,
-		insn,
+		pc_c, insn, tos_c,
 		vstkp_c, dd,
 		rstkp_c, rd,
-		tos_c,
-		is_instr,
-		is_interrupt,
-		pc_plus_one,
-		stop)
+		is_instr, is_interrupt, pc_plus_one, stop)
 	begin
 		vstkp_n   <= vstkp_c;
 		rstkp_n   <= rstkp_c;

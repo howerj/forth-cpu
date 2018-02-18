@@ -508,7 +508,7 @@ package body util is
 		end case;
 		assert (slv /= "XXXX") report " not a valid hex character: " & hc  severity failure;
 		return slv;
-	end hex_char_to_std_ulogic_vector;
+	end;
 
 	--- Not synthesizable ---
 
@@ -522,7 +522,7 @@ package body util is
 			end if;
 		end loop;
 		return -1;
-	end function;
+	end;
 
 	-- VHDL provides quite a limited set of options for dealing with
 	-- operations that are not synthesizeable but would be useful for

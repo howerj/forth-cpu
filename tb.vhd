@@ -158,6 +158,7 @@ begin
 		MemDB    =>  MemDB);
 
 	uut_util: work.util.util_tb generic map(clock_frequency => clock_frequency);
+	uut_vga:  work.vga_pkg.vt100_tb generic map(clock_frequency => clock_frequency);
 
 	-- The "io_pins_tb" works correctly, however GHDL 0.29, compiled under
 	-- Windows, cannot fails to simulate this component correctly, and it

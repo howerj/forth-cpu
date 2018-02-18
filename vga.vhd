@@ -13,6 +13,8 @@
 --| <https://opencores.org/project,interface_vga80x40>. Additions include per
 --| character attributes information and a VT100 terminal interface.
 --|
+--| @todo Make a VT100 test bench
+--| @todo Fix/Remove processing of semi-colon separated attribute values
 --| @todo Add scrolling by changing the base address "text_a", adding
 --| a line
 --| @todo Turn this into a stand alone project
@@ -73,6 +75,7 @@ package vga_pkg is
 		o_vga:    out vga_physical_interface);
 	end component;
 
+	-- VGA test bench, not-synthesizeable
 	component vga_core is
 	port (
 		rst:       in  std_ulogic;
@@ -126,7 +129,11 @@ package vga_pkg is
 		o_vga:      out vga_physical_interface);
 	end component;
 
-	component accumulator is
+	component vt100_tb is
+		generic(clock_frequency: positive);
+	end component;
+
+	component atoi is
 		generic(
 			N:      positive := 16);
 		port(
@@ -145,19 +152,99 @@ end package;
 
 ----- VGA Package -------------------------------------------------------------
 
------ Accumulator -------------------------------------------------------------
+----- VGA Test Bench ----------------------------------------------------------
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.vga_pkg.all;
+use ieee.math_real.all; 
+
+entity vt100_tb is
+	generic(clock_frequency: positive);
+end entity;
+
+architecture behav of vt100_tb is
+	constant clock_period: time := 1000 ms / clock_frequency;
+	constant vector_size_log2: positive := 8;
+	constant vector_size: integer := 2 ** vector_size_log2;
+	signal clk, rst: std_ulogic := '0';
+	signal stop:     std_ulogic := '0';
+	signal clk25MHz, rst25MHz: std_ulogic := '0';
+
+	signal char:     std_ulogic_vector(7 downto 0);
+	signal we:       std_ulogic := '0';
+	signal busy:     std_ulogic := '0';
+	signal physical: vga_physical_interface;
+
+	type char_array is array (0 to vector_size) of std_ulogic_vector(7 downto 0);
+	shared variable test_vector: char_array := (others => (others => '0'));
+	shared variable index: integer := 0;
+begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
+	cs25MHz: entity work.clock_source_tb
+		generic map(clock_frequency => 25000000, hold_rst => 2)
+		port map(stop => stop, clk => clk25MHz, rst => rst25MHz);
+
+	char <= test_vector(index);
+
+	uut: work.vga_pkg.vt100
+	port map(
+		clk      => clk,
+		clk25MHz => clk25MHz,
+		rst      => rst,
+		we       => we,
+		char     => char,
+		busy     => busy,
+		o_vga    => physical);
+
+	stimulus_process: process
+	begin
+		wait for clock_period * 2;
+		wait until busy = '0';
+
+		for i in 0 to vector_size loop
+			we <= '1';
+			wait for clock_period;
+			we <= '0';
+
+			wait for clock_period * 10;
+			-- wait until busy = '0';
+
+			if index < (vector_size - 1) then
+				index := index + 1;
+			else
+				index := 0;
+			end if;
+		end loop;
+
+		stop <= '1';
+		wait;
+	end process;
+end architecture;
+
+----- VGA Test Bench ----------------------------------------------------------
+
+----- ATOI --------------------------------------------------------------------
 -- The purpose of this module is to read in numeric characters ('0' through
 -- '9') and convert the string into a binary number ('n_o'). On the first non-
 -- numeric character the module stops and outputs that non-numeric character
 -- as well as the converted number string. The module waits in the FINISHED
 -- state until the module is reset by an external signal ('init').
+--
+-- The module is named after the C function, 'atoi', for converting a string
+-- into an integer.
+--
 
 library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.vga_pkg.all;
 
-entity accumulator is
+entity atoi is
 	generic(
 		N:      positive := 16);
 	port(
@@ -172,7 +259,7 @@ entity accumulator is
 		n_o:    out unsigned(N - 1 downto 0));
 end entity;
 
-architecture rlt of accumulator is
+architecture rlt of atoi is
 	type state_type is (RESET, WAITING, COMMAND, ACCUMULATE, WRITE, FINISHED);
 	signal state_c, state_n: state_type   := RESET;
 	signal c_c, c_n: unsigned(char'range) := (others => '0');
@@ -248,7 +335,7 @@ begin
 	end process;
 
 end architecture;
------ Accumulator -------------------------------------------------------------
+----- ATOI --------------------------------------------------------------------
 
 ----- VT100 Terminal Emulator -------------------------------------------------
 -- This module contains the VGA module and wraps it in a terminal emulator,
@@ -344,7 +431,7 @@ architecture rtl of vt100 is
 	signal n_o:         unsigned(number - 1 downto 0) := (others => '0');
 	signal akk_char_o:  std_ulogic_vector(char'range)  := (others => '0');
 begin
-	accumulator_0: work.vga_pkg.accumulator
+	accumulator_0: work.vga_pkg.atoi
 		generic map(N => number)
 		port map(
 			clk    => clk,
@@ -386,11 +473,11 @@ begin
 				       or state_c = NUMBER2 else '1';
 
 	vga_blk: block
-		signal vga_din:    std_ulogic_vector(15 downto 0)      := (others => '0');
+		signal vga_din:    std_ulogic_vector(15 downto 0)     := (others => '0');
 		signal vga_ctr_we: vga_control_registers_we_interface := vga_control_registers_we_initialize;
 		signal vga_ctr:    vga_control_registers_interface    := vga_control_registers_initialize;
 		signal attr:       unsigned(attr_c'range)             := attr_default;
-		signal char:       std_ulogic_vector(c_c'range)        := (others => '0');
+		signal char:       std_ulogic_vector(c_c'range)       := (others => '0');
 	begin
 		char           <= x"2a" when conceal_c else std_ulogic_vector(c_c);
 		attr           <= attr_c when state_c /= ERASING else attr_default;
@@ -510,9 +597,7 @@ begin
 					n1_n    <= n_o(n1_n'range);
 				end if;
 			elsif state_c = COMMAND1 then
-
 				repeat := false;
-
 				case akk_char_o is
 				when x"41" => -- CSI n 'A' : CUU Cursor up
 					y_n         <= y_minus_one_limited;
@@ -822,33 +907,33 @@ begin
 	--| monitor. The text buffer holds at least 80*40 characters.
 	u_text: entity work.dual_port_block_ram
 	generic map(
-	    addr_length   => text_addr_length,
-	    data_length   => text_data_length,
-	    file_name     => text_file_name,
-	    file_type     => text_file_type)
+	    addr_length => text_addr_length,
+	    data_length => text_data_length,
+	    file_name   => text_file_name,
+	    file_type   => text_file_type)
 	port map (
-		a_clk  => clk,
+		a_clk   => clk,
 		-- External interface
-		a_dwe  => vga_we_ram,
-		a_dre  => '1',
-		a_addr => vga_addr,
-		a_din  => vga_din,
-		a_dout => vga_dout,
+		a_dwe   => vga_we_ram,
+		a_dre   => '1',
+		a_addr  => vga_addr,
+		a_din   => vga_din,
+		a_dout  => vga_dout,
 		-- Internal interface
-		b_clk  => clk25MHz,
-		b_dwe  => '0',
-		b_dre  => '1',
-		b_addr => text_addr_full,
-		b_din  => (others => '0'),
-		b_dout => text_dout);
+		b_clk   => clk25MHz,
+		b_dwe   => '0',
+		b_dre   => '1',
+		b_addr  => text_addr_full,
+		b_din   => (others => '0'),
+		b_dout  => text_dout);
 
 	--| VGA Font memory
 	u_font: entity work.single_port_block_ram
 	generic map(
-		addr_length   => font_addr_length,
-		data_length   => font_data_length,
-		file_name     => font_file_name,
-		file_type     => font_file_type)
+		addr_length => font_addr_length,
+		data_length => font_data_length,
+		file_name   => font_file_name,
+		file_type   => font_file_type)
 	port map (
 		clk  => clk25MHz,
 		dwe  => '0',
@@ -1056,8 +1141,10 @@ begin
 		signal slowclk: std_ulogic := '0';
 		signal curpos:  std_ulogic := '0';
 		signal yint:    std_ulogic := '0';
-		signal crx:     integer range 79 downto 0;
-		signal cry:     integer range 39 downto 0;
+		-- signal crx:     integer range 79 downto 0;
+		-- signal cry:     integer range 39 downto 0;
+		signal crx:     integer range 127 downto 0;
+		signal cry:     integer range 64 downto 0;
 		signal counter: unsigned(22 downto 0) := (others => '0');
 	begin
 
