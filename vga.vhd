@@ -159,6 +159,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.vga_pkg.all;
 use ieee.math_real.all; 
+use work.util.all;
 
 entity vt100_tb is
 	generic(clock_frequency: positive);
@@ -166,8 +167,6 @@ end entity;
 
 architecture behav of vt100_tb is
 	constant clock_period: time := 1000 ms / clock_frequency;
-	constant vector_size_log2: positive := 8;
-	constant vector_size: integer := 2 ** vector_size_log2;
 	signal clk, rst: std_ulogic := '0';
 	signal stop:     std_ulogic := '0';
 	signal clk25MHz, rst25MHz: std_ulogic := '0';
@@ -177,9 +176,19 @@ architecture behav of vt100_tb is
 	signal busy:     std_ulogic := '0';
 	signal physical: vga_physical_interface;
 
-	type char_array is array (0 to vector_size) of std_ulogic_vector(7 downto 0);
-	shared variable test_vector: char_array := (others => (others => '0'));
-	shared variable index: integer := 0;
+	-- NB. 'string' range is (1 to X), not (X-1 downto 0)
+	-- HT = Horizontal Tab
+	-- LF = Line Feed
+	-- CR = Carriage Return
+	-- ESC = Escape
+	constant CSI: string := ESC & "[";
+	constant RESET: string := CSI & "0m";
+	constant RED:   string := CSI & "31m";
+	constant GREEN: string := CSI & "32m";
+	constant NL:  string := CR & LF;
+	constant test_string: string := "Hello!" & HT & "World!" & RED & NL & "How are you?" & RESET & NL ;
+	shared variable test_vector: ulogic_string(test_string'range) := to_std_ulogic_vector(test_string);
+	shared variable index: integer := 1; -- starts at '1' due to string range
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => clock_frequency, hold_rst => 2)
@@ -189,7 +198,6 @@ begin
 		generic map(clock_frequency => 25000000, hold_rst => 2)
 		port map(stop => stop, clk => clk25MHz, rst => rst25MHz);
 
-	char <= test_vector(index);
 
 	uut: work.vga_pkg.vt100
 	port map(
@@ -203,21 +211,29 @@ begin
 
 	stimulus_process: process
 	begin
-		wait for clock_period * 2;
-		wait until busy = '0';
+		char <= test_vector(index);
+		we <= '0';
+		wait for clock_period * 20;
 
-		for i in 0 to vector_size loop
+		for i in test_vector'range loop
 			we <= '1';
+			char <= test_vector(index);
 			wait for clock_period;
 			we <= '0';
+			wait for clock_period;
 
-			wait for clock_period * 10;
+			while busy = '1' loop
+				wait until busy = '0';
+				wait for clock_period;
+			end loop;
+
+			-- wait for clock_period * 20;
 			-- wait until busy = '0';
-
-			if index < (vector_size - 1) then
+			-- report integer'image(index);
+			if index < (test_vector'high - 1) then
 				index := index + 1;
 			else
-				index := 0;
+				index := 1;
 			end if;
 		end loop;
 

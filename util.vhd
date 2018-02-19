@@ -331,6 +331,10 @@ package util is
 	function mux(a, b : std_ulogic_vector) return std_ulogic;
 	function decode(encoded: std_ulogic_vector) return std_ulogic_vector;
 	function hex_char_to_std_ulogic_vector(hc: character) return std_ulogic_vector;
+	function to_std_ulogic_vector(s: string) return std_ulogic_vector;
+
+	type ulogic_string is array(integer range <>) of std_ulogic_vector(7 downto 0);
+  	function to_std_ulogic_vector(s: string) return ulogic_string;
 
 	--- Not synthesizable ---
 
@@ -508,6 +512,25 @@ package body util is
 		end case;
 		assert (slv /= "XXXX") report " not a valid hex character: " & hc  severity failure;
 		return slv;
+	end;
+
+	-- <https://stackoverflow.com/questions/30519849/vhdl-convert-string-to-std-logic-vector>
+	function to_std_ulogic_vector(s: string) return std_ulogic_vector is
+	    variable ret: std_ulogic_vector(s'length*8-1 downto 0);
+	begin
+	    for i in s'range loop
+		ret(i*8+7 downto i*8) := std_ulogic_vector(to_unsigned(character'pos(s(i)), 8));
+	    end loop;
+	    return ret;
+	end;
+
+	function to_std_ulogic_vector(s: string) return ulogic_string is
+	    variable ret: ulogic_string(s'range);
+	begin
+		for i in s'range loop
+			ret(i) := std_ulogic_vector(to_unsigned(character'pos(s(i)), 8));
+		end loop;
+		return ret;
 	end;
 
 	--- Not synthesizable ---

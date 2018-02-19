@@ -34,10 +34,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
+#define UNUSED(VARIABLE) ((void)(VARIABLE))
+
+#ifdef _WIN32 /* Making standard input streams on Windows binary */
+#include <windows.h>
 #include <io.h>
 #include <fcntl.h>
 extern int _fileno(FILE *stream);
+static void binary(FILE *f) { _setmode(_fileno(f), _O_BINARY); }
+#else
+static inline void binary(FILE *f) { UNUSED(f); }
 #endif
 
 #define DEFAULT_STEPS (0) /*default is to run forever*/
@@ -2834,7 +2840,7 @@ static void node_free(node_t *n)
 	free(n);
 }
 
-static int accept(lexer_t *l, token_e sym)
+static int accept_token(lexer_t *l, token_e sym)
 {
 	assert(l);
 	if(sym == l->token->type) {
@@ -2852,7 +2858,7 @@ static int accept_range(lexer_t *l, token_e low, token_e high)
 	assert(l);
 	assert(low <= high);
 	for(token_e i = low; i <= high; i++)
-		if(accept(l, i))
+		if(accept_token(l, i))
 			return 1;
 	return 0;
 }
@@ -2897,7 +2903,7 @@ static int _expect(lexer_t *l, token_e token, const char *file, const char *func
 	assert(l);
 	assert(file);
 	assert(func);
-	if(accept(l, token))
+	if(accept_token(l, token))
 		return 1;
 	fprintf(stderr, "%s:%s:%u\n", file, func, line);
 	fprintf(stderr, "  Syntax error: unexpected token\n  Got:          ");
@@ -2935,13 +2941,13 @@ static node_t *variable_or_constant(lexer_t *l, bool variable)
 	r = node_new(variable ? SYM_VARIABLE : SYM_CONSTANT, 1);
 	expect(l, LEX_IDENTIFIER);
 	use(l, r);
-	if(accept(l, LEX_LITERAL)) {
+	if(accept_token(l, LEX_LITERAL)) {
 		r->o[0] = defined_by_token(l, SYM_LITERAL);
 	} else {
 		expect(l, LEX_STRING);
 		r->o[0] = defined_by_token(l, SYM_STRING);
 	}
-	if(accept(l, LEX_HIDDEN)) {
+	if(accept_token(l, LEX_HIDDEN)) {
 		if(r->bits & DEFINE_HIDDEN)
 			syntax_error(l, "hidden bit already set on latest word definition");
 		r->bits |= DEFINE_HIDDEN;
@@ -2954,7 +2960,7 @@ static node_t *jump(lexer_t *l, parse_e type)
 	node_t *r;
 	assert(l);
 	r = node_new(type, 0);
-	(void)(accept(l, LEX_LITERAL) || accept(l, LEX_STRING) || expect(l, LEX_IDENTIFIER));
+	(void)(accept_token(l, LEX_LITERAL) || accept_token(l, LEX_STRING) || expect(l, LEX_IDENTIFIER));
 	use(l, r);
 	return r;
 }
@@ -2967,7 +2973,7 @@ static node_t *for_next(lexer_t *l)
 	assert(l);
 	r = node_new(SYM_FOR_NEXT, 1);
 	r->o[0] = statements(l);
-	if(accept(l, LEX_AFT)) {
+	if(accept_token(l, LEX_AFT)) {
 		r->type = SYM_FOR_AFT_THEN_NEXT;
 		r = node_grow(r);
 		r->o[1] = statements(l);
@@ -2985,9 +2991,9 @@ static node_t *begin(lexer_t *l)
 	assert(l);
 	r = node_new(SYM_BEGIN_UNTIL, 1);
 	r->o[0] = statements(l);
-	if(accept(l, LEX_AGAIN)) {
+	if(accept_token(l, LEX_AGAIN)) {
 		r->type = SYM_BEGIN_AGAIN;
-	} else if(accept(l, LEX_WHILE)) {
+	} else if(accept_token(l, LEX_WHILE)) {
 		r->type = SYM_BEGIN_WHILE_REPEAT;
 		r = node_grow(r);
 		r->o[1] = statements(l);
@@ -3004,7 +3010,7 @@ static node_t *if1(lexer_t *l)
 	assert(l);
 	r = node_new(SYM_IF1, 2);
 	r->o[0] = statements(l);
-	if(accept(l, LEX_ELSE))
+	if(accept_token(l, LEX_ELSE))
 		r->o[1] = statements(l);
 	expect(l, LEX_THEN);
 	return r;
@@ -3015,7 +3021,7 @@ static node_t *define(lexer_t *l)
 	node_t *r;
 	assert(l);
 	r = node_new(SYM_DEFINITION, 1);
-	if(accept(l, LEX_IDENTIFIER))
+	if(accept_token(l, LEX_IDENTIFIER))
 		;
 	else
 		expect(l, LEX_STRING);
@@ -3023,19 +3029,19 @@ static node_t *define(lexer_t *l)
 	r->o[0] = statements(l);
 	expect(l, LEX_ENDDEFINE);
 again:
-	if(accept(l, LEX_IMMEDIATE)) {
+	if(accept_token(l, LEX_IMMEDIATE)) {
 		if(r->bits & DEFINE_IMMEDIATE)
 			syntax_error(l, "immediate bit already set on latest word definition");
 		r->bits |= DEFINE_IMMEDIATE;
 		goto again;
 	}
-	if(accept(l, LEX_HIDDEN)) {
+	if(accept_token(l, LEX_HIDDEN)) {
 		if(r->bits & DEFINE_HIDDEN)
 			syntax_error(l, "hidden bit already set on latest word definition");
 		r->bits |= DEFINE_HIDDEN;
 		goto again;
 	}
-	if(accept(l, LEX_INLINE)) {
+	if(accept_token(l, LEX_INLINE)) {
 		if(r->bits & DEFINE_INLINE)
 			syntax_error(l, "inline bit already set on latest word definition");
 		r->bits |= DEFINE_INLINE;
@@ -3071,7 +3077,7 @@ static node_t *pc(lexer_t *l)
 	node_t *r;
 	assert(l);
 	r = node_new(SYM_PC, 0);
-	if(!accept(l, LEX_LITERAL))
+	if(!accept_token(l, LEX_LITERAL))
 		expect(l, LEX_IDENTIFIER);
 	use(l, r);
 	return r;
@@ -3082,7 +3088,7 @@ static node_t *pwd(lexer_t *l)
 	node_t *r;
 	assert(l);
 	r = node_new(SYM_PWD, 0);
-	if(!accept(l, LEX_LITERAL))
+	if(!accept_token(l, LEX_LITERAL))
 		expect(l, LEX_IDENTIFIER);
 	use(l, r);
 	return r;
@@ -3093,10 +3099,10 @@ static node_t *set(lexer_t *l)
 	node_t *r;
 	assert(l);
 	r = node_new(SYM_SET, 0);
-	if(!accept(l, LEX_IDENTIFIER) && !accept(l, LEX_STRING))
+	if(!accept_token(l, LEX_IDENTIFIER) && !accept_token(l, LEX_STRING))
 		expect(l, LEX_LITERAL);
 	use(l, r);
-	if(!accept(l, LEX_IDENTIFIER) && !accept(l, LEX_STRING))
+	if(!accept_token(l, LEX_IDENTIFIER) && !accept_token(l, LEX_STRING))
 		expect(l, LEX_LITERAL);
 	use(l, r);
 	return r;
@@ -3107,7 +3113,7 @@ static node_t *allocate(lexer_t *l)
 	node_t *r;
 	assert(l);
 	r = node_new(SYM_ALLOCATE, 0);
-	if(!accept(l, LEX_IDENTIFIER))
+	if(!accept_token(l, LEX_IDENTIFIER))
 		expect(l, LEX_LITERAL);
 	use(l, r);
 	return r;
@@ -3118,7 +3124,7 @@ static node_t *quote(lexer_t *l)
 	node_t *r;
 	assert(l);
 	r = node_new(SYM_QUOTE, 0);
-	if(!accept(l, LEX_IDENTIFIER))
+	if(!accept_token(l, LEX_IDENTIFIER))
 		expect(l, LEX_STRING);
 	use(l, r);
 	return r;
@@ -3132,71 +3138,71 @@ static node_t *statements(lexer_t *l)
 	r = node_new(SYM_STATEMENTS, 2);
 again:
 	r = node_grow(r);
-	if(accept(l, LEX_CALL)) {
+	if(accept_token(l, LEX_CALL)) {
 		r->o[i++] = jump(l, SYM_CALL);
 		goto again;
-	} else if(accept(l, LEX_BRANCH)) {
+	} else if(accept_token(l, LEX_BRANCH)) {
 		r->o[i++] = jump(l, SYM_BRANCH);
 		goto again;
-	} else if(accept(l, LEX_0BRANCH)) {
+	} else if(accept_token(l, LEX_0BRANCH)) {
 		r->o[i++] = jump(l, SYM_0BRANCH);
 		goto again;
-	} else if(accept(l, LEX_LITERAL)) {
+	} else if(accept_token(l, LEX_LITERAL)) {
 		r->o[i++] = defined_by_token(l, SYM_LITERAL);
 		goto again;
-	} else if(accept(l, LEX_LABEL)) {
+	} else if(accept_token(l, LEX_LABEL)) {
 		r->o[i++] = defined_by_token(l, SYM_LABEL);
 		goto again;
-	} else if(accept(l, LEX_CONSTANT)) {
+	} else if(accept_token(l, LEX_CONSTANT)) {
 		r->o[i++] = variable_or_constant(l, false);
 		goto again;
-	} else if(accept(l, LEX_VARIABLE)) {
+	} else if(accept_token(l, LEX_VARIABLE)) {
 		r->o[i++] = variable_or_constant(l, true);
 		goto again;
-	} else if(accept(l, LEX_LOCATION)) {
+	} else if(accept_token(l, LEX_LOCATION)) {
 		r->o[i]   = variable_or_constant(l, true);
 		r->o[i++]->type = SYM_LOCATION;
 		goto again;
-	} else if(accept(l, LEX_IF)) {
+	} else if(accept_token(l, LEX_IF)) {
 		r->o[i++] = if1(l);
 		goto again;
-	} else if(accept(l, LEX_DEFINE)) {
+	} else if(accept_token(l, LEX_DEFINE)) {
 		r->o[i++] = define(l);
 		goto again;
-	} else if(accept(l, LEX_CHAR)) {
+	} else if(accept_token(l, LEX_CHAR)) {
 		r->o[i++] = char_compile(l);
 		goto again;
-	} else if(accept(l, LEX_BEGIN)) {
+	} else if(accept_token(l, LEX_BEGIN)) {
 		r->o[i++] = begin(l);
 		goto again;
-	} else if(accept(l, LEX_FOR)) {
+	} else if(accept_token(l, LEX_FOR)) {
 		r->o[i++] = for_next(l);
 		goto again;
-	} else if(accept(l, LEX_QUOTE)) {
+	} else if(accept_token(l, LEX_QUOTE)) {
 		r->o[i++] = quote(l);
 		goto again;
-	} else if(accept(l, LEX_IDENTIFIER)) {
+	} else if(accept_token(l, LEX_IDENTIFIER)) {
 		r->o[i++] = defined_by_token(l, SYM_CALL_DEFINITION);
 		goto again;
-	} else if(accept(l, LEX_PWD)) {
+	} else if(accept_token(l, LEX_PWD)) {
 		r->o[i++] = pwd(l);
 		goto again;
-	} else if(accept(l, LEX_SET)) {
+	} else if(accept_token(l, LEX_SET)) {
 		r->o[i++] = set(l);
 		goto again;
-	} else if(accept(l, LEX_PC)) {
+	} else if(accept_token(l, LEX_PC)) {
 		r->o[i++] = pc(l);
 		goto again;
-	} else if(accept(l, LEX_BREAK)) {
+	} else if(accept_token(l, LEX_BREAK)) {
 		r->o[i++] = defined_by_token(l, SYM_BREAK);
 		goto again;
-	} else if(accept(l, LEX_MODE)) {
+	} else if(accept_token(l, LEX_MODE)) {
 		r->o[i++] = mode(l);
 		goto again;
-	} else if(accept(l, LEX_ALLOCATE)) {
+	} else if(accept_token(l, LEX_ALLOCATE)) {
 		r->o[i++] = allocate(l);
 		goto again;
-	} else if(accept(l, LEX_BUILT_IN)) {
+	} else if(accept_token(l, LEX_BUILT_IN)) {
 		r->o[i++] = defined_by_token(l, SYM_BUILT_IN);
 		goto again;
 	/**@warning This is a token range from the first instruction to the
@@ -3858,7 +3864,6 @@ h2_t *h2_assemble_core(FILE *input, symbol_table_t *symbols)
 #define CORE (65536u)  /* core size in bytes */
 #define SP0  (8704u)   /* Variable Stack Start: 8192 (end of program area) + 512 (block size) */
 #define RP0  (32767u)  /* Return Stack Start: end of CORE in words */
-#define UNUSED(VARIABLE) ((void)(VARIABLE))
 
 #ifdef TRON
 #define TRACE(PC,I,SP,RP) \
@@ -4271,16 +4276,6 @@ int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symb
 	}
 	return -1;
 }
-
-#ifdef _WIN32 /* Making standard input streams on Windows binary */
-#include <windows.h>
-#include <io.h>
-#include <fcntl.h>
-extern int _fileno(FILE *);
-static void binary(FILE *f) { _setmode(_fileno(f), _O_BINARY); }
-#else
-static inline void binary(FILE *f) { UNUSED(f); }
-#endif
 
 static const char *nvram_file = FLASH_INIT_FILE;
 

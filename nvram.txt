@@ -2190,20 +2190,20 @@ is to erase a block before it is displayed with 'list'.
 
 
 
-; ==== +block ( n -- u : return block number relative to blk ) =
+; ==== +block ( n -- k : return block number relative to blk ) =
+'+block' is a useful common operation which returns the block
+number relative to the one currently loaded in 'blk', it can
+be thus used to navigate relative to the most recently loaded
+block. The number it accepts is signed, the next blocks being
+specified with a positive number, the current with zero, and
+negative being prior blocks.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
+  : +block blk @ + ;      ( n -- k )
+  : next 1 +block ;       ( 
+  : previous -1 +block ;
+  5 block drop next next previous
 
 
 ; ==== border  ( -- a : variable for list display control ) ====
@@ -2225,8 +2225,8 @@ is to erase a block before it is displayed with 'list'.
 ; ==== c,  ( c -- : compile character into dictionary ) ========
 This words takes a character and writes the character in the
 next available location in the dictionary, and updates the
-dictionary pointer. This word can cause the dictionary number to
-be misaligned, 'align' can be used to remedy this.
+dictionary pointer. This word can cause the dictionary number
+to be misaligned, 'align' can be used to remedy this.
 
 
 
@@ -2239,12 +2239,12 @@ be misaligned, 'align' can be used to remedy this.
 
 
 ; ==== c!  ( c b -- : store 'c' at 'b' ) =======================
-
-
-
-
-
-
+'c!' is the byte oriented store word, it stores a byte 'c' at
+a potentially unaligned address 'b'. This is not a primitive
+operation provided by the processor as it can only do cell
+sized loads and stores in a single instruction. The
+corresponding word for load a byte is 'c@'. The cell load
+and store words are '@' and '!' respectively.
 
 
 
@@ -2255,12 +2255,12 @@ be misaligned, 'align' can be used to remedy this.
 
 
 ; ==== c@  ( b -- c : retrieve 'c' from 'b' ) ==================
-
-
-
-
-
-
+'c@' retrieves a single byte from the address 'b', this address
+does not have to be an aligned address. For storing a byte, see
+'c!'. This word is the byte oriented version of '@', '@'
+operates on Forth cells. On this processor 'c@' is not a
+primitive operation, for speed '@' should be used instead, as
+loads (and stores) can only be done by cell and not by byte.
 
 
 
@@ -2271,20 +2271,20 @@ be misaligned, 'align' can be used to remedy this.
 
 
 ; ==== catch  ( xt -- n | 0 : catch possible exception ) =======
+'catch' can catch exceptions thrown by 'throw', it is part of
+a pair of words that work as a pair like many Forth words, one
+cannot exist without the other. 'catch' takes an execution
+token, executes it, and returns 0 if nothing was thrown, and
+a non-zero value if something was. 'catch' is also used as part
+of the interpreter loop as an exception handler of last resort.
+The word 'throw' should also be consulted. 'throw' and 'catch'
+manipulate the return stack a lot and are fairly complex words
+that are hard to implement on a processor with hardware stacks.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
-
+  : x 99 throw ;   : y x 66 ;
+  ' x catch . ( prints '99' )
 
 ; ==== ccitt  ( crc c -- crc : compute CRC step ) ==============
 
@@ -2334,29 +2334,29 @@ across different word size computers.
 
 
 
-; ==== cells  ( n -- n : convert byte to cell number ) =========
+; ==== cells  ( n -- n : convert cell to byte count ) ==========
+'cells' is a word that takes a count of the number of cells and
+returns the number of bytes that those cells would occupy, on
+this 16-bit Forth 'cells' is essentially a multiply by two
+operation, but on other Forths it could be a different value,
+so this word is used for portability reasons.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
+  0 cells . ( prints '0' )
+  1 cells . ( prints '2' )
+  2 cells . ( prints '4' )
+  create x 4 cells allot ( 'x' created, space for 4 cells )
 
 
 
 ; ==== >char ( c -- c : convert unprintable character ) ========
-
-
-
-
-
-
+'>char' converts a character so that it can be printed by
+converting any characters which cannot be printed to the
+underscore character ('_'). This is used within words like
+'message' and 'list'. Tabs also get converted, as do control
+characters, delete and any character outside of the ASCII
+range.
 
 
 
@@ -2399,7 +2399,7 @@ Usage:
 
 
 ; ==== cmove  ( b b u -- : move block memory ) =================
-'cmove' moves a block of characters from one location to
+'cmove' copies a block of characters from one location to
 another.
 
 
@@ -2495,20 +2495,20 @@ the word ',' will compile an unconditional branch.
 
 
 ; ==== constant  ( n -- ; <string> : create constant ) =========
+'constant' is a defining word that creates a new constant, it
+takes in a value from the stack, and parses the next word from
+the input stream which will become the name of the new
+constant. This word uses 'create' and 'does>' internally to
+do the work, and is similar to the definition of 'variable'.
+At run time the new word when called will leave a copy of
+'n' on the stack.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
-
+   : constant create , does> @ ;
+   4 constant x
+   3 constant y
+   x y + . ( prints '7' )
 
 ; ==== count  ( b -- b c : retrieve next character in string ) =
 'count' is a very useful word when dealing with strings,
@@ -3999,20 +3999,20 @@ Example:
   1234 print-number ( <-- prints '1234' )
 
 ; ==== save-buffers  ( -- : save dirty blocks ) ================
+'save-buffers' saves any dirty buffers, if there are any, to
+disk and sets the block dirty bit to clean (so subsequent calls
+to 'save-buffers' will not save blocks to mass storage unless
+they have been 'update'd again). You can make a block dirty
+by calling 'update' after the block has been loaded, and before
+any other blocks have been loaded.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
-
+  5 block drop      ( load block 5, do nothing with it )
+  save-buffers      ( nothing happens, block 5 is not dirty )
+  4 block 99 swap ! ( store '99' in first element of block 4 )
+  update            ( mark block 4 as dirty )
+  save-buffers      ( block 4 written back to disk )
 
 ; ==== see  ( -- ; <string> : decompile word ) =================
 'see' is a complex word that can decompile a Forth word, it is
@@ -4517,9 +4517,9 @@ block will be written to disk on when 'flush', 'save-buffers',
 or another block is loaded from disk.
 
 Usage:
-   5 block ( block '5' loaded, block buffer address returned )
-   99 !    ( store '99' in block buffer )
-   update  ( mark block as dirty )
+   5 block      ( block '5' loaded, block address returned )
+   swap 99 !    ( store '99' in block buffer )
+   update       ( mark block as dirty )
    save-buffers ( write out block buffer back to block '5' )
    ( block '5' now contains '99' in its first byte, which has )
    ( been saved to disk )
@@ -4639,8 +4639,8 @@ of that vocabulary as a prefix.
 
 
 ; ==== xor  ( u1 u2 -- u : bit wise exclusive or ) =============
-Bitwise exclusive or of two numbers.
-
+Bitwise exclusive or of two numbers, there is nothing more
+to this function than that.
 
 
 

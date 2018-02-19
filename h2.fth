@@ -780,7 +780,7 @@ in which the problem could be solved. )
 
 : updated? block-dirty @ ; hidden      ( -- f )
 : update [-1] block-dirty ! ;          ( -- )
-: +block blk @ + ;                     ( -- )
+: +block blk @ + ;                     ( n -- k )
 : clean-buffers 0 block-dirty ! ; hidden
 : empty-buffers clean-buffers block-invalid blk ! ;  ( -- )
 : save-buffers                         ( -- )

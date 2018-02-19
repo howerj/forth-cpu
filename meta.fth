@@ -1,9 +1,13 @@
 0 <ok> ! ( Turn off 'ok' prompt )
+\ ========================================================================== \
+\                      This file is currently not used!
+\ ========================================================================== \
 
 \ NOTE: This file was originally from <https://github.com/howerj/embed>,
 \ and is a metacompiler for the 'embed' virtual machine, it will need porting
 \ so it works with the H2, however the embed VM is derived from the simulator
 \ for the H2, so porting should be fairly easy.
+\ @todo Reformat this file for a column width of 64, into Forth blocks.
 
 \ # meta.fth
 \ 
