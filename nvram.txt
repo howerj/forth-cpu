@@ -2063,17 +2063,17 @@ This performs a bitwise and on two numbers.
 
 
 ; ==== at-xy  ( x y -- : place cursor at column 'x', row 'y' ) =
+'at-xy' emits the ANSI escape sequence which will place the
+cursor at column 'x' and row 'y'. This should work with the
+built in VT100 terminal emulator, and with any decent terminal
+emulator used to talk to the device over UART. 'at-xy' can be
+used to draw primitive graphics along with other escape codes.
+Counting starts from one, not zero.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
+  1 1 at-xy  ( set cursor to top left corned )
+  5 10 at-xy ( cursor to column 5, row 10 )
 
 
 
@@ -2095,45 +2095,45 @@ Example usage:
    $8 base !
 
 ; ==== b/buf  ( -- u : number of bytes in a block ) ============
-This pushes the number of bytes in a block onto the stack, which
-is 1024 in most Forth implementations, including this one.
+This pushes the number of bytes in a block onto the stack, 
+which is 1024 in most Forth implementations, including this
+one.
 
 
 
 
 
+Usage:
 
-
-
-
+  blk @ block b/buf blank ( blank most recently loaded block )
 
 
 
 
 ; ==== begin  ( -- : start begin...until/again loop ) ==========
+'begin' is used to start three looping mechanisms,
+* 'begin...again'          ( infinite loop )
+* 'begin...until'          ( loop until non-zero )
+* 'begin...while...repeat' ( loop until zero )
+Which are best explained in the entries for 'again', 'until'
+and 'while'/'repeat' respectively. 'begin' is an immediate
+word that should only be used within a word definition, and
+should be used in conjunction with a valid looping mechanism
+word set.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
+ See 'again', 'repeat', 'while' and 'until' for examples.
 
 
 ; ==== bl  ( -- u : value for space character ) ================
-This pushes the space character to the stack.
-
-
-
-
-
-
+This pushes the space character to the stack. This is the
+ASCII character 32 (decimal), or $20 (hexadecimal). This is
+a useful character for comparing character ranges (anything
+of a lower numeric value than space is a control character in
+ASCII) and because it is unobtainable by using the word 'char'
+or '[char]', as they use space to delimited the character to be
+read in.
 
 
 
@@ -2159,6 +2159,10 @@ is to erase a block before it is displayed with 'list'.
 
 
 ; ==== blk  ( -- a : address of last loaded block ) ============
+'blk' is a variable which contains the value of the last block
+to be loaded. This value is updated by 'block' on a successful
+operation, and is set to an invalid block number on a block
+error, or when 'flush' is called.
 
 
 
@@ -2170,24 +2174,20 @@ is to erase a block before it is displayed with 'list'.
 
 
 
+; ==== block  ( k -- a : perform block operation ) =============
+'block' is a complex word that abstracts away all the details
+of mass storage, whilst at the same time being easy to use, it
+forms the basis on which Forth Blocks are used to organize
+code and data. 'block'  takes a block number and if it is
+valid attempts to find a free buffer in which to load the
+block into, it then returns a pointer to that buffer. If no
+free buffers are available it saves a dirty buffer to disk
+then deallocates it, or it overwrites a clean buffer (as it
+can always be loaded from disk if needed again).
 
+Usage:
 
-
-
-; ==== block  ( u -- a : perform block operation ) =============
-
-
-
-
-
-
-
-
-
-
-
-
-
+   5 block 2 cells + 1234 swap ! update flush
 
 
 ; ==== +block ( n -- k : return block number relative to blk ) =
@@ -2207,9 +2207,9 @@ Usage:
 
 
 ; ==== border  ( -- a : variable for list display control ) ====
-
-
-
+'border' is a variable that controls the display of 'list', 
+it turns the border on when it is set to true (-1), and off
+when it is set to false (0).
 
 
 

@@ -3,7 +3,11 @@
  * @copyright Richard James Howe (2017)
  * @license   MIT
  *
- * @todo Implement reset/reload, and save/load state */
+ * @todo Implement reset/reload, and save/load state
+ * @todo Implement drawing of characters outside of the printable range,
+ * and non-ASCII characters, all 256 characters have an associated glyph
+ * in the hardware. This would allow applications that take advantage
+ * of the semi-graphics font set to be developed. */
 
 
 #include "h2.h"

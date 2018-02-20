@@ -777,6 +777,8 @@ in which the problem could be solved. )
 ( ==================== Strings ======================================= )
 
 ( ==================== Block Word Set ================================ )
+\ @todo 'blk' being set to zero should indicate an invalid block number, not -1
+
 
 : updated? block-dirty @ ; hidden      ( -- f )
 : update [-1] block-dirty ! ;          ( -- )
@@ -827,6 +829,13 @@ in which the problem could be solved. )
 	for
 		dup 5u.r space pipe space dup  0 .line cr 1+
 	next drop ;
+
+\ 'block-copy' is a hack, but an elegant one, it relies on modifying 
+\ the 'blk' variable to trick the block system into thinking that a different
+\ block has been loaded. This works as their is only one block available, it
+\ could work in other systems by modifying the block buffers data structures
+\ in systems with more than one block buffer.
+\ : block-copy swap block drop blk ! update save-buffers ; ( k1 k2 -- : copy k1 to k2 )
 
 
 ( all words before this are now in the forth vocabulary, it is also set
