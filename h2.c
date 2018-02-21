@@ -12,7 +12,9 @@
  *
  * @todo Generate VCD or GHW files directly so that GTKWave can view
  * the resulting trace. See 
- * <http://www.ic.unicamp.br/~ducatte/mc542/Docs/gtkwave.pdf>
+ * <http://www.ic.unicamp.br/~ducatte/mc542/Docs/gtkwave.pdf> See
+ * the utility <https://github.com/carlos-jenkins/csv2vcd> for more
+ * information about doing this.
  * @todo The compiler section could be replace by an embedded Forth interpreter
  * The one available at <https://github.com/howerj/embed> would work well, the
  * metacompiler could be retargeted for the H2 processor instead of its own
@@ -337,8 +339,8 @@ int binary_memory_save(FILE *output, uint16_t *p, size_t length)
 	assert(p);
 	for(size_t i = 0; i < length; i++) {
 		errno = 0;
-		const int r1 = fputc((p[i])&0xff,output);
-		const int r2 = fputc((p[i]>>8u)& 0xff, output);
+		const int r1 = fputc((p[i])     & 0xff,output);
+		const int r2 = fputc((p[i]>>8u) & 0xff, output);
 		if(r1 < 0 || r2 < 0) {
 			debug("memory write failed: %s", strerror(errno));
 			return -1;
@@ -1838,6 +1840,41 @@ static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, co
 	return r;
 }
 
+static int csv(FILE *o, h2_t *h, symbol_table_t *symbols, bool header)
+{
+	if(!o)
+		return 0;
+	assert(h);
+	if(header) {
+		fputs("\"pc[15:0]\",", o);
+		fputs("\"tos[15:0]\",", o);
+		fputs("\"rp[7:0]\",", o);
+		fputs("\"sp[7:0]\",", o);
+		fputs("\"ie\",", o);
+		fputs("\"instruction[15:0]\",", o);
+		/*fputs("\"disassembled\",", o);*/
+		fputs("\"Time\"", o);
+		fputc('\n', o);
+		return 0;
+	}
+	fprintf(o, "%u,",   (unsigned)h->pc);
+	fprintf(o, "%u,",   (unsigned)h->tos);
+	fprintf(o, "%u,",   (unsigned)h->rp);
+	fprintf(o, "%u,",   (unsigned)h->sp);
+	fprintf(o, "%u,",   (unsigned)h->ie);
+	fprintf(o, "%u,",   (unsigned)h->core[h->pc]);
+	/*fputc('\"', o);
+	disassemble_instruction(h->core[h->pc], o, symbols, DCM_NONE);
+	fputs("\",", o);*/
+	fprintf(o, "%u ns", (unsigned)h->time);
+
+	if(fputc('\n', o) != '\n')
+		return -1;
+	if(fflush(o) == EOF)
+		return -1;
+	return 0;
+}
+
 typedef struct {
 	FILE *input;
 	FILE *output;
@@ -2205,6 +2242,9 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 	assert(h);
 	debug_state_t ds = { .input = stdin, .output = stderr, .step = run_debugger, .trace_on = false /*run_debugger*/ };
 
+	/*FILE *t = fopen_or_die("trace.csv", "wb");
+	csv(t, h, symbols, true);*/
+
 	if(run_debugger)
 		fputs("Debugger running, type 'h' for a list of command\n", ds.output);
 
@@ -2213,6 +2253,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			 literal,
 			 address,
 			 pc_plus_one;
+		/*csv(t, h, symbols, false);*/
+		h->time++;
 
 		if(run_debugger)
 			if(h2_debugger(&ds, h, io, symbols, h->pc))
@@ -4073,10 +4115,11 @@ void embed_free(forth_t *h)
 static int embed_save(forth_t *h, const char *name, size_t start, size_t length)
 {
 	assert(h);
+	assert((length - start) < length);
 	if(!name)
 		return -1;
 	FILE *output = fopen_or_die(name, "wb");
-	const int r  = binary_memory_save(output, h->core+start, length);
+	const int r  = binary_memory_save(output, h->core+start, length-start);
 	fclose(output);
 	return r;
 }
@@ -4335,7 +4378,7 @@ int h2_main(int argc, char **argv)
 			cmd.cmd = DISASSEMBLE_COMMAND;
 			break;
 		case 'e': 
-		{
+		{ /**@todo This should be handled by the command() function */
 			forth_t *f = embed_new();
 			if(i >= (argc - 1)) {
 				embed_free(f);
@@ -4346,7 +4389,7 @@ int h2_main(int argc, char **argv)
 			embed_free(f);
 			if(r < 0)
 				fatal("embed run failed: %u\n", r);
-			break;
+			return 0;
 		}
 		case 'a':
 			if(cmd.cmd)

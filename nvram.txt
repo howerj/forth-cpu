@@ -1759,9 +1759,9 @@ Usage:
 
 
 ; ==== 0>  ( n -- f : 'n' greater than zero? ) =================
-
-
-
+'0>' performs a greater than zero test on a signed number, if
+'n' is greater than zero it returns true (-1), otherwise it
+returns false (0) if 'n' is equal to or less than zero.
 
 
 
@@ -1791,7 +1791,7 @@ Usage:
 
 
 ; ==== 1+  ( u -- u : increment u ) ============================
-This is a regular function that increments a value by one.
+This is a regular word that increments a value by one.
 
 
 
@@ -1839,8 +1839,8 @@ This is a regular function that increments a value by one.
 
 
 ; ==== 2/  ( u -- u : divide 'u' by two ) ======================
-
-
+'2/' is a division by 2, it is implemented as a logical right
+shift by one. 
 
 
 
@@ -1855,24 +1855,24 @@ This is a regular function that increments a value by one.
 
 
 ; ==== 2@  ( a -- u1 u2 : retrieve two cells ) =================
+'2@' retrieves two consecutive cells from an address 'a'. The
+word forms a pair with '2!', which stores two cells at two
+consecutive addresses.
 
 
 
 
 
+Usage:
 
-
-
-
-
-
-
-
+   1 2     ( -- 1 2 : input test values )
+   pad 2!  ( 1 2 -- : store values in temporary storage )
+   pad 2@  ( -- 1 2 : retrieve values )
 
 
 ; ==== 2*  ( u -- u : multiply 'u' by two ) ====================
-
-
+'2*' is a multiply by two, it is implemented as a left shift
+by one.
 
 
 
@@ -1999,20 +1999,20 @@ Usage:
 
 
 ; ==== aligned  ( b -- a : align up an address ) ===============
+'aligned' takes an address 'b', that is potentially unaligned
+and returns an aligned address by rounding up to the nearest
+cell boundary. This word is like 'align' but it works on any
+pointer instead of the dictionary pointer only. As this is
+a 16-bit Forth system this rounds up to the nearest 16-bit cell
+boundary, or to next multiple of two (bytes).
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
-
+  0 aligned . ( prints '0' )
+  1 aligned . ( prints '2' )
+  2 aligned . ( prints '2' )
+  3 aligned . ( prints '4' )
+  4 aligned . ( prints '4' )
 
 ; ==== allot  ( n -- : allocate 'n' bytes ) ====================
 Allocate 'n' bytes of space in the dictionary, 'n' can be
@@ -2047,20 +2047,20 @@ This performs a bitwise and on two numbers.
 
 
 ; ==== ansi ( n c -- : emit an ANSI escape command ) ===========
+'ansi' is used to help construct ANSI escape code sequences,
+most sequences consist of a CSI escape code, a number in base
+10, and a single character to indicate the command. The
+character and the number change, and are given as arguments
+to the word 'ansi'. Most terminal emulators can deal with these
+sequences, and the hardware VT100 clone that controls the VGA
+display can deal with most of the more important codes.
 
+Usage:
 
-
-
-
-
-
-
-
-
-
-
-
-
+  : sgr [char] m ansi ;
+  $1f sgr ( turn foreground color red )
+  $0  sgr ( reset color )
+  2 char J ansi ( blank screen, set cursor position to 1,1 )
 
 ; ==== at-xy  ( x y -- : place cursor at column 'x', row 'y' ) =
 'at-xy' emits the ANSI escape sequence which will place the

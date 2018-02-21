@@ -41,6 +41,7 @@ typedef struct {
 	uint16_t rp;  /**< return stack pointer */
 	uint16_t sp;  /**< variable stack pointer */
 	bool     ie;  /**< interrupt enable */
+	unsigned time; /**< cycles run for */
 
 	break_point_t bp; /**< list of break points */
 	uint16_t rpm; /**< maximum value of rp ever encountered */

@@ -778,7 +778,8 @@ in which the problem could be solved. )
 
 ( ==================== Block Word Set ================================ )
 \ @todo 'blk' being set to zero should indicate an invalid block number, not -1
-
+\ The usuage of 'blk' is incorrect, it should be set to the block number
+\ most recently LOAD'ed, not the one most recently BLOCK'ed
 
 : updated? block-dirty @ ; hidden      ( -- f )
 : update [-1] block-dirty ! ;          ( -- )

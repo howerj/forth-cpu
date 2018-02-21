@@ -1383,7 +1383,7 @@ cool 1 dimensional game.
 * Other programs like a compressor, decompressor, ARC4, data base function based
 around blocks, and a meta compiler (removing the need for the C assembler),
 could be added.
-
+* Unit tests for the eForth interpreter should be developed
 
 
 <!-- -->
