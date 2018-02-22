@@ -12,6 +12,8 @@
 
 NETLIST=top
 #TIME=time -p 
+
+CFLAGS=-Wall -Wextra -O2 -g
 TIME=
 
 OS_FLAGS =
@@ -92,9 +94,17 @@ documentation: readme.pdf readme.htm
 %.hex: %.fth h2${EXE}
 	${DF}h2 -S h2.sym -a $< > $@
 
+# NB. 'meta' and 'forth' targets are here temporarily until the metacompiler
+# has been fixed.
+forth${EXE}: forth.c
+	${CC} ${CFLAGS} -std=c99 $< -o $@
+
+meta: h2${EXE} forth${EXE} meta.fth
+	h2${EXE} -e meta.blk < meta.fth
+	forth${EXE} i meta.blk out.blk
+
 ## Virtual Machine and UART communications =================================
 
-CFLAGS=-Wall -Wextra -O2 -g
 
 h2${EXE}: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 $< -o $@

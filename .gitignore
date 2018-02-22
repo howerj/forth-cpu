@@ -22,6 +22,7 @@ doxy/latex/*
 *_envsettings.html
 *.exe
 filter
+forth
 fth/doc/doxygen/*
 *.ghw
 *.gise

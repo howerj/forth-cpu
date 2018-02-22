@@ -1815,32 +1815,43 @@ static uint16_t stack_delta(uint16_t d)
 	return i[d];
 }
 
-static int trace(FILE *output, uint16_t instruction, symbol_table_t *symbols, const char *fmt, ...)
+static inline void reverse(char *r, size_t length)
 {
-	int r = 0;
-	va_list ap;
-	assert(output);
-	if(!output)
-		return r;
-	assert(fmt);
-	va_start(ap, fmt);
-	r = vfprintf(output, fmt, ap);
-	va_end(ap);
-	if(r < 0)
-		return r;
-	if(fputc('\t', output) != '\t')
-		return -1;
-	r = disassemble_instruction(instruction, output, symbols, DCM_NONE);
-	if(r < 0)
-		return r;
-	if(fputc('\n', output) != '\n')
-		return -1;
-	if(fflush(output) == EOF)
-		return -1;
-	return r;
+	size_t last = length - 1;
+	for(size_t i = 0; i < length/2; i++) {
+		size_t t = r[i];
+		r[i] = r[last - i];
+		r[last - i] = t;
+	}
 }
 
-static int csv(FILE *o, h2_t *h, symbol_table_t *symbols, bool header)
+static inline void unsigned_to_csv(char b[64], unsigned u, char delimiter)
+{
+	unsigned i = 0;
+	do {
+		const unsigned base = 10; /* bases 2-10 allowed */
+		const unsigned q = u % base;
+		const unsigned r = u / base;
+		b[i++] = q + '0';
+		u = r;
+	} while(u);
+	b[i] = delimiter;
+	b[i+1] = '\0';
+	reverse(b, i);
+}
+
+static inline void csv_value(FILE *o, unsigned u)
+{
+	char b[64];
+	unsigned_to_csv(b, u, ',');
+	fputs(b, o);
+}
+
+/* This is a fairly fast trace/CSV generation routine which avoids the use of fprintf,
+ * speeding up this routine would greatly improve the speed of the interpreter when
+ * tracing is on. The symbol table lookup can be disabled by passing in NULL, this
+ * also greatly speeds things up. */
+static int h2_log_csv(FILE *o, h2_t *h, symbol_table_t *symbols, bool header)
 {
 	if(!o)
 		return 0;
@@ -1852,25 +1863,28 @@ static int csv(FILE *o, h2_t *h, symbol_table_t *symbols, bool header)
 		fputs("\"sp[7:0]\",", o);
 		fputs("\"ie\",", o);
 		fputs("\"instruction[15:0]\",", o);
-		/*fputs("\"disassembled\",", o);*/
+		if(symbols)
+			fputs("\"disassembled\",", o);
 		fputs("\"Time\"", o);
-		fputc('\n', o);
+		if(fputc('\n', o) != '\n')
+			return -1;
 		return 0;
 	}
-	fprintf(o, "%u,",   (unsigned)h->pc);
-	fprintf(o, "%u,",   (unsigned)h->tos);
-	fprintf(o, "%u,",   (unsigned)h->rp);
-	fprintf(o, "%u,",   (unsigned)h->sp);
-	fprintf(o, "%u,",   (unsigned)h->ie);
-	fprintf(o, "%u,",   (unsigned)h->core[h->pc]);
-	/*fputc('\"', o);
-	disassemble_instruction(h->core[h->pc], o, symbols, DCM_NONE);
-	fputs("\",", o);*/
-	fprintf(o, "%u ns", (unsigned)h->time);
+
+	csv_value(o, h->pc);
+	csv_value(o, h->tos);
+	csv_value(o, h->rp);
+	csv_value(o, h->sp);
+	csv_value(o, h->ie);
+	csv_value(o, h->core[h->pc]);
+	if(symbols) {
+		fputc('"', o);
+		disassemble_instruction(h->core[h->pc], o, symbols, DCM_NONE);
+		fputs("\",", o);
+	}
+	csv_value(o, h->time*10);
 
 	if(fputc('\n', o) != '\n')
-		return -1;
-	if(fflush(o) == EOF)
 		return -1;
 	return 0;
 }
@@ -2236,14 +2250,14 @@ static uint16_t interrupt_decode(uint8_t *vector)
 	return 0;
 }
 
-int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger)
+int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger, FILE *trace)
 {
 	bool turn_debug_on = false;
 	assert(h);
 	debug_state_t ds = { .input = stdin, .output = stderr, .step = run_debugger, .trace_on = false /*run_debugger*/ };
 
-	/*FILE *t = fopen_or_die("trace.csv", "wb");
-	csv(t, h, symbols, true);*/
+	if(trace)
+		h2_log_csv(trace, h, NULL, true);
 
 	if(run_debugger)
 		fputs("Debugger running, type 'h' for a list of command\n", ds.output);
@@ -2253,18 +2267,22 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 			 literal,
 			 address,
 			 pc_plus_one;
-		/*csv(t, h, symbols, false);*/
-		h->time++;
+		if(log_level >= LOG_DEBUG || ds.trace_on)
+		       h2_log_csv(output, h, symbols, false);
+		if(trace)
+		       h2_log_csv(trace, h, NULL, false);
 
 		if(run_debugger)
 			if(h2_debugger(&ds, h, io, symbols, h->pc))
 				return 0;
 
-		if(io)
-			io->update(io->soc);
+		h->time++;
 
-		if(io && io->soc->wait) /* wait only applies to the H2 core not the rest of the SoC */
-			continue;
+		if(io) {
+			io->update(io->soc);
+			if(io->soc->wait)
+				continue; /* wait only applies to the H2 core not the rest of the SoC */
+		}
 
 		if(h->pc >= MAX_CORE) {
 			error("invalid program counter: %04x > %04x", (unsigned)h->pc, MAX_CORE);
@@ -2283,17 +2301,6 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 		}
 
 		pc_plus_one = (h->pc + 1) % MAX_CORE;
-
-		if(log_level >= LOG_DEBUG || ds.trace_on)
-			trace(output, instruction, symbols,
-				"%04u: pc(%04x) inst(%04x) sp(%x) rp(%x) tos(%04x) r(%04x)",
-				i,
-				(unsigned)h->pc,
-				(unsigned)instruction,
-				(unsigned)h->sp,
-				(unsigned)h->rp,
-				(unsigned)h->tos,
-				(unsigned)h->rstk[h->rp % STK_SIZE]);
 
 		/* decode / execute */
 		if(IS_LITERAL(instruction)) {
@@ -3920,6 +3927,7 @@ typedef uint32_t ud_t;
 
 typedef struct { uw_t pc, t, rp, sp, core[CORE/sizeof(uw_t)]; } forth_t;
 
+/**@todo allow the loading of a different image from disk */
 static const uw_t embed_image[] = { /* MAGIC! */
 0x094d, 0x034d, 0x4689, 0x4854, 0x0a0d, 0x0a1a, 0x1570, 0x00fe, 0x0001, 0x1984, 0x0001, 0x628d, 0x601c, 0x628d, 0x631c, 0x1570,
 0x10d2, 0x1566, 0x149e, 0x0024, 0x0000, 0x6403, 0x7075, 0x609d, 0x0028, 0x6f04, 0x6576, 0x0072, 0x619d, 0x0030, 0x6906, 0x766e,
@@ -4222,13 +4230,14 @@ typedef struct {
 	const char *nvram;
 } command_args_t;
 
+/**@todo add option for specifying trace file, and allow specification of its format */
 static const char *help = "\
-usage ./h2 [-hvdDarRTH] [-sc number] [-L symbol.file] [-S symbol.file] (file.hex|file.fth)\n\n\
+usage ./h2 [-hvdDarRTH] [-sc number] [-L symbol.file] [-S symbol.file] [-e file.fth] (file.hex|file.fth)\n\n\
 Brief:     A H2 CPU Assembler, disassembler and Simulator.\n\
 Author:    Richard James Howe\n\
 Site:      https://github.com/howerj/forth-cpu\n\
 License:   MIT\n\
-Copyright: Richard James Howe (2017)\n\
+Copyright: Richard James Howe (2017,2018)\n\
 Options:\n\n\
 \t-\tstop processing options, following arguments are files\n\
 \t-h\tprint this help message and exit\n\
@@ -4296,7 +4305,7 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 	nvram_load_and_transfer(io, cmd->nvram, cmd->hacks);
 	h->pc = START_ADDR;
 	debug_note(cmd);
-	r = h2_run(h, io, output, cmd->steps, symbols, cmd->debug_mode);
+	r = h2_run(h, io, output, cmd->steps, symbols, cmd->debug_mode, NULL);
 	nvram_save(io, cmd->nvram);
 
 	h2_free(h);

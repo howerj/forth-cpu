@@ -281,7 +281,8 @@ h2_t *h2_new(uint16_t start_address);
 void h2_free(h2_t *h);
 int h2_load(h2_t *h, FILE *hexfile);
 int h2_save(h2_t *h, FILE *output, bool full);
-int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger);
+/**@todo the interface to h2_run needs simplifying and rethinking */
+int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger, FILE *trace);
 
 uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc);
 void soc_print(FILE *out, h2_soc_state_t *soc);

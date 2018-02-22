@@ -4,6 +4,8 @@
  * @license   MIT
  *
  * @todo Implement reset/reload, and save/load state
+ * @todo Organize file contents better, especially the types and static
+ * variables.
  * @todo Implement drawing of characters outside of the printable range,
  * and non-ASCII characters, all 256 characters have an associated glyph
  * in the hardware. This would allow applications that take advantage
@@ -46,6 +48,8 @@
 #define TARGET_FPS       (30.0)
 #define BACKGROUND_ON    (false)
 #define SIM_HACKS        (true)
+#define TRACE_FILE       ("trace.csv")
+#define TRACE_BUFFER_LEN (16*4096)
 
 typedef struct {
 	double window_height;
@@ -85,6 +89,9 @@ static world_t world = {
 	.font_scaled                 = GLUT_STROKE_MONO_ROMAN
 };
 
+static FILE *trace_file = NULL; /* NB. !NULL turns tracing on */
+static char trace_buffer[TRACE_BUFFER_LEN];
+
 typedef enum {
 	TRIANGLE,
 	SQUARE,
@@ -115,7 +122,6 @@ typedef struct { /**@note it might be worth translating some functions to use po
 	double x, y;
 } point_t;
 
-static const char *nvram_file = FLASH_INIT_FILE;
 
 /**@bug not quite correct, arena_tick_ms is what we request, not want the arena
  * tick actually is */
@@ -1273,7 +1279,7 @@ static void draw_scene(void)
 		}
 
 		if(increment)
-			if(h2_run(h, h2_io, stderr, increment, NULL, false) < 0)
+			if(h2_run(h, h2_io, stderr, increment, NULL, false, trace_file) < 0)
 				world.halt_simulation = true;
 
 		world.step = false;
@@ -1356,12 +1362,14 @@ static void vt100_initialize(vt100_t *v)
 
 static void finalize(void)
 {
-	nvram_save(h2_io, nvram_file);
+	nvram_save(h2_io, FLASH_INIT_FILE);
 	h2_free(h);
 	h2_io_free(h2_io);
 	fifo_free(uart_tx_fifo);
 	fifo_free(uart_rx_fifo);
 	fifo_free(ps2_rx_fifo);
+	if(trace_file)
+		fclose(trace_file);
 }
 
 int main(int argc, char **argv)
@@ -1414,7 +1422,16 @@ int main(int argc, char **argv)
 	uart_tx_fifo = fifo_new(UART_FIFO_DEPTH * 100); /** @note x100 to speed things up */
 	ps2_rx_fifo  = fifo_new(8 /** @bug should be 1 - but this does not work, FIFO implementation needs correcting */);
 
-	nvram_load_and_transfer(h2_io, nvram_file, true);
+	nvram_load_and_transfer(h2_io, FLASH_INIT_FILE, true);
+
+#ifdef TRON
+	errno = 0;
+	trace_file = fopen(TRACE_FILE, "wb");
+	if(trace_file)
+		setvbuf(trace_file, trace_buffer, _IOFBF, TRACE_BUFFER_LEN);
+	else
+		warning("could not open %s for writing: %s", strerror(errno));
+#endif
 
 	atexit(finalize);
 	initialize_rendering(argv[0]);
