@@ -497,7 +497,8 @@ choice words that need depth checking to get quite a large coverage )
 	r@ skip 2dup
 	r> scan swap r> - >r - r> 1+ ; hidden
 
-: parse >r tib >in @ + #tib @ >in @ - r> parser >in +! -trailing 0 max ; ( c -- b u ; <string> )
+: parse >r tib >in @ + #tib @ >in @ - r@ parser >in +! 
+  r> bl = if -trailing then 0 max ; ( c -- b u ; <string> )
 : ) ; immediate
 : "(" 41 parse 2drop ; immediate
 : .( 41 parse type ;
@@ -780,6 +781,10 @@ in which the problem could be solved. )
 \ @todo 'blk' being set to zero should indicate an invalid block number, not -1
 \ The usuage of 'blk' is incorrect, it should be set to the block number
 \ most recently LOAD'ed, not the one most recently BLOCK'ed
+\ 
+\ @todo Make a memory mapped version of 'block', which includes the main
+\ memory from blocks 1-16, SRAM, then Flash, with zero as the invalid block
+\ number.
 
 : updated? block-dirty @ ; hidden      ( -- f )
 : update [-1] block-dirty ! ;          ( -- )

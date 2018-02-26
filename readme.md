@@ -1354,6 +1354,9 @@ are.
 project, has an improved version of Forth which could be reintegrated with
 this project. The [embed][] project features a metacompiler suitable for 16-bit
 systems like this one, it could be used in lieu of the Pseudo-Forth compiler.
+A massively cut down and minimal simulator and toolchain could be made, which
+would make the project much easier to understand, there is no reason to include
+everything in a sincle binary (made from [h2.c][]).
 * Guide to reusing the VHDL in this project, and component listing
 * Turn the [h2.fth][] into a literate program file, describing how to build up
 a Forth system like in "The Zen of eForth by C. H. Ting".
