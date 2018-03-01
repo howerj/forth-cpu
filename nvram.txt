@@ -734,6 +734,86 @@ create rule 3 c, 0 c, 0 c, 0 c,
                X   X   XX            
                XXXXXXXXX             
 
+\ ==== Game of Life: 1/4 =======================================
+\ This is a Game Of Life implementation, originally from 
+\ <http://wiki.c2.com/?ForthBlocks>. It has been adapted so
+\ instead of blocks it uses 1KiB buffers at arbitrary memory
+\ locations.
+   $40 constant c/b
+   $10 constant l/b
+c/b 1- constant c/b>
+l/b 1- constant l/b>
+    bl constant off
+char * constant on
+variable state1
+variable state2
+variable statep
+
+
+\ ==== Game of Life: 2/4 =======================================
+: wrapy dup 0< if drop l/b> then dup l/b> > if drop 0 then ;
+: wrapx dup 0< if drop c/b> then dup c/b> > if drop 0 then ;
+: wrap  wrapy swap wrapx swap ;
+: row c/b * + ; ( a u -- a )
+: deceased? wrap row state2 @ ( block ) + c@ on <> ;
+: living?  deceased? 0= ;
+: (-1,-1) 2dup 1- swap 1- swap living? 1 and ;
+: (0,-1)  >r 2dup 1- living? 1 and r> + ;
+: (1,-1)  >r 2dup 1- swap 1+ swap living? 1 and r> + ;
+: (-1,0)  >r 2dup swap 1- swap living? 1 and r> + ;
+: (1,0)   >r 2dup swap 1+ swap living? 1 and r> + ;
+: (-1,1)  >r 2dup 1+ swap 1- swap living? 1 and r> + ;
+: (0,1)   >r 2dup 1+ living? 1 and r> + ;
+: (1,1)   >r 1+ swap 1+ swap living? 1 and r> + ;
+: mates (-1,-1) (0,-1) (1,-1) (-1,0) (1,0) (-1,1) (0,1) (1,1) ;
+\ ==== Game of Life: 3/4 =======================================
+: born?  mates 3 = ;
+: survives?  2dup living? -rot mates 2 = and ;
+: lives?  2dup born? -rot survives? or ;        ( u u -- )
+: newstate  state1 @ ( block update ) statep ! ; ( -- )
+: state!  statep @ c! 1 statep +! ;             ( c -- )
+: alive  on state! ;                            ( -- )
+: dead  off state! ;                            ( -- )
+: cell?  2dup swap lives? if alive else dead then ; ( u u -- )
+: rows   0 begin dup c/b < while cell? 1+ repeat drop ;
+: iterate-block 0 begin dup l/b < while rows 1+ repeat drop ;
+: generation  state2 @ state1 @ state2 ! state1 ! ;
+: iterate  newstate iterate-block generation ; ( -- )
+: done?  key [char] q = ;                      ( -- f )
+: prompt  cr ." q to quit" cr ;                ( -- )
+: .line l/b> swap - row c/b type cr ;          ( b u -- )
+\ ==== Game of Life: 4/4 =======================================
+: view state2 @ l/b> for dup r@ .line next drop prompt ;
+\ : view (  page ) state2 @ list prompt ;      ( -- )
+: game  begin page view iterate done? until ;  ( -- )
+: life state2 ! state1 ! game ;                ( a a -- )
+
+cr .( Usage: $3000 $32 block life ) cr
+
+
+
+
+
+
+
+
+
+; ==== Game of Life: Glider ====================================
+
+
+
+
+
+              ***
+              *
+               *
+
+
+
+
+
+
+
 ; ==== Brain F*ck Compiler Help 1/2 ============================
 Brainfuck is a simple esoteric language with only 8 commands, it
 is Turing complete which means it can compute any function which

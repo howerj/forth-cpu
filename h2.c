@@ -10,11 +10,6 @@
  * The processor has been tested on an FPGA and is working.
  * The project can be found at: https://github.com/howerj/forth-cpu 
  *
- * @todo Generate VCD or GHW files directly so that GTKWave can view
- * the resulting trace. See 
- * <http://www.ic.unicamp.br/~ducatte/mc542/Docs/gtkwave.pdf> See
- * the utility <https://github.com/carlos-jenkins/csv2vcd> for more
- * information about doing this.
  * @todo The compiler section could be replace by an embedded Forth interpreter
  * The one available at <https://github.com/howerj/embed> would work well, the
  * metacompiler could be retargeted for the H2 processor instead of its own
@@ -516,6 +511,125 @@ size_t fifo_pop(fifo_t * fifo, fifo_data_t * data)
 		fifo->tail = 0;
 
 	return 1;
+}
+
+/** @todo Spin the serialization/deserialization off into a small serialization library, none of it
+ * is tested. */
+
+#define BUFFER_INITIAL_SIZE 32
+
+/* from: <https://stackoverflow.com/questions/6002528/c-serialization-techniques> */
+buffer_t *buffer_new(void) 
+{
+	buffer_t *b = allocate_or_die(sizeof(*b));
+	b->data = allocate_or_die(BUFFER_INITIAL_SIZE);
+	b->size = BUFFER_INITIAL_SIZE;
+	b->next = 0;
+	return b;
+}
+
+void buffer_free(buffer_t *b)
+{
+	assert(b);
+	assert(b->data);
+	memset(b->data, 0, b->size);
+	free(b->data);
+	memset(b, 0, sizeof(*b));
+	free(b);
+}
+
+void buffer_reserve(buffer_t *b, size_t bytes) 
+{
+	assert(b);
+again:
+	if((b->next + bytes) > b->size) {
+		/* double size to enforce O(lg N) reallocs */
+		assert((b->size * 2) > b->size);
+		b->data = realloc(b->data, b->size * 2);
+		if(!(b->data))
+			fatal("allocation of size %u failed", (unsigned)b->size);
+		b->size *= 2;
+		goto again;
+	}
+}
+
+/* https://stackoverflow.com/questions/12791864/c-program-to-check-little-vs-big-endian */
+static inline bool endian(void)
+{
+	volatile uint32_t i=0x01234567;
+	/* return 0 for big endian, 1 for little endian. */
+	return (*((uint8_t*)(&i))) == 0x67;
+}
+
+static inline uint64_t uint64_t_swap(uint64_t X) 
+{
+	uint64_t x = X;
+	x = (x & 0x00000000FFFFFFFF) << 32 | (x & 0xFFFFFFFF00000000) >> 32;
+	x = (x & 0x0000FFFF0000FFFF) << 16 | (x & 0xFFFF0000FFFF0000) >> 16;
+	x = (x & 0x00FF00FF00FF00FF) << 8  | (x & 0xFF00FF00FF00FF00) >> 8;
+	return x;
+}
+
+static inline uint64_t uint64_hotn(uint64_t data)
+{
+	if(endian())
+		return uint64_t_swap(data);
+	return data;
+}
+
+void serialize_uint64_t(buffer_t *b, uint64_t data)
+{
+	assert(b);
+	buffer_reserve(b, sizeof(data));
+	data = uint64_hotn(data);
+	memcpy(((char*)b->data) + b->next, &data, sizeof(data));
+	b->next += sizeof(data);
+}
+
+/*uint64_t deserialize_uint64_t(buffer_t *b)
+{
+	uint64_t data = 0;
+	assert(b);
+	assert((b->next - sizeof(data)) < b->next);
+	memcpy(&data, (((char*)b->data) + b->next) - sizeof(data), sizeof(data));
+	data = uint64_hotn(data);
+	b->next -= sizeof(data);
+}*/
+
+int buffer_save(buffer_t *b, FILE *output)
+{
+	assert(b && output);
+	uint64_t size = b->next;
+	size = uint64_hotn(size);
+	if(sizeof(size) != fwrite(&size, sizeof(size), 1, output))
+		return -1;
+	return fwrite(b->data, b->next, 1, output);
+}
+
+/**@todo add in CRC checks and header information */
+buffer_t *buffer_load(FILE *input)
+{
+	uint64_t size = 0;
+	buffer_t *b = buffer_new();
+	assert(input);
+	if(sizeof(size) != fread(&size, sizeof(size), 1, input))
+		return NULL;
+	size = uint64_hotn(size);
+	buffer_reserve(b, size);
+	b->next = size;
+	if(size != fread(b->data, b->next, 1, input))
+		return NULL;
+	return b;
+}
+
+buffer_t *buffer_copy(buffer_t *b)
+{
+	assert(b);
+	buffer_t *n = buffer_new();
+	buffer_reserve(n, b->next);
+	n->next = b->next;
+	memcpy(n->data, b->data, n->next);
+	return n;
 }
 
 #ifdef __unix__
@@ -1850,7 +1964,12 @@ static inline void csv_value(FILE *o, unsigned u)
 /* This is a fairly fast trace/CSV generation routine which avoids the use of fprintf,
  * speeding up this routine would greatly improve the speed of the interpreter when
  * tracing is on. The symbol table lookup can be disabled by passing in NULL, this
- * also greatly speeds things up. */
+ * also greatly speeds things up. It can be used in a roundabout way to generate
+ * a file viewable by GTKWave, its output can be feed into 'csv2vcd' after some
+ * minimal processing with AWK, turning it into a VCD file, which is viewable in
+ * the wave form viewer, see:
+ * <http://www.ic.unicamp.br/~ducatte/mc542/Docs/gtkwave.pdf> and
+ * <https://github.com/carlos-jenkins/csv2vcd> for more details.  */
 static int h2_log_csv(FILE *o, h2_t *h, symbol_table_t *symbols, bool header)
 {
 	if(!o)

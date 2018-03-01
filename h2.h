@@ -349,4 +349,17 @@ int memory_save(FILE *output, uint16_t *p, size_t length);
 
 void vt100_update(vt100_t *t, uint8_t c);
 
+typedef struct {
+	size_t size;
+	size_t next;
+	void *data;
+} buffer_t;
+
+buffer_t *buffer_new(void);
+void buffer_reserve(buffer_t *b, size_t bytes);
+buffer_t *buffer_copy(buffer_t *b);
+buffer_t *buffer_load(FILE *input);
+int buffer_save(buffer_t *b, FILE *output);
+void serialize_uint64_t(buffer_t *b, uint64_t data);
+
 #endif

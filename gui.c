@@ -3,9 +3,9 @@
  * @copyright Richard James Howe (2017)
  * @license   MIT
  *
- * @todo Implement reset/reload, and save/load state
- * @todo Organize file contents better, especially the types and static
- * variables.
+ * @todo Implement reset/reload, and save/load state, a very good
+ * serialization technique for C is shown here:
+ * <https://stackoverflow.com/questions/6002528/c-serialization-techniques>
  * @todo Implement drawing of characters outside of the printable range,
  * and non-ASCII characters, all 256 characters have an associated glyph
  * in the hardware. This would allow applications that take advantage
