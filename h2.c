@@ -613,13 +613,16 @@ buffer_t *buffer_load(FILE *input)
 	buffer_t *b = buffer_new();
 	assert(input);
 	if(sizeof(size) != fread(&size, sizeof(size), 1, input))
-		return NULL;
+		goto fail;
 	size = uint64_hotn(size);
 	buffer_reserve(b, size);
 	b->next = size;
 	if(size != fread(b->data, b->next, 1, input))
-		return NULL;
+		goto fail;
 	return b;
+fail:
+	buffer_free(b);
+	return NULL;
 }
 
 buffer_t *buffer_copy(buffer_t *b)
@@ -764,6 +767,7 @@ static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *i
 	assert(t);
 
 	if(symbol_table_lookup(t, id)) {
+		symbol_free(s);
 		error("redefinition of symbol: %s", id);
 		if(e)
 			ethrow(e);
@@ -2184,7 +2188,7 @@ again:
 			return -1;
 		}
 
-		argc = sscanf(line, "%256s %256s %256s", op, arg1, arg2);
+		argc = sscanf(line, "%255s %255s %255s", op, arg1, arg2);
 		if(argc < 1)
 			goto again;
 

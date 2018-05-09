@@ -513,23 +513,23 @@ forth
 ; ==== Sokoban: Instructions ===================================
 To run, load the next blocks 9 blocks, which contain the code
 for the Sokoban game. The object of the game is to maneuver the
-boulders 
+boulders (*) onto the pads (.) with the player character (@/~),
+until all the bolders are on the pads. Sokoban levels are 
+stored one per block. To play:
 
+  $2a sokoban
 
-
-
-
-
-
-
+Would load a game stored in block '$2a' and begin playing.
+The WASD keys move the player around, 'h' is for help, and
+'q' quits.
 
 
 
 
 \ ==== Sokoban 1/9 =============================================
 \ only forth definitions hex
-\ variable sokoban-wordlist
-\ sokoban-wordlist +order definitions
+\ variable sokoban-wordlist sokoban-wordlist +order definitions
+blk @ 1- constant help-block
 char X constant wall
 char * constant boulder
 char . constant off
@@ -630,7 +630,7 @@ create rule 3 c, 0 c, 0 c, 0 c,
 : show ( page cr ) .maze .boulders .moves .help ; ( -- )
 : solved? #boulders 0= ;               ( -- )
 : finished? solved? if 1 throw then ; ( -- )
-: instructions ;                      ( -- )
+: instructions blk @ help-block list block drop key drop ; 
 : where >r arena r> locate ;          ( c -- u f )
 : player? player where 0= if drop player+ where else -1 then ; 
 : player! player? 0= throw position ! ; ( -- )
@@ -647,7 +647,7 @@ create rule 3 c, 0 c, 0 c, 0 c,
 : up    [char] w ?ignore  0 -1 rules +move ; ( c -- c )
 : down  [char] s ?ignore  0  1 rules +move ; ( c -- c )
 : help  [char] h ?ignore instructions ; ( c -- c )
-: end  [char] q ?ignore drop 2 throw ; ( c -- | c, R ? -- | ? )
+: end   [char] q ?ignore 2 throw ; ( c -- | c, R ? -- | ? )
 : default drop ;  ( c -- )
 : command up down left right help end default finished? ;
 : maze! block drop ; ( k -- )
