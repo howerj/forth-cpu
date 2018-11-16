@@ -281,7 +281,6 @@ h2_t *h2_new(uint16_t start_address);
 void h2_free(h2_t *h);
 int h2_load(h2_t *h, FILE *hexfile);
 int h2_save(h2_t *h, FILE *output, bool full);
-/**@todo the interface to h2_run needs simplifying and rethinking */
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger, FILE *trace);
 
 uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc);
@@ -348,18 +347,5 @@ int memory_save(FILE *output, uint16_t *p, size_t length);
 #define DELETE    (127)  /* ASCII delete */
 
 void vt100_update(vt100_t *t, uint8_t c);
-
-typedef struct {
-	size_t size;
-	size_t next;
-	void *data;
-} buffer_t;
-
-buffer_t *buffer_new(void);
-void buffer_reserve(buffer_t *b, size_t bytes);
-buffer_t *buffer_copy(buffer_t *b);
-buffer_t *buffer_load(FILE *input);
-int buffer_save(buffer_t *b, FILE *output);
-void serialize_uint64_t(buffer_t *b, uint64_t data);
 
 #endif

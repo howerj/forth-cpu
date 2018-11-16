@@ -161,8 +161,8 @@ begin
 	uut_vga:  work.vga_pkg.vt100_tb generic map(clock_frequency => clock_frequency);
 
 	-- The "io_pins_tb" works correctly, however GHDL 0.29, compiled under
-	-- Windows, cannot fails to simulate this component correctly, and it
-	-- crashes. This does not affect the Linux build of GHDL. It has
+	-- Windows, cannot, and it fails to simulate this component correctly, resulting
+	-- in a crash. This does not affect the Linux build of GHDL. It has
 	-- something to do with 'Z' values for std_ulogic types.
 	--
 

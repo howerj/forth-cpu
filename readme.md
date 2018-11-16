@@ -3,7 +3,7 @@
 | Project   | Forth SoC written in VHDL |
 | --------- | ------------------------- |
 | Author    | Richard James Howe        |
-| Copyright | 2013-2017 Richard Howe    |
+| Copyright | 2013-2018 Richard Howe    |
 | License   | MIT/LGPL                  |
 | Email     | howe.r.j.89@gmail.com     |
 
@@ -83,9 +83,11 @@ You will require:
 
 Hardware:
 
-* VGA Monitor
+* VGA Monitor, and cable.
 * USB Keyboard (plugs into the Nexys3 USB to PS/2 bridge)
 * [Nexys3][] development board
+* Only the [Nexys3][] is need if you want to talk to the device via the UART
+* USB Cables!
 
 [Xilinx ISE][] can (or could be) downloaded for free, but requires
 registration. ISE needs to be on your path:
@@ -139,20 +141,17 @@ written in [C][].
 
 # Manual
 
-The H2 processor and associated peripherals are subject to change, so the code
-is the definitive source what instructions are available, the register map, and
-how the peripherals behave.
+The H2 processor and associated peripherals are now quite stable, however the
+source is always the definitive guide as to how instructions and peripherals
+behave, as well as the register map.
 
 There are a few modifications to the [J1][] CPU which include:
 
 * New instructions
 * A CPU hold line which keeps the processor in the same state so long as it is
 high.
-* Interrupt Service Routines have been added.
+* Interrupt Service Routines have been added (buggy).
 * Larger return and data stacks
-
-The Interrupt Service Routines (ISR) have not been throughly tested and will be
-subject to the most change.
 
 ### H2 CPU
 
@@ -639,8 +638,8 @@ The assembler is actually a compiler for a pseudo Forth like language with a
 fixed grammar. It is a much more restricted language than Forth and cannot be
 extended within itself like Forth can.
 
-The main program can be found in [h2.fth][], which is still currently in
-testing.
+The main program can be found in [h2.fth][], which contains a Forth interpreter
+that runs on the device.
 
 The assembler/compiler reads in a text file containing a program and produces a
 hex file which can be read in by the simulator, disassembler, the VHDL test
@@ -808,10 +807,9 @@ The purple trace shows the disassembled instructions.
 ## Simulator
 
 The simulator in C implements the H2 core and most of the SoC. The IO for the
-simulator is not cycle accurate (and most likely will never be), but can be
-used for running and debugging programs with results that are very similar to
-how the hardware behaves. This is much faster than rebuilding the bit file used
-to flash the [FPGA][].
+simulator is not cycle accurate, but can be used for running and debugging 
+programs with results that are very similar to how the hardware behaves. 
+This is much faster than rebuilding the bit file used to flash the [FPGA][].
 
 ## Debugger
 
@@ -934,7 +932,7 @@ but provides a graphical environment, unlike the command line utility. It is eas
 to interact with the device and see what it is doing, but the debugging sessions
 are a less controlled. It requires [free glut][].
 
-* VGA output works
+* VGA shown on screen.
 * UART or PS/2 input (selectable by pressing F11) comes from typing in the screen,
 and in the case of the UART this is buffered with a FIFO.
 * UART output gets written to a display box.
@@ -1009,9 +1007,7 @@ interpreter. This section describes the Forth interpreter that runs on H2 Core,
 it is contained within [h2.fth][].
 
 TODO:
-- Fully implement the Forth interpreter
-- Describe and show its operation on here including memory layout, list of
-  words, word layout, ...
+* Describe the Forth environment running on the H2 CPU.
 
 # Using Forth as a bootloader
 
@@ -1065,9 +1061,6 @@ debugger for the microcontroller it is operating on.
 # A simple Forth block editor
 
 TODO:
-- Add an SPI master with Rx/Tx Fifos to the SoC, which can then be use
-communicate with the memory on the [Nexys3][], this can then be used in
-conjunction with a simple block editor for a full Forth experience.
 - Talk about implementing a simple block editor in a few words of Forth.
 
 <http://retroforth.org/pages/?PortsOfRetroEditor>
@@ -1203,9 +1196,9 @@ width register:
 ## C
 
 There is quite a lot of [C][] code used within this project, used to make a
-tool chain for the H2 core and to simulate the system. It follows a fairly
-strict coding style.
+tool chain for the H2 core and to simulate the system.
 
+* Usage of assertions for any pre or post condition, or invariant, are encouraged.
 * Tabs are to be used instead of spaces, a tab width of 8 was used when coding
   the C, if this causes any code to go off screen then there is a problem with
   the code and not the tab length.
@@ -1350,44 +1343,19 @@ are.
 
 # To Do
 
-* My [embed][] project, which was derived from the simulator and Forth for this
+* The [embed][] project, which was derived from the simulator and Forth for this
 project, has an improved version of Forth which could be reintegrated with
 this project. The [embed][] project features a metacompiler suitable for 16-bit
 systems like this one, it could be used in lieu of the Pseudo-Forth compiler.
 A massively cut down and minimal simulator and toolchain could be made, which
 would make the project much easier to understand, there is no reason to include
-everything in a sincle binary (made from [h2.c][]).
-* Guide to reusing the VHDL in this project, and component listing
-* Turn the [h2.fth][] into a literate program file, describing how to build up
-a Forth system like in "The Zen of eForth by C. H. Ting".
-* Make a bootloader/program loader as a single, simple program
-* Make diagrams of the SoC layout, take GIFs and pictures of the simulators and
-the running board.
-* Make a javascript based simulator for the H2, perhaps with [emscripten][]
-* Move this file to "h2.md" and make a simpler "readme.md" with a short
-description and flashy GIFs
+everything in a single binary (made from [h2.c][]).
+* Prepare more documentation
+* Fix SVG system architecture diagram
+* Implement assembler directive in the debugger
+* Add an options to the toolchain to allow separate compilation of units, and
+  other things expected of a toolchain.
 * Add notes about picocom, and setting up the hardware:
-* Add a [Wishbone interface][] for each component
-* Put the project up on [opencores][]
-* It should be possible to turn [h2.c][] into a Forth interpreter usable in
-a hosted environment. Some of the remaining instructions could be used for
-function calls and floating point operations and the "uint16\_t" would have to
-be changed to "uintptr\_t". As the interpreter is so small a Forth to "C"
-compiler could just spit out a copy of the interpreter. It should make for
-a very compact system. 
-* Spin off the VT100 VHDL code into a separate project, and the C code in the
-simulator into a simple terminal emulator for Unixen.
-* Add some example games, any of the following: Space Invaders, Tetris, Pong,
-Minesweeper, Sokoban, Sudoku, Hack, 2048, Breakout, Brain F\*ck, Conway's 
-Game of Life, and other terminal based games could be added, see
-<https://codegolf.stackexchange.com/questions/52547/minimal-nethack> for a
-minimal version of Nethack, and <https://github.com/rupa/YOU_ARE_DEAD> for a
-cool 1 dimensional game.
-* Other programs like a compressor, decompressor, ARC4, data base function based
-around blocks, and a meta compiler (removing the need for the C assembler),
-could be added.
-* Unit tests for the eForth interpreter should be developed
-
 
 <!-- -->
 

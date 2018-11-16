@@ -16,11 +16,7 @@ this is due to the limited space on the device.
 
 Forth To Do:
 * Add do...loop, case statements, put them in block storage
-* Reformat this so it can be stored in block storage, with
-a maximum line length of 64 bytes
-* Implement some words from the C library, like all of "ctype.h" and
-put them in block storage. 
-* Implement many of the lessons learned whilst making the
+* Implement many of the lessons learned whilst making the 
 'embed' Forth interpreter <https://github.com/howerj/embed>, which
 cuts down on the interpreter size, and adds more functionality. )
 
@@ -625,13 +621,6 @@ choice words that need depth checking to get quite a large coverage )
 : at-xy CSI 10u. $3b emit 10u. [char] H emit ; ( x y -- )
 : page 2 [char] J ansi 1 1 at-xy ; ( -- )
 : sgr [char] m ansi ; ( -- )
-
-( ==================== Extra Words =================================== )
-
-\ : gcd gcdStart: dup if tuck mod branch gcdStart then drop ; ( u1 u2 -- u : greatest common divisor )
-\ : lcm 2dup gcd / * ; ( u1 u2 -- u : lowest common multiple of u1 and u2 )
-
-( ==================== Extra Words =================================== )
 
 ( ==================== Advanced I/O Control ========================== )
 
