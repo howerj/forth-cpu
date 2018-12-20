@@ -1744,23 +1744,23 @@ architecture behav of dual_port_block_ram is
 
 	type ram_type is array ((ram_size - 1 ) downto 0) of std_ulogic_vector(data_length - 1 downto 0);
 
-	impure function initialize_ram(file_name: in string; file_type: in file_format) return ram_type is
+	impure function initialize_ram(the_file_name: in string; the_file_type: in file_format) return ram_type is
 		variable ram_data:   ram_type;
-		file     in_file:    text is in file_name;
+		file     in_file:    text is in the_file_name;
 		variable input_line: line;
 		variable tmp:        bit_vector(data_length - 1 downto 0);
 		variable c:          character;
 		variable slv:        std_ulogic_vector(data_length - 1 downto 0);
 	begin
 		for i in 0 to ram_size - 1 loop
-			if file_type = FILE_NONE then
+			if the_file_type = FILE_NONE then
 				ram_data(i):=(others => '0');
 			elsif not endfile(in_file) then
 				readline(in_file,input_line);
-				if file_type = FILE_BINARY then
+				if the_file_type = FILE_BINARY then
 					read(input_line, tmp);
 					ram_data(i) := std_ulogic_vector(to_stdlogicvector(tmp));
-				elsif file_type = FILE_HEX then
+				elsif the_file_type = FILE_HEX then
 					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 					for j in 1 to (data_length/4) loop
 						c:= input_line((data_length/4) - j + 1);
@@ -1768,7 +1768,7 @@ architecture behav of dual_port_block_ram is
 					end loop;
 					ram_data(i) := slv;
 				else
-					report "Incorrect file type given: " & file_format'image(file_type) severity failure;
+					report "Incorrect file type given: " & file_format'image(the_file_type) severity failure;
 				end if;
 			else
 				ram_data(i) := (others => '0');
@@ -1837,23 +1837,23 @@ architecture behav of single_port_block_ram is
 
 	type ram_type is array ((ram_size - 1 ) downto 0) of std_ulogic_vector(data_length - 1 downto 0);
 
-	impure function initialize_ram(file_name: in string; file_type: in file_format) return ram_type is
+	impure function initialize_ram(the_file_name: in string; the_file_type: in file_format) return ram_type is
 		variable ram_data:   ram_type;
-		file     in_file:    text is in file_name;
+		file     in_file:    text is in the_file_name;
 		variable input_line: line;
 		variable tmp:        bit_vector(data_length - 1 downto 0);
 		variable c:          character;
 		variable slv:        std_ulogic_vector(data_length - 1 downto 0);
 	begin
 		for i in 0 to ram_size - 1 loop
-			if file_type = FILE_NONE then
+			if the_file_type = FILE_NONE then
 				ram_data(i):=(others => '0');
 			elsif not endfile(in_file) then
 				readline(in_file,input_line);
-				if file_type = FILE_BINARY then
+				if the_file_type = FILE_BINARY then
 					read(input_line, tmp);
 					ram_data(i) := std_ulogic_vector(to_stdlogicvector(tmp));
-				elsif file_type = FILE_HEX then -- hexadecimal
+				elsif the_file_type = FILE_HEX then -- hexadecimal
 					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 					for j in 1 to (data_length/4) loop
 						c:= input_line((data_length/4) - j + 1);
@@ -1861,7 +1861,7 @@ architecture behav of single_port_block_ram is
 					end loop;
 					ram_data(i) := slv;
 				else
-					report "Incorrect file type given: " & file_format'image(file_type) severity failure;
+					report "Incorrect file type given: " & file_format'image(the_file_type) severity failure;
 				end if;
 			else
 				ram_data(i) := (others => '0');
@@ -1872,6 +1872,7 @@ architecture behav of single_port_block_ram is
 	end function;
 
 	shared variable ram: ram_type := initialize_ram(file_name, file_type);
+
 begin
 	block_ram: process(clk)
 	begin

@@ -13,7 +13,7 @@
 
 This project implements a small stack computer tailored to executing Forth
 based on the [J1][] CPU. The processor has been rewritten in [VHDL][] from
-[Verilog][], and extended slightly. 
+[Verilog][], and extended slightly.
 
 The goals of the project are as follows:
 
@@ -688,7 +688,7 @@ lexer to prevent this.
 
 The assembler the following directives:
 
-	.pc        Set the program counter 
+	.pc        Set the program counter
 	.pwd       Set the previous word pointer
 	.allocate  Increment the program counter
 	.set       Set location in memory
@@ -807,8 +807,8 @@ The purple trace shows the disassembled instructions.
 ## Simulator
 
 The simulator in C implements the H2 core and most of the SoC. The IO for the
-simulator is not cycle accurate, but can be used for running and debugging 
-programs with results that are very similar to how the hardware behaves. 
+simulator is not cycle accurate, but can be used for running and debugging
+programs with results that are very similar to how the hardware behaves.
 This is much faster than rebuilding the bit file used to flash the [FPGA][].
 
 ## Debugger
@@ -1350,11 +1350,30 @@ systems like this one, it could be used in lieu of the Pseudo-Forth compiler.
 A massively cut down and minimal simulator and toolchain could be made, which
 would make the project much easier to understand, there is no reason to include
 everything in a single binary (made from [h2.c][]).
+* Even better than using the [embed][] project directly, would be to port the
+[embed][] project so the meta-compiler runs directly on the hardware. The
+simulator could then be used to assemble new images, making the system (much
+more) self-hosting. Input/Output would be a problem, a possible solution is to
+use one of the UARTs for reading the meta-compiler and meta-compiled eForth
+program, and writing status/error messages. A second UART could be used to
+dump the binary as a stream of hexadecimal numbers, the simulator could
+redirect the second UART output to a file.
+* The GUI simulator could be written to be built against [SDL][], and include
+proper textures for the buttons and displays, instead of the current simulator
+which looks like an early 90s test application for OpenGL.
 * Prepare more documentation
 * Fix SVG system architecture diagram
 * Implement assembler directive in the debugger
 * Add an options to the toolchain to allow separate compilation of units, and
   other things expected of a toolchain.
+* A much more minimal system could be created, consisting of only the H2 CPU
+core, a minimal (perhaps interactive) testbench, RAM blocks, UARTs and simulator. 
+The [j1eforth][] project could be used as an example of simplicity. The project
+is tiny and includes a meta-compiler (written in Gforth) and an eForth
+interpreter that runs on the J1 core (~1100 lines of Forth), the source for the
+target (the original J1 core, and UART at ~800 lines of Verilog and VHDL), and
+a simple simulator written in C (at only 186 lines of C code!). This system is
+incredibly minimal compared to this one.
 * Add notes about picocom, and setting up the hardware:
 
 <!-- -->
@@ -1372,6 +1391,7 @@ everything in a single binary (made from [h2.c][]).
 * <https://github.com/jamesbowman/j1>
 * <http://sovietov.com/app/forthwiz.html>
 
+[j1eforth]: https://github.com/samawati/j1eforth
 [javascript]: https://www.javascript.com/
 [emscripten]: https://github.com/kripken/emscripten
 [DEBUG.COM]: https://en.wikipedia.org/wiki/Debug_%28command%29
@@ -1430,6 +1450,7 @@ everything in a single binary (made from [h2.c][]).
 [opencores]: https://opencores.org
 [VT100]: https://en.wikipedia.org/wiki/VT100
 [embed]: https://github.com/howerj/embed
+[SDL]: https://www.libsdl.org/
 <!--
 
 https://www.w3schools.com/css/css_table.asp

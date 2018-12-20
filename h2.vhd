@@ -223,7 +223,7 @@ begin
 		end if;
 	end process;
 
-	alu: process(
+	alu_unit: process(
 		is_instr.lit,
 		tos_c, nos, rtos_c,
 		din, insn, aluop,

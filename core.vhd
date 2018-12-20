@@ -8,7 +8,7 @@
 --| @email      howe.r.j.89@gmail.com
 --|
 --| @todo Make a test bench for the H2 core for executing small sections of
---| code, in succession, and testing the response. 
+--| code, in succession, and testing the response.
 --------------------------------------------------------------------------------
 
 library ieee,work;

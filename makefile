@@ -13,7 +13,9 @@
 NETLIST=top
 #TIME=time -p 
 
-CFLAGS=-Wall -Wextra -O2 -g
+# @todo sort out pedantic warnings
+#CFLAGS=-Wall -Wextra -O2 -g -pedantic
+CFLAGS=-Wall -Wextra -O2 -g -pedantic
 TIME=
 
 OS_FLAGS =
@@ -94,17 +96,7 @@ documentation: readme.pdf readme.htm
 %.hex: %.fth h2${EXE}
 	${DF}h2 -S h2.sym -a $< > $@
 
-# NB. 'meta' and 'forth' targets are here temporarily until the metacompiler
-# has been fixed.
-forth${EXE}: forth.c
-	${CC} ${CFLAGS} -std=c99 $< -o $@
-
-meta: h2${EXE} forth${EXE} meta.fth
-	h2${EXE} -e meta.blk < meta.fth
-	forth${EXE} i meta.blk out.blk
-
 ## Virtual Machine and UART communications =================================
-
 
 h2${EXE}: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 $< -o $@
@@ -149,7 +141,7 @@ text.hex: text${EXE}
 ## Simulation ==============================================================
 
 %.o: %.vhd
-	ghdl -a $<
+	ghdl -a -g $<
 
 ram.o: util.o
 led.o: util.o led.vhd
@@ -163,8 +155,10 @@ tb.o: top.o util.o tb.vhd
 tb: ${OBJECTS} tb.o
 	ghdl -e tb
 
+# max stack alloc needed for GHDL >0.35
+# ghdl -r $< --wave=$<.ghw --max-stack-alloc=16384 --unbuffered --ieee-asserts=disable 
 %.ghw: % %.cfg
-	ghdl -r $< --wave=$<.ghw
+	ghdl -r $< --wave=$<.ghw --max-stack-alloc=16384 --ieee-asserts=disable 
 
 simulation: tb.ghw h2${EXE}
 

@@ -190,7 +190,6 @@ architecture rtl of led_8_segment_display is
 	signal do_shift:  std_ulogic := '0';
 	signal shift_reg: std_ulogic_vector(number_of_led_displays - 1 downto 0) := (0 => '1', others => '0');
 
-
 	signal leds_reg_o: std_ulogic_vector(leds'range) := (others => '0');
 	signal leds_reg_we_o: std_ulogic := '0';
 begin

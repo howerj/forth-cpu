@@ -330,14 +330,20 @@ typedef enum {
 
 extern log_level_e log_level;
 
-int logger(log_level_e level, const char *func,
-		const unsigned line, const char *fmt, ...);
+#ifdef __GNUC__
+#define LOGGER_PRINTF __attribute__((format(printf, 4, 5)))
+#else
+#define LOGGER_PRINTF
+#endif
 
-#define fatal(FMT, ...)   logger(LOG_FATAL,   __func__, __LINE__, FMT, ##__VA_ARGS__)
-#define error(FMT, ...)   logger(LOG_ERROR,   __func__, __LINE__, FMT, ##__VA_ARGS__)
-#define warning(FMT, ...) logger(LOG_WARNING, __func__, __LINE__, FMT, ##__VA_ARGS__)
-#define note(FMT, ...)    logger(LOG_NOTE,    __func__, __LINE__, FMT, ##__VA_ARGS__)
-#define debug(FMT, ...)   logger(LOG_DEBUG,   __func__, __LINE__, FMT, ##__VA_ARGS__)
+int logger(log_level_e level, const char *func,
+		const unsigned line, const char *fmt, ...) LOGGER_PRINTF;
+
+#define fatal(...)   logger(LOG_FATAL,   __func__, __LINE__, __VA_ARGS__)
+#define error(...)   logger(LOG_ERROR,   __func__, __LINE__, __VA_ARGS__)
+#define warning(...) logger(LOG_WARNING, __func__, __LINE__, __VA_ARGS__)
+#define note(...)    logger(LOG_NOTE,    __func__, __LINE__, __VA_ARGS__)
+#define debug(...)   logger(LOG_DEBUG,   __func__, __LINE__, __VA_ARGS__)
 
 int memory_load(FILE *input, uint16_t *p, size_t length);
 int memory_save(FILE *output, uint16_t *p, size_t length);

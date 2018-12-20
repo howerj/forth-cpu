@@ -158,7 +158,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.vga_pkg.all;
-use ieee.math_real.all; 
+use ieee.math_real.all;
 use work.util.all;
 
 entity vt100_tb is
@@ -493,11 +493,11 @@ begin
 		signal vga_ctr_we: vga_control_registers_we_interface := vga_control_registers_we_initialize;
 		signal vga_ctr:    vga_control_registers_interface    := vga_control_registers_initialize;
 		signal attr:       unsigned(attr_c'range)             := attr_default;
-		signal char:       std_ulogic_vector(c_c'range)       := (others => '0');
+		signal ch:         std_ulogic_vector(c_c'range)       := (others => '0');
 	begin
-		char           <= x"2a" when conceal_c else std_ulogic_vector(c_c);
+		ch             <= x"2a" when conceal_c else std_ulogic_vector(c_c);
 		attr           <= attr_c when state_c /= ERASING else attr_default;
-		vga_din        <= std_ulogic_vector(attr) & char;
+		vga_din        <= std_ulogic_vector(attr) & ch;
 		vga_ctr.crx    <= std_ulogic_vector(x_plus_one);
 		vga_ctr.cry    <= std_ulogic_vector(y_c);
 		vga_ctr.ctl    <= std_ulogic_vector(ctl_c);

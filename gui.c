@@ -1,5 +1,5 @@
 /**@file      gui.c
- * @brief     GUI Simulator for the H2 SoC 
+ * @brief     GUI Simulator for the H2 SoC
  * @copyright Richard James Howe (2017)
  * @license   MIT
  *
@@ -10,7 +10,6 @@
  * and non-ASCII characters, all 256 characters have an associated glyph
  * in the hardware. This would allow applications that take advantage
  * of the semi-graphics font set to be developed. */
-
 
 #include "h2.h"
 #include <assert.h>
@@ -27,6 +26,8 @@
 #include <GL/glut.h>
 #include <GL/freeglut_ext.h> /* for glutStrokeHeight */
 #include <stdarg.h>
+
+#define TRON (0)
 
 /* ====================================== Utility Functions ==================================== */
 
@@ -125,22 +126,19 @@ typedef struct { /**@note it might be worth translating some functions to use po
 
 /**@bug not quite correct, arena_tick_ms is what we request, not want the arena
  * tick actually is */
-static double seconds_to_ticks(const world_t *world, double s)
-{
+static double seconds_to_ticks(const world_t *world, double s) {
 	assert(world);
 	return s * (1000. / (double)world->arena_tick_ms);
 }
 
-static double rad2deg(double rad)
-{
+static double rad2deg(double rad) {
 	return (rad / (2.0 * PI)) * 360.0;
 }
 
-static void set_color(color_t color, bool light)
-{
+static void set_color(color_t color, bool light) {
 	double ON = light ? 0.8 : 0.4;
 	static const double OFF = 0.0;
-	switch(color) {      /* RED  GRN  BLU */
+	switch (color) {      /* RED  GRN  BLU */
 	case WHITE:   glColor3f( ON,  ON,  ON);   break;
 	case RED:     glColor3f( ON, OFF, OFF);   break;
 	case YELLOW:  glColor3f( ON,  ON, OFF);   break;
@@ -159,34 +157,32 @@ static void _draw_regular_polygon(
 		double orientation,
 		double radius, double sides,
 		bool lines, double thickness,
-		color_t color)
-{
+		color_t color) {
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glLoadIdentity();
 		glTranslatef(x, y, 0.0);
 		glRotated(rad2deg(orientation), 0, 0, 1);
 		set_color(color, true);
-		if(lines) {
+		if (lines) {
 			glLineWidth(thickness);
 			glBegin(GL_LINE_LOOP);
 		} else {
 			glBegin(GL_POLYGON);
 		}
-			for(double i = 0; i < 2.0 * PI; i += PI / sides)
+			for (double i = 0; i < 2.0 * PI; i += PI / sides)
 				glVertex3d(cos(i) * radius, sin(i) * radius, 0.0);
 		glEnd();
 	glPopMatrix();
 }
 
-static void _draw_rectangle(double x, double y, double width, double height, bool lines, double thickness, color_t color)
-{
+static void _draw_rectangle(double x, double y, double width, double height, bool lines, double thickness, color_t color) {
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glLoadIdentity();
 		glRasterPos2d(x, y);
 		set_color(color, true);
-		if(lines) {
+		if (lines) {
 			glLineWidth(thickness);
 			glBegin(GL_LINE_LOOP);
 		} else {
@@ -200,18 +196,15 @@ static void _draw_rectangle(double x, double y, double width, double height, boo
 	glPopMatrix();
 }
 
-static void draw_rectangle_filled(double x, double y, double width, double height, color_t color)
-{
-	return _draw_rectangle(x, y, width, height, false, 0, color);
+static void draw_rectangle_filled(double x, double y, double width, double height, color_t color) {
+	_draw_rectangle(x, y, width, height, false, 0, color);
 }
 
-static void draw_rectangle_line(double x, double y, double width, double height, double thickness, color_t color)
-{
-	return _draw_rectangle(x, y, width, height, true, thickness, color);
+static void draw_rectangle_line(double x, double y, double width, double height, double thickness, color_t color) {
+	_draw_rectangle(x, y, width, height, true, thickness, color);
 }
 
-static double shape_to_sides(shape_t shape)
-{
+static double shape_to_sides(shape_t shape) {
 	static const double sides[] =
 	{
 		[TRIANGLE] = 1.5,
@@ -223,25 +216,22 @@ static double shape_to_sides(shape_t shape)
 		[DECAGON]  = 5,
 		[CIRCLE]   = 24
 	};
-	if(shape >= INVALID_SHAPE)
+	if (shape >= INVALID_SHAPE)
 		fatal("invalid shape '%d'", shape);
 	return sides[shape % INVALID_SHAPE];
 }
 
-static void draw_regular_polygon_filled(double x, double y, double orientation, double radius, shape_t shape, color_t color)
-{
-	double sides = shape_to_sides(shape);
+static void draw_regular_polygon_filled(double x, double y, double orientation, double radius, shape_t shape, color_t color) {
+	const double sides = shape_to_sides(shape);
 	_draw_regular_polygon(x, y, orientation, radius, sides, false, 0, color);
 }
 
-static void draw_regular_polygon_line(double x, double y, double orientation, double radius, shape_t shape, double thickness, color_t color)
-{
-	double sides = shape_to_sides(shape);
+static void draw_regular_polygon_line(double x, double y, double orientation, double radius, shape_t shape, double thickness, color_t color) {
+	const double sides = shape_to_sides(shape);
 	_draw_regular_polygon(x, y, orientation, radius, sides, true, thickness, color);
 }
 
-static void draw_char(uint8_t c)
-{
+static void draw_char(uint8_t c) {
 	c = c >= 32 && c <= 127 ? c : '?';
 	glutStrokeCharacter(world.font_scaled, c);
 }
@@ -249,25 +239,22 @@ static void draw_char(uint8_t c)
 /* see: https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_01
  *      https://stackoverflow.com/questions/538661/how-do-i-draw-text-with-glut-opengl-in-c
  *      https://stackoverflow.com/questions/20866508/using-glut-to-simply-print-text */
-static int draw_block(const uint8_t *msg, size_t len)
-{
+static int draw_block(const uint8_t *msg, size_t len) {
 	assert(msg);
-	for(size_t i = 0; i < len; i++)
+	for (size_t i = 0; i < len; i++)
 		draw_char(msg[i]);
 	return len;
 }
 
-static int draw_string(const char *msg)
-{
+static int draw_string(const char *msg) {
 	assert(msg);
 	return draw_block((uint8_t*)msg, strlen(msg));
 }
 
-static scale_t font_attributes(void)
-{
+static scale_t font_attributes(void) {
 	static bool initialized = false;
 	static scale_t scale = { 0., 0.};
-	if(initialized)
+	if (initialized)
 		return scale;
 	scale.y = glutStrokeHeight(world.font_scaled);
 	scale.x = glutStrokeWidth(world.font_scaled, 'M');
@@ -275,13 +262,12 @@ static scale_t font_attributes(void)
 	return scale;
 }
 
-static void draw_vt100_char(double x, double y, double scale_x, double scale_y, double orientation, uint8_t c, vt100_attribute_t *attr, bool blink)
-{
+static void draw_vt100_char(double x, double y, double scale_x, double scale_y, double orientation, uint8_t c, vt100_attribute_t *attr, bool blink) {
 	/*scale_t scale = font_attributes();
 	double char_width  = scale.x / X_MAX;
        	double char_height = scale.y / Y_MAX;*/
 
-	if(blink && attr->blink)
+	if (blink && attr->blink)
 		return;
 
 	glMatrixMode(GL_MODELVIEW);
@@ -294,21 +280,19 @@ static void draw_vt100_char(double x, double y, double scale_x, double scale_y, 
 		draw_char(attr->conceal ? '*' : c);
 		glEnd();
 	glPopMatrix();
-	if(BACKGROUND_ON)
+	if (BACKGROUND_ON)
 		draw_rectangle_filled(x, y, 1.20, 1.55, attr->background_color);
 }
 
-static int draw_vt100_block(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, vt100_attribute_t *attr, bool blink)
-{
+static int draw_vt100_block(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, vt100_attribute_t *attr, bool blink) {
 	scale_t scale = font_attributes();
 	double char_width = (scale.x / X_MAX)*1.1;
-	for(size_t i = 0; i < len; i++)
+	for (size_t i = 0; i < len; i++)
 		draw_vt100_char(x+char_width*i, y, scale_x, scale_y, orientation, msg[i], &attr[i], blink);
 	return len;
 }
 
-static int draw_block_scaled(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, color_t color)
-{
+static int draw_block_scaled(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, color_t color) {
 	assert(msg);
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
@@ -317,7 +301,7 @@ static int draw_block_scaled(double x, double y, double scale_x, double scale_y,
 		glScaled(scale_x, scale_y, 1.0);
 		glRotated(rad2deg(orientation), 0, 0, 1);
 		set_color(color, true);
-		for(size_t i = 0; i < len; i++) {
+		for (size_t i = 0; i < len; i++) {
 			uint8_t c = msg[i];
 			c = c >= 32 && c <= 127 ? c : '?';
 			glutStrokeCharacter(world.font_scaled, c);
@@ -327,14 +311,12 @@ static int draw_block_scaled(double x, double y, double scale_x, double scale_y,
 	return len;
 }
 
-static int draw_string_scaled(double x, double y, double scale_x, double scale_y, double orientation, const char *msg, color_t color)
-{
+static int draw_string_scaled(double x, double y, double scale_x, double scale_y, double orientation, const char *msg, color_t color) {
 	assert(msg);
 	return draw_block_scaled(x, y, scale_x, scale_y, orientation, (uint8_t*)msg, strlen(msg), color);
 }
 
-static int vdraw_text(color_t color, double x, double y, const char *fmt, va_list ap)
-{
+static int vdraw_text(color_t color, double x, double y, const char *fmt, va_list ap) {
 	char f;
 	int r = 0;
 	assert(fmt);
@@ -346,13 +328,13 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 	set_color(color, true);
 	glTranslatef(x, y, 0);
 	glScaled(scale_x, scale_y, 1.0);
-	while(*fmt) {
-		if('%' != (f = *fmt++)) {
+	while (*fmt) {
+		if ('%' != (f = *fmt++)) {
 			glutStrokeCharacter(world.font_scaled, f);
 			r++;
 			continue;
 		}
-		switch(f = *fmt++) {
+		switch (f = *fmt++) {
 		case 'c':
 		{
 			char x[2] = {0, 0};
@@ -401,19 +383,17 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 	return r;
 }
 
-static void fill_textbox(textbox_t *t, const char *fmt, ...)
-{
-	double r;
+static void fill_textbox(textbox_t *t, const char *fmt, ...) {
 	va_list ap;
 	assert(t);
 	assert(fmt);
 
 	scale_t scale = font_attributes();
-	double char_width = scale.x / X_MAX;
-	double char_height = scale.y / Y_MAX;
+	const double char_width = scale.x / X_MAX;
+	const double char_height = scale.y / Y_MAX;
 	assert(t && fmt);
 	va_start(ap, fmt);
-	r = vdraw_text(t->color_text, t->x, t->y - t->height, fmt, ap);
+	double r = vdraw_text(t->color_text, t->x, t->y - t->height, fmt, ap);
 	r *= char_width * 1.11;
 	r += 1;
 	va_end(ap);
@@ -421,24 +401,22 @@ static void fill_textbox(textbox_t *t, const char *fmt, ...)
 	t->height += (char_height); /*correct?*/
 }
 
-static void draw_textbox(textbox_t *t)
-{
+static void draw_textbox(textbox_t *t) {
 	assert(t);
 	scale_t scale = font_attributes();
 	double char_height = scale.y / Y_MAX;
-	if(!(t->draw_border))
+	if (!(t->draw_border))
 		return;
 	draw_rectangle_line(t->x - LINE_WIDTH, t->y - t->height + char_height - 1, t->width, t->height + 1, LINE_WIDTH, t->color_box);
 }
 
 static bool detect_circle_circle_collision(
 		double ax, double ay, double aradius,
-		double bx, double by, double bradius)
-{
-	double dx = ax - bx;
-	double dy = ay - by;
-	double distance = hypot(dx, dy);
-	return (distance < (aradius + bradius));
+		double bx, double by, double bradius) {
+	const double dx = ax - bx;
+	const double dy = ay - by;
+	const double distance = hypot(dx, dy);
+	return distance < (aradius + bradius);
 }
 
 /* ====================================== Utility Functions ==================================== */
@@ -453,8 +431,7 @@ typedef struct {
 	bool on;
 } led_t;
 
-static void draw_led(led_t *l)
-{
+static void draw_led(led_t *l) {
 	assert(l);
 	double msz = l->radius * 0.75;
 	double off = (l->radius - msz) / 2.0;
@@ -470,8 +447,7 @@ typedef struct {
 	bool on;
 } switch_t;
 
-static void draw_switch(switch_t *s)
-{
+static void draw_switch(switch_t *s) {
 	assert(s);
 	double msz = s->radius * 0.6;
 	double off = (s->radius - msz) / 2.0;
@@ -510,10 +486,9 @@ static uint8_t convert_to_segments(uint8_t segment) {
 
 #define SEG_CLR(SG,BIT) (((SG) & (1 << BIT)) ? RED : BLACK)
 
-static void draw_led_8_segment(led_8_segment_t *l)
-{
+static void draw_led_8_segment(led_8_segment_t *l) {
 	assert(l);
-	uint8_t sgs = convert_to_segments(l->segment);
+	const uint8_t sgs = convert_to_segments(l->segment);
 
 	draw_rectangle_filled(l->x + l->width * 0.20, l->y + l->height * 0.45, l->width * 0.5, l->height * 0.1, SEG_CLR(sgs, LED_SEGMENT_G)); /* Center */
 	draw_rectangle_filled(l->x + l->width * 0.20, l->y + l->height * 0.1,  l->width * 0.5, l->height * 0.1, SEG_CLR(sgs, LED_SEGMENT_D)); /* Bottom */
@@ -543,8 +518,7 @@ typedef struct {
 	bool center;
 } dpad_t;
 
-static void draw_dpad(dpad_t *d)
-{
+static void draw_dpad(dpad_t *d) {
 	draw_regular_polygon_filled(d->x + (d->radius*2.0), d->y,                   d->angle,            d->radius, TRIANGLE, d->right  ? GREEN : RED);
 	draw_regular_polygon_filled(d->x - (d->radius*2.0), d->y,                   d->angle + (PI/3.0), d->radius, TRIANGLE, d->left   ? GREEN : RED);
 	draw_regular_polygon_filled(d->x,                   d->y - (d->radius*2.0), d->angle - (PI/2.0), d->radius, TRIANGLE, d->down   ? GREEN : RED);
@@ -563,17 +537,16 @@ typedef enum {
 	DPAN_COL_CENTER
 } dpad_collision_e;
 
-static dpad_collision_e dpad_collision(dpad_t *d, double x, double y, double radius)
-{
-	if(detect_circle_circle_collision(x, y, radius, d->x + (d->radius*2.0), d->y,                   d->radius))
+static dpad_collision_e dpad_collision(dpad_t *d, double x, double y, double radius) {
+	if (detect_circle_circle_collision(x, y, radius, d->x + (d->radius*2.0), d->y,                   d->radius))
 		return DPAN_COL_RIGHT;
-	if(detect_circle_circle_collision(x, y, radius, d->x - (d->radius*2.0), d->y,                   d->radius))
+	if (detect_circle_circle_collision(x, y, radius, d->x - (d->radius*2.0), d->y,                   d->radius))
 		return DPAN_COL_LEFT;
-	if(detect_circle_circle_collision(x, y, radius, d->x,                   d->y + (d->radius*2.0), d->radius))
+	if (detect_circle_circle_collision(x, y, radius, d->x,                   d->y + (d->radius*2.0), d->radius))
 		return DPAN_COL_UP;
-	if(detect_circle_circle_collision(x, y, radius, d->x,                   d->y - (d->radius*2.0), d->radius))
+	if (detect_circle_circle_collision(x, y, radius, d->x,                   d->y - (d->radius*2.0), d->radius))
 		return DPAN_COL_DOWN;
-	if(detect_circle_circle_collision(x, y, radius, d->x,                   d->y,                   d->radius))
+	if (detect_circle_circle_collision(x, y, radius, d->x,                   d->y,                   d->radius))
 		return DPAN_COL_CENTER;
 	return DPAN_COL_NONE;
 }
@@ -599,21 +572,19 @@ typedef struct {
 	vt100_background_texture_t *texture;
 } terminal_t;
 
-static void texture_background(terminal_t *t)
-{
+static void texture_background(terminal_t *t) {
 	assert(t);
 	vt100_background_texture_t *v = t->texture;
 	vt100_t *vt = &t->vt100;
-	unsigned i, j;
-	uint8_t *img = v->image;
+	uint8_t *const img = v->image;
 	const unsigned h = v->height;
 	const unsigned w = v->width;
 
-	for (i = 0; i < h; i++) {
-		uint8_t *row = &img[i*4];
+	for (unsigned i = 0; i < h; i++) {
+		uint8_t * const row = &img[i*4];
 		unsigned ii = ((h - i - 1)*vt->height) / h;
-		for (j = 0; j < w; j++) {
-			uint8_t *column = &row[j*h*4];
+		for (unsigned j = 0; j < w; j++) {
+			uint8_t * const column = &row[j*h*4];
 			const unsigned jj = (vt->width*j) / w;
 			const unsigned idx = jj+(ii*vt->width);
 			column[0] = 255 * (vt->attributes[idx].background_color & 1);
@@ -625,10 +596,9 @@ static void texture_background(terminal_t *t)
 }
 
 /* See <http://www.glprogramming.com/red/chapter09.html> */
-static void draw_texture(terminal_t *t, bool update)
-{
+static void draw_texture(terminal_t *t, bool update) {
 	vt100_background_texture_t *v = t->texture;
-	if(!v)
+	if (!v)
 		return;
 
 	scale_t scale = font_attributes();
@@ -642,7 +612,7 @@ static void draw_texture(terminal_t *t, bool update)
 	glEnable(GL_TEXTURE_2D);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
 
-	if(update) {
+	if (update) {
 		glClearColor (0.0, 0.0, 0.0, 0.0);
 		glShadeModel(GL_FLAT);
 		glEnable(GL_DEPTH_TEST);
@@ -671,8 +641,7 @@ static void draw_texture(terminal_t *t, bool update)
 	glDisable(GL_TEXTURE_2D);
 }
 
-void draw_terminal(const world_t *world, terminal_t *t, char *name)
-{
+void draw_terminal(const world_t *world, terminal_t *t, char *name) {
 	assert(world);
 	assert(t);
 	glMatrixMode(GL_MODELVIEW);
@@ -688,17 +657,17 @@ void draw_terminal(const world_t *world, terminal_t *t, char *name)
 	size_t cursor_x = v->cursor % v->width;
 	size_t cursor_y = v->cursor / v->width;
 
-	if(now > seconds_to_ticks(world, 1.0)) {
+	if (now > seconds_to_ticks(world, 1.0)) {
 		t->blink_on = !(t->blink_on);
 		t->blink_count = world->tick;
 	}
 
 	/**@note the cursor is deliberately in a different position compared to draw_vga(), due to how the VGA cursor behaves in hardware */
-	if((!(v->blinks) || t->blink_on) && v->cursor_on) /* fudge factor of 1.10? */
+	if ((!(v->blinks) || t->blink_on) && v->cursor_on) /* fudge factor of 1.10? */
 		draw_rectangle_filled(t->x + (char_width * 1.10 * (cursor_x)) , t->y - (char_height * cursor_y), char_width, char_height, WHITE);
 
 
-	for(size_t i = 0; i < t->vt100.height; i++)
+	for (size_t i = 0; i < t->vt100.height; i++)
 		draw_vt100_block(t->x, t->y - ((double)i * char_height), scale_x, scale_y, 0, v->m + (i*v->width), v->width, v->attributes + (i*v->width), t->blink_on);
 	draw_string_scaled(t->x, t->y - (v->height * char_height), scale_x, scale_y, 0, name, t->color);
 
@@ -858,16 +827,15 @@ static fifo_t *ps2_rx_fifo = NULL;
 
 /* ====================================== H2 I/O Handling ====================================== */
 
-static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on)
-{
+static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on) {
 	assert(soc);
 	assert(ps2_rx_fifo);
 	assert(uart_tx_fifo);
 	assert(uart_rx_fifo);
 
-	if(debug_on)
+	if (debug_on)
 		*debug_on = false;
-	switch(addr) {
+	switch (addr) {
 	case iUart:
 		{
 			uint16_t r = 0;
@@ -900,32 +868,31 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 }
 
 /**@warning uses variables of static storage duration! */
-static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on)
-{
+static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on) {
 	assert(soc);
 	assert(uart_tx_fifo);
 	assert(uart_rx_fifo);
 
-	if(debug_on)
+	if (debug_on)
 		*debug_on = false;
 
-	switch(addr) {
+	switch (addr) {
 	case oUart:
-		if(value & UART_TX_WE) {
+		if (value & UART_TX_WE) {
 			fifo_push(uart_tx_fifo, value);
 		}
-		if(value & UART_RX_RE) {
+		if (value & UART_RX_RE) {
 			uint8_t c = 0;
 			fifo_pop(uart_rx_fifo, &c);
 			soc->uart_getchar_register = c;
 		}
 		break;
 	case oVT100:
-		if(value & UART_TX_WE) {
+		if (value & UART_TX_WE) {
 			vt100_update(&vga_terminal.vt100, value & 0xff);
 			vt100_update(&soc->vt100, value & 0xff);
 		}
-		if(value & UART_RX_RE) {
+		if (value & UART_RX_RE) {
 			uint8_t c = 0;
 			fifo_pop(ps2_rx_fifo, &c);
 			soc->ps2_getchar_register = c;
@@ -933,14 +900,14 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 		break;
 	case oLeds:
 		soc->leds          = value;
-		for(size_t i = 0; i < LEDS_COUNT; i++)
+		for (size_t i = 0; i < LEDS_COUNT; i++)
 			leds[i].on = value & (1 << i);
 		break;
 	case oTimerCtrl:
 		soc->timer_control  = value;
 		break;
 	case o7SegLED:
-		for(size_t i = 0; i < SEGMENT_COUNT; i++)
+		for (size_t i = 0; i < SEGMENT_COUNT; i++)
 			segments[i].segment = (value >> ((SEGMENT_COUNT - i - 1) * 4)) & 0xf;
 		soc->led_7_segments = value;
 		break;
@@ -953,7 +920,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 			bool oe        = soc->mem_control & FLASH_MEMORY_OE;
 			bool we        = soc->mem_control & FLASH_MEMORY_WE;
 
-			if(sram_cs && !oe && we)
+			if (sram_cs && !oe && we)
 				soc->vram[(((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low) >> 1] = soc->mem_dout;
 			break;
 		}
@@ -969,13 +936,12 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 
 /* ====================================== Main Loop ============================================ */
 
-static double fps(void)
-{
+static double fps(void) {
 	static unsigned frame = 0, timebase = 0;
 	static double fps = 0;
 	int time = glutGet(GLUT_ELAPSED_TIME);
 	frame++;
-	if(time - timebase > 1000) {
+	if (time - timebase > 1000) {
 		fps = frame*1000.0/(time-timebase);
 		timebase = time;
 		frame = 0;
@@ -983,8 +949,7 @@ static double fps(void)
 	return fps;
 }
 
-static void draw_debug_info(const world_t *world, double fps, double x, double y)
-{
+static void draw_debug_info(const world_t *world, double fps, double x, double y) {
 	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE, .color_box = WHITE };
 	assert(world);
 	fifo_t *f = world->use_uart_input ? uart_rx_fifo : ps2_rx_fifo;
@@ -995,7 +960,7 @@ static void draw_debug_info(const world_t *world, double fps, double x, double y
 	//fill_textbox(&t, "seconds:         %f", ticks_to_seconds(world->tick));
 	fill_textbox(&t, "fps:                %f", fps);
 
-	if(world->debug_extra) {
+	if (world->debug_extra) {
 		fill_textbox(&t, "Mode:               %s", world->debug_mode ? "step" : "continue");
 		fill_textbox(&t, "%s RX fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
 		fill_textbox(&t, "%s RX fifo empty: %s", fifo_str, fifo_is_empty(f) ? "true" : "false");
@@ -1011,17 +976,15 @@ static void draw_debug_info(const world_t *world, double fps, double x, double y
 	draw_textbox(&t);
 }
 
-static void fill_textbox_memory(textbox_t *t, uint16_t *m, size_t length)
-{
+static void fill_textbox_memory(textbox_t *t, uint16_t *m, size_t length) {
 	assert(t);
 	assert(m);
 	assert((length % 4) == 0);
-	for(size_t i = 0; i < length; i+=4)
+	for (size_t i = 0; i < length; i+=4)
 		fill_textbox(t, "%s%u: %x %x %x %x", i < 10 ? " " : "", i, m[i], m[i+1], m[i+2], m[i+3]);
 }
 
-static void draw_debug_h2_screen_1(h2_t *h, double x, double y)
-{
+static void draw_debug_h2_screen_1(h2_t *h, double x, double y) {
 	assert(h);
 	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE, .color_box = WHITE };
 	fill_textbox(&t, "H2 CPU State", h->tos);
@@ -1034,8 +997,7 @@ static void draw_debug_h2_screen_1(h2_t *h, double x, double y)
 	draw_textbox(&t);
 }
 
-static void draw_debug_h2_screen_2(h2_t *h, double x, double y)
-{
+static void draw_debug_h2_screen_2(h2_t *h, double x, double y) {
 	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE, .color_box = WHITE };
 	assert(h);
 	fill_textbox(&t, "H2 CPU Return Stack");
@@ -1043,8 +1005,7 @@ static void draw_debug_h2_screen_2(h2_t *h, double x, double y)
 	draw_textbox(&t);
 }
 
-static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y)
-{
+static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y) {
 	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE, .color_box = WHITE };
 	assert(io);
 	assert(io->soc);
@@ -1075,27 +1036,25 @@ static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y)
 	draw_textbox(&t);
 }
 
-static void keyboard_handler(unsigned char key, int x, int y)
-{
+static void keyboard_handler(unsigned char key, int x, int y) {
 	UNUSED(x);
 	UNUSED(y);
 	assert(uart_tx_fifo);
 	assert(ps2_rx_fifo);
-	if(key == ESCAPE) {
+	if (key == ESCAPE) {
 		world.halt_simulation = true;
 	} else {
-		if(world.use_uart_input)
+		if (world.use_uart_input)
 			fifo_push(uart_rx_fifo, key);
 		else
 			fifo_push(ps2_rx_fifo, key);
 	}
 }
 
-static void keyboard_special_handler(int key, int x, int y)
-{
+static void keyboard_special_handler(int key, int x, int y) {
 	UNUSED(x);
 	UNUSED(y);
-	switch(key) {
+	switch (key) {
 	case GLUT_KEY_UP:    dpad.up    = true; break;
 	case GLUT_KEY_LEFT:  dpad.left  = true; break;
 	case GLUT_KEY_RIGHT: dpad.right = true; break;
@@ -1119,11 +1078,10 @@ static void keyboard_special_handler(int key, int x, int y)
 	}
 }
 
-static void keyboard_special_up_handler(int key, int x, int y)
-{
+static void keyboard_special_up_handler(int key, int x, int y) {
 	UNUSED(x);
 	UNUSED(y);
-	switch(key) {
+	switch (key) {
 	case GLUT_KEY_UP:    dpad.up    = false; break;
 	case GLUT_KEY_LEFT:  dpad.left  = false; break;
 	case GLUT_KEY_RIGHT: dpad.right = false; break;
@@ -1138,13 +1096,11 @@ typedef struct {
 	double y;
 } coordinate_t;
 
-static double abs_diff(double a, double b)
-{
+static double abs_diff(double a, double b) {
 	return fabsl(fabsl(a) - fabsl(b));
 }
 
-static void resize_window(int w, int h)
-{
+static void resize_window(int w, int h) {
 	double window_x_min, window_x_max, window_y_min, window_y_max;
 	double scale, center;
 	world.window_width  = w;
@@ -1177,8 +1133,7 @@ static void resize_window(int w, int h)
 	glOrtho(window_x_min, window_x_max, window_y_min, window_y_max, -1, 1);
 }
 
-static coordinate_t pixels_to_coordinates(const world_t *world, int x, int y)
-{
+static coordinate_t pixels_to_coordinates(const world_t *world, int x, int y) {
 	assert(world);
 	coordinate_t c = { .0, .0 };
 	double xd = abs_diff(X_MAX, X_MIN);
@@ -1190,22 +1145,21 @@ static coordinate_t pixels_to_coordinates(const world_t *world, int x, int y)
 	return c;
 }
 
-static void mouse_handler(int button, int state, int x, int y)
-{
+static void mouse_handler(int button, int state, int x, int y) {
 	coordinate_t c = pixels_to_coordinates(&world, x, y);
 
-	for(size_t i = 0; i < SWITCHES_COUNT; i++) {
-		if(detect_circle_circle_collision(c.x, c.y, 0.1, switches[i].x, switches[i].y, switches[i].radius)) {
-			if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+	for (size_t i = 0; i < SWITCHES_COUNT; i++) {
+		if (detect_circle_circle_collision(c.x, c.y, 0.1, switches[i].x, switches[i].y, switches[i].radius)) {
+			if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
 				switches[i].on = true;
-			if(button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
+			if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
 				switches[i].on = false;
 			return;
 		}
 	}
 
-	if(button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-		switch(dpad_collision(&dpad, c.x, c.y, 0.1)) {
+	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+		switch (dpad_collision(&dpad, c.x, c.y, 0.1)) {
 		case DPAN_COL_NONE:                       break;
 		case DPAN_COL_RIGHT:  dpad.right  = true; break;
 		case DPAN_COL_LEFT:   dpad.left   = true; break;
@@ -1213,7 +1167,7 @@ static void mouse_handler(int button, int state, int x, int y)
 		case DPAN_COL_UP:     dpad.up     = true; break;
 		case DPAN_COL_CENTER: dpad.center = true; break;
 		}
-	} else if(button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
+	} else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
 		dpad.right  = false;
 		dpad.left   = false;
 		dpad.down   = false;
@@ -1222,16 +1176,14 @@ static void mouse_handler(int button, int state, int x, int y)
 	}
 }
 
-static void timer_callback(int value)
-{
+static void timer_callback(int value) {
 	world.tick++;
 	glutTimerFunc(world.arena_tick_ms, timer_callback, value);
 }
 
-static void update_switches(void)
-{
+static void update_switches(void) {
 	h2_io->soc->switches = 0;
-	for(size_t i = 0; i < SWITCHES_COUNT; i++)
+	for (size_t i = 0; i < SWITCHES_COUNT; i++)
 		h2_io->soc->switches |= switches[i].on << i;
 	h2_io->soc->switches |= dpad.center << (SWITCHES_COUNT+0);
 	h2_io->soc->switches |= dpad.right  << (SWITCHES_COUNT+1);
@@ -1240,12 +1192,11 @@ static void update_switches(void)
 	h2_io->soc->switches |= dpad.up     << (SWITCHES_COUNT+4);
 }
 
-static void draw_scene(void)
-{
+static void draw_scene(void) {
 	static uint64_t next = 0;
 	static uint64_t count = 0;
 	double f = fps();
-	if(world.halt_simulation)
+	if (world.halt_simulation)
 		exit(EXIT_SUCCESS);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1254,39 +1205,39 @@ static void draw_scene(void)
 
 	update_switches();
 
-	if(next != world.tick) {
+	if (next != world.tick) {
 		unsigned long increment = 0;
 		next = world.tick;
 		count++;
-		for(;!fifo_is_empty(uart_tx_fifo);) {
+		for (;!fifo_is_empty(uart_tx_fifo);) {
 			uint8_t c = 0;
 			fifo_pop(uart_tx_fifo, &c);
 			vt100_update(&uart_terminal.vt100, c);
 		}
 
-		if(world.debug_mode && world.step)
+		if (world.debug_mode && world.step)
 			increment = 1;
-		else if(!(world.debug_mode))
+		else if (!(world.debug_mode))
 			increment = world.cycles;
 
-		if(!CYCLE_MODE_FIXED && increment) {
+		if (!CYCLE_MODE_FIXED && increment) {
 			uint64_t n = world.cycles + (f > TARGET_FPS ? CYCLE_INCREMENT : -CYCLE_DECREMENT);
-			if(f > (TARGET_FPS + CYCLE_HYSTERESIS)) {
+			if (f > (TARGET_FPS + CYCLE_HYSTERESIS)) {
 				world.cycles = MIN(((uint64_t)-1), n);
-			} else if(f < (TARGET_FPS - CYCLE_HYSTERESIS)) {
+			} else if (f < (TARGET_FPS - CYCLE_HYSTERESIS)) {
 				world.cycles = MAX(CYCLE_MINIMUM, n);
 			}
 		}
 
-		if(increment)
-			if(h2_run(h, h2_io, stderr, increment, NULL, false, trace_file) < 0)
+		if (increment)
+			if (h2_run(h, h2_io, stderr, increment, NULL, false, trace_file) < 0)
 				world.halt_simulation = true;
 
 		world.step = false;
 		world.cycle_count += increment;
 	}
 	draw_debug_info(&world, f, X_MIN + X_MAX/40., Y_MAX - Y_MAX/40.);
-	if(world.debug_extra) {
+	if (world.debug_extra) {
 		draw_debug_h2_screen_1(h,     X_MIN + X_MAX/40., Y_MAX*0.70);
 		draw_debug_h2_screen_2(h,     X_MAX / 3.0,       Y_MAX*0.70);
 		draw_debug_h2_screen_3(h2_io, X_MAX / 1.55,  Y_MAX*0.70);
@@ -1294,13 +1245,13 @@ static void draw_scene(void)
 		draw_terminal(&world, &vga_terminal, "VGA");
 	}
 
-	for(size_t i = 0; i < SWITCHES_COUNT; i++)
+	for (size_t i = 0; i < SWITCHES_COUNT; i++)
 		draw_switch(&switches[i]);
 
-	for(size_t i = 0; i < LEDS_COUNT; i++)
+	for (size_t i = 0; i < LEDS_COUNT; i++)
 		draw_led(&leds[i]);
 
-	for(size_t i = 0; i < SEGMENT_COUNT; i++)
+	for (size_t i = 0; i < SEGMENT_COUNT; i++)
 		draw_led_8_segment(&segments[i]);
 
 	draw_dpad(&dpad);
@@ -1320,7 +1271,7 @@ static void draw_scene(void)
 		fill_textbox(&t, "CHANGE DISPLAY   F-12");
 	}
 
-	if(!world.debug_extra)
+	if (!world.debug_extra)
 		draw_texture(&vga_terminal,  !(count % 2));
 	draw_texture(&uart_terminal, !(count % 2));
 
@@ -1329,8 +1280,7 @@ static void draw_scene(void)
 	glutPostRedisplay();
 }
 
-static void initialize_rendering(char *arg_0)
-{
+static void initialize_rendering(char *arg_0) {
 	char *glut_argv[] = { arg_0, NULL };
 	int glut_argc = 0;
 	memset(uart_terminal.vt100.m, ' ', uart_terminal.vt100.size);
@@ -1350,30 +1300,27 @@ static void initialize_rendering(char *arg_0)
 	glutTimerFunc(world.arena_tick_ms, timer_callback, 0);
 }
 
-static void vt100_initialize(vt100_t *v)
-{
+static void vt100_initialize(vt100_t *v) {
 	assert(v);
 	memset(&v->attribute, 0, sizeof(v->attribute));
 	v->attribute.foreground_color = WHITE;
 	v->attribute.background_color = BLACK;
-	for(size_t i = 0; i < v->size; i++)
+	for (size_t i = 0; i < v->size; i++)
 		v->attributes[i] = v->attribute;
 }
 
-static void finalize(void)
-{
+static void finalize(void) {
 	nvram_save(h2_io, FLASH_INIT_FILE);
 	h2_free(h);
 	h2_io_free(h2_io);
 	fifo_free(uart_tx_fifo);
 	fifo_free(uart_rx_fifo);
 	fifo_free(ps2_rx_fifo);
-	if(trace_file)
+	if (trace_file)
 		fclose(trace_file);
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
 	FILE *hexfile = NULL;
 	int r = 0;
 
@@ -1382,7 +1329,7 @@ int main(int argc, char **argv)
 
 	log_level = LOG_NOTE;
 
-	if(argc != 2) {
+	if (argc != 2) {
 		fprintf(stderr, "usage %s h2.hex\n", argv[0]);
 		return -1;
 	}
@@ -1391,7 +1338,7 @@ int main(int argc, char **argv)
 	h = h2_new(START_ADDR);
 	r = h2_load(h, hexfile);
 	fclose(hexfile);
-	if(r < 0) {
+	if (r < 0) {
 		fprintf(stderr, "h2 load failed\n");
 		goto fail;
 	}
@@ -1404,9 +1351,9 @@ int main(int argc, char **argv)
 		FILE *vga_init = fopen(VGA_INIT_FILE, "rb");
 		static uint16_t vga_initial_contents[VGA_BUFFER_LENGTH] = { 0 };
 		assert(VGA_BUFFER_LENGTH <= VT100_MAX_SIZE);
-		if(vga_init) {
+		if (vga_init) {
 			memory_load(vga_init, vga_initial_contents, VGA_BUFFER_LENGTH);
-			for(size_t i = 0; i < VGA_BUFFER_LENGTH; i++) {
+			for (size_t i = 0; i < VGA_BUFFER_LENGTH; i++) {
 				vga_terminal.vt100.m[i] = vga_initial_contents[i];
 				h2_io->soc->vt100.m[i]  = vga_initial_contents[i];
 			}
@@ -1424,14 +1371,14 @@ int main(int argc, char **argv)
 
 	nvram_load_and_transfer(h2_io, FLASH_INIT_FILE, true);
 
-#ifdef TRON
-	errno = 0;
-	trace_file = fopen(TRACE_FILE, "wb");
-	if(trace_file)
-		setvbuf(trace_file, trace_buffer, _IOFBF, TRACE_BUFFER_LEN);
-	else
-		warning("could not open %s for writing: %s", strerror(errno));
-#endif
+	if (TRON) {
+		errno = 0;
+		trace_file = fopen(TRACE_FILE, "wb");
+		if (trace_file)
+			setvbuf(trace_file, trace_buffer, _IOFBF, TRACE_BUFFER_LEN);
+		else
+			warning("could not open %s for writing: %s", TRACE_FILE, strerror(errno));
+	}
 
 	atexit(finalize);
 	initialize_rendering(argv[0]);
