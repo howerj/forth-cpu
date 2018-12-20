@@ -1343,6 +1343,12 @@ are.
 
 # To Do
 
+* Interrupts are currently buggy. This should be fixed, but it is quite
+difficult to track down, interrupts work fine in the C simulation, and have not
+really been tested much in the VHDL simulation. Interrupts seem to work
+partially, but then cause something to be corrupted.
+* There is a bug with the VT100 component, the color attributes are not
+correctly placed in the right location, but in the previous one.
 * The [embed][] project, which was derived from the simulator and Forth for this
 project, has an improved version of Forth which could be reintegrated with
 this project. The [embed][] project features a metacompiler suitable for 16-bit
@@ -1358,6 +1364,12 @@ use one of the UARTs for reading the meta-compiler and meta-compiled eForth
 program, and writing status/error messages. A second UART could be used to
 dump the binary as a stream of hexadecimal numbers, the simulator could
 redirect the second UART output to a file.
+* The H2 core has deviated from the original J1 core, the new instructions
+could have been added in a backwards compatible way. These deviations should be
+corrected. Also, the stack sized should be reduced if possible.
+* Create a cut down version of the project; remove nearly everything apart from
+the H2 Core, UART and Block RAM components. The interrupt handler could be
+simplified as well.
 * The GUI simulator could be written to be built against [SDL][], and include
 proper textures for the buttons and displays, instead of the current simulator
 which looks like an early 90s test application for OpenGL.
