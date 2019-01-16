@@ -59,16 +59,16 @@ typedef struct {
 	double window_y_starting_position;
 	double window_scale_x;
 	double window_scale_y;
+	void *font_scaled;
+	uint64_t cycle_count;
+	uint64_t cycles;
 	volatile unsigned tick;
-	volatile bool     halt_simulation;
 	unsigned arena_tick_ms;
+	volatile bool halt_simulation;
 	bool use_uart_input;
 	bool debug_extra;
 	bool step;
 	bool debug_mode;
-	uint64_t cycle_count;
-	uint64_t cycles;
-	void *font_scaled;
 } world_t;
 
 static world_t world = {
@@ -131,11 +131,11 @@ static double seconds_to_ticks(const world_t *world, double s) {
 	return s * (1000. / (double)world->arena_tick_ms);
 }
 
-static double rad2deg(double rad) {
+static double rad2deg(const double rad) {
 	return (rad / (2.0 * PI)) * 360.0;
 }
 
-static void set_color(color_t color, bool light) {
+static void set_color(const color_t color, const bool light) {
 	double ON = light ? 0.8 : 0.4;
 	static const double OFF = 0.0;
 	switch (color) {      /* RED  GRN  BLU */
@@ -153,11 +153,11 @@ static void set_color(color_t color, bool light) {
 
 /* see: https://www.opengl.org/discussion_boards/showthread.php/160784-Drawing-Circles-in-OpenGL */
 static void _draw_regular_polygon(
-		double x, double y,
-		double orientation,
-		double radius, double sides,
-		bool lines, double thickness,
-		color_t color) {
+		const double x, const double y,
+		const double orientation,
+		const double radius, const double sides,
+		const bool lines, const double thickness,
+		const color_t color) {
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glLoadIdentity();
@@ -176,7 +176,11 @@ static void _draw_regular_polygon(
 	glPopMatrix();
 }
 
-static void _draw_rectangle(double x, double y, double width, double height, bool lines, double thickness, color_t color) {
+static void _draw_rectangle(
+		const double x, const double y, 
+		const double width, const double height, 
+		const bool lines, const double thickness, 
+		const color_t color) {
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 		glLoadIdentity();
@@ -196,11 +200,11 @@ static void _draw_rectangle(double x, double y, double width, double height, boo
 	glPopMatrix();
 }
 
-static void draw_rectangle_filled(double x, double y, double width, double height, color_t color) {
+static void draw_rectangle_filled(const double x, const double y, const double width, const double height, const color_t color) {
 	_draw_rectangle(x, y, width, height, false, 0, color);
 }
 
-static void draw_rectangle_line(double x, double y, double width, double height, double thickness, color_t color) {
+static void draw_rectangle_line(const double x, const double y, const double width, const double height, const double thickness, const color_t color) {
 	_draw_rectangle(x, y, width, height, true, thickness, color);
 }
 
@@ -221,14 +225,12 @@ static double shape_to_sides(shape_t shape) {
 	return sides[shape % INVALID_SHAPE];
 }
 
-static void draw_regular_polygon_filled(double x, double y, double orientation, double radius, shape_t shape, color_t color) {
-	const double sides = shape_to_sides(shape);
-	_draw_regular_polygon(x, y, orientation, radius, sides, false, 0, color);
+static void draw_regular_polygon_filled(const double x, const double y, const double orientation, const double radius, const shape_t shape, const color_t color) {
+	_draw_regular_polygon(x, y, orientation, radius, shape_to_sides(shape), false, 0, color);
 }
 
-static void draw_regular_polygon_line(double x, double y, double orientation, double radius, shape_t shape, double thickness, color_t color) {
-	const double sides = shape_to_sides(shape);
-	_draw_regular_polygon(x, y, orientation, radius, sides, true, thickness, color);
+static void draw_regular_polygon_line(const double x, const double y, const double orientation, const double radius, const shape_t shape, const double thickness, const color_t color) {
+	_draw_regular_polygon(x, y, orientation, radius, shape_to_sides(shape), true, thickness, color);
 }
 
 static void draw_char(uint8_t c) {
@@ -239,7 +241,7 @@ static void draw_char(uint8_t c) {
 /* see: https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_01
  *      https://stackoverflow.com/questions/538661/how-do-i-draw-text-with-glut-opengl-in-c
  *      https://stackoverflow.com/questions/20866508/using-glut-to-simply-print-text */
-static int draw_block(const uint8_t *msg, size_t len) {
+static int draw_block(const uint8_t *msg, const size_t len) {
 	assert(msg);
 	for (size_t i = 0; i < len; i++)
 		draw_char(msg[i]);
@@ -252,8 +254,8 @@ static int draw_string(const char *msg) {
 }
 
 static scale_t font_attributes(void) {
-	static bool initialized = false;
-	static scale_t scale = { 0., 0.};
+	static bool initialized = false;  // @warning static!
+	static scale_t scale = { 0., 0.}; // @warning static!
 	if (initialized)
 		return scale;
 	scale.y = glutStrokeHeight(world.font_scaled);
@@ -262,7 +264,12 @@ static scale_t font_attributes(void) {
 	return scale;
 }
 
-static void draw_vt100_char(double x, double y, double scale_x, double scale_y, double orientation, uint8_t c, vt100_attribute_t *attr, bool blink) {
+static void draw_vt100_char(
+		const double x, const double y, 
+		const double scale_x, const double scale_y, 
+		const double orientation, const uint8_t c, 
+		const vt100_attribute_t *attr, const bool blink) {
+	assert(attr);
 	/*scale_t scale = font_attributes();
 	double char_width  = scale.x / X_MAX;
        	double char_height = scale.y / Y_MAX;*/
@@ -284,15 +291,23 @@ static void draw_vt100_char(double x, double y, double scale_x, double scale_y, 
 		draw_rectangle_filled(x, y, 1.20, 1.55, attr->background_color);
 }
 
-static int draw_vt100_block(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, vt100_attribute_t *attr, bool blink) {
-	scale_t scale = font_attributes();
-	double char_width = (scale.x / X_MAX)*1.1;
+static int draw_vt100_block(
+		const double x, const double y, 
+		const double scale_x, const double scale_y, 
+		const double orientation, const uint8_t *msg, 
+		const size_t len, const vt100_attribute_t * const attr, const bool blink) {
+	assert(attr);
+	const scale_t scale = font_attributes();
+	const double char_width = (scale.x / X_MAX)*1.1;
 	for (size_t i = 0; i < len; i++)
 		draw_vt100_char(x+char_width*i, y, scale_x, scale_y, orientation, msg[i], &attr[i], blink);
 	return len;
 }
 
-static int draw_block_scaled(double x, double y, double scale_x, double scale_y, double orientation, const uint8_t *msg, size_t len, color_t color) {
+static int draw_block_scaled(
+		const double x, const double y, 
+		const double scale_x, const double scale_y, 
+		const double orientation, const uint8_t *msg, const size_t len, const color_t color) {
 	assert(msg);
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
@@ -311,13 +326,15 @@ static int draw_block_scaled(double x, double y, double scale_x, double scale_y,
 	return len;
 }
 
-static int draw_string_scaled(double x, double y, double scale_x, double scale_y, double orientation, const char *msg, color_t color) {
+static int draw_string_scaled(
+		const double x, const double y, 
+		const double scale_x, const double scale_y,
+		const double orientation, const char *msg, const color_t color) {
 	assert(msg);
 	return draw_block_scaled(x, y, scale_x, scale_y, orientation, (uint8_t*)msg, strlen(msg), color);
 }
 
-static int vdraw_text(color_t color, double x, double y, const char *fmt, va_list ap) {
-	char f;
+static int vdraw_text(const color_t color, const double x, const double y, const char *fmt, va_list ap) {
 	int r = 0;
 	assert(fmt);
 	static const double scale_x = 0.011;
@@ -329,12 +346,13 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 	glTranslatef(x, y, 0);
 	glScaled(scale_x, scale_y, 1.0);
 	while (*fmt) {
-		if ('%' != (f = *fmt++)) {
+		char f = *fmt++;
+		if ('%' != f) {
 			glutStrokeCharacter(world.font_scaled, f);
 			r++;
 			continue;
 		}
-		switch (f = *fmt++) {
+		switch ((f = *fmt++)) {
 		case 'c':
 		{
 			char x[2] = {0, 0};
@@ -350,7 +368,7 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 		}
 		case 'x':
 		{
-			unsigned d = va_arg(ap, unsigned);
+			const unsigned d = va_arg(ap, unsigned);
 			char s[64] = {0};
 			sprintf(s, "%04x", d);
 			r += draw_string(s);
@@ -359,7 +377,7 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 		case 'u':
 		case 'd':
 		{
-			int d = va_arg(ap, int);
+			const int d = va_arg(ap, int);
 			char s[64] = {0};
 			sprintf(s, f == 'u' ? "%u": "%d", d);
 			r += draw_string(s);
@@ -367,7 +385,7 @@ static int vdraw_text(color_t color, double x, double y, const char *fmt, va_lis
 		}
 		case 'f':
 		{
-			double f = va_arg(ap, double);
+			const double f = va_arg(ap, double);
 			char s[512] = {0};
 			sprintf(s, "%.2f", f);
 			r += draw_string(s);
@@ -404,15 +422,15 @@ static void fill_textbox(textbox_t *t, const char *fmt, ...) {
 static void draw_textbox(textbox_t *t) {
 	assert(t);
 	scale_t scale = font_attributes();
-	double char_height = scale.y / Y_MAX;
+	const double char_height = scale.y / Y_MAX;
 	if (!(t->draw_border))
 		return;
 	draw_rectangle_line(t->x - LINE_WIDTH, t->y - t->height + char_height - 1, t->width, t->height + 1, LINE_WIDTH, t->color_box);
 }
 
 static bool detect_circle_circle_collision(
-		double ax, double ay, double aradius,
-		double bx, double by, double bradius) {
+		const double ax, const double ay, const double aradius,
+		const double bx, const double by, const double bradius) {
 	const double dx = ax - bx;
 	const double dy = ay - by;
 	const double distance = hypot(dx, dy);
@@ -431,11 +449,11 @@ typedef struct {
 	bool on;
 } led_t;
 
-static void draw_led(led_t *l) {
+static void draw_led(const led_t * const l) {
 	assert(l);
-	double msz = l->radius * 0.75;
-	double off = (l->radius - msz) / 2.0;
-	draw_rectangle_filled(l->x+off, l->y+off, msz, msz, l->on ? GREEN : RED);
+	const double msz = l->radius * 0.75;
+	const double off = (l->radius - msz) / 2.0;
+	draw_rectangle_filled(l->x + off, l->y + off, msz, msz, l->on ? GREEN : RED);
 	draw_rectangle_filled(l->x, l->y, l->radius, l->radius, BLUE);
 }
 
@@ -447,12 +465,12 @@ typedef struct {
 	bool on;
 } switch_t;
 
-static void draw_switch(switch_t *s) {
+static void draw_switch(const switch_t * const s) {
 	assert(s);
-	double msz = s->radius * 0.6;
-	double off = (s->radius - msz) / 2.0;
-	draw_rectangle_filled(s->x+off, s->on ? (s->y + s->radius) - off : s->y+off, msz, msz, s->on ? GREEN : RED);
-	draw_rectangle_filled(s->x+off, s->y + off, msz, msz*2., BLACK);
+	const double msz = s->radius * 0.6;
+	const double off = (s->radius - msz) / 2.0;
+	draw_rectangle_filled(s->x + off, s->on ? (s->y + s->radius) - off : s->y+off, msz, msz, s->on ? GREEN : RED);
+	draw_rectangle_filled(s->x + off, s->y + off, msz, msz * 2., BLACK);
 	draw_rectangle_filled(s->x, s->y, s->radius, s->radius * 2, BLUE);
 }
 
@@ -476,7 +494,7 @@ typedef struct {
 	uint8_t segment;
 } led_8_segment_t;
 
-static uint8_t convert_to_segments(uint8_t segment) {
+static uint8_t convert_to_segments(const uint8_t segment) {
 	static const uint8_t c2s[16] = {
 		0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07,
 		0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71
@@ -486,7 +504,7 @@ static uint8_t convert_to_segments(uint8_t segment) {
 
 #define SEG_CLR(SG,BIT) (((SG) & (1 << BIT)) ? RED : BLACK)
 
-static void draw_led_8_segment(led_8_segment_t *l) {
+static void draw_led_8_segment(const led_8_segment_t * const l) {
 	assert(l);
 	const uint8_t sgs = convert_to_segments(l->segment);
 
@@ -518,7 +536,8 @@ typedef struct {
 	bool center;
 } dpad_t;
 
-static void draw_dpad(dpad_t *d) {
+static void draw_dpad(const dpad_t * const d) {
+	assert(d);
 	draw_regular_polygon_filled(d->x + (d->radius*2.0), d->y,                   d->angle,            d->radius, TRIANGLE, d->right  ? GREEN : RED);
 	draw_regular_polygon_filled(d->x - (d->radius*2.0), d->y,                   d->angle + (PI/3.0), d->radius, TRIANGLE, d->left   ? GREEN : RED);
 	draw_regular_polygon_filled(d->x,                   d->y - (d->radius*2.0), d->angle - (PI/2.0), d->radius, TRIANGLE, d->down   ? GREEN : RED);
@@ -537,7 +556,8 @@ typedef enum {
 	DPAN_COL_CENTER
 } dpad_collision_e;
 
-static dpad_collision_e dpad_collision(dpad_t *d, double x, double y, double radius) {
+static dpad_collision_e dpad_collision(const dpad_t * const d, const double x, const double y, const double radius) {
+	assert(d);
 	if (detect_circle_circle_collision(x, y, radius, d->x + (d->radius*2.0), d->y,                   d->radius))
 		return DPAN_COL_RIGHT;
 	if (detect_circle_circle_collision(x, y, radius, d->x - (d->radius*2.0), d->y,                   d->radius))
@@ -572,21 +592,21 @@ typedef struct {
 	vt100_background_texture_t *texture;
 } terminal_t;
 
-static void texture_background(terminal_t *t) {
+static void texture_background(const terminal_t * const t) {
 	assert(t);
-	vt100_background_texture_t *v = t->texture;
-	vt100_t *vt = &t->vt100;
+	const vt100_background_texture_t *v = t->texture;
+	const vt100_t *vt = &t->vt100;
 	uint8_t *const img = v->image;
 	const unsigned h = v->height;
 	const unsigned w = v->width;
 
 	for (unsigned i = 0; i < h; i++) {
-		uint8_t * const row = &img[i*4];
-		unsigned ii = ((h - i - 1)*vt->height) / h;
+		uint8_t * const row = &img[i * 4];
+		const unsigned ii = ((h - i - 1) * vt->height) / h;
 		for (unsigned j = 0; j < w; j++) {
-			uint8_t * const column = &row[j*h*4];
-			const unsigned jj = (vt->width*j) / w;
-			const unsigned idx = jj+(ii*vt->width);
+			uint8_t * const column = &row[j * h * 4];
+			const unsigned jj = (vt->width * j) / w;
+			const unsigned idx = jj + (ii * vt->width);
 			column[0] = 255 * (vt->attributes[idx].background_color & 1);
 			column[1] = 255 * (vt->attributes[idx].background_color & 2);
 			column[2] = 255 * (vt->attributes[idx].background_color & 4);
@@ -596,18 +616,19 @@ static void texture_background(terminal_t *t) {
 }
 
 /* See <http://www.glprogramming.com/red/chapter09.html> */
-static void draw_texture(terminal_t *t, bool update) {
+static void draw_texture(const terminal_t * const t, const bool update) {
+	assert(t);
 	vt100_background_texture_t *v = t->texture;
 	if (!v)
 		return;
 
-	scale_t scale = font_attributes();
-	double char_width  = scale.x / X_MAX;
-       	double char_height = scale.y / Y_MAX;
-	double x = t->x;
-	double y = t->y - (char_height * (t->vt100.height-1.0));
-	double width  = char_width  * t->vt100.width * 1.10;
-	double height = char_height * t->vt100.height;
+	const scale_t scale = font_attributes();
+	const double char_width  = scale.x / X_MAX;
+       	const double char_height = scale.y / Y_MAX;
+	const double x = t->x;
+	const double y = t->y - (char_height * (t->vt100.height-1.0));
+	const double width  = char_width  * t->vt100.width * 1.10;
+	const double height = char_height * t->vt100.height;
 
 	glEnable(GL_TEXTURE_2D);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
@@ -641,7 +662,7 @@ static void draw_texture(terminal_t *t, bool update) {
 	glDisable(GL_TEXTURE_2D);
 }
 
-void draw_terminal(const world_t *world, terminal_t *t, char *name) {
+void draw_terminal(const world_t *world, terminal_t *t, const char * const name) {
 	assert(world);
 	assert(t);
 	glMatrixMode(GL_MODELVIEW);
@@ -649,13 +670,13 @@ void draw_terminal(const world_t *world, terminal_t *t, char *name) {
 
 	static const double scale_x = 0.011;
 	static const double scale_y = 0.011;
-	vt100_t *v = &t->vt100;
-	double now = world->tick - t->blink_count;
-	scale_t scale = font_attributes();
-	double char_width  = scale.x / X_MAX;
-       	double char_height = scale.y / Y_MAX;
-	size_t cursor_x = v->cursor % v->width;
-	size_t cursor_y = v->cursor / v->width;
+	const vt100_t * const v = &t->vt100;
+	const scale_t scale = font_attributes();
+	const double now = world->tick - t->blink_count;
+	const double char_width  = scale.x / X_MAX;
+       	const double char_height = scale.y / Y_MAX;
+	const size_t cursor_x = v->cursor % v->width;
+	const size_t cursor_y = v->cursor / v->width;
 
 	if (now > seconds_to_ticks(world, 1.0)) {
 		t->blink_on = !(t->blink_on);
@@ -827,7 +848,7 @@ static fifo_t *ps2_rx_fifo = NULL;
 
 /* ====================================== H2 I/O Handling ====================================== */
 
-static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on) {
+static uint16_t h2_io_get_gui(const h2_soc_state_t * const soc, const uint16_t addr, bool *debug_on) {
 	assert(soc);
 	assert(ps2_rx_fifo);
 	assert(uart_tx_fifo);
@@ -837,25 +858,17 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 		*debug_on = false;
 	switch (addr) {
 	case iUart:
-		{
-			uint16_t r = 0;
-			r |= fifo_is_empty(uart_tx_fifo) << UART_TX_FIFO_EMPTY_BIT;
-			r |= fifo_is_full(uart_tx_fifo)  << UART_TX_FIFO_FULL_BIT;
-			r |= fifo_is_empty(uart_rx_fifo) << UART_RX_FIFO_EMPTY_BIT;
-			r |= fifo_is_full(uart_rx_fifo)  << UART_RX_FIFO_FULL_BIT;
-			r |= soc->uart_getchar_register;
-			return r;
-		}
+		return (fifo_is_empty(uart_tx_fifo) << UART_TX_FIFO_EMPTY_BIT)
+			| (fifo_is_full(uart_tx_fifo)  << UART_TX_FIFO_FULL_BIT)
+			| (fifo_is_empty(uart_rx_fifo) << UART_RX_FIFO_EMPTY_BIT)
+			| (fifo_is_full(uart_rx_fifo)  << UART_RX_FIFO_FULL_BIT)
+			| soc->uart_getchar_register;
 	case iVT100:
-		{
-			uint16_t r = 0;
-			r |= 1u << UART_TX_FIFO_EMPTY_BIT;
-			r |= 0u << UART_TX_FIFO_FULL_BIT;
-			r |= fifo_is_empty(ps2_rx_fifo) << UART_RX_FIFO_EMPTY_BIT;
-			r |= fifo_is_full(ps2_rx_fifo)  << UART_RX_FIFO_FULL_BIT;
-			r |= soc->uart_getchar_register;
-			return r;
-		}
+		return (1u << UART_TX_FIFO_EMPTY_BIT)
+			| (0u << UART_TX_FIFO_FULL_BIT)
+			| (fifo_is_empty(ps2_rx_fifo) << UART_RX_FIFO_EMPTY_BIT)
+			| (fifo_is_full(ps2_rx_fifo)  << UART_RX_FIFO_FULL_BIT)
+			| soc->uart_getchar_register ;
 	case iSwitches:
 		return soc->switches;
 	case iTimerDin: return soc->timer;
@@ -868,7 +881,7 @@ static uint16_t h2_io_get_gui(h2_soc_state_t *soc, uint16_t addr, bool *debug_on
 }
 
 /**@warning uses variables of static storage duration! */
-static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on) {
+static void h2_io_set_gui(h2_soc_state_t *soc, const uint16_t addr, const uint16_t value, bool *debug_on) {
 	assert(soc);
 	assert(uart_tx_fifo);
 	assert(uart_rx_fifo);
@@ -915,11 +928,9 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 	case oMemControl:
 		{
 			soc->mem_control    = value;
-
-			bool sram_cs   = soc->mem_control & SRAM_CHIP_SELECT;
-			bool oe        = soc->mem_control & FLASH_MEMORY_OE;
-			bool we        = soc->mem_control & FLASH_MEMORY_WE;
-
+			const bool sram_cs   = soc->mem_control & SRAM_CHIP_SELECT;
+			const bool oe        = soc->mem_control & FLASH_MEMORY_OE;
+			const bool we        = soc->mem_control & FLASH_MEMORY_WE;
 			if (sram_cs && !oe && we)
 				soc->vram[(((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low) >> 1] = soc->mem_dout;
 			break;
@@ -939,7 +950,7 @@ static void h2_io_set_gui(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bo
 static double fps(void) {
 	static unsigned frame = 0, timebase = 0;
 	static double fps = 0;
-	int time = glutGet(GLUT_ELAPSED_TIME);
+	const int time = glutGet(GLUT_ELAPSED_TIME);
 	frame++;
 	if (time - timebase > 1000) {
 		fps = frame*1000.0/(time-timebase);
@@ -954,29 +965,29 @@ static void draw_debug_info(const world_t *world, double fps, double x, double y
 	assert(world);
 	fifo_t *f = world->use_uart_input ? uart_rx_fifo : ps2_rx_fifo;
 	const char *fifo_str = world->use_uart_input ? "UART" : "PS/2";
-	char buf[256] = { 0 };
 
 	fill_textbox(&t, "tick:               %u", world->tick);
 	//fill_textbox(&t, "seconds:         %f", ticks_to_seconds(world->tick));
 	fill_textbox(&t, "fps:                %f", fps);
 
 	if (world->debug_extra) {
+		char buf[256] = { 0 };
 		fill_textbox(&t, "Mode:               %s", world->debug_mode ? "step" : "continue");
-		fill_textbox(&t, "%s RX fifo full:  %s", fifo_str, fifo_is_full(f)  ? "true" : "false");
-		fill_textbox(&t, "%s RX fifo empty: %s", fifo_str, fifo_is_empty(f) ? "true" : "false");
-		fill_textbox(&t, "%s RX fifo count: %u", fifo_str, (unsigned)fifo_count(f));
+		fill_textbox(&t, "%s RX fifo full:  %s",   fifo_str, fifo_is_full(f)  ? "true" : "false");
+		fill_textbox(&t, "%s RX fifo empty: %s",   fifo_str, fifo_is_empty(f) ? "true" : "false");
+		fill_textbox(&t, "%s RX fifo count: %u",   fifo_str, (unsigned)fifo_count(f));
 		fill_textbox(&t, "UART TX fifo full:  %s", fifo_is_full(uart_tx_fifo)  ? "true" : "false");
 		fill_textbox(&t, "UART TX fifo empty: %s", fifo_is_empty(uart_tx_fifo) ? "true" : "false");
 		fill_textbox(&t, "UART TX fifo count: %u", (unsigned)fifo_count(uart_tx_fifo));
 
 		sprintf(buf, "%08lu", (unsigned long)(world->cycle_count));
 		fill_textbox(&t, "cycles:             %s", buf);
-		fill_textbox(&t, "cycles/tick         %u", (unsigned)(world->cycles));
+		fill_textbox(&t, "cycles/tick:        %u", (unsigned)(world->cycles));
 	}
 	draw_textbox(&t);
 }
 
-static void fill_textbox_memory(textbox_t *t, uint16_t *m, size_t length) {
+static void fill_textbox_memory(textbox_t *t, const uint16_t * const m, const size_t length) {
 	assert(t);
 	assert(m);
 	assert((length % 4) == 0);
@@ -997,7 +1008,7 @@ static void draw_debug_h2_screen_1(h2_t *h, double x, double y) {
 	draw_textbox(&t);
 }
 
-static void draw_debug_h2_screen_2(h2_t *h, double x, double y) {
+static void draw_debug_h2_screen_2(const h2_t * const h, const double x, const double y) {
 	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE, .color_box = WHITE };
 	assert(h);
 	fill_textbox(&t, "H2 CPU Return Stack");
@@ -1005,11 +1016,11 @@ static void draw_debug_h2_screen_2(h2_t *h, double x, double y) {
 	draw_textbox(&t);
 }
 
-static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y) {
+static void draw_debug_h2_screen_3(const h2_io_t * const io, const double x, const double y) {
 	textbox_t t = { .x = x, .y = y, .draw_border = true, .color_text = WHITE, .color_box = WHITE };
 	assert(io);
 	assert(io->soc);
-	h2_soc_state_t *s = io->soc;
+	const h2_soc_state_t * const s = io->soc;
 	fill_textbox(&t, "I/O");
 	fill_textbox(&t, "LED             %x", (unsigned)s->leds);
 	/*fill_textbox(&t, "VGA Cursor:     %x", (unsigned)s->vga_cursor);*/
@@ -1036,7 +1047,7 @@ static void draw_debug_h2_screen_3(h2_io_t *io, double x, double y) {
 	draw_textbox(&t);
 }
 
-static void keyboard_handler(unsigned char key, int x, int y) {
+static void keyboard_handler(const unsigned char key, const int x, const int y) {
 	UNUSED(x);
 	UNUSED(y);
 	assert(uart_tx_fifo);
@@ -1051,7 +1062,7 @@ static void keyboard_handler(unsigned char key, int x, int y) {
 	}
 }
 
-static void keyboard_special_handler(int key, int x, int y) {
+static void keyboard_special_handler(const int key, const int x, const int y) {
 	UNUSED(x);
 	UNUSED(y);
 	switch (key) {
@@ -1078,7 +1089,7 @@ static void keyboard_special_handler(int key, int x, int y) {
 	}
 }
 
-static void keyboard_special_up_handler(int key, int x, int y) {
+static void keyboard_special_up_handler(const int key, const int x, const int y) {
 	UNUSED(x);
 	UNUSED(y);
 	switch (key) {
@@ -1096,7 +1107,7 @@ typedef struct {
 	double y;
 } coordinate_t;
 
-static double abs_diff(double a, double b) {
+static double abs_diff(const double a, const double b) {
 	return fabsl(fabsl(a) - fabsl(b));
 }
 
@@ -1133,20 +1144,21 @@ static void resize_window(int w, int h) {
 	glOrtho(window_x_min, window_x_max, window_y_min, window_y_max, -1, 1);
 }
 
-static coordinate_t pixels_to_coordinates(const world_t *world, int x, int y) {
+static coordinate_t pixels_to_coordinates(const world_t *world, const int x, const int y) {
 	assert(world);
-	coordinate_t c = { .0, .0 };
-	double xd = abs_diff(X_MAX, X_MIN);
-	double yd = abs_diff(Y_MAX, Y_MIN);
-	double xs = world->window_width  / world->window_scale_x;
-	double ys = world->window_height / world->window_scale_y;
-	c.x = Y_MIN + (xd * ((x - (world->window_width  - xs)/2.) / xs));
-	c.y = Y_MAX - (yd * ((y - (world->window_height - ys)/2.) / ys));
+	const double xd = abs_diff(X_MAX, X_MIN);
+	const double yd = abs_diff(Y_MAX, Y_MIN);
+	const double xs = world->window_width  / world->window_scale_x;
+	const double ys = world->window_height / world->window_scale_y;
+	const coordinate_t c = { 
+		.x = Y_MIN + (xd * ((x - (world->window_width  - xs)/2.) / xs)),
+		.y = Y_MAX - (yd * ((y - (world->window_height - ys)/2.) / ys))
+	};
 	return c;
 }
 
-static void mouse_handler(int button, int state, int x, int y) {
-	coordinate_t c = pixels_to_coordinates(&world, x, y);
+static void mouse_handler(const int button, const int state, const int x, const int y) {
+	const coordinate_t c = pixels_to_coordinates(&world, x, y);
 
 	for (size_t i = 0; i < SWITCHES_COUNT; i++) {
 		if (detect_circle_circle_collision(c.x, c.y, 0.1, switches[i].x, switches[i].y, switches[i].radius)) {
@@ -1176,7 +1188,7 @@ static void mouse_handler(int button, int state, int x, int y) {
 	}
 }
 
-static void timer_callback(int value) {
+static void timer_callback(const int value) {
 	world.tick++;
 	glutTimerFunc(world.arena_tick_ms, timer_callback, value);
 }
@@ -1193,8 +1205,8 @@ static void update_switches(void) {
 }
 
 static void draw_scene(void) {
-	static uint64_t next = 0;
-	static uint64_t count = 0;
+	static uint64_t next = 0;  // @warning static!
+	static uint64_t count = 0; // @warning static!
 	double f = fps();
 	if (world.halt_simulation)
 		exit(EXIT_SUCCESS);
@@ -1300,7 +1312,7 @@ static void initialize_rendering(char *arg_0) {
 	glutTimerFunc(world.arena_tick_ms, timer_callback, 0);
 }
 
-static void vt100_initialize(vt100_t *v) {
+static void vt100_initialize(vt100_t * const v) {
 	assert(v);
 	memset(&v->attribute, 0, sizeof(v->attribute));
 	v->attribute.foreground_color = WHITE;

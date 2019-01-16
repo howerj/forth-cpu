@@ -176,11 +176,11 @@ typedef struct {
 
 int logger(log_level_e level, const char *func, const unsigned line, const char *fmt, ...) {
 	int r = 0;
-	va_list ap;
        	assert(func);
        	assert(fmt);
 	assert(level <= LOG_ALL_MESSAGES);
 	if (level <= log_level) {
+		va_list ap;
 		fprintf(stderr, "[%s %u] %s: ", func, line, log_levels[level]);
 		va_start(ap, fmt);
 		r = vfprintf(stderr, fmt, ap);
@@ -203,12 +203,11 @@ static const char *reason(void) {
 	return r;
 }
 
-void *allocate_or_die(size_t length) {
+void *allocate_or_die(const size_t length) {
 	errno = 0;
 	void *r = calloc(1, length);
 	if (!r)
-		fatal("allocation of size %zu failed: %s",
-				length, reason());
+		fatal("allocation of size %u failed: %s", (unsigned)length, reason());
 	return r;
 }
 
@@ -218,12 +217,11 @@ FILE *fopen_or_die(const char *file, const char *mode) {
 	errno = 0;
 	FILE *f = fopen(file, mode);
 	if (!f)
-		fatal("failed to open file '%s' (mode %s): %s",
-				file, mode, reason());
+		fatal("failed to open file '%s' (mode %s): %s", file, mode, reason());
 	return f;
 }
 
-static int indent(FILE *output, char c, unsigned i) {
+static int indent(FILE *output, const char c, unsigned i) {
 	assert(output);
 	while (i--)
 		if (fputc(c, output) != c)
@@ -231,7 +229,7 @@ static int indent(FILE *output, char c, unsigned i) {
 	return 0;
 }
 
-static int string_to_long(int base, long *n, const char *s) {
+static int string_to_long(const int base, long *n, const char *s) {
 	char *end = NULL;
 	assert(base >= 0);
 	assert(base != 1);
@@ -245,14 +243,14 @@ static int string_to_long(int base, long *n, const char *s) {
 
 static int string_to_cell(int base, uint16_t *n, const char *s) {
 	long n1 = 0;
-	int r = string_to_long(base, &n1, s);
+	const int r = string_to_long(base, &n1, s);
 	*n = n1;
 	return r;
 }
 
 static char *duplicate(const char *str) {
 	assert(str);
-	size_t length = strlen(str);
+	const size_t length = strlen(str);
 	assert((length + 1) > length);
 	errno = 0;
 	char *r = malloc(length + 1);
@@ -271,7 +269,7 @@ static void ethrow(error_t *e) {
 	exit(EXIT_FAILURE);
 }
 
-h2_t *h2_new(uint16_t start_address) {
+h2_t *h2_new(const uint16_t start_address) {
 	h2_t *h = allocate_or_die(sizeof(h2_t));
 	h->pc = start_address;
 	for (uint16_t i = 0; i < start_address; i++)
@@ -279,7 +277,7 @@ h2_t *h2_new(uint16_t start_address) {
 	return h;
 }
 
-void h2_free(h2_t *h) {
+void h2_free(h2_t * const h) {
 	if (!h)
 		return;
 	free(h->bp.points);
@@ -287,7 +285,7 @@ void h2_free(h2_t *h) {
 	free(h);
 }
 
-int binary_memory_load(FILE *input, uint16_t *p, size_t length) {
+int binary_memory_load(FILE *input, uint16_t *p, const size_t length) {
 	assert(input);
 	assert(p);
 	for (size_t i = 0; i < length; i++) {
@@ -303,13 +301,13 @@ int binary_memory_load(FILE *input, uint16_t *p, size_t length) {
 	return 0;
 }
 
-int binary_memory_save(FILE *output, uint16_t *p, size_t length) {
+int binary_memory_save(FILE *output, const uint16_t * const p, const size_t length) {
 	assert(output);
 	assert(p);
 	for (size_t i = 0; i < length; i++) {
 		errno = 0;
-		const int r1 = fputc((p[i])     & 0xff,output);
-		const int r2 = fputc((p[i]>>8u) & 0xff, output);
+		const int r1 = fputc((p[i])       & 0xff,output);
+		const int r2 = fputc((p[i] >> 8u) & 0xff, output);
 		if (r1 < 0 || r2 < 0) {
 			debug("memory write failed: %s", strerror(errno));
 			return -1;
@@ -318,7 +316,7 @@ int binary_memory_save(FILE *output, uint16_t *p, size_t length) {
 	return 0;
 }
 
-int nvram_load_and_transfer(h2_io_t *io, const char *name, bool transfer_to_sram) {
+int nvram_load_and_transfer(h2_io_t *io, const char *name, const bool transfer_to_sram) {
 	assert(io);
 	assert(name);
 	FILE *input = NULL;
@@ -352,7 +350,7 @@ int nvram_save(h2_io_t *io, const char *name) {
 	return r;
 }
 
-int memory_load(FILE *input, uint16_t *p, size_t length) {
+int memory_load(FILE *input, uint16_t *p, const size_t length) {
 	assert(input);
 	assert(p);
 	char line[80] = {0}; /*more than enough!*/
@@ -361,7 +359,7 @@ int memory_load(FILE *input, uint16_t *p, size_t length) {
 	for (;fgets(line, sizeof(line), input); i++) {
 		int r;
 		if (i >= length) {
-			error("file contains too many lines: %zu", i);
+			error("file contains too many lines: %u", (unsigned)i);
 			return -1;
 		}
 		r = string_to_cell(16, &p[i], line);
@@ -369,13 +367,13 @@ int memory_load(FILE *input, uint16_t *p, size_t length) {
 			error("invalid line - expected hex string: %s", line);
 			return -1;
 		}
-		debug("%zu %u", i, (unsigned)p[i]);
+		debug("%u %u", (unsigned)i, (unsigned)p[i]);
 	}
 
 	return 0;
 }
 
-int memory_save(FILE *output, uint16_t *p, size_t length) {
+int memory_save(FILE *output, const uint16_t * const p, const size_t length) {
 	assert(output);
 	assert(p);
 	for (size_t i = 0; i < length; i++)
@@ -392,7 +390,7 @@ int h2_load(h2_t *h, FILE *hexfile) {
 	return memory_load(hexfile, h->core, MAX_CORE);
 }
 
-int h2_save(h2_t *h, FILE *output, bool full) {
+int h2_save(const h2_t * const h, FILE *output, const bool full) {
 	assert(h);
 	assert(output);
 	return memory_save(output, h->core, full ? MAX_CORE : h->pc);
@@ -400,7 +398,7 @@ int h2_save(h2_t *h, FILE *output, bool full) {
 
 /* From: https://stackoverflow.com/questions/215557/how-do-i-implement-a-circular-list-ring-buffer-in-c */
 
-fifo_t *fifo_new(size_t size) {
+fifo_t *fifo_new(const size_t size) {
 	assert(size >= 2); /* It does not make sense to have a FIFO less than this size */
 	fifo_data_t *buffer = allocate_or_die(size * sizeof(buffer[0]));
 	fifo_t *fifo = allocate_or_die(sizeof(fifo_t));
@@ -420,18 +418,18 @@ void fifo_free(fifo_t *fifo) {
 	free(fifo);
 }
 
-bool fifo_is_full(fifo_t * fifo) {
+bool fifo_is_full(const fifo_t * const fifo) {
 	assert(fifo);
 	return (fifo->head == (fifo->size - 1) && fifo->tail == 0)
 	    || (fifo->head == (fifo->tail - 1));
 }
 
-bool fifo_is_empty(fifo_t * fifo) {
+bool fifo_is_empty(const fifo_t * const fifo) {
 	assert(fifo);
 	return fifo->head == fifo->tail;
 }
 
-size_t fifo_count(fifo_t * fifo) {
+size_t fifo_count(const fifo_t * const fifo) {
 	assert(fifo);
 	if (fifo_is_empty(fifo))
 		return 0;
@@ -507,7 +505,7 @@ static int getch(void) {
 	return getchar();
 }
 
-static int putch(int c) {
+static int putch(const int c) {
 	return putchar(c);
 }
 #endif
@@ -538,7 +536,7 @@ static const char *symbol_names[] = {
 	NULL
 };
 
-static symbol_t *symbol_new(symbol_type_e type, const char *id, uint16_t value) {
+static symbol_t *symbol_new(const symbol_type_e type, const char *id, const uint16_t value) {
 	symbol_t *s = allocate_or_die(sizeof(*s));
 	assert(id);
 	s->id = duplicate(id);
@@ -570,7 +568,7 @@ static void symbol_table_free(symbol_table_t *t) {
 	free(t);
 }
 
-static symbol_t *symbol_table_lookup(symbol_table_t *t, const char *id) {
+static symbol_t *symbol_table_lookup(const symbol_table_t * const t, const char *id) {
 	for (size_t i = 0; i < t->length; i++)
 		if (!strcmp(t->symbols[i]->id, id))
 			return t->symbols[i];
@@ -578,7 +576,7 @@ static symbol_t *symbol_table_lookup(symbol_table_t *t, const char *id) {
 }
 
 /** @note There can be multiple symbols with the same value of the same type */
-static symbol_t *symbol_table_reverse_lookup(symbol_table_t *t, symbol_type_e type, uint16_t value) {
+static const symbol_t *symbol_table_reverse_lookup(const symbol_table_t * const t, const symbol_type_e type, const uint16_t value) {
 	for (size_t i = 0; i < t->length; i++)
 		if (t->symbols[i]->type == type && t->symbols[i]->value == value)
 			return t->symbols[i];
@@ -604,7 +602,7 @@ static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *i
 	errno = 0;
 	xs = realloc(t->symbols, sizeof(*t->symbols) * t->length);
 	if (!xs)
-		fatal("reallocate of size %zu failed: %s", t->length, reason());
+		fatal("reallocate of size %u failed: %s", (unsigned)t->length, reason());
 	t->symbols = xs;
 	t->symbols[t->length - 1] = s;
 	return 0;
@@ -673,7 +671,7 @@ fail:
 
 /* ========================== Disassembler ================================= */
 
-static const char *instruction_to_string(uint16_t i) {
+static const char *instruction_to_string(const uint16_t i) {
 	switch (i) {
 #define X(NAME, STRING, DEFINE, INSTRUCTION) case CODE_ ## NAME : return STRING ;
 	X_MACRO_INSTRUCTIONS
@@ -683,7 +681,7 @@ static const char *instruction_to_string(uint16_t i) {
 	return NULL;
 }
 
-static const char *alu_op_to_string(uint16_t instruction) {
+static const char *alu_op_to_string(const uint16_t instruction) {
 	switch (ALU_OP(instruction)) {
 	case ALU_OP_T:                  return "T";
 	case ALU_OP_N:                  return "N";
@@ -710,7 +708,7 @@ static const char *alu_op_to_string(uint16_t instruction) {
 	}
 }
 
-static char *disassembler_alu(uint16_t instruction) {
+static char *disassembler_alu(const uint16_t instruction) {
 	char buf[256] = {0};
 	const char *r = instruction_to_string(OP_ALU_OP | instruction);
 	if (r)
@@ -718,25 +716,21 @@ static char *disassembler_alu(uint16_t instruction) {
 	sprintf(buf, "%04x:%s:%s:%s:%s:%s:%u:%u",
 			(unsigned)instruction,
 			alu_op_to_string(instruction),
-			instruction & T_TO_N ? "T->N" : "",
-			instruction & T_TO_R ? "T->R" : "",
-			instruction & N_TO_ADDR_T ? "N->[T]" : "",
-			instruction & R_TO_PC ? "R->PC" : "",
+			(instruction & T_TO_N) ? "T->N" : "",
+			(instruction & T_TO_R) ? "T->R" : "",
+			(instruction & N_TO_ADDR_T) ? "N->[T]" : "",
+			(instruction & R_TO_PC) ? "R->PC" : "",
 			(unsigned)(instruction & 0x000C),
 			(unsigned)(instruction & 0x0003));
 	return duplicate(buf);
 }
 
-static const char *disassemble_jump(symbol_table_t *symbols, symbol_type_e type, uint16_t address) {
-	static const char *r = "";
-	symbol_t *found = NULL;
+static const char *disassemble_jump(const symbol_table_t * const symbols, const symbol_type_e type, const uint16_t address) {
 	if (!symbols)
-		return r;
-	if ((found = symbol_table_reverse_lookup(symbols, type, address)))
-		return found->id;
-	return r;
+		return "";
+	const symbol_t * const found = symbol_table_reverse_lookup(symbols, type, address);
+	return found ? found->id : "";
 }
-
 
 #define CSI "\033["
 #define ANSI_RESET   (CSI "0m")
@@ -766,9 +760,8 @@ typedef enum {
 	DC_RESET,  /* Reset color */
 } decompilation_color_e;
 
-static int disassemble_instruction(uint16_t instruction, FILE *output, symbol_table_t *symbols, disassemble_color_method_e dcm) {
+static int disassemble_instruction(const uint16_t instruction, FILE *output, const symbol_table_t * const symbols, const disassemble_color_method_e dcm) {
 	int r = 0;
-	unsigned short literal, address;
 	char *s = NULL;
 	assert(output);
 	assert(dcm < DCM_MAX_DCM);
@@ -781,9 +774,8 @@ static int disassemble_instruction(uint16_t instruction, FILE *output, symbol_ta
 	};
 
 	const char **color = colors[dcm];
-
-	literal = instruction & 0x7FFF;
-	address = instruction & 0x1FFF;
+	const unsigned short literal = instruction & 0x7FFF;
+	const unsigned short address = instruction & 0x1FFF;
 
 	if (IS_LITERAL(instruction))
 		r = fprintf(output, "%s%hx%s", color[DC_LITERAL], literal, color[DC_RESET]);
@@ -801,13 +793,12 @@ static int disassemble_instruction(uint16_t instruction, FILE *output, symbol_ta
 	return r < 0 ? -1 : 0;
 }
 
-int h2_disassemble(disassemble_color_method_e dcm, FILE *input, FILE *output, symbol_table_t *symbols) {
+int h2_disassemble(const disassemble_color_method_e dcm, FILE *input, FILE *output, const symbol_table_t * const symbols) {
 	assert(input);
 	assert(output);
 	assert(dcm < DCM_MAX_DCM);
-	char line[80] = {0};
 	while (!feof(input)) {
-		memset(line, 0, sizeof(line));
+		char line[80] = {0};
 		fscanf(input, "%79s", line);
 		if (line[0]) {
 			uint16_t instruction = 0;
@@ -839,11 +830,11 @@ int h2_disassemble(disassemble_color_method_e dcm, FILE *input, FILE *output, sy
  * the roughly the right number of cycles, but not to get exact cycle
  * accurate timing. */
 
-static char to_char(uint8_t c) {
+static char to_char(const uint8_t c) {
 	return isprint(c) ? c : '.';
 }
 
-static void memory_print(FILE *out, uint16_t start, uint16_t *p, uint16_t length, bool chars) {
+static void memory_print(FILE *out, const uint16_t start, const uint16_t * const p, const uint16_t length, const bool chars) {
 	const uint16_t line_length = 16;
 	assert(out);
 	assert(p);
@@ -861,7 +852,7 @@ static void memory_print(FILE *out, uint16_t start, uint16_t *p, uint16_t length
 	putc('\n', out);
 }
 
-static bool break_point_find(break_point_t *bp, uint16_t find_me) {
+static bool break_point_find(const break_point_t * const bp, const uint16_t find_me) {
 	assert(bp);
 	for (size_t i = 0; i < bp->length; i++)
 		if (bp->points[i] == find_me)
@@ -869,20 +860,20 @@ static bool break_point_find(break_point_t *bp, uint16_t find_me) {
 	return false;
 }
 
-static void break_point_add(break_point_t *bp, uint16_t point) {
+static void break_point_add(break_point_t *bp, const uint16_t point) {
 	assert(bp);
 	if (break_point_find(bp, point))
 		return;
 	const size_t a = (bp->length + 1) * sizeof(bp->points[0]);
 	uint16_t *r = realloc(bp->points, a);
 	if (!r || a < bp->length)
-		fatal("realloc of size %zu failed", a);
+		fatal("realloc of size %u failed", (unsigned)a);
 	r[bp->length] = point;
 	bp->length++;
 	bp->points = r;
 }
 
-static int break_point_print(FILE *out, break_point_t *bp) {
+static int break_point_print(FILE *out, const break_point_t * const bp) {
 	assert(out);
 	assert(bp);
 	for (size_t i = 0; i < bp->length; i++)
@@ -894,12 +885,12 @@ static int break_point_print(FILE *out, break_point_t *bp) {
 #define LED_7_SEGMENT_DISPLAY_CHARSET_HEX  "0123456789AbCdEF"
 #define LED_7_SEGMENT_DISPLAY_CHARSET_BCD  "0123456789 .-   "
 
-static char l7seg(uint8_t c) {
+static char l7seg(const uint8_t c) {
 	static const char *v = LED_7_SEGMENT_DISPLAY_CHARSET_HEX;
 	return v[c & 0xf];
 }
 
-void soc_print(FILE *out, h2_soc_state_t *soc) {
+void soc_print(FILE *out, const h2_soc_state_t * const soc) {
 	assert(out);
 	assert(soc);
 	const unsigned char led0 = l7seg(soc->led_7_segments >> 12);
@@ -922,14 +913,14 @@ void soc_print(FILE *out, h2_soc_state_t *soc) {
 	fprintf(out, "Flash Data Out:   %04"PRIx16"\n", soc->mem_dout);
 }
 
-static void terminal_default_command_sequence(vt100_t *t) {
+static void terminal_default_command_sequence(vt100_t * const t) {
 	assert(t);
 	t->n1 = 1;
 	t->n2 = 1;
 	t->command_index = 0;
 }
 
-static void terminal_at_xy(vt100_t *t, unsigned x, unsigned y, bool limit_not_wrap) {
+static void terminal_at_xy(vt100_t * const t, unsigned x, unsigned y, const bool limit_not_wrap) {
 	assert(t);
 	if (limit_not_wrap) {
 		x = MAX(x, 0);
@@ -943,24 +934,24 @@ static void terminal_at_xy(vt100_t *t, unsigned x, unsigned y, bool limit_not_wr
 	t->cursor = (y * t->width) + x;
 }
 
-static int terminal_x_current(vt100_t *t) {
+static int terminal_x_current(const vt100_t * const t) {
 	assert(t);
 	return t->cursor % t->width;
 }
 
-static int terminal_y_current(vt100_t *t) {
+static int terminal_y_current(const vt100_t * const t) {
 	assert(t);
 	return t->cursor / t->width;
 }
 
-static void terminal_at_xy_relative(vt100_t *t, int x, int y, bool limit_not_wrap) {
+static void terminal_at_xy_relative(vt100_t *t, const int x, const int y, const bool limit_not_wrap) {
 	assert(t);
 	const int x_current = terminal_x_current(t);
 	const int y_current = terminal_y_current(t);
 	terminal_at_xy(t, x_current + x, y_current + y, limit_not_wrap);
 }
 
-static void terminal_parse_attribute(vt100_attribute_t *a, unsigned v) {
+static void terminal_parse_attribute(vt100_attribute_t * const a, const unsigned v) {
 	assert(a);
 	switch (v) {
 	case 0:
@@ -986,14 +977,14 @@ static const vt100_attribute_t vt100_default_attribute = {
 	.background_color = BLACK,
 };
 
-static void terminal_attribute_block_set(vt100_t *t, size_t size, const vt100_attribute_t *a) {
+static void terminal_attribute_block_set(vt100_t *t, const size_t size, const vt100_attribute_t * const a) {
 	assert(t);
 	assert(a);
 	for (size_t i = 0; i < size; i++)
 		memcpy(&t->attributes[i], a, sizeof(*a));
 }
 
-static int terminal_escape_sequences(vt100_t *t, uint8_t c) {
+static int terminal_escape_sequences(vt100_t * const t, const uint8_t c) {
 	assert(t);
 	assert(t->state != TERMINAL_NORMAL_MODE);
 	switch (t->state) {
@@ -1141,7 +1132,7 @@ fail:
 	return -1;
 }
 
-void vt100_update(vt100_t *t, uint8_t c) {
+void vt100_update(vt100_t *t, const uint8_t c) {
 	assert(t);
 	assert(t->size <= VT100_MAX_SIZE);
 	assert((t->width * t->height) <= VT100_MAX_SIZE);
@@ -1295,7 +1286,7 @@ uint16_t PC28F128P33BF60_CFI_Query_Read(uint32_t addr) {
 	return PC28F128P33BF60_CFI_Query_Table[addr];
 }
 
-static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bool rst) {
+static uint16_t h2_io_flash_read(const flash_t * const f, const uint32_t addr, const bool oe, const bool we, const bool rst) {
 	if (rst)
 		return 0;
 
@@ -1328,22 +1319,22 @@ static uint16_t h2_io_flash_read(flash_t *f, uint32_t addr, bool oe, bool we, bo
 }
 
 static unsigned addr_to_block(uint32_t addr) {
-	uint32_t lower_64k_blocks_highest_address = 127u * 64u * 1024u; /* 0x7F000 */
+	const uint32_t lower_64k_blocks_highest_address = 127ul * 64ul * 1024ul; /* 0x7F000 */
 	/*assert(addr < 0x7ffffff);*/
 	if (addr < lower_64k_blocks_highest_address)
-		return addr / (64u * 1024u);
+		return addr / (64ul * 1024ul);
 	addr -= lower_64k_blocks_highest_address;
-	addr /= (16u * 1024u);
-	return addr + 127u;
+	addr /= (16ul * 1024ul);
+	return addr + 127ul;
 }
 
-static unsigned block_size(unsigned block) {
-	if (block >= 127u)
-		return 16u * 1024u;
-	return 64u * 1024u;
+static unsigned block_size(const unsigned block) {
+	if (block >= 127ul)
+		return 16ul * 1024ul;
+	return 64ul * 1024ul;
 }
 
-static bool block_locked(flash_t *f, unsigned block) {
+static bool block_locked(const flash_t * const f, const unsigned block) {
 	assert(f);
 	assert(block < FLASH_BLOCK_MAX);
 	/**@todo The locks block would probably be best be represented as a bit
@@ -1352,7 +1343,7 @@ static bool block_locked(flash_t *f, unsigned block) {
 	return !!(f->locks[block]);
 }
 
-static bool address_protected(flash_t *f, uint32_t addr) {
+static bool address_protected(const flash_t *const f, const uint32_t addr) {
 	assert(f);
 	return block_locked(f, addr_to_block(addr));
 }
@@ -1364,7 +1355,7 @@ static bool address_protected(flash_t *f, uint32_t addr) {
  * devices PC28F128P33BF60 and NP8P128A13T1760E. The lock status of a register
  * should be read as well as checking f->arg1_address == f->arg2_address for
  * commands which require this.*/
-static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe, bool we, bool rst, bool cs) {
+static void h2_io_flash_update(flash_t * const f, const uint32_t addr, const uint16_t data, const bool oe, const bool we, const bool rst, const bool cs) {
 	assert(f);
 	if (oe && we)
 		warning("OE and WE set at the same time");
@@ -1517,7 +1508,7 @@ static void h2_io_flash_update(flash_t *f, uint32_t addr, uint16_t data, bool oe
 	f->cs = cs;
 }
 
-uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc) {
+uint16_t h2_io_memory_read_operation(const h2_soc_state_t * const soc) {
 	assert(soc);
 	const uint32_t flash_addr = ((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low;
 	const bool flash_rst = soc->mem_control & FLASH_MEMORY_RESET;
@@ -1540,7 +1531,7 @@ uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc) {
 	return 0;
 }
 
-static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debug_on) {
+static uint16_t h2_io_get_default(const h2_soc_state_t * const soc, const uint16_t addr, bool *debug_on) {
 	assert(soc);
 	debug("IO read addr: %"PRIx16, addr);
 	(void)debug_on;
@@ -1556,7 +1547,7 @@ static uint16_t h2_io_get_default(h2_soc_state_t *soc, uint16_t addr, bool *debu
 	return 0;
 }
 
-static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on) {
+static void h2_io_set_default(h2_soc_state_t *soc, const uint16_t addr, const uint16_t value, bool *debug_on) {
 	assert(soc);
 	debug("IO write addr/value: %"PRIx16"/%"PRIx16, addr, value);
 
@@ -1595,7 +1586,7 @@ static void h2_io_set_default(h2_soc_state_t *soc, uint16_t addr, uint16_t value
 	}
 }
 
-static void h2_io_update_default(h2_soc_state_t *soc) {
+static void h2_io_update_default(h2_soc_state_t * const soc) {
 	assert(soc);
 
 	if (soc->timer_control & TIMER_ENABLE) {
@@ -1614,24 +1605,21 @@ static void h2_io_update_default(h2_soc_state_t *soc) {
 		}
 	}
 
-	{ /* DPAD interrupt on change state */
-		const uint16_t prev = soc->switches_previous;
-		const uint16_t cur  = soc->switches;
-		if ((prev & 0xff00) != (cur & 0xff00)) {
-			soc->interrupt           = soc->irc_mask & (1 << isrDPadButton);
-			soc->interrupt_selector |= soc->irc_mask & (1 << isrDPadButton);
-		}
-		soc->switches_previous = soc->switches;
+	/* DPAD interrupt on change state */
+	const uint16_t prev = soc->switches_previous;
+	const uint16_t cur  = soc->switches;
+	if ((prev & 0xff00) != (cur & 0xff00)) {
+		soc->interrupt           = soc->irc_mask & (1u << isrDPadButton);
+		soc->interrupt_selector |= soc->irc_mask & (1u << isrDPadButton);
 	}
+	soc->switches_previous = soc->switches;
 
-	{
-		const uint32_t flash_addr = ((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low;
-		const bool flash_rst = soc->mem_control & FLASH_MEMORY_RESET;
-		const bool flash_cs  = soc->mem_control & FLASH_CHIP_SELECT;
-		const bool oe        = soc->mem_control & FLASH_MEMORY_OE;
-		const bool we        = soc->mem_control & FLASH_MEMORY_WE;
-		h2_io_flash_update(&soc->flash, flash_addr >> 1, soc->mem_dout, oe, we, flash_rst, flash_cs);
-	}
+	const uint32_t flash_addr = ((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low;
+	const bool flash_rst = soc->mem_control & FLASH_MEMORY_RESET;
+	const bool flash_cs  = soc->mem_control & FLASH_CHIP_SELECT;
+	const bool oe        = soc->mem_control & FLASH_MEMORY_OE;
+	const bool we        = soc->mem_control & FLASH_MEMORY_WE;
+	h2_io_flash_update(&soc->flash, flash_addr >> 1, soc->mem_dout, oe, we, flash_rst, flash_cs);
 }
 
 h2_soc_state_t *h2_soc_state_new(void) {
@@ -1679,7 +1667,7 @@ void h2_io_free(h2_io_t *io) {
 	free(io);
 }
 
-static void dpush(h2_t *h, uint16_t v) {
+static void dpush(h2_t * const h, const uint16_t v) {
 	assert(h);
 	h->sp++;
 	h->dstk[h->sp % STK_SIZE] = h->tos;
@@ -1689,7 +1677,7 @@ static void dpush(h2_t *h, uint16_t v) {
 	h->sp %= STK_SIZE;
 }
 
-static uint16_t dpop(h2_t *h) {
+static uint16_t dpop(h2_t * const h) {
 	assert(h);
 	const uint16_t r = h->tos;
 	h->tos = h->dstk[h->sp % STK_SIZE];
@@ -1700,7 +1688,7 @@ static uint16_t dpop(h2_t *h) {
 	return r;
 }
 
-static void rpush(h2_t *h, uint16_t r) {
+static void rpush(h2_t *h, const uint16_t r) {
 	assert(h);
 	h->rp++;
 	h->rstk[(h->rp) % STK_SIZE] = r;
@@ -1709,22 +1697,22 @@ static void rpush(h2_t *h, uint16_t r) {
 	h->rp %= STK_SIZE;
 }
 
-static uint16_t stack_delta(uint16_t d) {
+static uint16_t stack_delta(const uint16_t d) {
 	static const uint16_t i[4] = { 0x0000, 0x0001, 0xFFFE, 0xFFFF };
 	assert((d & 0xFFFC) == 0);
 	return i[d];
 }
 
-static inline void reverse(char *r, size_t length) {
+static inline void reverse(char * const r, const size_t length) {
 	const size_t last = length - 1;
-	for (size_t i = 0; i < length/2; i++) {
+	for (size_t i = 0; i < length/2ul; i++) {
 		const size_t t = r[i];
 		r[i] = r[last - i];
 		r[last - i] = t;
 	}
 }
 
-static inline void unsigned_to_csv(char b[64], unsigned u, char delimiter) {
+static inline void unsigned_to_csv(char b[64], unsigned u, const char delimiter) {
 	unsigned i = 0;
 	do {
 		const unsigned base = 10; /* bases 2-10 allowed */
@@ -1738,7 +1726,7 @@ static inline void unsigned_to_csv(char b[64], unsigned u, char delimiter) {
 	reverse(b, i);
 }
 
-static inline void csv_value(FILE *o, unsigned u) {
+static inline void csv_value(FILE *o, const unsigned u) {
 	char b[64] = { 0 };
 	unsigned_to_csv(b, u, ',');
 	fputs(b, o);
@@ -1753,7 +1741,7 @@ static inline void csv_value(FILE *o, unsigned u) {
  * the wave form viewer, see:
  * <http://www.ic.unicamp.br/~ducatte/mc542/Docs/gtkwave.pdf> and
  * <https://github.com/carlos-jenkins/csv2vcd> for more details.  */
-static int h2_log_csv(FILE *o, h2_t *h, symbol_table_t *symbols, bool header) {
+static int h2_log_csv(FILE *o, const h2_t * const h, const symbol_table_t * const symbols, const bool header) {
 	if (!o)
 		return 0;
 	assert(h);
@@ -1799,9 +1787,10 @@ typedef struct {
 
 static const char *debug_prompt = "debug> ";
 
-static int number(char *s, uint16_t *o, size_t length);
+static int number(const char *s, uint16_t *o, size_t length);
 
-static void h2_print(FILE *out, h2_t *h) {
+static void h2_print(FILE *out, const h2_t *const h) {
+	assert(h);
 	fputs("Return Stack:\n", out);
 	memory_print(out, 0, h->rstk, STK_SIZE, false);
 	fputs("Variable Stack:\n", out);
@@ -1878,7 +1867,7 @@ Command list:\n\n";
 		fprintf(out, " %c %s\t%d\t%s %s\n", dc[i].cmd, dc[i].description, dc[i].argc, arg_type[dc[i].arg1], arg_type[dc[i].arg2]);
 }
 
-static int debug_command_check(FILE *out, const debug_command_t *dc, int cmd, int argc, bool is_numeric1, bool is_numeric2) {
+static int debug_command_check(FILE *out, const debug_command_t * const dc, const int cmd, const int argc, const bool is_numeric1, const bool is_numeric2) {
 	assert(out);
 	assert(dc);
 	for (unsigned i = 0; dc[i].cmd != -1 ; i++) {
@@ -1911,14 +1900,14 @@ static int debug_command_check(FILE *out, const debug_command_t *dc, int cmd, in
 	return -1;
 }
 
-static int debug_resolve_symbol(FILE *out, char *symbol, symbol_table_t *symbols, uint16_t *value) {
+static int debug_resolve_symbol(FILE *out, const char *symbol, const symbol_table_t * const symbols, uint16_t * const value) {
 	assert(out);
 	assert(symbol);
 	assert(symbols);
 	assert(value);
-	symbol_t *sym = NULL;
 	*value = 0;
-	if (!(sym = symbol_table_lookup(symbols, symbol))) {
+	const symbol_t * const sym = symbol_table_lookup(symbols, symbol);
+	if (!sym) {
 		fprintf(out, "symbol '%s' not found\n", symbol);
 		return -1;
 	}
@@ -1930,12 +1919,11 @@ static int debug_resolve_symbol(FILE *out, char *symbol, symbol_table_t *symbols
 	return 0;
 }
 
-static int h2_debugger(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *symbols, uint16_t point) {
-	bool breaks = false;
+static int h2_debugger(debug_state_t *ds, h2_t *h, h2_io_t *io, symbol_table_t *symbols, const uint16_t point) {
 	assert(h);
 	assert(ds);
 
-	breaks = break_point_find(&h->bp, point);
+	const bool breaks = break_point_find(&h->bp, point);
 	if (breaks)
 		fprintf(ds->output, "\n === BREAK(0x%04"PRIx16") ===\n", h->pc);
 
@@ -2137,14 +2125,14 @@ again:
 
 static uint16_t interrupt_decode(uint8_t *vector) {
 	for (unsigned i = 0; i < NUMBER_OF_INTERRUPTS; i++)
-		if (*vector & (1 << i)) {
-			*vector ^= 1 << i;
+		if (*vector & (1u << i)) {
+			*vector ^= 1u << i;
 			return i;
 		}
 	return 0;
 }
 
-int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger, FILE *trace) {
+int h2_run(h2_t *h, h2_io_t *io, FILE *output, const unsigned steps, symbol_table_t *symbols, bool run_debugger, FILE *trace) {
 	bool turn_debug_on = false;
 	assert(h);
 	debug_state_t ds = { .input = stdin, .output = stderr, .step = run_debugger, .trace_on = false /*run_debugger*/ };
@@ -2202,9 +2190,9 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *s
 		} else if (IS_ALU_OP(instruction)) {
 			const uint16_t rd  = stack_delta(RSTACK(instruction));
 			const uint16_t dd  = stack_delta(DSTACK(instruction));
-			uint16_t nos = h->dstk[h->sp % STK_SIZE];
-			uint16_t tos = h->tos;
+			const uint16_t nos = h->dstk[h->sp % STK_SIZE];
 			uint16_t npc = pc_plus_one;
+			uint16_t tos = h->tos;
 
 			if (instruction & R_TO_PC)
 				npc = h->rstk[h->rp % STK_SIZE] >> 1;
@@ -2443,7 +2431,7 @@ typedef struct {
  * lexer, so when keywords like 'hex' and 'decimal' are encountered, the
  * base is changed. */
 
-static token_t *token_new(token_e type, unsigned line) {
+static token_t *token_new(const token_e type, const unsigned line) {
 	token_t *r = allocate_or_die(sizeof(*r));
 	r->type = type;
 	r->line = line;
@@ -2459,18 +2447,19 @@ void token_free(token_t *t) {
 	free(t);
 }
 
-static int next_char(lexer_t *l) {
+static int next_char(const lexer_t * const l) {
 	assert(l);
 	return fgetc(l->input);
 }
 
-static int unget_char(lexer_t *l, int c) {
+static int unget_char(const lexer_t * const l, const int c) {
 	assert(l);
 	return ungetc(c, l->input);
 }
 
 static lexer_t* lexer_new(FILE *input) {
-	lexer_t *l = allocate_or_die(sizeof(lexer_t));
+	assert(input);
+	lexer_t * const l = allocate_or_die(sizeof(lexer_t));
 	l->input = input;
 	return l;
 }
@@ -2482,7 +2471,7 @@ static void lexer_free(lexer_t *l) {
 	free(l);
 }
 
-static int token_print(token_t *t, FILE *output, unsigned depth) {
+static int token_print(token_t *t, FILE *output, const unsigned depth) {
 	if (!t)
 		return 0;
 	indent(output, ' ', depth);
@@ -2505,12 +2494,12 @@ static int token_print(token_t *t, FILE *output, unsigned depth) {
 }
 
 static int _syntax_error(lexer_t *l, const char *func, unsigned line, const char *fmt, ...) {
-	va_list ap;
 	assert(l);
 	assert(func);
 	assert(fmt);
 	fprintf(stderr, "%s:%u\n", func, line);
 	fprintf(stderr, "  syntax error on line %u of input\n", l->line);
+	va_list ap;
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
@@ -2540,7 +2529,7 @@ static bool numeric(const int c, const int base) {
 	return isxdigit(c);
 }
 
-static int number(char *s, uint16_t *o, size_t length) {
+static int number(const char * const s, uint16_t * const o, const size_t length) {
 	size_t i = 0, start = 0;
 	uint32_t out = 0;
 	int base = 10;
@@ -2570,11 +2559,11 @@ static int number(char *s, uint16_t *o, size_t length) {
 	for (i = start; i < length; i++)
 		out = out * base + map_char_to_number(s[i]);
 
-	*o = negate ? out * -1 : out;
+	*o = negate ? out * (uint16_t)-1 : out;
 	return 1;
 }
 
-static void lexer(lexer_t *l) {
+static void lexer(lexer_t * const l) {
 	assert(l);
 	size_t i     = 0;
 	token_e sym  = LEX_ERROR;
@@ -2732,8 +2721,8 @@ typedef struct node_t  {
 	struct node_t *o[];
 } node_t;
 
-static node_t *node_new(parse_e type, size_t size) {
-	node_t *r = allocate_or_die(sizeof(*r) + sizeof(r->o[0]) * size);
+static node_t *node_new(const parse_e type, const size_t size) {
+	node_t * const r = allocate_or_die(sizeof(*r) + sizeof(r->o[0]) * size);
 	if (log_level >= LOG_DEBUG)
 		fprintf(stderr, "node> %s\n", names[type]);
 	r->length = size;
@@ -2744,9 +2733,9 @@ static node_t *node_new(parse_e type, size_t size) {
 static node_t *node_grow(node_t *n) {
 	assert(n);
 	errno = 0;
-	node_t *r = realloc(n, sizeof(*n) + (sizeof(n->o[0]) * (n->length + 1)));
+	node_t * const r = realloc(n, sizeof(*n) + (sizeof(n->o[0]) * (n->length + 1u)));
 	if (!r)
-		fatal("reallocate of size %zu failed: %s", n->length + 1, reason());
+		fatal("reallocate of size %u failed: %s", (unsigned)(n->length + 1u), reason());
 	r->o[r->length++] = 0;
 	return r;
 }
@@ -2761,7 +2750,7 @@ static void node_free(node_t *n) {
 	free(n);
 }
 
-static int accept_token(lexer_t *l, token_e sym) {
+static int accept_token(lexer_t *l, const token_e sym) {
 	assert(l);
 	if (sym == l->token->type) {
 		token_free(l->accepted); /* free token owned by lexer */
@@ -2773,7 +2762,7 @@ static int accept_token(lexer_t *l, token_e sym) {
 	return 0;
 }
 
-static int accept_range(lexer_t *l, token_e low, token_e high) {
+static int accept_range(lexer_t * const l, const token_e low, const token_e high) {
 	assert(l);
 	assert(low <= high);
 	for (token_e i = low; i <= high; i++)
@@ -2782,7 +2771,7 @@ static int accept_range(lexer_t *l, token_e low, token_e high) {
 	return 0;
 }
 
-static void use(lexer_t *l, node_t *n) { /* move ownership of token from lexer to parse tree */
+static void use(lexer_t * const l, node_t * const n) { /* move ownership of token from lexer to parse tree */
 	assert(l);
 	assert(n);
 	if (n->token)
@@ -2792,14 +2781,14 @@ static void use(lexer_t *l, node_t *n) { /* move ownership of token from lexer t
 	l->accepted = NULL;
 }
 
-static int token_enum_print(token_e sym, FILE *output) {
+static int token_enum_print(const token_e sym, FILE *output) {
 	assert(output);
 	assert(sym < LEX_ERROR);
-	const char *s = keywords[sym];
-	return fprintf(output, "%s(%u)", s ? s : "???", sym);
+	const char * const s = keywords[sym];
+	return fprintf(output, "%s(%u)", s ? s : "???", (unsigned)sym);
 }
 
-static void node_print(FILE *output, node_t *n, bool shallow, unsigned depth) {
+static void node_print(FILE *output, const node_t * const n, const bool shallow, const unsigned depth) {
 	if (!n)
 		return;
 	assert(output);
@@ -2811,10 +2800,10 @@ static void node_print(FILE *output, node_t *n, bool shallow, unsigned depth) {
 	if (shallow)
 		return;
 	for (size_t i = 0; i < n->length; i++)
-		node_print(output, n->o[i], shallow, depth+1);
+		node_print(output, n->o[i], shallow, depth + 1);
 }
 
-static int _expect(lexer_t *l, token_e token, const char *file, const char *func, unsigned line) {
+static int _expect(lexer_t * const l, const token_e token, const char *file, const char *func, const unsigned line) {
 	assert(l);
 	assert(file);
 	assert(func);
@@ -2833,7 +2822,7 @@ static int _expect(lexer_t *l, token_e token, const char *file, const char *func
 #define expect(L, TOKEN) _expect((L), (TOKEN), __FILE__, __func__, __LINE__)
 
 /* for rules in the BNF tree defined entirely by their token */
-static node_t *defined_by_token(lexer_t *l, parse_e type) {
+static node_t *defined_by_token(lexer_t * const l, const parse_e type) {
 	assert(l);
 	node_t *r = node_new(type, 0);
 	use(l, r);
@@ -2847,7 +2836,7 @@ typedef enum {
 } define_type_e;
 
 /** @note LEX_LOCATION handled by modifying return node in statement() */
-static node_t *variable_or_constant(lexer_t *l, bool variable) {
+static node_t *variable_or_constant(lexer_t * const l, const bool variable) {
 	assert(l);
 	node_t *r = node_new(variable ? SYM_VARIABLE : SYM_CONSTANT, 1);
 	expect(l, LEX_IDENTIFIER);
@@ -2866,17 +2855,17 @@ static node_t *variable_or_constant(lexer_t *l, bool variable) {
 	return r;
 }
 
-static node_t *jump(lexer_t *l, parse_e type) {
+static node_t *jump(lexer_t * const l, const parse_e type) {
 	assert(l);
-	node_t *r = node_new(type, 0);
+	node_t * const r = node_new(type, 0);
 	(void)(accept_token(l, LEX_LITERAL) || accept_token(l, LEX_STRING) || expect(l, LEX_IDENTIFIER));
 	use(l, r);
 	return r;
 }
 
-static node_t *statements(lexer_t *l);
+static node_t *statements(lexer_t * l);
 
-static node_t *for_next(lexer_t *l) {
+static node_t *for_next(lexer_t * const l) {
 	assert(l);
 	node_t *r = node_new(SYM_FOR_NEXT, 1);
 	r->o[0] = statements(l);
@@ -2892,7 +2881,7 @@ static node_t *for_next(lexer_t *l) {
 	return r;
 }
 
-static node_t *begin(lexer_t *l) {
+static node_t *begin(lexer_t * const l) {
 	assert(l);
 	node_t *r = node_new(SYM_BEGIN_UNTIL, 1);
 	r->o[0] = statements(l);
@@ -2909,9 +2898,9 @@ static node_t *begin(lexer_t *l) {
 	return r;
 }
 
-static node_t *if1(lexer_t *l) {
+static node_t *if1(lexer_t * const l) {
 	assert(l);
-	node_t *r = node_new(SYM_IF1, 2);
+	node_t * const r = node_new(SYM_IF1, 2);
 	r->o[0] = statements(l);
 	if (accept_token(l, LEX_ELSE))
 		r->o[1] = statements(l);
@@ -2919,9 +2908,9 @@ static node_t *if1(lexer_t *l) {
 	return r;
 }
 
-static node_t *define(lexer_t *l) {
+static node_t *define(lexer_t * const l) {
 	assert(l);
-	node_t *r = node_new(SYM_DEFINITION, 1);
+	node_t * const r = node_new(SYM_DEFINITION, 1);
 	if (accept_token(l, LEX_IDENTIFIER))
 		/*DO NOTHING*/;
 	else
@@ -2951,7 +2940,7 @@ again:
 	return r;
 }
 
-static node_t *char_compile(lexer_t *l) {
+static node_t *char_compile(lexer_t * const l) {
 	assert(l);
 	node_t *r = node_new(SYM_CHAR, 0);
 	expect(l, LEX_IDENTIFIER);
@@ -2961,7 +2950,7 @@ static node_t *char_compile(lexer_t *l) {
 	return r;
 }
 
-static node_t *mode(lexer_t *l) {
+static node_t *mode(lexer_t * const l) {
 	assert(l);
 	node_t *r = node_new(SYM_MODE, 0);
 	expect(l, LEX_LITERAL);
@@ -2969,27 +2958,27 @@ static node_t *mode(lexer_t *l) {
 	return r;
 }
 
-static node_t *pc(lexer_t *l) {
+static node_t *pc(lexer_t * const l) {
 	assert(l);
-	node_t *r = node_new(SYM_PC, 0);
+	node_t * const r = node_new(SYM_PC, 0);
 	if (!accept_token(l, LEX_LITERAL))
 		expect(l, LEX_IDENTIFIER);
 	use(l, r);
 	return r;
 }
 
-static node_t *pwd(lexer_t *l) {
+static node_t *pwd(lexer_t * const l) {
 	assert(l);
-	node_t *r = node_new(SYM_PWD, 0);
+	node_t * const r = node_new(SYM_PWD, 0);
 	if (!accept_token(l, LEX_LITERAL))
 		expect(l, LEX_IDENTIFIER);
 	use(l, r);
 	return r;
 }
 
-static node_t *set(lexer_t *l) {
+static node_t *set(lexer_t * const l) {
 	assert(l);
-	node_t *r = node_new(SYM_SET, 0);
+	node_t * const r = node_new(SYM_SET, 0);
 	if (!accept_token(l, LEX_IDENTIFIER) && !accept_token(l, LEX_STRING))
 		expect(l, LEX_LITERAL);
 	use(l, r);
@@ -2999,25 +2988,25 @@ static node_t *set(lexer_t *l) {
 	return r;
 }
 
-static node_t *allocate(lexer_t *l) {
+static node_t *allocate(lexer_t * const l) {
 	assert(l);
-	node_t *r = node_new(SYM_ALLOCATE, 0);
+	node_t * const r = node_new(SYM_ALLOCATE, 0);
 	if (!accept_token(l, LEX_IDENTIFIER))
 		expect(l, LEX_LITERAL);
 	use(l, r);
 	return r;
 }
 
-static node_t *quote(lexer_t *l) {
+static node_t *quote(lexer_t * const l) {
 	assert(l);
-	node_t *r = node_new(SYM_QUOTE, 0);
+	node_t * const r = node_new(SYM_QUOTE, 0);
 	if (!accept_token(l, LEX_IDENTIFIER))
 		expect(l, LEX_STRING);
 	use(l, r);
 	return r;
 }
 
-static node_t *statements(lexer_t *l) {
+static node_t *statements(lexer_t * const l) {
 	size_t i = 0;
 	assert(l);
 	node_t *r = node_new(SYM_STATEMENTS, 2);
@@ -3099,10 +3088,9 @@ again:
 	return r;
 }
 
-static node_t *program(lexer_t *l) { /* block ( "." | EOF ) */
-	node_t *r;
+static node_t *program(lexer_t * const l) { /* block ( "." | EOF ) */
 	assert(l);
-	r = node_new(SYM_PROGRAM, 1);
+	node_t *const r = node_new(SYM_PROGRAM, 1);
 	lexer(l);
 	r->o[0] = statements(l);
 	expect(l, LEX_EOI);
@@ -3110,9 +3098,8 @@ static node_t *program(lexer_t *l) { /* block ( "." | EOF ) */
 }
 
 static node_t *parse(FILE *input) {
-	lexer_t *l;
 	assert(input);
-	l = lexer_new(input);
+	lexer_t * const l = lexer_new(input);
 	l->error.jmp_buf_valid = 1;
 	if (setjmp(l->error.j)) {
 		lexer_free(l);
@@ -3145,12 +3132,12 @@ typedef struct {
 	symbol_t *do_const;
 } assembler_t;
 
-static void update_fence(assembler_t *a, uint16_t pc) {
+static void update_fence(assembler_t * const a, const uint16_t pc) {
 	assert(a);
 	a->fence = MAX(a->fence, pc);
 }
 
-static void generate(h2_t *h, assembler_t *a, uint16_t instruction) {
+static void generate(h2_t * const h, assembler_t * const a, const uint16_t instruction) {
 	assert(h);
 	assert(a);
 	debug("%"PRIx16":\t%"PRIx16, h->pc, instruction);
@@ -3185,21 +3172,21 @@ static void generate(h2_t *h, assembler_t *a, uint16_t instruction) {
 	h->core[h->pc++] = instruction;
 }
 
-static uint16_t here(h2_t *h, assembler_t *a) {
+static uint16_t here(h2_t * const h, assembler_t * const a) {
 	assert(h);
 	assert(h->pc < MAX_CORE);
 	update_fence(a, h->pc);
 	return h->pc;
 }
 
-static uint16_t hole(h2_t *h, assembler_t *a) {
+static uint16_t hole(h2_t * const h, assembler_t * const a) {
 	assert(h);
 	assert(h->pc < MAX_CORE);
 	here(h, a);
 	return h->pc++;
 }
 
-static void fix(h2_t *h, uint16_t hole, uint16_t patch) {
+static void fix(h2_t * const h, const uint16_t hole, const uint16_t patch) {
 	assert(h);
 	assert(hole < MAX_CORE);
 	h->core[hole] = patch;
@@ -3207,16 +3194,14 @@ static void fix(h2_t *h, uint16_t hole, uint16_t patch) {
 
 #define assembly_error(ERROR, ...) do { error(__VA_ARGS__); ethrow(e); } while (0)
 
-static void generate_jump(h2_t *h, assembler_t *a, symbol_table_t *t, token_t *tok, parse_e type, error_t *e) {
-	uint16_t or = 0;
-	uint16_t addr = 0;
-	symbol_t *s;
+static void generate_jump(h2_t * const h, assembler_t * const a, const symbol_table_t * const t, const token_t * const tok, const parse_e type, error_t * const e) {
+	uint16_t or = 0, addr = 0;
 	assert(h);
 	assert(t);
 	assert(a);
 
 	if (tok->type == LEX_IDENTIFIER || tok->type == LEX_STRING) {
-		s = symbol_table_lookup(t, tok->p.id);
+		const symbol_t * const s = symbol_table_lookup(t, tok->p.id);
 		if (!s)
 			assembly_error(e, "undefined symbol: %s", tok->p.id);
 		addr = s->value;
@@ -3243,7 +3228,7 @@ static void generate_jump(h2_t *h, assembler_t *a, symbol_table_t *t, token_t *t
 	generate(h, a, or | addr);
 }
 
-static void generate_literal(h2_t *h, assembler_t *a, uint16_t number) {
+static void generate_literal(h2_t * const h, assembler_t * const a, uint16_t number) {
 	if (number & OP_LITERAL) {
 		number = ~number;
 		generate(h, a, OP_LITERAL | number);
@@ -3253,7 +3238,7 @@ static void generate_literal(h2_t *h, assembler_t *a, uint16_t number) {
 	}
 }
 
-static uint16_t lexer_to_alu_op(token_e t) {
+static uint16_t lexer_to_alu_op(const token_e t) {
 	assert(t >= LEX_DUP && t <= LEX_RDROP);
 	switch (t) {
 #define X(NAME, STRING, DEFINE, INSTRUCTION) case LEX_ ## NAME : return CODE_ ## NAME ;
@@ -3264,8 +3249,7 @@ static uint16_t lexer_to_alu_op(token_e t) {
 	return 0;
 }
 
-static uint16_t literal_or_symbol_lookup(token_t *token, symbol_table_t *t, error_t *e) {
-	symbol_t *s = NULL;
+static uint16_t literal_or_symbol_lookup(const token_t * const token, const symbol_table_t * const t, error_t *e) {
 	assert(token);
 	assert(t);
 	if (token->type == LEX_LITERAL)
@@ -3273,7 +3257,8 @@ static uint16_t literal_or_symbol_lookup(token_t *token, symbol_table_t *t, erro
 
 	assert(token->type == LEX_IDENTIFIER);
 
-	if (!(s = symbol_table_lookup(t, token->p.id)))
+	const symbol_t * const s = symbol_table_lookup(t, token->p.id);
+	if (!s)
 		assembly_error(e, "symbol not found: %s", token->p.id);
 	return s->value;
 }
@@ -3282,14 +3267,14 @@ static uint16_t pack_16(const char lb, const char hb) {
 	return (((uint16_t)hb) << 8) | (uint16_t)lb;
 }
 
-static uint16_t pack_string(h2_t *h, assembler_t *a, const char *s, error_t *e) {
+static uint16_t pack_string(h2_t * const h, assembler_t * const a, const char *s, error_t * const e) {
 	assert(h);
 	assert(s);
-	size_t l = strlen(s);
+	const size_t l = strlen(s);
 	size_t i = 0;
-	uint16_t r = h->pc;
-	if (l > 255)
-		assembly_error(e, "string \"%s\" is too large (%zu > 255)", s, l);
+	const uint16_t r = h->pc;
+	if (l > 255ul)
+		assembly_error(e, "string \"%s\" is too large (%u > 255)", s, (unsigned)l);
 	h->core[hole(h, a)] = pack_16(l, s[0]);
 	for (i = 1; i < l; i += 2)
 		h->core[hole(h, a)] = pack_16(s[i], s[i+1]);
@@ -3300,22 +3285,14 @@ static uint16_t pack_string(h2_t *h, assembler_t *a, const char *s, error_t *e) 
 }
 
 static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t *e) {
-	static const char *special[] = {
-		"$pc",
-		"$pwd",
-		NULL
-	};
-
-	enum special_e {
-		SPECIAL_VARIABLE_PC,
-		SPECIAL_VARIABLE_PWD
-	};
-
-	size_t i;
 	assert(h);
 	assert(id);
 	assert(a);
 
+	static const char *special[] = { "$pc", "$pwd", NULL };
+	enum special_e { SPECIAL_VARIABLE_PC, SPECIAL_VARIABLE_PWD };
+
+	size_t i = 0;
 	for (i = 0; special[i]; i++)
 		if (!strcmp(id, special[i]))
 			break;
@@ -3325,7 +3302,7 @@ static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t 
 	switch (i) {
 	case SPECIAL_VARIABLE_PC:   return h->pc << 1;
 	case SPECIAL_VARIABLE_PWD:  return a->pwd; /**@note already as a character address */
-	default: fatal("reached the unreachable: %zu", i);
+	default: fatal("reached the unreachable: %u", (unsigned)i);
 	}
 
 	return 0;
@@ -3361,7 +3338,10 @@ static built_in_words_t built_in_words[] = {
 	{ .name = NULL,      .compile = true, .inline_bit = false, .hidden = true, .len = 0, .code = {0} }
 };
 
-static void generate_loop_decrement(h2_t *h, assembler_t *a, symbol_table_t *t) {
+static void generate_loop_decrement(h2_t * const h, assembler_t * const a, const symbol_table_t *const t) {
+	assert(t);
+	assert(h);
+	assert(a);
 	a->do_r_minus_one = a->do_r_minus_one ? a->do_r_minus_one : symbol_table_lookup(t, "r1-");
 	if (a->do_r_minus_one && a->mode & MODE_OPTIMIZATION_ON) {
 		generate(h, a, OP_CALL | a->do_r_minus_one->value);
@@ -3372,7 +3352,7 @@ static void generate_loop_decrement(h2_t *h, assembler_t *a, symbol_table_t *t) 
 	}
 }
 
-static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e) {
+static void assemble(h2_t * const h, assembler_t * const a, node_t * const n, symbol_table_t * const t, error_t * const e) {
 	uint16_t hole1 = 0, hole2 = 0;
 	assert(h);
 	assert(t);
@@ -3444,7 +3424,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 	case SYM_QUOTE:
 	{
-		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
+		const symbol_t * const s = symbol_table_lookup(t, n->token->p.id);
 		if (!s || (s->type != SYMBOL_TYPE_CALL && s->type != SYMBOL_TYPE_LABEL))
 			assembly_error(e, "not a defined procedure: %s", n->token->p.id);
 		generate_literal(h, a, s->value << 1);
@@ -3465,7 +3445,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 
 	case SYM_FOR_NEXT:
 	{
-		symbol_t *s = a->do_next ? a->do_next : symbol_table_lookup(t, "doNext");
+		const symbol_t * const s = a->do_next ? a->do_next : symbol_table_lookup(t, "doNext");
 		if (s && a->mode & MODE_OPTIMIZATION_ON) {
 			generate(h, a, CODE_TOR);
 			hole1 = here(h, a);
@@ -3487,7 +3467,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	}
 	case SYM_FOR_AFT_THEN_NEXT:
 	{
-		symbol_t *s = a->do_next ? a->do_next : symbol_table_lookup(t, "doNext");
+		const symbol_t * const s = a->do_next ? a->do_next : symbol_table_lookup(t, "doNext");
 		if (s && a->mode & MODE_OPTIMIZATION_ON) {
 			generate(h, a, CODE_TOR);
 			assemble(h, a, n->o[0], t, e);
@@ -3536,7 +3516,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		break;
 	case SYM_CALL_DEFINITION:
 	{
-		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
+		const symbol_t * const s = symbol_table_lookup(t, n->token->p.id);
 		if (!s)
 			assembly_error(e, "not a constant or a defined procedure: %s", n->token->p.id);
 		if (s->type == SYMBOL_TYPE_CALL) {
@@ -3554,7 +3534,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 			assembly_error(e, "cannot modify word bits (immediate/hidden/inline) if not in compile mode");
 		if (a->mode & MODE_COMPILE_WORD_HEADER && !(n->bits & DEFINE_HIDDEN)) {
 			hole1 = hole(h, a);
-			n->bits &= (DEFINE_IMMEDIATE | DEFINE_INLINE);
+			n->bits &= (DEFINE_IMMEDIATE | DEFINE_INLINE); // @note the only reason 'n' is not const...
 			fix(h, hole1, a->pwd | (n->bits << 13)); /* shift in word bits into PWD field */
 			a->pwd = hole1 << 1;
 			pack_string(h, a, n->token->p.id, e);
@@ -3578,7 +3558,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 		if (n->value->type == LEX_LITERAL) {
 			value = n->value->p.number;
 		} else {
-			symbol_t *l = symbol_table_lookup(t, n->value->p.id);
+			const symbol_t * const l = symbol_table_lookup(t, n->value->p.id);
 			if (l) {
 				value = l->value;
 				if (l->type == SYMBOL_TYPE_CALL) // || l->type == SYMBOL_TYPE_LABEL)
@@ -3640,7 +3620,7 @@ static void assemble(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, erro
 	}
 }
 
-static bool assembler(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, error_t *e) {
+static bool assembler(h2_t * const h, assembler_t *a, node_t * const n, symbol_table_t * const t, error_t * const e) {
 	assert(h && a && n && t && e);
 	if (setjmp(e->j))
 		return false;
@@ -3648,16 +3628,13 @@ static bool assembler(h2_t *h, assembler_t *a, node_t *n, symbol_table_t *t, err
 	return true;
 }
 
-static h2_t *code(node_t *n, symbol_table_t *symbols) {
-	error_t e;
-	h2_t *h;
-	symbol_table_t *t = NULL;
-	assembler_t a;
+static h2_t *code(node_t * const n, symbol_table_t * const symbols) {
 	assert(n);
-	memset(&a, 0, sizeof a);
+	error_t e = { 0 };
+	assembler_t a = { 0 };
 
-	t = symbols ? symbols : symbol_table_new();
-	h = h2_new(START_ADDR);
+	symbol_table_t * const t = symbols ? symbols : symbol_table_new();
+	h2_t *h = h2_new(START_ADDR);
 	a.fence = h->pc;
 
 	e.jmp_buf_valid = 1;
@@ -3679,12 +3656,12 @@ int h2_assemble_file(FILE *input, FILE *output, symbol_table_t *symbols) {
 	assert(input);
 	assert(output);
 	int r = 0;
-	node_t *n = parse(input);
+	node_t * const n = parse(input);
 
 	if (log_level >= LOG_DEBUG)
 		node_print(stderr, n, false, 0);
 	if (n) {
-		h2_t *h = code(n, symbols);
+		h2_t * const h = code(n, symbols);
 		if (h)
 			r = h2_save(h, output, false);
 		else
@@ -3699,10 +3676,10 @@ int h2_assemble_file(FILE *input, FILE *output, symbol_table_t *symbols) {
 
 h2_t *h2_assemble_core(FILE *input, symbol_table_t *symbols) {
 	assert(input);
-	h2_t *h = NULL;
-	node_t *n = parse(input);
+	node_t *const n = parse(input);
 	if (log_level >= LOG_DEBUG)
 		node_print(stderr, n, false, 0);
+	h2_t *h = NULL;
 	if (n)
 		h = code(n, symbols);
 	node_free(n);
@@ -3762,20 +3739,20 @@ given as arguments input is taken from stdin. Output is to\n\
 stdout. Program returns zero on success, non zero on failure.\n\n\
 ";
 
-static void debug_note(command_args_t *cmd) {
+static void debug_note(const command_args_t * const cmd) {
+	assert(cmd);
 	if (cmd->debug_mode)
 		note("entering debug mode");
 	else
 		note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
 }
 
-static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols, bool assemble, uint16_t *vga_initial_contents) {
+static int assemble_run_command(const command_args_t * const cmd, FILE *input, FILE *output, symbol_table_t *symbols, const bool assemble, uint16_t *vga_initial_contents) {
 	assert(input);
 	assert(output);
 	assert(cmd);
 	assert(cmd->nvram);
 	h2_t *h = NULL;
-	h2_io_t *io = NULL;
 	int r = 0;
 
 	if (assemble) {
@@ -3789,7 +3766,7 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 	if (!h)
 		return -1;
 
-	io = h2_io_new();
+	h2_io_t * const io = h2_io_new();
 	assert(VGA_BUFFER_LENGTH <= VT100_MAX_SIZE);
 	for (size_t i = 0; i < VGA_BUFFER_LENGTH; i++) {
 		vt100_attribute_t attr;
@@ -3811,10 +3788,11 @@ static int assemble_run_command(command_args_t *cmd, FILE *input, FILE *output, 
 	return r;
 }
 
-int command(command_args_t *cmd, FILE *input, FILE *output, symbol_table_t *symbols, uint16_t *vga_initial_contents) {
+int command(const command_args_t * const cmd, FILE *input, FILE *output, symbol_table_t *symbols, uint16_t *vga_initial_contents) {
 	assert(input);
 	assert(output);
 	assert(cmd);
+	assert(vga_initial_contents);
 	switch (cmd->cmd) {
 	case DEFAULT_COMMAND:      /* fall through */
 	case DISASSEMBLE_COMMAND:  return h2_disassemble(cmd->dcm, input, output, symbols);
@@ -3924,7 +3902,7 @@ int h2_main(int argc, char **argv) {
 				goto fail;
 			cmd.dcm = dcm;
 			if (cmd.dcm >= DCM_MAX_DCM) {
-				fprintf(stderr, "Invalid Colorization Method: %u\n", cmd.dcm);
+				fprintf(stderr, "Invalid Colorization Method: %u\n", (unsigned)cmd.dcm);
 				goto fail;
 			}
 			break;

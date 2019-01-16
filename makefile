@@ -16,6 +16,7 @@ NETLIST=top
 # @todo sort out pedantic warnings
 #CFLAGS=-Wall -Wextra -O2 -g -pedantic
 CFLAGS=-Wall -Wextra -O2 -g -pedantic
+CC=gcc
 TIME=
 
 OS_FLAGS =

@@ -232,7 +232,7 @@ typedef struct {
 	uint8_t interrupt_selector;
 } h2_soc_state_t;
 
-typedef uint16_t (*h2_io_get)(h2_soc_state_t *soc, uint16_t addr, bool *debug_on);
+typedef uint16_t (*h2_io_get)(const h2_soc_state_t *soc, uint16_t addr, bool *debug_on);
 typedef void     (*h2_io_set)(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on);
 typedef void     (*h2_io_update)(h2_soc_state_t *soc);
 
@@ -280,17 +280,17 @@ FILE *fopen_or_die(const char *file, const char *mode);
 h2_t *h2_new(uint16_t start_address);
 void h2_free(h2_t *h);
 int h2_load(h2_t *h, FILE *hexfile);
-int h2_save(h2_t *h, FILE *output, bool full);
+int h2_save(const h2_t *h, FILE *output, bool full);
 int h2_run(h2_t *h, h2_io_t *io, FILE *output, unsigned steps, symbol_table_t *symbols, bool run_debugger, FILE *trace);
 
-uint16_t h2_io_memory_read_operation(h2_soc_state_t *soc);
-void soc_print(FILE *out, h2_soc_state_t *soc);
+uint16_t h2_io_memory_read_operation(const h2_soc_state_t *soc);
+void soc_print(FILE *out, const h2_soc_state_t *soc);
 h2_soc_state_t *h2_soc_state_new(void);
 void h2_soc_state_free(h2_soc_state_t *soc);
 h2_io_t *h2_io_new(void);
 void h2_io_free(h2_io_t *io);
 
-int binary_memory_save(FILE *output, uint16_t *p, size_t length);
+int binary_memory_save(FILE *output, const uint16_t *p, size_t length);
 int binary_memory_load(FILE *input, uint16_t *p, size_t length);
 int nvram_save(h2_io_t *io, const char *name);
 int nvram_load_and_transfer(h2_io_t *io, const char *name, bool transfer_to_sram);
@@ -306,9 +306,9 @@ typedef struct {
 
 fifo_t *fifo_new(size_t size);
 void fifo_free(fifo_t *fifo);
-bool fifo_is_full(fifo_t * fifo);
-bool fifo_is_empty(fifo_t * fifo);
-size_t fifo_count(fifo_t * fifo);
+bool fifo_is_full(const fifo_t * fifo);
+bool fifo_is_empty(const fifo_t * fifo);
+size_t fifo_count(const fifo_t * fifo);
 size_t fifo_push(fifo_t * fifo, fifo_data_t data);
 size_t fifo_pop(fifo_t * fifo, fifo_data_t * data);
 
@@ -346,7 +346,7 @@ int logger(log_level_e level, const char *func,
 #define debug(...)   logger(LOG_DEBUG,   __func__, __LINE__, __VA_ARGS__)
 
 int memory_load(FILE *input, uint16_t *p, size_t length);
-int memory_save(FILE *output, uint16_t *p, size_t length);
+int memory_save(FILE *output, const uint16_t *p, size_t length);
 
 #define BACKSPACE (8)
 #define ESCAPE    (27)
