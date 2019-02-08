@@ -156,8 +156,9 @@ begin
 	is_instr.branch  <= '1' when insn(15 downto 13) = "000" else '0';
 	is_instr.branch0 <= '1' when insn(15 downto 13) = "001" else '0';
 	is_instr.call    <= '1' when insn(15 downto 13) = "010" else '0';
-	is_interrupt     <= '1' when irq_c = '1' and int_en_c = '1' and use_interrupts else '0';
-	is_ram_write     <= '1' when is_interrupt = '0' and is_instr.alu = '1' and insn(5) = '1' else '0';
+	is_interrupt     <= '1' when irq_c = '1' and int_en_c = '1' and is_instr.branch = '1' and use_interrupts else '0';
+	-- is_ram_write     <= '1' when is_interrupt = '0' and is_instr.alu = '1' and insn(5) = '1' else '0';
+	is_ram_write     <= '1' when is_instr.alu = '1' and insn(5) = '1' else '0';
 	compare.more     <= '1' when signed(tos_c)   > signed(nos)   else '0';
 	compare.umore    <= '1' when unsigned(tos_c) > unsigned(nos) else '0';
 	compare.equal    <= '1' when tos_c = nos else '0';
@@ -169,13 +170,15 @@ begin
 	dout             <= nos;
 	daddr            <= tos_c(13 downto 1) when is_ram_write = '1' else tos_n(13 downto 1);
 	dwe              <= '1' when is_ram_write = '1' and tos_c(15 downto 14) = "00" else '0';
+	--dre              <= '1' when is_interrupt = '0' and tos_n(15 downto 14) = "00" else '0';
 	dre              <= '1' when tos_n(15 downto 14) = "00" else '0';
 	io_dout          <= nos;
 	io_daddr         <= tos_c;
 	io_wr            <= '1' when is_ram_write = '1' and tos_c(15 downto 14) /= "00" else '0';
 	dd               <= (0 => insn(0), others => insn(1)); -- sign extend
 	rd               <= (0 => insn(2), others => insn(3)); -- sign extend
-	dstk_we          <= '1' when is_interrupt = '0' and (is_instr.lit = '1' or (is_instr.alu = '1' and insn(7) = '1')) else '0';
+	-- dstk_we          <= '1' when is_interrupt = '0' and (is_instr.lit = '1' or (is_instr.alu = '1' and insn(7) = '1')) else '0';
+	dstk_we          <= '1' when is_instr.lit = '1' or (is_instr.alu = '1' and insn(7) = '1') else '0';
 
 	next_state: process(clk, rst)
 	begin
@@ -322,16 +325,13 @@ begin
 	pc_update: process(
 		pc_c,insn, rtos_c, pc_plus_one,
 		is_instr,
-		is_interrupt, irq_c, irq_addr_c, irq_addr,irq,
+		is_interrupt, irq_c, irq_addr_c, irq_addr, irq,
 		compare.zero,
 		stop)
 	begin
 		pc_n       <= pc_c;
 		irq_n      <= irq_c;
 		irq_addr_n <= irq_addr_c;
-		irq_n      <= irq;
-
-		if irq = '1' then irq_addr_n <= irq_addr; end if;
 
 		if stop = '1' then
 			null;
@@ -346,6 +346,11 @@ begin
 				pc_n <=  insn(12 downto 0);
 			elsif is_instr.alu = '1' and insn(4) = '1' then
 				pc_n <=  rtos_c(13 downto 1);
+			end if;
+
+			if irq = '1' then
+				irq_addr_n <= irq_addr; 
+				irq_n      <= '1';
 			end if;
 		end if;
 	end process;

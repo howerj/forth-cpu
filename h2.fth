@@ -1129,7 +1129,7 @@ start:
 	hex io! [
 	\ irq
 	hi
-	cpu-id segments!
+	$babe segments!
 	loading-string print
 	' boot catch if .failed else .ok then
 	\ loaded @ if 1 list then
