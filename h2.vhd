@@ -4,7 +4,7 @@
 --| Moved bit 12 to bit 4 to allow for more ALU instructions.
 --|
 --| @author         Richard James Howe.
---| @copyright      Copyright 2017 Richard James Howe.
+--| @copyright      Copyright 2017, 2019 Richard James Howe.
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
@@ -156,9 +156,10 @@ begin
 	is_instr.branch  <= '1' when insn(15 downto 13) = "000" else '0';
 	is_instr.branch0 <= '1' when insn(15 downto 13) = "001" else '0';
 	is_instr.call    <= '1' when insn(15 downto 13) = "010" else '0';
-	is_interrupt     <= '1' when irq_c = '1' and int_en_c = '1' and is_instr.branch = '1' and use_interrupts else '0';
-	-- is_ram_write     <= '1' when is_interrupt = '0' and is_instr.alu = '1' and insn(5) = '1' else '0';
-	is_ram_write     <= '1' when is_instr.alu = '1' and insn(5) = '1' else '0';
+	is_interrupt     <= '1' when irq_c = '1' and int_en_c = '1' and
+			    (is_instr.branch = '1' or is_instr.call = '1' ) 
+			    and use_interrupts else '0';
+	is_ram_write     <= '1' when is_interrupt = '0' and is_instr.alu = '1' and insn(5) = '1' else '0';
 	compare.more     <= '1' when signed(tos_c)   > signed(nos)   else '0';
 	compare.umore    <= '1' when unsigned(tos_c) > unsigned(nos) else '0';
 	compare.equal    <= '1' when tos_c = nos else '0';
