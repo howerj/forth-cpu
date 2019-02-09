@@ -18,8 +18,8 @@ package h2_pkg is
 	subtype word    is std_ulogic_vector(15 downto 0);
 	subtype address is std_ulogic_vector(12 downto 0);
 
-	constant hardware_cpu_id: word   := X"CAFE";
-	constant simulation_cpu_id: word := X"DEAD";
+	constant hardware_cpu_id: word   := X"BABE";
+	constant simulation_cpu_id: word := X"D00D";
 
 	component h2 is
 		generic(
@@ -171,15 +171,13 @@ begin
 	dout             <= nos;
 	daddr            <= tos_c(13 downto 1) when is_ram_write = '1' else tos_n(13 downto 1);
 	dwe              <= '1' when is_ram_write = '1' and tos_c(15 downto 14) = "00" else '0';
-	--dre              <= '1' when is_interrupt = '0' and tos_n(15 downto 14) = "00" else '0';
-	dre              <= '1' when tos_n(15 downto 14) = "00" else '0';
+	dre              <= '1' when is_interrupt = '0' and tos_n(15 downto 14) = "00" else '0';
 	io_dout          <= nos;
 	io_daddr         <= tos_c;
 	io_wr            <= '1' when is_ram_write = '1' and tos_c(15 downto 14) /= "00" else '0';
 	dd               <= (0 => insn(0), others => insn(1)); -- sign extend
 	rd               <= (0 => insn(2), others => insn(3)); -- sign extend
-	-- dstk_we          <= '1' when is_interrupt = '0' and (is_instr.lit = '1' or (is_instr.alu = '1' and insn(7) = '1')) else '0';
-	dstk_we          <= '1' when is_instr.lit = '1' or (is_instr.alu = '1' and insn(7) = '1') else '0';
+	dstk_we          <= '1' when is_interrupt = '0' and (is_instr.lit = '1' or (is_instr.alu = '1' and insn(7) = '1')) else '0';
 
 	next_state: process(clk, rst)
 	begin

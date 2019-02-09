@@ -18,7 +18,14 @@ Forth To Do:
 * Add do...loop, case statements, put them in block storage
 * Implement many of the lessons learned whilst making the 
 'embed' Forth interpreter <https://github.com/howerj/embed>, which
-cuts down on the interpreter size, and adds more functionality. )
+cuts down on the interpreter size, and adds more functionality. The
+embed virtual machine is a 16-bit virtual machine that has a self
+hosting eForth image which it can use to generate new images. This system,
+the eForth interpreter should be used to replace the compiler in C. The
+easiest way of doing that would be to turn the embed virtual machine into
+a VM that more closely replicates this hardware.
+* Make a cut down, vastly simplified, SoC, which just contains the timer plus
+UART [maybe a different one] and a timer. )
 
 ( ======================== System Constants ================= )
 
@@ -82,16 +89,16 @@ constant iMemDin       $4008 hidden ( Memory input for reads )
 
 ( Execution vectors for changing the behaviour of the program,
 they are set at the end of this file )
-location _key?      0  ( -- c -1 | 0 : new character available? )
-location _emit      0  ( c -- : emit character )
-location _expect    0  ( "accept" vector )
-location _tap       0  ( "tap" vector, for terminal handling )
-location _echo      0  ( c -- : emit character )
-location _prompt    0  ( -- : display prompt )
-location _boot      0  ( -- : execute program at startup )
-location _bload     0  ( a u k -- f : load block )
-location _bsave     0  ( a u k -- f : save block )
-location _binvalid  0  ( k -- k : throws error if k invalid )
+location <key>      0  ( -- c -1 | 0 : new character available? )
+location <emit>      0  ( c -- : emit character )
+location <expect>    0  ( "accept" vector )
+location <tap>       0  ( "tap" vector, for terminal handling )
+location <echo>      0  ( c -- : emit character )
+location <prompt>    0  ( -- : display prompt )
+location <boot>      0  ( -- : execute program at startup )
+location <block>     0  ( a u k -- f : load block )
+location <save>     0  ( a u k -- f : save block )
+location <invalid>  0  ( k -- k : throws error if k invalid )
 location _message   0  ( n -- : display an error message )
 location last-def   0  ( last, possibly unlinked, word definition )
 location flash-voc  0  ( flash and memory word set )
@@ -129,7 +136,6 @@ location _blockop         0             ( used in 'mblock' )
 location bcount           0             ( instruction counter used in 'see' )
 location _test            0             ( used in skip/test )
 location .s-string        " <sp"        ( used by .s )
-location see.unknown      "(no-name)"   ( used by 'see' for calls to anonymous words )
 location see.lit          "LIT"         ( decompilation -> literal )
 location see.alu          "ALU"         ( decompilation -> ALU operation )
 location see.call         "CAL"         ( decompilation -> Call )
@@ -251,13 +257,13 @@ they can implemented in terms of instructions )
 : max over over > if drop exit else nip exit then ; ( n n -- n )
 : >char $7f and dup 127 =bl within if drop [char] _ then ; ( c -- c )
 : tib #tib cell+ @ ; hidden               ( -- a )
-: echo _echo @execute ; hidden            ( c -- )
-: key? _key? @execute ;                   ( -- c -1 | 0 )
+: echo <echo> @execute ; hidden            ( c -- )
+: key? <key> @execute ;                   ( -- c -1 | 0 )
 : key begin key? until ;                  ( -- c )
 : allot cp +! ;                           ( u -- )
 : /string over min rot over + -rot - ;    ( b u1 u2 -- b u : advance a string u2 characters )
 : last context @ @ ;                      ( -- pwd )
-: emit _emit @execute ;                   ( c -- : write out a char )
+: emit <emit> @execute ;                   ( c -- : write out a char )
 : toggle over @ xor swap ! ; hidden       ( a u -- : xor value at addr with u )
 : cr =cr emit =lf emit ;                  ( -- )
 : space =bl emit ;                        ( -- )
@@ -272,8 +278,14 @@ they can implemented in terms of instructions )
 : uppercase? [char] A [char] [ within ; hidden  ( c -- f : is character upper case? )
 \ : >upper dup lowercase? if =bl xor then ; ( c -- c : convert to upper case )
 : >lower dup uppercase? if =bl xor exit then ; hidden ( c -- c : convert to lower case )
-: nchars swap 0 max for aft dup emit then next drop ; hidden ( +n c -- : emit c n times  )
-: spaces =bl nchars ;                     ( +n -- )
+( NB. We should be able to make quite a compact Run-Length Decode with 'banner' [for
+repeats] and 'type' [for literal sections]. 
+Format would be
+	* Get command byte. 
+	  - if 128 >, repeat next character command byte 128 times
+	  - if 128 <, then next N bytes should be emitted as is )
+: banner swap 0 max for aft dup emit then next drop ; hidden ( +n c -- : emit c n times  )
+: spaces =bl banner ;                     ( +n -- )
 : cmove for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ; ( b b u -- )
 : fill swap for swap aft 2dup c! 1+ then next 2drop ; ( b u c -- )
 : substitute dup @ >r ! r> ; hidden ( u a -- u : substitute value at address )
@@ -385,11 +397,11 @@ choice words that need depth checking to get quite a large coverage )
 		2dup xor
 	while
 		key  dup =bl - 95 u<
-		if tap else _tap @execute then
+		if tap else <tap> @execute then
 	repeat drop over - ;
 
-: expect ( b u -- ) _expect @execute span ! drop ;
-: query tib tib-length _expect @execute #tib !  drop 0 >in ! ; ( -- )
+: expect ( b u -- ) <expect> @execute span ! drop ;
+: query tib tib-length <expect> @execute #tib !  drop 0 >in ! ; ( -- )
 
 : =string ( a1 u2 a1 u2 -- f : string equality )
 	>r swap r> ( a1 a2 u1 u2 )
@@ -531,6 +543,7 @@ choice words that need depth checking to get quite a large coverage )
 : , here dup cell+ ?dictionary cp ! ! ; ( u -- )
 : doLit 0x8000 or , ; hidden
 : ?compile state @ 0= if 14 -throw exit then ; hidden ( fail if not compiling )
+\ @todo vector literal, amongst other words
 : literal ( n -- : write a literal into the dictionary )
 	?compile
 	dup 0x8000 and ( n > $7fff ? )
@@ -567,11 +580,11 @@ choice words that need depth checking to get quite a large coverage )
 
 : "immediate" last address $4000 toggle ;
 : .ok state @ 0= if space OK print space then cr ;
-: eval begin token dup count nip while interpret repeat drop _prompt @execute ; hidden
+: eval begin token dup count nip while interpret repeat drop <prompt> @execute ; hidden
 : quit quitLoop: preset [ begin query ' eval catch ?error again ;
 
 : evaluate ( a u -- )
-	_prompt @ >r  0 _prompt !
+	<prompt> @ >r  0 <prompt> !
 	_id     @ >r [-1] _id !
 	>in     @ >r  0 >in !
 	source >r >r
@@ -580,7 +593,7 @@ choice words that need depth checking to get quite a large coverage )
 	r> r> #tib 2!
 	r> >in !
 	r> _id !
-	r> _prompt !
+	r> <prompt> !
 	throw ;
 
 : ccitt ( crc c -- crc : calculate polynomial $1021 AKA "x16 + x12 + x5 + 1" )
@@ -633,17 +646,20 @@ choice words that need depth checking to get quite a large coverage )
 : output dup tx! vga! ; hidden ( c -- : write to UART and VGA display )
 : printable? 32 127 within ; hidden ( c -- f )
 : pace 11 emit ; hidden
-: xio  ' accept _expect ! _tap ! _echo ! _prompt ! ; hidden
+: xio  ' accept <expect> ! <tap> ! <echo> ! <prompt> ! ; hidden
 : file ' pace ' "drop" ' ktap xio ;
 : star $2A emit ; hidden
 : [conceal] dup 33 127 within if drop star else output then ; hidden
 : conceal ' .ok ' [conceal] ' ktap xio ;
 : hand ' .ok  '  emit  ' ktap xio ; hidden
-: console ' rx? _key? ! ' tx! _emit ! hand ;
-: interactive ' input _key? ! ' output _emit ! hand ;
-: io! $8FFF oTimerCtrl ! interactive 0 ien oIrcMask ! ; ( -- : initialize I/O )
+: console ' rx? <key> ! ' tx! <emit> ! hand ;
+: interactive ' input <key> ! ' output <emit> ! hand ;
+: io! 0 timer! 0 led! 0 segments!
+	interactive 0 ien oIrcMask ! interactive ; ( -- : initialize I/O )
 : ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr [ ;
+: cold io! branch entry ;
+: bye cold ;
 
 ( ==================== Advanced I/O Control ========================== )
 
@@ -782,16 +798,16 @@ in which the problem could be solved. )
 : empty-buffers clean-buffers block-invalid blk ! ;  ( -- )
 : save-buffers                         ( -- )
 	blk @ block-invalid = updated? 0= or if exit then
-	block-buffer b/buf blk @ _bsave @execute throw
+	block-buffer b/buf blk @ <save> @execute throw
 	clean-buffers ;
 : flush save-buffers empty-buffers ;
 
 : block ( k -- a )
 	1depth
-	_binvalid @execute                         ( check validity of block number )
+	<invalid> @execute                         ( check validity of block number )
 	dup blk @ = if drop block-buffer exit then ( block already loaded )
 	flush
-	dup >r block-buffer b/buf r> _bload @execute throw 
+	dup >r block-buffer b/buf r> <block> @execute throw 
 	blk !
 	block-buffer ;
 
@@ -800,7 +816,7 @@ in which the problem could be solved. )
 : load 0 l/b 1- for 2dup >r >r loadline r> r> 1+ next 2drop ;
 : pipe 124 emit ; hidden
 : .line line -trailing $type ; hidden
-: .border border @ if 3 spaces c/l 45 nchars cr exit then ; hidden
+: .border border @ if 3 spaces c/l 45 banner cr exit then ; hidden
 : #line border @ if dup 2 u.r exit then ; hidden ( u -- u : print line number )
 : ?pipe border @ if pipe exit then ; hidden
 : ?page border @ if page exit then ; hidden
@@ -841,7 +857,7 @@ later on )
 
 ( ==================== See =========================================== )
 
-( @warning This disassembler is experimental, and liable not
+( @warning This disassembler is experimental, and liable not 
 to work / break everything it touches )
 
 : bcounter! bcount @ 0= if 2/ over swap -  bcount ! else drop then ; hidden ( u a -- u )
@@ -864,7 +880,7 @@ to work / break everything it touches )
 		address @
 	repeat rdrop ; hidden
 
-: .name name ?dup 0= if see.unknown then print ; hidden
+: .name name ?dup 0= if exit then print ; hidden
 : mask-off 2dup and = ; hidden ( u u -- u f )
 
 i.end2t: 2*
@@ -1125,29 +1141,27 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 
 start:
 .set entry start
-	_boot @execute  ( _boot contains zero by default, does nothing )
+	<boot> @execute  ( <boot> contains zero by default, does nothing )
 	hex io! [
 	\ irq
 	hi
-	$babe segments!
+	cpu-id segments!
 	loading-string print
 	' boot catch if .failed else .ok then
-	\ loaded @ if 1 list then
-	\ login 0 load 1 list
-	branch quitLoop ( jump to main interpreter loop if _boot returned )
+	branch quitLoop ( jump to main interpreter loop if <boot> returned )
 
 ( ==================== Startup Code ================================== )
 
 .set cp  $pc
 
-.set _key?     input       ( execution vector of ?key,   default to input. )
-.set _emit     output      ( execution vector of emit,   default to output )
-.set _expect   accept      ( execution vector of expect, default to 'accept'. )
-.set _tap      ktap        ( execution vector of tap,    default the ktap. )
-.set _echo     output      ( execution vector of echo,   default to output. )
-.set _prompt   .ok         ( execution vector of prompt, default to '.ok'. )
-.set _boot     0           ( @execute does nothing if zero )
-.set _bload    memory-load ( execution vector of _bload, used in block )
-.set _bsave    memory-save ( execution vector of _bsave, used in block )
-.set _binvalid minvalid    ( execution vector of _invalid, used in block )
+.set <key>     input       ( execution vector of ?key,   default to input. )
+.set <emit>    output      ( execution vector of emit,   default to output )
+.set <expect>  accept      ( execution vector of expect, default to 'accept'. )
+.set <tap>     ktap        ( execution vector of tap,    default the ktap. )
+.set <echo>    output      ( execution vector of echo,   default to output. )
+.set <prompt>  .ok         ( execution vector of prompt, default to '.ok'. )
+.set <boot>    0           ( @execute does nothing if zero )
+.set <block>   memory-load ( execution vector of block, used in block )
+.set <save>    memory-save ( execution vector of save-buffers, used in block )
+.set <invalid> minvalid    ( execution vector of _invalid, used in block )
 .set _message  message     ( execution vector of _message, used in ?error )
