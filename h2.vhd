@@ -179,14 +179,10 @@ begin
 	irq_n            <= irq;
 	irq_addr_n       <= irq_addr;
 	stop_n           <= stop;
-	-- This code is nicer, but the simulator complains about it:
-	--   dd <= (0 => instruction(0), others => instruction(1)); -- sign extend
-	--   rd <= (0 => instruction(2), others => instruction(3)); -- sign extend
 	dd(0)            <= instruction(0);
-	dd(dd'high downto dd'low + 1) <= (others => '1') when instruction(1) = '1' else (others => '0');
 	rd(0)            <= instruction(2);
-	rd(rd'high downto rd'low + 1) <= (others => '1') when instruction(3) = '1' else (others => '0');
-	-- 'rstk_we' is handled later on
+	dd(dd'high downto dd'low + 1) <= (others => '1') when instruction(1) = '1' else (others => '0'); -- sign extend
+	rd(rd'high downto rd'low + 1) <= (others => '1') when instruction(3) = '1' else (others => '0'); -- sign extend
 	dstk_we          <= '1' when (is_instr.lit = '1' or (is_instr.alu = '1' and instruction(7) = '1')) else '0';
 
 	next_state: process(clk, rst)
@@ -254,7 +250,7 @@ begin
 		irq_en_c,
 		stop_c)
 	begin
-		io_re    <=  '0';      -- hardware reads can have side effects
+		io_re    <=  '0'; -- hardware reads can have side effects
 		tos_n    <=  tos_c;
 		irq_en_n <=  irq_en_c;
 		if stop_c = '0' then
@@ -268,7 +264,7 @@ begin
 				when "10100" => tos_n <= cpu_id;
 
 				when "00011" => tos_n <= tos_c and nos;
-				when "00100" => tos_n <= tos_c or nos;
+				when "00100" => tos_n <= tos_c or  nos;
 				when "00101" => tos_n <= tos_c xor nos;
 				when "00110" => tos_n <= not tos_c;
 
@@ -282,8 +278,7 @@ begin
 				when "00010" => tos_n <= word(unsigned(nos) + unsigned(tos_c));
 				when "01010" => tos_n <= word(unsigned(tos_c) - 1);
 
-				when "01100" =>
-					-- input: 0x4000 - 0x7FFF is external input
+				when "01100" => -- input: 0x4000 - 0x7FFF is external input
 					if tos_c(15 downto 14) /= "00" then
 						tos_n <= io_din;
 						io_re <= '1';
