@@ -60,6 +60,7 @@ typedef struct {
 	char *id;
 	uint16_t value;
 	bool hidden;
+	bool used;
 } symbol_t;
 
 typedef struct {

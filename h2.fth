@@ -127,8 +127,9 @@ constant block-invalid   -1 hidden ( block invalid number )
 constant b/buf 1024 ( size of a block )
 variable blk             -1 ( current blk loaded )
 location block-dirty      0 ( -1 if loaded block buffer is modified )
-location block-buffer     0 ( block buffer starts here )
-.allocate b/buf
+constant block-buffer $3C00 hidden
+\ location block-buffer     0 ( block buffer starts here )
+\ .allocate b/buf
 
 location _blockop         0             ( used in 'mblock' )
 location _test            0             ( used in skip/test )
@@ -147,7 +148,7 @@ location failed           "failed"      ( used in start up routine )
 : [-1] -1 ; hidden         ( -- -1 : space saving measure, push -1 onto stack )
 : 0x8000 $8000 ; hidden    ( -- $8000 : space saving measure, push $8000 onto stack )
 : ! store drop ;           ( n a -- : store a value 'n' at location 'a'  )
-: 256* 8 lshift ; hidden   ( u -- u : shift left by 8, or multiple by 256 )
+\ : 256* 8 lshift ; hidden   ( u -- u : shift left by 8, or multiple by 256 )
 : 256/ 8 rshift ; hidden   ( u -- u : shift right by 8, or divide by 256 )
 : 1+ 1 + ;                 ( n -- n : increment a value  )
 : negate invert 1 + ;      ( n -- n : negate a number )
@@ -189,7 +190,7 @@ location failed           "failed"      ( used in start up routine )
 : ps2? iVT100 uart? ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
 
 : uart! ( c uart-register -- )
-	begin dup @ $1000 and 0= until swap $2000 or swap ! ;
+	begin dup @ $1000 and 0= until swap $2000 or swap ! ; hidden
 
 : tx!  iUart uart! ; hidden
 : vga! iVT100 uart! ; hidden ( n a -- : output character to VT100 display )
@@ -271,7 +272,7 @@ Format would be
 : cmove for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ; ( b b u -- )
 : fill swap for swap aft 2dup c! 1+ then next 2drop ; ( b u c -- )
 : substitute dup @ >r ! r> ; hidden ( u a -- u : substitute value at address )
-: switch 2dup @ >r @ swap ! r> swap ! ; hidden ( a a -- : swap contents )
+\ : switch 2dup @ >r @ swap ! r> swap ! ; hidden ( a a -- : swap contents )
 : aligned dup 1 and if 1+ exit then ;          ( b -- a )
 : align cp @ aligned cp ! ;               ( -- )
 
@@ -521,7 +522,8 @@ choice words that need depth checking to get quite a large coverage )
 		exit
 	then ; hidden
 
-: ?dictionary dup $3f00 u> if 8 -throw exit then ; hidden
+\ Block buffer starts at $3C00
+: ?dictionary dup $3A00 u> if 8 -throw exit then ; hidden
 : , here dup cell+ ?dictionary cp ! ! ; ( u -- )
 : doLit 0x8000 or , ; hidden
 : ?compile state @ 0= if 14 -throw exit then ; hidden ( fail if not compiling )
@@ -595,8 +597,8 @@ choice words that need depth checking to get quite a large coverage )
 
 : random seed @ dup 15 lshift ccitt dup iTimerDin @ + seed ! ; ( -- u )
 
-: 5u.r 5 u.r ; hidden
-: dm+ 2/ for aft dup @ space 5u.r cell+ then next ; ( a u -- a )
+: 5u.r 5 u.r space ; hidden
+: dm+ 2/ for aft dup @ 5u.r cell+ then next ; ( a u -- a )
 : colon 58 emit ; hidden ( -- )
 
 : dump ( a u -- )
@@ -604,7 +606,7 @@ choice words that need depth checking to get quite a large coverage )
 	for
 		aft
 			cr dump-width 2dup
-			over 5u.r colon space
+			over 5u.r colon 
 			dm+ -rot
 			2 spaces $type
 		then
@@ -760,7 +762,7 @@ in which the problem could be solved. )
 : $,' 34 word count + aligned cp ! ; hidden        ( -- )
 : $"  ?compile compile $"| $,' ; immediate         ( -- ; <string> )
 : ."  ?compile compile ."| $,' ; immediate         ( -- ; <string> )
-\ : abort 0 rp! quit ;                               ( --, R: ??? --- ??? : Abort! )
+\ : abort 1 -throw ;                               ( --, R: ??? --- ??? : Abort! )
 \ : abort" ?compile ." compile abort ; immediate
 
 ( ==================== Strings ======================================= )
@@ -819,7 +821,7 @@ in which the problem could be solved. )
 : index ( k1 k2 -- : show titles for block k1 to k2 )
 	over - cr
 	for
-		dup 5u.r space pipe space dup  0 .line cr 1+
+		dup 5u.r pipe dup  0 .line cr 1+
 	next drop ;
 
 ( all words before this are now in the forth vocabulary, it is also set
@@ -851,6 +853,7 @@ to work / break everything it touches )
 
 : .name name ?dup if print exit then ; hidden
 
+\ @todo print out L for literal, B for branch, Z for 0-branch, C for call, A for ALU
 : see
  	token find 0= if 13 -throw exit then
  	begin dup here u< while ( @todo print until next word in dictionary, requires change to 'search' )
@@ -884,7 +887,7 @@ irqTask:
 .set 12 irqTask
 \ .set 14 irqTask
 
-: irq $0040 oIrcMask ! $efff oTimerCtrl !  1 ien! ;
+: irq $0040 oIrcMask ! [-1] oTimerCtrl ! 1 ien! ;
 
 ( ==================== Miscellaneous ================================= )
 
@@ -957,6 +960,8 @@ constant memory-upper-mask  $1ff hidden
 variable memory-upper       0    ( upper bits of external memory address )
 location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 
+: mdelay 5 40ns ; hidden
+
 : mcontrol! ( u -- : write to memory control register )
 	$f3ff and
 	memory-select @ if $400 else $800 then or  ( select correct memory device )
@@ -967,15 +972,15 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 : m! ( n a -- : write to non-volatile memory )
 	oMemAddrLow !
 	oMemDout !
-	5 40ns
+	mdelay
 	0x8000 mcontrol!
-	5 40ns
+	mdelay
 	$0000 mcontrol! ;
 
 : m@ ( a -- n : read from non-volatile memory )
 	oMemAddrLow !
 	$4000 mcontrol! ( read enable mode )
-	5 40ns
+	mdelay
 	iMemDin @        ( get input )
 	$0000 mcontrol! ;
 
@@ -993,7 +998,7 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 : block-mode 0 memory-upper substitute ; hidden ( -- hi )
 : flash-reset ( -- : reset non-volatile memory )
 	$2000 mcontrol!
-	5 40ns
+	mdelay
 	$0000 mcontrol! ; hidden
 : flash! dup >r m! r> m! ; hidden ( u u a )
 : flash-status nvram $70 0 m! 0 m@ ( dup $2a and if -34 -throw exit then ) ; ( -- status )
@@ -1010,8 +1015,8 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 \ : flash-read-id   $90 0 m! ; ( -- read id mode : does the same as flash-query on the PC28F128P33BF60 )
 
 : flash->sram ( a a : transfer flash memory cell to SRAM )
-	[-1] memory-select ! flash-clear flash-read
-	m@ 0 memory-select ! swap m! ; hidden
+	nvram flash-clear flash-read
+	m@ sram swap m! ; hidden
 
 : transfer ( a a u -- : transfer memory block from Flash to SRAM )
 	?dup 0= if 2drop exit then

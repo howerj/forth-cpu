@@ -583,7 +583,7 @@ static const symbol_t *symbol_table_reverse_lookup(const symbol_table_t * const 
 	return NULL;
 }
 
-static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *id, uint16_t value, error_t *e, bool hidden) {
+static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *id, uint16_t value, error_t *e, bool hidden, bool used) {
 	symbol_t *s = symbol_new(type, id, value);
 	symbol_t **xs = NULL;
 	assert(t);
@@ -597,7 +597,7 @@ static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *i
 			return -1;
 	}
 	s->hidden = hidden;
-
+	s->used   = used;
 	t->length++;
 	errno = 0;
 	xs = realloc(t->symbols, sizeof(*t->symbols) * t->length);
@@ -609,24 +609,25 @@ static int symbol_table_add(symbol_table_t *t, symbol_type_e type, const char *i
 }
 
 static int symbol_table_print(symbol_table_t *t, FILE *output) {
-
 	assert(t);
+	assert(output);
 	for (size_t i = 0; i < t->length; i++) {
 		symbol_t *s = t->symbols[i];
 		char *visibility = s->hidden ? "hidden" : "visible";
-		if (fprintf(output, "%s %s %"PRId16" %s\n", symbol_names[s->type], s->id, s->value, visibility) < 0)
+		char *used = s->used ? "used" : "unused";
+		if (fprintf(output, "%s %s %"PRId16" %s %s\n", symbol_names[s->type], s->id, s->value, visibility, used) < 0)
 			return -1;
 	}
 	return 0;
 }
 
 symbol_table_t *symbol_table_load(FILE *input) {
-	symbol_table_t *t = symbol_table_new();
 	assert(input);
-	char symbol[80];
-	char id[256];
-	char visibility[80];
-	uint16_t value;
+	symbol_table_t *t = symbol_table_new();
+	char symbol[80] = { 0 };
+	char id[256] = { 0 };
+	char visibility[80] = { 0 };
+	uint16_t value = false;
 
 	while (!feof(input)) {
 		int r = 0;
@@ -652,7 +653,7 @@ symbol_table_t *symbol_table_load(FILE *input) {
 			for (i = 0; symbol_names[i] && strcmp(symbol_names[i], symbol); i++)
 				/*do nothing*/;
 			if (symbol_names[i]) {
-				if (symbol_table_add(t, i, id, value, NULL, hidden) < 0)
+				if (symbol_table_add(t, i, id, value, NULL, hidden, false) < 0)
 					goto fail;
 			} else {
 				error("invalid symbol: %s", symbol);
@@ -3257,9 +3258,10 @@ static uint16_t literal_or_symbol_lookup(const token_t * const token, const symb
 
 	assert(token->type == LEX_IDENTIFIER);
 
-	const symbol_t * const s = symbol_table_lookup(t, token->p.id);
+	symbol_t * const s = symbol_table_lookup(t, token->p.id);
 	if (!s)
 		assembly_error(e, "symbol not found: %s", token->p.id);
+	s->used = true;
 	return s->value;
 }
 
@@ -3373,7 +3375,7 @@ static void assemble(h2_t * const h, assembler_t * const a, node_t * const n, sy
 			assemble(h, a, n->o[i], t, e);
 		break;
 	case SYM_LABEL:
-		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h, a), e, false);
+		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h, a), e, false, false);
 		break;
 	case SYM_BRANCH:
 	case SYM_0BRANCH:
@@ -3392,7 +3394,7 @@ static void assemble(h2_t * const h, assembler_t * const a, node_t * const n, sy
 			hole1 = hole(h, a);
 			fix(h, hole1, n->o[0]->token->p.number);
 		}
-		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e, false);
+		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e, false, false);
 		break;
 	case SYM_VARIABLE:
 		if (a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined && (!(n->bits & DEFINE_HIDDEN))) {
@@ -3420,13 +3422,14 @@ static void assemble(h2_t * const h, assembler_t * const a, node_t * const n, sy
 
 		/**@note The lowest bit of the address for memory loads is
 		 * discarded. */
-		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e, n->type == SYM_LOCATION ? true : false);
+		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e, n->type == SYM_LOCATION ? true : false, false);
 		break;
 	case SYM_QUOTE:
 	{
-		const symbol_t * const s = symbol_table_lookup(t, n->token->p.id);
+		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
 		if (!s || (s->type != SYMBOL_TYPE_CALL && s->type != SYMBOL_TYPE_LABEL))
 			assembly_error(e, "not a defined procedure: %s", n->token->p.id);
+		s->used = true;
 		generate_literal(h, a, s->value << 1);
 		break;
 	}
@@ -3516,9 +3519,10 @@ static void assemble(h2_t * const h, assembler_t * const a, node_t * const n, sy
 		break;
 	case SYM_CALL_DEFINITION:
 	{
-		const symbol_t * const s = symbol_table_lookup(t, n->token->p.id);
+		symbol_t * s = symbol_table_lookup(t, n->token->p.id);
 		if (!s)
 			assembly_error(e, "not a constant or a defined procedure: %s", n->token->p.id);
+		s->used = true;
 		if (s->type == SYMBOL_TYPE_CALL) {
 			generate(h, a, OP_CALL | s->value);
 		} else if (s->type == SYMBOL_TYPE_CONSTANT || s->type == SYMBOL_TYPE_VARIABLE) {
@@ -3539,7 +3543,7 @@ static void assemble(h2_t * const h, assembler_t * const a, node_t * const n, sy
 			a->pwd = hole1 << 1;
 			pack_string(h, a, n->token->p.id, e);
 		}
-		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h, a), e, n->bits & DEFINE_HIDDEN);
+		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h, a), e, n->bits & DEFINE_HIDDEN, false);
 		if (a->in_definition)
 			assembly_error(e, "nested word definition is not allowed");
 		a->in_definition = true;
@@ -3558,8 +3562,9 @@ static void assemble(h2_t * const h, assembler_t * const a, node_t * const n, sy
 		if (n->value->type == LEX_LITERAL) {
 			value = n->value->p.number;
 		} else {
-			const symbol_t * const l = symbol_table_lookup(t, n->value->p.id);
+			symbol_t *l = symbol_table_lookup(t, n->value->p.id);
 			if (l) {
+				l->used = true;
 				value = l->value;
 				if (l->type == SYMBOL_TYPE_CALL) // || l->type == SYMBOL_TYPE_LABEL)
 					value <<= 1;
@@ -3609,7 +3614,7 @@ static void assemble(h2_t * const h, assembler_t * const a, node_t * const n, sy
 				a->pwd = hole1 << 1;
 				pack_string(h, a, built_in_words[i].name, e);
 			}
-			symbol_table_add(t, SYMBOL_TYPE_CALL, built_in_words[i].name, here(h, a), e, built_in_words[i].hidden);
+			symbol_table_add(t, SYMBOL_TYPE_CALL, built_in_words[i].name, here(h, a), e, built_in_words[i].hidden, true);
 			for (size_t j = 0; j < built_in_words[i].len; j++)
 				generate(h, a, built_in_words[i].code[j]);
 			generate(h, a, CODE_EXIT);

@@ -151,7 +151,6 @@ architecture rtl of h2 is
 	signal aluop:        std_ulogic_vector(4 downto 0) := (others => '0'); -- ALU operation
 
 	signal instruction:  std_ulogic_vector(15 downto 0) := (others => '0');
-
 begin
 	assert stack_size > 4 report "stack size too small: " & integer'image(stack_size) severity failure;
 
@@ -176,13 +175,19 @@ begin
 	io_dout          <= nos;
 	io_daddr         <= tos_c;
 	io_wr            <= '1' when is_ram_write = '1' and tos_c(15 downto 14) /= "00" else '0';
-	dd               <= (0 => instruction(0), others => instruction(1)); -- sign extend
-	rd               <= (0 => instruction(2), others => instruction(3)); -- sign extend
-	dstk_we          <= '1' when (is_instr.lit = '1' or (is_instr.alu = '1' and instruction(7) = '1')) else '0';
 	interrupt        <= '1' when irq_c = '1' and irq_en_c = '1' and use_interrupts else '0';
 	irq_n            <= irq;
 	irq_addr_n       <= irq_addr;
 	stop_n           <= stop;
+	-- This code is nicer, but the simulator complains about it:
+	--   dd <= (0 => instruction(0), others => instruction(1)); -- sign extend
+	--   rd <= (0 => instruction(2), others => instruction(3)); -- sign extend
+	dd(0)            <= instruction(0);
+	dd(dd'high downto dd'low + 1) <= (others => '1') when instruction(1) = '1' else (others => '0');
+	rd(0)            <= instruction(2);
+	rd(rd'high downto rd'low + 1) <= (others => '1') when instruction(3) = '1' else (others => '0');
+	-- 'rstk_we' is handled later on
+	dstk_we          <= '1' when (is_instr.lit = '1' or (is_instr.alu = '1' and instruction(7) = '1')) else '0';
 
 	next_state: process(clk, rst)
 	begin
