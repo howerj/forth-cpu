@@ -138,7 +138,11 @@ architecture rtl of h2 is
 
 	signal compare: compare_type := ('0', '0', '0', '0');
 
-	signal int_en_c, int_en_n:     std_ulogic :=  '0'; -- interrupt enable
+	signal irq_en_c, irq_en_n: std_ulogic := '0'; -- interrupt enable
+	signal irq_c, irq_n:       std_ulogic := '0';
+	signal interrupt:          std_ulogic := '0';
+	signal irq_addr_c, irq_addr_n: std_ulogic_vector(irq_addr'range) := (others => '0'); -- top of stack
+
 	signal tos_c, tos_n: word := (others => '0'); -- top of stack
 	signal nos:          word := (others => '0'); -- next on stack
 	signal rtos_c:       word := (others => '0'); -- top of return stack
@@ -146,10 +150,9 @@ architecture rtl of h2 is
 	signal aluop:        std_ulogic_vector(4 downto 0) := (others => '0'); -- ALU operation
 
 	signal instruction:  std_ulogic_vector(15 downto 0) := (others => '0');
+
 begin
 	assert stack_size > 4 report "stack size too small: " & integer'image(stack_size) severity failure;
-
-
 
 	is_instr.alu     <= '1' when instruction(15 downto 13) = "011" else '0';
 	is_instr.lit     <= '1' when instruction(15)           = '1'   else '0';
@@ -175,6 +178,9 @@ begin
 	dd               <= (0 => instruction(0), others => instruction(1)); -- sign extend
 	rd               <= (0 => instruction(2), others => instruction(3)); -- sign extend
 	dstk_we          <= '1' when (is_instr.lit = '1' or (is_instr.alu = '1' and instruction(7) = '1')) else '0';
+	interrupt        <= '1' when irq_c = '1' and irq_en_c = '1' else '0';
+	irq_n            <= irq;
+	irq_addr_n       <= irq_addr;
 
 	next_state: process(clk, rst)
 	begin
@@ -183,13 +189,17 @@ begin
 			rstkp_c    <= (others => '0');
 			pc_c       <= std_ulogic_vector(to_unsigned(start_address, pc_c'length));
 			tos_c      <= (others => '0');
-			int_en_c   <= '0';
+			irq_en_c   <= '0';
+			irq_c      <= '0';
+			irq_addr_c <= (others => '0');
 		elsif rising_edge(clk) then
 			vstkp_c    <= vstkp_n;
 			rstkp_c    <= rstkp_n;
 			pc_c       <= pc_n;
 			tos_c      <= tos_n;
-			int_en_c   <= int_en_n;
+			irq_en_c   <= irq_en_n;
+			irq_c      <= irq_n;
+			irq_addr_c <= irq_addr_n;
 		end if;
 	end process;
 
@@ -205,15 +215,13 @@ begin
 		end if;
 	end process;
 
-	interrupt: process(int_en_c, irq, irq_addr, insn)
+	interrupts: process(insn, irq_addr_c, interrupt)
 	begin
 		instruction <= insn;
-		if (int_en_c = '1') then
-			if (irq = '1') then
-				instruction                 <= (others => '0');
-				instruction(15 downto 13)   <= "010";
-				instruction(irq_addr'range) <= irq_addr;
-			end if;
+		if interrupt = '1' then -- assemble a CALL instruction on interrupt
+			instruction                   <= (others => '0');
+			instruction(15 downto 13)     <= "010";      -- turn into a CALL
+			instruction(irq_addr_c'range) <= irq_addr_c; -- address to call
 		end if;
 	end process;
 
@@ -237,12 +245,12 @@ begin
 		io_din,
 		vstkp_c, rstkp_c,
 		compare,
-		int_en_c,
+		irq_en_c,
 		stop)
 	begin
 		io_re    <=  '0';      -- hardware reads can have side effects
 		tos_n    <=  tos_c;
-		int_en_n <=  int_en_c;
+		irq_en_n <=  irq_en_c;
 	if stop = '1' then
 		null;
 	elsif is_instr.lit = '1' then
@@ -282,8 +290,8 @@ begin
 		when "10010" => tos_n <= (others => '0');
 				tos_n(rstkp_c'range) <= std_ulogic_vector(rstkp_c);
 
-		when "10001" => tos_n    <= (others => int_en_c);
-		when "10000" => int_en_n <= tos_c(0);
+		when "10001" => tos_n    <= (others => irq_en_c);
+		when "10000" => irq_en_n <= tos_c(0);
 
 		when others  => tos_n <= tos_c;
 				report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
@@ -295,7 +303,7 @@ begin
 		pc_c, instruction, tos_c,
 		vstkp_c, dd,
 		rstkp_c, rd,
-		is_instr, pc_plus_one, irq, int_en_c, stop)
+		is_instr, pc_plus_one, interrupt, stop)
 	begin
 		vstkp_n   <= vstkp_c;
 		rstkp_n   <= rstkp_c;
@@ -304,8 +312,6 @@ begin
 
 		if stop = '1' then -- Do nothing
 			null;
-		-- elsif int_en_c = '1' and irq = '1' then
-		--	rstk_data <= "00" & pc_c & "0";
 		elsif is_instr.lit = '1' then
 			assert to_integer(vstkp_c) + 1 < stack_size;
 			vstkp_n   <= vstkp_c + 1;
@@ -319,7 +325,7 @@ begin
 		elsif is_instr.branch0 = '1' then
 			vstkp_n   <= vstkp_c - 1;
 		elsif is_instr.call = '1' then
-			if int_en_c = '1' and irq = '1' then
+			if interrupt = '1' then
 				rstk_data <= "00" & pc_c & "0";
 			end if;
 			rstkp_n   <= rstkp_c + 1;

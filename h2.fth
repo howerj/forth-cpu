@@ -90,29 +90,27 @@ constant iMemDin       $4008 hidden ( Memory input for reads )
 ( Execution vectors for changing the behaviour of the program,
 they are set at the end of this file )
 location <key>      0  ( -- c -1 | 0 : new character available? )
-location <emit>      0  ( c -- : emit character )
-location <expect>    0  ( "accept" vector )
-location <tap>       0  ( "tap" vector, for terminal handling )
-location <echo>      0  ( c -- : emit character )
-location <prompt>    0  ( -- : display prompt )
-location <boot>      0  ( -- : execute program at startup )
-location <block>     0  ( a u k -- f : load block )
+location <emit>     0  ( c -- : emit character )
+location <expect>   0  ( "accept" vector )
+location <tap>      0  ( "tap" vector, for terminal handling )
+location <echo>     0  ( c -- : emit character )
+location <prompt>   0  ( -- : display prompt )
+location <boot>     0  ( -- : execute program at startup )
+location <block>    0  ( a u k -- f : load block )
 location <save>     0  ( a u k -- f : save block )
 location <invalid>  0  ( k -- k : throws error if k invalid )
-location _message   0  ( n -- : display an error message )
+location <message>   0  ( n -- : display an error message )
 location last-def   0  ( last, possibly unlinked, word definition )
 location flash-voc  0  ( flash and memory word set )
 location cp         0  ( Dictionary Pointer: Set at end of file )
 location csp        0  ( current data stack pointer - for error checking )
 location _id        0  ( used for source id )
-location rendezvous 0  ( saved cp and pwd )
-.allocate cell
 location seed       1  ( seed used for the PRNG )
 location handler    0  ( current handler for throw/catch )
 variable >in        0  ( Hold character pointer when parsing input )
 variable state      0  ( compiler state variable )
 variable hld        0  ( Pointer into hold area for numeric output )
-variable base       10 ( Current output radix )
+variable base      $10 ( Current output radix )
 variable span       0  ( Hold character count received by expect   )
 variable loaded     0  ( Used by boot block to indicate it has been loaded  )
 variable border    -1  ( Put border around block begin displayed with 'list' )
@@ -133,16 +131,8 @@ location block-buffer     0 ( block buffer starts here )
 .allocate b/buf
 
 location _blockop         0             ( used in 'mblock' )
-location bcount           0             ( instruction counter used in 'see' )
 location _test            0             ( used in skip/test )
 location .s-string        " <sp"        ( used by .s )
-location see.lit          "LIT"         ( decompilation -> literal )
-location see.alu          "ALU"         ( decompilation -> ALU operation )
-location see.call         "CAL"         ( decompilation -> Call )
-location see.branch       "BRN"         ( decompilation -> Branch )
-location see.0branch      "BRZ"         ( decompilation -> 0 Branch )
-location see.immediate    " immediate " ( used by "see", for immediate words )
-location see.inline       " inline "    ( used by "see", for inline words )
 location OK               "ok"          ( used by "prompt" )
 location redefined        " redefined"  ( used by ":" when a word has been redefined )
 location hi-string        "eFORTH V"    ( used by "hi" )
@@ -153,6 +143,7 @@ location failed           "failed"      ( used in start up routine )
 
 ( ======================== Forth Kernel ===================== )
 
+: 0x0000 0 ; hidden
 : [-1] -1 ; hidden         ( -- -1 : space saving measure, push -1 onto stack )
 : 0x8000 $8000 ; hidden    ( -- $8000 : space saving measure, push $8000 onto stack )
 : ! store drop ;           ( n a -- : store a value 'n' at location 'a'  )
@@ -191,25 +182,17 @@ location failed           "failed"      ( used in start up routine )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
 : doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
 
-: uart? ( a1 a2 -- c -1 | 0 : generic uart input using registers 'a1' and 'a2'  )
-	swap >r dup >r
-	@ $0100 and 0=
-	if
-		$0400 r> ! r> @ $ff and [-1]
-	else
-		rdrop rdrop 0
-	then ; hidden
+: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
+      dup @ $0100 and if drop 0x0000 exit then dup $0400 swap ! @ $ff and [-1] ; hidden
 
-: rx?  oUart iUart uart? ; hidden ( -- c -1 | 0 : read in a character of input from UART )
-: ps2? oVT100 iVT100 uart? ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
+: rx?  iUart uart? ; hidden ( -- c -1 | 0 : read in a character of input from UART )
+: ps2? iVT100 uart? ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
 
-: uart! ( c a1 a2 -- : write to a UART, specified with registers a1, a2 )
-	>r >r
-	begin r@ @ $1000 and 0= until rdrop ( Wait until TX FIFO is not full )
-	$2000 or r> ! ; hidden
+: uart! ( c uart-register -- )
+	begin dup @ $1000 and 0= until swap $2000 or swap ! ;
 
-: tx!  oUart iUart uart! ; hidden
-: vga! oVT100 iVT100 uart! ; hidden ( n a -- : output character to VT100 display )
+: tx!  iUart uart! ; hidden
+: vga! iVT100 uart! ; hidden ( n a -- : output character to VT100 display )
 
 : um+ ( w w -- w carry )
 	over over + >r
@@ -222,12 +205,12 @@ location failed           "failed"      ( used in start up routine )
 : rp! ( n -- , R: ??? -- ??? : set the return stack pointer )
 	r> swap begin dup rp@ = 0= while rdrop repeat drop >r ; hidden
 
-: rpick ( n -- u, R: un ... u0 )
-	rdrop
-	dup
-	begin dup while rdrop 1- repeat drop r@ swap
-	begin dup while rup   1- repeat drop
-	rup ;
+\ : rpick ( n -- u, R: un ... u0 )
+\	rdrop
+\	dup
+\	begin dup while rdrop 1- repeat drop r@ swap
+\	begin dup while rup   1- repeat drop
+\	rup ;
 
 ( With the built in words defined in the assembler, and the words
 defined so far, all of the primitive words needed by eForth should
@@ -272,7 +255,6 @@ they can implemented in terms of instructions )
 : type begin dup while swap count emit swap 1- repeat 2drop ; ( b u -- : print a string )
 : $type begin dup while swap count >char emit swap 1- repeat 2drop ; hidden ( b u -- : print a string )
 : print count type ; hidden               ( b -- )
-: nuf? ( -- f ) key =cr = ;  ( -- f : true if 'cr' pressed, blocking )
 : decimal? 48 58 within ; hidden            ( c -- f : decimal char? )
 : lowercase? [char] a [char] { within ; hidden  ( c -- f : is character lower case? )
 : uppercase? [char] A [char] [ within ; hidden  ( c -- f : is character upper case? )
@@ -300,7 +282,7 @@ Format would be
 	execute       (      execute returns if no throw )
 	r> handler !  (      restore previous handler )
 	r> drop       (      discard saved stack ptr )
-	0 ;           ( 0  : normal completion )
+	0x0000 ;      ( 0  : normal completion )
 
 : throw  ( ??? exception# -- ??? exception# )
 	?dup if ( exc# \ 0 throw is no-op )
@@ -405,11 +387,11 @@ choice words that need depth checking to get quite a large coverage )
 
 : =string ( a1 u2 a1 u2 -- f : string equality )
 	>r swap r> ( a1 a2 u1 u2 )
-	over xor if 3drop  0 exit then
+	over xor if 3drop  0x0000 exit then
 	for ( a1 a2 )
 		aft
 			count >r swap count r> xor
-			if 2drop rdrop 0 exit then
+			if 2drop rdrop 0x0000 exit then
 		then
 	next 2drop [-1] ;
 
@@ -434,7 +416,7 @@ choice words that need depth checking to get quite a large coverage )
 		then
 		@ address
 	repeat
-	drop r> 0 ; hidden
+	drop r> 0x0000 ; hidden
 
 : find ( a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
 	>r
@@ -444,7 +426,7 @@ choice words that need depth checking to get quite a large coverage )
 	while
 		dup @ @ r@ swap search ?dup if rot rdrop drop exit else drop then
 		cell+
-	repeat drop r> 0 ;
+	repeat drop r> 0x0000 ;
 
 : numeric? ( char -- n|-1 : convert character in 0-9 a-z range to number )
 	>lower
@@ -484,7 +466,7 @@ choice words that need depth checking to get quite a large coverage )
 		aft =bl over r@ + c@ <
 			if r> 1+ exit then
 		then
-	next 0 ; hidden
+	next 0x0000 ; hidden
 
 : lookfor ( b u c -- b u : skip until _test succeeds )
 	>r
@@ -525,7 +507,7 @@ choice words that need depth checking to get quite a large coverage )
 : .error ( n -- )
 	abs dup 60 < loaded @ and
 	if
-		dup l/b / + 32 + _message @execute
+		dup l/b / + 32 + <message> @execute
 	else
 		negate . cr
 	then ; hidden
@@ -654,8 +636,9 @@ choice words that need depth checking to get quite a large coverage )
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? <key> ! ' tx! <emit> ! hand ;
 : interactive ' input <key> ! ' output <emit> ! hand ;
+: ien! ien drop ; hidden
 : io! 0 timer! 0 led! 0 segments!
-	interactive 0 ien oIrcMask ! interactive ; ( -- : initialize I/O )
+	interactive 0 ien! 0 oIrcMask ! interactive ; ( -- : initialize I/O )
 : ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr [ ;
 : cold io! branch entry ;
@@ -681,7 +664,7 @@ displaying block files as they are read in )
 : ?csp sp@ csp @ xor if 22 -throw exit then ; hidden
 : +csp csp 1+! ; hidden
 : -csp csp 1-! ; hidden
-: ?unique dup last search if drop redefined print cr exit else drop exit then ; hidden ( a -- a )
+: ?unique dup last search if drop redefined print cr exit then drop ; hidden ( a -- a )
 : ?nul count 0= if 16 -throw exit then 1- ; hidden ( b -- : check for zero length strings )
 : find-cfa token find if cfa exit else 13 -throw exit then ; hidden
 : "'" find-cfa state @ if literal exit then ; immediate
@@ -712,15 +695,15 @@ displaying block files as they are read in )
 : "for" ?compile =>r , here -csp ; immediate
 : "next" ?compile compile doNext , +csp ; immediate
 : "aft" ?compile drop here 0 jump, call "begin" swap ; immediate
-: doer create =exit last-def @ cfa ! =exit ,  ;
-: make
-	find-cfa find-cfa make-callable
-	state @
-	if
-		literal literal compile ! exit
-	else
-		swap ! exit
-	then ; immediate
+\ : doer create =exit last-def @ cfa ! =exit ,  ;
+\ : make
+\	find-cfa find-cfa make-callable
+\	state @
+\	if
+\		literal literal compile ! exit
+\	else
+\		swap ! exit
+\	then ; immediate
 
 : "constant" create ' doConst make-callable here cell- ! , ;
 
@@ -814,14 +797,12 @@ in which the problem could be solved. )
 : line swap block swap c/l * + c/l ; hidden ( k u -- a u )
 : loadline line evaluate ; hidden ( k u -- )
 : load 0 l/b 1- for 2dup >r >r loadline r> r> 1+ next 2drop ;
-: pipe 124 emit ; hidden
+: pipe [char] | emit ; hidden
 : .line line -trailing $type ; hidden
 : .border border @ if 3 spaces c/l 45 banner cr exit then ; hidden
 : #line border @ if dup 2 u.r exit then ; hidden ( u -- u : print line number )
 : ?pipe border @ if pipe exit then ; hidden
 : ?page border @ if page exit then ; hidden
-( @todo 'thru' should catch -56, or QUIT, and continue with next block )
-\ : ?load ' load catch dup -56 <> if throw then drop ;
 : thru over - for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
 : message l/b extract .line cr ; ( u -- )
@@ -841,14 +822,6 @@ in which the problem could be solved. )
 		dup 5u.r space pipe space dup  0 .line cr 1+
 	next drop ;
 
-\ 'block-copy' is a hack, but an elegant one, it relies on modifying 
-\ the 'blk' variable to trick the block system into thinking that a different
-\ block has been loaded. This works as their is only one block available, it
-\ could work in other systems by modifying the block buffers data structures
-\ in systems with more than one block buffer.
-\ : block-copy swap block drop blk ! update save-buffers ; ( k1 k2 -- : copy k1 to k2 )
-
-
 ( all words before this are now in the forth vocabulary, it is also set
 later on )
 .set forth-wordlist $pwd
@@ -860,14 +833,11 @@ later on )
 ( @warning This disassembler is experimental, and liable not 
 to work / break everything it touches )
 
-: bcounter! bcount @ 0= if 2/ over swap -  bcount ! else drop then ; hidden ( u a -- u )
-: -bcount   bcount @ if bcount 1-! then ; hidden ( -- )
 : abits $1fff and ; hidden
 
 : validate ( cfa pwd -- nfa | 0 )
 	tuck cfa <> if drop 0 else nfa then ; hidden
 
-( @todo Do this for every vocabulary loaded )
 : name ( cfa -- nfa )
 	abits 2*
 	>r
@@ -880,56 +850,14 @@ to work / break everything it touches )
 		address @
 	repeat rdrop ; hidden
 
-: .name name ?dup 0= if exit then print ; hidden
-: mask-off 2dup and = ; hidden ( u u -- u f )
+: .name name ?dup if print exit then ; hidden
 
-i.end2t: 2*
-i.end:   5u.r rdrop exit
-: i.print print abits ; hidden
-
-( @note A recursive version of 'see' that decompiled no-name words would complicate
-things, the 'decompiler' word could be called manually on an address if desired )
-: instruction ( decode instruction )
-	over >r
-	0x8000 mask-off if see.lit     print $7fff and      branch i.end then
-	$6000  mask-off if see.alu     i.print              branch i.end then
-	$4000  mask-off if see.call    i.print dup 2*       5u.r rdrop space .name exit then
-	$2000  mask-off if see.0branch i.print r@ bcounter! branch i.end2t then
-	                   see.branch  i.print r@ bcounter! branch i.end2t ; hidden
-
-: continue? ( u a -- f : determine whether to continue decompilation  )
-	bcount @ if 2drop [-1] exit then
-	over $e000 and 0= if u> exit else drop then
-	dup ' doVar make-callable = if drop 0 exit then ( print next address ? )
-	=exit and =exit <> ; hidden
-
-: decompile ( a -- a : decompile a single instruction )
-	dup 5u.r colon dup @ 5u.r space
-	dup @ instruction
-	dup @ ' doNext make-callable = if cell+ dup ? then
-	cr
-	cell+ ; hidden
-
-: decompiler ( a -- : decompile starting at address )
-	0 bcount !
-	dup 2/ >r
-	begin dup @ r@ continue? while decompile -bcount ( nuf? ) repeat decompile rdrop
-	drop ; hidden
-
-: see ( --, <string> : decompile a word )
-	token find 0= if 13 -throw exit then
-	cr colon space dup .id space
-	dup inline?    if see.inline    print then
-	dup immediate? if see.immediate print then
-	cr
-	cfa decompiler space 59 emit cr ;
-
-\ : see
-\ 	token find 0= if 13 -throw exit then
-\ 	begin nuf? while
-\ 		dup @ dup $4000 and $4000
-\ 		= if space .name else . then cell+
-\ 	repeat drop ;
+: see
+ 	token find 0= if 13 -throw exit then
+ 	begin dup here u< while ( @todo print until next word in dictionary, requires change to 'search' )
+ 		dup dup 5u.r @ pipe dup dup 5u.r $4000 and $4000
+ 		= if space .name else drop then cr cell+
+ 	repeat drop ;
 
 .set forth-wordlist $pwd
 ( ==================== See =========================================== )
@@ -942,30 +870,22 @@ things, the 'decompiler' word could be called manually on an address if desired 
 ( @bug Interrupts work in simulation but not in hardware )
 variable #irq 0
 
-: doIrq 
-	0 ien drop
+irqTask:
+	0 ien!
 	switches led!
 	#irq 1+!
 	#irq @ segments!
-        1 ien drop ; hidden
+        1 ien! exit
 
-irqTask: doIrq nop exit
-
- \ doIrq nop exit 
-
-.set 2 irqTask
-.set 4 irqTask
-.set 6 irqTask
-.set 8 irqTask
-.set 10 irqTask
+\ .set 2 irqTask
+\ .set 4 irqTask
+\ .set 6 irqTask
+\ .set 8 irqTask
+\ .set 10 irqTask
 .set 12 irqTask
-.set 14 irqTask
+\ .set 14 irqTask
 
 : irq $0040 oIrcMask ! $efff oTimerCtrl !  1 ien drop ;
-
-\ : irqTest2
-\	$0080 oIrcMask !
-\	1 ien drop ; )
 
 ( ==================== Miscellaneous ================================= )
 
@@ -1004,11 +924,11 @@ memory device called the NP8P128A13T1760E, this is a device behaves like
 normal flash with the addition that individual cells can be written to
 without first erasing the block, this is accomplished with an extension
 to the Common Flash Interface that most flash devices support. However,
-there are boards the PC28F128P33BF60 on in lieu of this, which is a
+there are boards with the PC28F128P33BF60 on in lieu of this, which is a
 normal flash device without the "bit alterable write" extension. Normal
-flash memory works by erasing a block of data, setting all bits set,
-writing the memory works by masking in a value, bits can be cleared in
-a memory cell but not set, the can only be set by erasing a block.
+flash memory works by erasing a block of data, which sets all the bits. 
+Writing to the memory works by masking in a value as bits can be cleared in
+a memory cell but not set, they can only be set by erasing a block.
 
 The Nexys 3 has three memory devices, two of which are accessed over
 a parallel interface. They share the same data and address bus, and
@@ -1028,9 +948,7 @@ are:
 	+-----+-------------------------+
 
 The usage of the output enable and write enable are mutually exclusive,
-as are both of the chip selects.
-
-)
+as are both of the chip selects.  )
 
 .set context forth-wordlist
 .set forth-wordlist $pwd
@@ -1121,7 +1039,7 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 		over r@ _blockop @execute r> cell+ >r
 		cell /string
 	repeat
-	rdrop 2drop 0 ; hidden
+	rdrop 2drop 0x0000 ; hidden
 
 : memory-save ' c>m _blockop ! mblock ; hidden
 : memory-load ' m>c _blockop ! mblock ; hidden
@@ -1130,25 +1048,20 @@ location memory-select      0    ( SRAM/Flash select SRAM = 0, Flash = 1 )
 
 ( ==================== Startup Code ================================== )
 
-: .failed failed print ; hidden
-: boot ( -- )
-	0 0 $8000 transfer
+: boot-block ( -- )
+	0 0 0x8000 transfer
 	0 block c@ printable? if
-		0 load
-	else
-		1 -throw exit
-	then ; hidden
+		0 dup load exit
+	then [-1] ; hidden
 
 start:
 .set entry start
 	<boot> @execute  ( <boot> contains zero by default, does nothing )
-	hex io! [
-	\ irq
 	hi
 	cpu-id segments!
 	loading-string print
-	' boot catch if .failed else .ok then
-	branch quitLoop ( jump to main interpreter loop if <boot> returned )
+	boot-block if failed print else .ok then
+	branch quitLoop
 
 ( ==================== Startup Code ================================== )
 
@@ -1164,4 +1077,4 @@ start:
 .set <block>   memory-load ( execution vector of block, used in block )
 .set <save>    memory-save ( execution vector of save-buffers, used in block )
 .set <invalid> minvalid    ( execution vector of _invalid, used in block )
-.set _message  message     ( execution vector of _message, used in ?error )
+.set <message>  message    ( execution vector of _message, used in ?error )

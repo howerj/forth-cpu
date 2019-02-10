@@ -868,7 +868,7 @@ static uint16_t h2_io_get_gui(const h2_soc_state_t * const soc, const uint16_t a
 			| (0u << UART_TX_FIFO_FULL_BIT)
 			| (fifo_is_empty(ps2_rx_fifo) << UART_RX_FIFO_EMPTY_BIT)
 			| (fifo_is_full(ps2_rx_fifo)  << UART_RX_FIFO_FULL_BIT)
-			| soc->uart_getchar_register ;
+			| soc->ps2_getchar_register;
 	case iSwitches:
 		return soc->switches;
 	case iTimerDin: return soc->timer;
