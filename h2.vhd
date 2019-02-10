@@ -18,8 +18,8 @@ package h2_pkg is
 	subtype word    is std_ulogic_vector(15 downto 0);
 	subtype address is std_ulogic_vector(12 downto 0);
 
-	constant hardware_cpu_id: word   := X"BABE";
-	constant simulation_cpu_id: word := X"D00D";
+	constant hardware_cpu_id: word   := X"0666";
+	constant simulation_cpu_id: word := X"1984";
 
 	component h2 is
 		generic(
@@ -230,10 +230,14 @@ begin
 		end if;
 	end process;
 
-	alu_select: process(instruction, is_instr)
+	alu_select: process(instruction, is_instr, stop_c)
 	begin
 		aluop <= (others => '0');
-		if is_instr.branch0 = '1' then
+		if stop_c = '1' then
+			aluop <= (others => '0');
+		elsif is_instr.lit = '1' then
+			aluop <= "10101";
+		elsif is_instr.branch0 = '1' then
 			aluop <= (0 => '1', others => '0');
 		elsif is_instr.alu = '1' then
 			aluop <= instruction(12 downto 8);
@@ -253,51 +257,46 @@ begin
 		io_re    <=  '0'; -- hardware reads can have side effects
 		tos_n    <=  tos_c;
 		irq_en_n <=  irq_en_c;
-		if stop_c = '0' then
-			if is_instr.lit = '1' then
-				tos_n   <=  "0" & instruction(14 downto 0);
+		case aluop is
+		when "00000" => tos_n <= tos_c;
+		when "00001" => tos_n <= nos;
+		when "01011" => tos_n <= rtos_c;
+		when "10100" => tos_n <= cpu_id;
+		when "10101" => tos_n <= "0" & instruction(14 downto 0); -- undocumented, may be removed
+
+		when "00011" => tos_n <= tos_c and nos;
+		when "00100" => tos_n <= tos_c or  nos;
+		when "00101" => tos_n <= tos_c xor nos;
+		when "00110" => tos_n <= not tos_c;
+
+		when "00111" => tos_n <= (others => compare.equal);
+		when "01000" => tos_n <= (others => compare.more);
+		when "01111" => tos_n <= (others => compare.umore);
+		when "10011" => tos_n <= (others => compare.zero);
+
+		when "01001" => tos_n <= word(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
+		when "01101" => tos_n <= word(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
+		when "00010" => tos_n <= word(unsigned(nos) + unsigned(tos_c));
+		when "01010" => tos_n <= word(unsigned(tos_c) - 1);
+
+		when "01100" => -- input: 0x4000 - 0x7FFF is external input
+			if tos_c(15 downto 14) /= "00" then
+				tos_n <= io_din;
+				io_re <= '1';
 			else
-				case aluop is
-				when "00000" => tos_n <= tos_c;
-				when "00001" => tos_n <= nos;
-				when "01011" => tos_n <= rtos_c;
-				when "10100" => tos_n <= cpu_id;
-
-				when "00011" => tos_n <= tos_c and nos;
-				when "00100" => tos_n <= tos_c or  nos;
-				when "00101" => tos_n <= tos_c xor nos;
-				when "00110" => tos_n <= not tos_c;
-
-				when "00111" => tos_n <= (others => compare.equal);
-				when "01000" => tos_n <= (others => compare.more);
-				when "01111" => tos_n <= (others => compare.umore);
-				when "10011" => tos_n <= (others => compare.zero);
-
-				when "01001" => tos_n <= word(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
-				when "01101" => tos_n <= word(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-				when "00010" => tos_n <= word(unsigned(nos) + unsigned(tos_c));
-				when "01010" => tos_n <= word(unsigned(tos_c) - 1);
-
-				when "01100" => -- input: 0x4000 - 0x7FFF is external input
-					if tos_c(15 downto 14) /= "00" then
-						tos_n <= io_din;
-						io_re <= '1';
-					else
-						tos_n <= din;
-					end if;
-				when "01110" => tos_n <= (others => '0');
-						tos_n(vstkp_c'range) <= std_ulogic_vector(vstkp_c);
-				when "10010" => tos_n <= (others => '0');
-						tos_n(rstkp_c'range) <= std_ulogic_vector(rstkp_c);
-
-				when "10001" => tos_n    <= (others => irq_en_c);
-				when "10000" => irq_en_n <= tos_c(0);
-
-				when others  => tos_n <= tos_c;
-						report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
-				end case;
+				tos_n <= din;
 			end if;
-		end if;
+		when "01110" => tos_n <= (others => '0');
+				tos_n(vstkp_c'range) <= std_ulogic_vector(vstkp_c);
+		when "10010" => tos_n <= (others => '0');
+				tos_n(rstkp_c'range) <= std_ulogic_vector(rstkp_c);
+
+		when "10001" => tos_n    <= (others => irq_en_c);
+		when "10000" => irq_en_n <= tos_c(0);
+
+		when others  => tos_n <= tos_c;
+				report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
+		end case;
 	end process;
 
 	stack_update: process(

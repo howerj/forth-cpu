@@ -1710,8 +1710,6 @@ entity dual_port_block_ram is
 	-- FILE_NONE   - RAM contents will be defaulted to all zeros, no file will
 	--               be read from
 	--
-	-- @todo Read in actual binary data files, see: https://stackoverflow.com/questions/14173652
-	--
 	-- The data length must be divisible by 4 if the "hex" option is
 	-- given.
 	--

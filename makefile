@@ -225,6 +225,7 @@ synthesis: h2.hex text.hex reports tmp tmp/_xmsgs tmp/top.prj tmp/top.xst
 	@grep "ERROR\|WARNING" reports/xst.log | \
 	 grep -v "WARNING.*has a constant value.*This FF/Latch will be trimmed during the optimization process." | \
 	 cat
+	@grep ns reports/xst.log | grep 'Clock period'
 
 implementation: reports tmp
 	@echo "Implementation running..."

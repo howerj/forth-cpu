@@ -96,7 +96,9 @@ typedef enum {
 	ALU_OP_INTERRUPTS_ENABLED, /**< Are interrupts on?   */
 	ALU_OP_RDEPTH,             /**< R Stack Depth        */
 	ALU_OP_T_EQUAL_0,          /**< T == 0               */
-	ALU_OP_CPU_ID              /**< CPU Identifier       */
+	ALU_OP_CPU_ID,             /**< CPU Identifier       */
+
+	ALU_OP_LITERAL,            /**< undocumented; set T to instruction & $7fff */
 } alu_code_e;
 
 #define DELTA_0  (0)
@@ -708,6 +710,7 @@ static const char *alu_op_to_string(const uint16_t instruction) {
 	case ALU_OP_RDEPTH:             return "rdepth";
 	case ALU_OP_T_EQUAL_0:          return "0=";
 	case ALU_OP_CPU_ID:             return "cpu-id";
+	case ALU_OP_LITERAL:            return "literal";
 	default:                        return "unknown";
 	}
 }
@@ -2187,8 +2190,9 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, const unsigned steps, symbol_tabl
 
 		pc_plus_one = (h->pc + 1) % MAX_CORE;
 
+		/* NB. This is not quite what the hardware is doing, but it should be equivalent */
 		/* decode / execute */
-		if (IS_LITERAL(instruction)) {
+		if (IS_LITERAL(instruction)) { /* The hardware actually uses ALU_OP_LITERAL */
 			dpush(h, literal);
 			h->pc = pc_plus_one;
 		} else if (IS_ALU_OP(instruction)) {
@@ -2240,6 +2244,7 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, const unsigned steps, symbol_tabl
 			case ALU_OP_RDEPTH:     tos = h->rp;                break;
 			case ALU_OP_T_EQUAL_0:  tos = -(tos == 0);          break;
 			case ALU_OP_CPU_ID:     tos = H2_CPU_ID_SIMULATION; break;
+			case ALU_OP_LITERAL:    tos = instruction & 0x7fffu; break; // This makes more sense in the hardware
 			default:
 				warning("unknown ALU operation: %u", (unsigned)ALU_OP(instruction));
 			}

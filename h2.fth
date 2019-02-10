@@ -152,6 +152,7 @@ location failed           "failed"      ( used in start up routine )
 : 1+ 1 + ;                 ( n -- n : increment a value  )
 : negate 1- invert ;       ( n -- n : negate a number )
 : - 1- invert + ;          ( n1 n2 -- n : subtract n1 from n2 )
+: over-m over - ; hidden   ( n1 n2 -- n1 n1-n2 : same as 'over -' )
 : 2/ 1 rshift ;            ( n -- n : divide by 2 NB. This isn't actually correct, just useful, "1 arshift" would be acceptable )
 : 2* 1 lshift ;            ( n -- n : multiply by 2 )
 : cell- 1- 1- ;            ( a -- a : adjust address to previous cell )
@@ -200,7 +201,7 @@ location failed           "failed"      ( used in start up routine )
 	r@ 0 < invert >r
 	over over-and
 	0 < r> or >r
-	or 0 < r> and invert 1 +
+	or 0 < r> and 1- invert
 	r> swap ;
 
 : rp! ( n -- , R: ??? -- ??? : set the return stack pointer )
@@ -225,13 +226,14 @@ they can implemented in terms of instructions )
 : 2! ( d a -- ) tuck ! cell+ ! ;          ( n n a -- )
 : 2@ ( a -- d ) dup cell+ @ swap @ ;      ( a -- n n )
 : here cp @ ;                             ( -- a )
+: cp! cp ! ; hidden                       ( u -- )
 : source #tib 2@ ;                        ( -- a u )
 : source-id _id @ ;                       ( -- 0 | -1 )
 : pad here pad-length + ;                 ( -- a )
 : @execute @ ?dup if >r then ;            ( cfa -- )
 : 3drop drop 2drop ; hidden               ( n n n -- )
 : bl =bl ;                                ( -- c )
-: within over - >r - r> u< ;              ( u lo hi -- f )
+: within over-m >r - r> u< ;              ( u lo hi -- f )
 : dnegate invert >r invert 1 um+ r> + ;   ( d -- d )
 : abs dup 0< if negate exit then ;        ( n -- u )
 : count  dup 1+ swap c@ ;                 ( cs -- b u )
@@ -275,7 +277,7 @@ Format would be
 : substitute dup @ >r ! r> ; hidden ( u a -- u : substitute value at address )
 \ : switch 2dup @ >r @ swap ! r> swap ! ; hidden ( a a -- : swap contents )
 : aligned dup 1 and + ; ( b -- a )
-: align cp @ aligned cp ! ;               ( -- )
+: align cp @ aligned cp! ;               ( -- )
 
 : catch  ( xt -- exception# | 0 : return addr on stack )
 	sp@ >r        ( xt : save data stack depth )
@@ -283,7 +285,7 @@ Format would be
 	rp@ handler ! ( xt : set current handler )
 	execute       (      execute returns if no throw )
 	r> handler !  (      restore previous handler )
-	r> drop       (      discard saved stack ptr )
+	rdrop         (      discard saved stack ptr )
 	0x0000 ;      ( 0  : normal completion )
 
 : throw  ( ??? exception# -- ??? exception# )
@@ -316,7 +318,7 @@ choice words that need depth checking to get quite a large coverage )
 			if >r drop 1 + r> else drop then r>
 		next
 		drop swap exit
-	then drop 2drop  [-1] dup ;
+	then 3drop [-1] dup ;
 
 : m/mod ( d n -- r q ) \ floored division
 	dup 0< dup>r
@@ -344,16 +346,16 @@ choice words that need depth checking to get quite a large coverage )
 : ?hold hld @ cp @ u< if 17 -throw exit then ; hidden ( -- )
 : hold  hld @ 1- dup hld ! ?hold c! ;        ( c -- )
 : sign  0< if [char] - hold then ;           ( n -- )
-: #>  drop hld @ pad over - ;                ( w -- b u )
+: #>  drop hld @ pad over-m ;                ( w -- b u )
 : #  1depth radix extract digit hold ;       ( u -- u )
 : #s begin # dup while repeat ;              ( u -- 0 )
 : <#  pad hld ! ;                            ( -- )
 : str dup>r abs <# #s r> sign #> ; hidden   ( n -- b u : convert a signed integer to a numeric string )
-\ :  .r >r str r> over - spaces type ;       ( n n : print n, right justified by +n )
-: u.r >r <# #s #> r> over - spaces type ;    ( u +n -- : print u right justified by +n)
+\ :  .r >r str r> over-m spaces type ;       ( n n : print n, right justified by +n )
+: u.r >r <# #s #> r> over-m spaces type ;    ( u +n -- : print u right justified by +n)
 : u.  <# #s #> space type ;                  ( u -- : print unsigned number )
 :  .  radix 10 xor if u. exit then str space type ; ( n -- print space, signed number )
-: ? @ . ;                                    ( a -- : display the contents in a memory cell )
+\ : ? @ . ;                                    ( a -- : display the contents in a memory cell )
 
 : pack$ ( b u a -- a ) \ null fill
   aligned dup>r over
@@ -382,14 +384,14 @@ choice words that need depth checking to get quite a large coverage )
 	while
 		key  dup =bl - 95 u<
 		if tap else <tap> @execute then
-	repeat drop over - ;
+	repeat drop over-m ;
 
 : expect ( b u -- ) <expect> @execute span ! drop ;
 : query tib tib-length <expect> @execute #tib !  drop 0 >in ! ; ( -- )
 
 : compare ( a1 u1 a2 u2 -- n : string equality )
   rot
-  over - ?dup if >r 2drop r> nip exit then
+  over-m ?dup if >r 2drop r> nip exit then
   for ( a1 a2 )
     aft
       count rot count rot - ?dup
@@ -528,7 +530,7 @@ choice words that need depth checking to get quite a large coverage )
 
 \ Block buffer starts at $3C00
 : ?dictionary dup $3A00 u> if 8 -throw exit then ; hidden
-: , here dup cell+ ?dictionary cp ! ! ; ( u -- )
+: , here dup cell+ ?dictionary cp! ! ; ( u -- )
 : doLit 0x8000 or , ; hidden
 : ?compile state @ 0= if 14 -throw exit then ; hidden ( fail if not compiling )
 \ @todo vector literal, amongst other words
@@ -679,7 +681,7 @@ displaying block files as they are read in )
 : "[char]" ?compile char literal ; immediate ( --, <string> : )
 : ?quit state @ 0= if 56 -throw exit then ; hidden
 : ";" ?quit ( ?compile ) +csp ?csp context @ ! =exit , ( save )  [ ; immediate
-: ":" align ( save ) !csp here dup last-def ! last address ,  token ?nul ?unique count + aligned cp ! ] ;
+: ":" align ( save ) !csp here dup last-def ! last address ,  token ?nul ?unique count + aligned cp! ] ;
 : jumpz, 2/ $2000 or , ; hidden
 : jump, 2/ ( $0000 or ) , ; hidden
 : "begin" ?compile here -csp ; immediate
@@ -763,7 +765,7 @@ in which the problem could be solved. )
 : do$ r> r@ r> count + aligned >r swap >r ; hidden ( -- a )
 : $"| do$ nop ; hidden                             ( -- a : do string NB. nop needed to fool optimizer )
 : ."| do$ print ; hidden                           ( -- : print string )
-: $,' 34 word count + aligned cp ! ; hidden        ( -- )
+: $,' 34 word count + aligned cp! ; hidden        ( -- )
 : $"  ?compile compile $"| $,' ; immediate         ( -- ; <string> )
 : ."  ?compile compile ."| $,' ; immediate         ( -- ; <string> )
 \ : abort 1 -throw ;                               ( --, R: ??? --- ??? : Abort! )
@@ -776,10 +778,6 @@ in which the problem could be solved. )
 \ The usuage of 'blk' is incorrect, it should be set to the block number
 \ most recently LOAD'ed, not the one most recently BLOCK'ed
 \ 
-\ @todo Make a memory mapped version of 'block', which includes the main
-\ memory from blocks 1-16, SRAM, then Flash, with zero as the invalid block
-\ number.
-
 : updated? block-dirty @ ; hidden      ( -- f )
 : update [-1] block-dirty ! ;          ( -- )
 : +block blk @ + ;                     ( n -- k )
@@ -809,7 +807,7 @@ in which the problem could be solved. )
 : #line border @ if dup 2 u.r exit then ; hidden ( u -- u : print line number )
 : ?pipe border @ if pipe exit then ; hidden
 : ?page border @ if page exit then ; hidden
-: thru over - for dup load 1+ next drop ; ( k1 k2 -- )
+: thru over-m for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
 : message l/b extract .line cr ; ( u -- )
 : list
@@ -823,13 +821,12 @@ in which the problem could be solved. )
 	repeat .border 2drop ;
 
 : index ( k1 k2 -- : show titles for block k1 to k2 )
-	over - cr
+	over-m cr
 	for
 		dup 5u.r pipe dup  0 .line cr 1+
 	next drop ;
 
-( all words before this are now in the forth vocabulary, it is also set
-later on )
+( all words before this are now in the forth vocabulary, it is also set later on )
 .set forth-wordlist $pwd
 
 ( ==================== Block Word Set ================================ )
@@ -857,6 +854,7 @@ to work / break everything it touches )
 
 : .name name ?dup if print exit then ; hidden
 
+
 \ @todo print out L for literal, B for branch, Z for 0-branch, C for call, A for ALU
 : see
  	token find 0= if 13 -throw exit then
@@ -870,11 +868,10 @@ to work / break everything it touches )
 
 ( ==================== Miscellaneous ================================= )
 
-\ Testing for the interrupt mechanism, interrupts do not
-\ work correctly at the moment
-
-( @bug Interrupts work in simulation but not in hardware )
-variable #irq 0
+\ Interrupt test code; increment a variable after a timer triggered interrupt
+\ has expired, displaying this on the 7-segment displays. Also, copy the switch
+\ state to the LED state.
+location #irq 0
 
 irqTask:
 	0 ien!

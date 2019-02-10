@@ -150,7 +150,7 @@ There are a few modifications to the [J1][] CPU which include:
 * New instructions
 * A CPU hold line which keeps the processor in the same state so long as it is
 high.
-* Interrupt Service Routines have been added (buggy).
+* Interrupt Service Routines have been added.
 * Larger return and data stacks
 
 ### H2 CPU
@@ -168,6 +168,7 @@ The CPU has the following state within it:
 * A program counter
 * An interrupt enable and interrupt request bit
 * An interrupt address register
+* Registers to delay and hold the latest IRQ and hold-line values
 
 Loads and stores into the block RAM that holds the H2 program discard the
 lowest bit, every other memory operation uses the lower bit (such as jumps
