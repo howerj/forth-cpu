@@ -338,7 +338,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 : screens ( k1 k2 -- : list blocks k1 to k2 )
   over -
   for
-    dup . dup list 1+ nuf? if rdrop drop exit then
+    dup . dup list 1+ key $d = if rdrop drop exit then
   next drop ;
 
 
@@ -3885,22 +3885,6 @@ Usage:
   : x 2 2 ;
   : y + . ;
   ' x ' y compose execute ( prints '4' )
-
-; ==== nuf?  ( -- f : true if 'cr' character pressed ) =========
-'nuf?' is a non blocking input word that returns true if a
-carriage return was input. It can be used to determine if a
-word should continue execution or not.
-
-
-
-
-
-
-
-
-
-
-
 
 ; ==== number?  ( b u -- n f : is string a number ) ============
 

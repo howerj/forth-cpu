@@ -4,7 +4,7 @@
 --| Moved bit 12 to bit 4 to allow for more ALU instructions.
 --|
 --| @author         Richard James Howe.
---| @copyright      Copyright 2017 Richard James Howe.
+--| @copyright      Copyright 2017, 2019 Richard James Howe.
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
@@ -18,8 +18,8 @@ package h2_pkg is
 	subtype word    is std_ulogic_vector(15 downto 0);
 	subtype address is std_ulogic_vector(12 downto 0);
 
-	constant hardware_cpu_id: word   := X"CAFE";
-	constant simulation_cpu_id: word := X"DEAD";
+	constant hardware_cpu_id: word   := X"BABE";
+	constant simulation_cpu_id: word := X"D00D";
 
 	component h2 is
 		generic(
@@ -138,9 +138,11 @@ architecture rtl of h2 is
 
 	signal compare: compare_type := ('0', '0', '0', '0');
 
-	signal int_en_c, int_en_n:     std_ulogic :=  '0'; -- interrupt enable
-	signal irq_c, irq_n:           std_ulogic :=  '0'; -- interrupt request
-	signal irq_addr_c, irq_addr_n: std_ulogic_vector(irq_addr'range) :=  (others => '0');
+	signal stop_c, stop_n: std_ulogic := '0';
+	signal irq_en_c, irq_en_n: std_ulogic := '0'; -- interrupt enable
+	signal irq_c, irq_n:       std_ulogic := '0';
+	signal interrupt:          std_ulogic := '0';
+	signal irq_addr_c, irq_addr_n: std_ulogic_vector(irq_addr'range) := (others => '0'); -- top of stack
 
 	signal tos_c, tos_n: word := (others => '0'); -- top of stack
 	signal nos:          word := (others => '0'); -- next on stack
@@ -148,16 +150,16 @@ architecture rtl of h2 is
 	signal rstk_data:    word := (others => '0'); -- return stack input
 	signal aluop:        std_ulogic_vector(4 downto 0) := (others => '0'); -- ALU operation
 
+	signal instruction:  std_ulogic_vector(15 downto 0) := (others => '0');
 begin
 	assert stack_size > 4 report "stack size too small: " & integer'image(stack_size) severity failure;
 
-	is_instr.alu     <= '1' when insn(15 downto 13) = "011" else '0';
-	is_instr.lit     <= '1' when insn(15)           = '1'   else '0';
-	is_instr.branch  <= '1' when insn(15 downto 13) = "000" else '0';
-	is_instr.branch0 <= '1' when insn(15 downto 13) = "001" else '0';
-	is_instr.call    <= '1' when insn(15 downto 13) = "010" else '0';
-	is_interrupt     <= '1' when irq_c = '1' and int_en_c = '1' and use_interrupts else '0';
-	is_ram_write     <= '1' when is_interrupt = '0' and is_instr.alu = '1' and insn(5) = '1' else '0';
+	is_instr.alu     <= '1' when instruction(15 downto 13) = "011" else '0';
+	is_instr.lit     <= '1' when instruction(15)           = '1'   else '0';
+	is_instr.branch  <= '1' when instruction(15 downto 13) = "000" else '0';
+	is_instr.branch0 <= '1' when instruction(15 downto 13) = "001" else '0';
+	is_instr.call    <= '1' when instruction(15 downto 13) = "010" else '0';
+	is_ram_write     <= '1' when is_instr.alu = '1' and instruction(5) = '1' else '0';
 	compare.more     <= '1' when signed(tos_c)   > signed(nos)   else '0';
 	compare.umore    <= '1' when unsigned(tos_c) > unsigned(nos) else '0';
 	compare.equal    <= '1' when tos_c = nos else '0';
@@ -169,13 +171,19 @@ begin
 	dout             <= nos;
 	daddr            <= tos_c(13 downto 1) when is_ram_write = '1' else tos_n(13 downto 1);
 	dwe              <= '1' when is_ram_write = '1' and tos_c(15 downto 14) = "00" else '0';
-	dre              <= '1' when tos_n(15 downto 14) = "00" else '0';
+	dre              <= '1' when                        tos_n(15 downto 14) = "00" else '0';
 	io_dout          <= nos;
 	io_daddr         <= tos_c;
 	io_wr            <= '1' when is_ram_write = '1' and tos_c(15 downto 14) /= "00" else '0';
-	dd               <= (0 => insn(0), others => insn(1)); -- sign extend
-	rd               <= (0 => insn(2), others => insn(3)); -- sign extend
-	dstk_we          <= '1' when is_interrupt = '0' and (is_instr.lit = '1' or (is_instr.alu = '1' and insn(7) = '1')) else '0';
+	interrupt        <= '1' when irq_c = '1' and irq_en_c = '1' and use_interrupts else '0';
+	irq_n            <= irq;
+	irq_addr_n       <= irq_addr;
+	stop_n           <= stop;
+	dd(0)            <= instruction(0);
+	rd(0)            <= instruction(2);
+	dd(dd'high downto dd'low + 1) <= (others => '1') when instruction(1) = '1' else (others => '0'); -- sign extend
+	rd(rd'high downto rd'low + 1) <= (others => '1') when instruction(3) = '1' else (others => '0'); -- sign extend
+	dstk_we          <= '1' when (is_instr.lit = '1' or (is_instr.alu = '1' and instruction(7) = '1')) else '0';
 
 	next_state: process(clk, rst)
 	begin
@@ -184,7 +192,8 @@ begin
 			rstkp_c    <= (others => '0');
 			pc_c       <= std_ulogic_vector(to_unsigned(start_address, pc_c'length));
 			tos_c      <= (others => '0');
-			int_en_c   <= '0';
+			stop_c     <= '0';
+			irq_en_c   <= '0';
 			irq_c      <= '0';
 			irq_addr_c <= (others => '0');
 		elsif rising_edge(clk) then
@@ -192,7 +201,8 @@ begin
 			rstkp_c    <= rstkp_n;
 			pc_c       <= pc_n;
 			tos_c      <= tos_n;
-			int_en_c   <= int_en_n;
+			stop_c     <= stop_n;
+			irq_en_c   <= irq_en_n;
 			irq_c      <= irq_n;
 			irq_addr_c <= irq_addr_n;
 		end if;
@@ -210,141 +220,135 @@ begin
 		end if;
 	end process;
 
-	alu_select: process(insn, is_instr, is_interrupt)
+	interrupts: process(insn, irq_addr_c, interrupt)
 	begin
-		if is_interrupt = '1' or is_instr.call = '1' or is_instr.branch = '1' then
-			aluop <= (others => '0');
-		elsif is_instr.branch0 = '1' then
+		instruction <= insn;
+		if interrupt = '1' then -- assemble a CALL instruction on interrupt
+			instruction                   <= (others => '0');
+			instruction(15 downto 13)     <= "010";      -- turn into a CALL
+			instruction(irq_addr_c'range) <= irq_addr_c; -- address to call
+		end if;
+	end process;
+
+	alu_select: process(instruction, is_instr)
+	begin
+		aluop <= (others => '0');
+		if is_instr.branch0 = '1' then
 			aluop <= (0 => '1', others => '0');
 		elsif is_instr.alu = '1' then
-			aluop <= insn(12 downto 8);
-		else
-			aluop <= (others => '0');
+			aluop <= instruction(12 downto 8);
 		end if;
 	end process;
 
 	alu_unit: process(
 		is_instr.lit,
 		tos_c, nos, rtos_c,
-		din, insn, aluop,
+		din, instruction, aluop,
 		io_din,
 		vstkp_c, rstkp_c,
 		compare,
-		int_en_c,
-		stop)
+		irq_en_c,
+		stop_c)
 	begin
-		io_re    <=  '0';      -- hardware reads can have side effects
+		io_re    <=  '0'; -- hardware reads can have side effects
 		tos_n    <=  tos_c;
-		int_en_n <=  int_en_c;
-	if stop = '1' then
-		null;
-	elsif is_instr.lit = '1' then
-		tos_n   <=  "0" & insn(14 downto 0);
-	else
-		case aluop is
-		when "00000" => tos_n <= tos_c;
-		when "00001" => tos_n <= nos;
-		when "01011" => tos_n <= rtos_c;
-		when "10100" => tos_n <= cpu_id;
-
-		when "00011" => tos_n <= tos_c and nos;
-		when "00100" => tos_n <= tos_c or nos;
-		when "00101" => tos_n <= tos_c xor nos;
-		when "00110" => tos_n <= not tos_c;
-
-		when "00111" => tos_n <= (others => compare.equal);
-		when "01000" => tos_n <= (others => compare.more);
-		when "01111" => tos_n <= (others => compare.umore);
-		when "10011" => tos_n <= (others => compare.zero);
-
-		when "01001" => tos_n <= word(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
-		when "01101" => tos_n <= word(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
-		when "00010" => tos_n <= word(unsigned(nos) + unsigned(tos_c));
-		when "01010" => tos_n <= word(unsigned(tos_c) - 1);
-
-		when "01100" =>
-			-- input: 0x4000 - 0x7FFF is external input
-			if tos_c(15 downto 14) /= "00" then
-				tos_n <= io_din;
-				io_re <= '1';
+		irq_en_n <=  irq_en_c;
+		if stop_c = '0' then
+			if is_instr.lit = '1' then
+				tos_n   <=  "0" & instruction(14 downto 0);
 			else
-				tos_n <= din;
+				case aluop is
+				when "00000" => tos_n <= tos_c;
+				when "00001" => tos_n <= nos;
+				when "01011" => tos_n <= rtos_c;
+				when "10100" => tos_n <= cpu_id;
+
+				when "00011" => tos_n <= tos_c and nos;
+				when "00100" => tos_n <= tos_c or  nos;
+				when "00101" => tos_n <= tos_c xor nos;
+				when "00110" => tos_n <= not tos_c;
+
+				when "00111" => tos_n <= (others => compare.equal);
+				when "01000" => tos_n <= (others => compare.more);
+				when "01111" => tos_n <= (others => compare.umore);
+				when "10011" => tos_n <= (others => compare.zero);
+
+				when "01001" => tos_n <= word(unsigned(nos) srl to_integer(unsigned(tos_c(3 downto 0))));
+				when "01101" => tos_n <= word(unsigned(nos) sll to_integer(unsigned(tos_c(3 downto 0))));
+				when "00010" => tos_n <= word(unsigned(nos) + unsigned(tos_c));
+				when "01010" => tos_n <= word(unsigned(tos_c) - 1);
+
+				when "01100" => -- input: 0x4000 - 0x7FFF is external input
+					if tos_c(15 downto 14) /= "00" then
+						tos_n <= io_din;
+						io_re <= '1';
+					else
+						tos_n <= din;
+					end if;
+				when "01110" => tos_n <= (others => '0');
+						tos_n(vstkp_c'range) <= std_ulogic_vector(vstkp_c);
+				when "10010" => tos_n <= (others => '0');
+						tos_n(rstkp_c'range) <= std_ulogic_vector(rstkp_c);
+
+				when "10001" => tos_n    <= (others => irq_en_c);
+				when "10000" => irq_en_n <= tos_c(0);
+
+				when others  => tos_n <= tos_c;
+						report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
+				end case;
 			end if;
-		when "01110" => tos_n <= (others => '0');
-				tos_n(vstkp_c'range) <= std_ulogic_vector(vstkp_c);
-		when "10010" => tos_n <= (others => '0');
-				tos_n(rstkp_c'range) <= std_ulogic_vector(rstkp_c);
-
-		when "10001" => tos_n    <= (others => int_en_c);
-		when "10000" => int_en_n <= tos_c(0);
-
-		when others  => tos_n <= tos_c;
-				report "Invalid ALU operation: " & integer'image(to_integer(unsigned(aluop))) severity error;
-		end case;
-	end if;
+		end if;
 	end process;
 
 	stack_update: process(
-		pc_c, insn, tos_c,
+		pc_c, instruction, tos_c,
 		vstkp_c, dd,
 		rstkp_c, rd,
-		is_instr, is_interrupt, pc_plus_one, stop)
+		is_instr, pc_plus_one, interrupt, stop_c)
 	begin
 		vstkp_n   <= vstkp_c;
 		rstkp_n   <= rstkp_c;
 		rstk_we   <= '0';
 		rstk_data <= "00" & pc_plus_one & "0";
 
-		if stop = '1' then -- Do nothing
-			null;
-		elsif is_interrupt = '1' then -- Interrupts are similar to a call
-			rstkp_n   <= rstkp_c + 1;
-			rstk_we   <= '1';
-			rstk_data <= "00" & pc_c & "0";
-		elsif is_instr.lit = '1' then
-			assert to_integer(vstkp_c) + 1 < stack_size;
-			vstkp_n   <= vstkp_c + 1;
-		elsif is_instr.alu = '1' then
-			assert (not insn(6) = '1') or ((to_integer(rstkp_c) + to_integer(signed(rd))) < stack_size);
-			assert                        ((to_integer(vstkp_c) + to_integer(signed(dd))) < stack_size);
-			rstk_we   <= insn(6);
-			rstk_data <= tos_c;
-			vstkp_n   <= vstkp_c + unsigned(dd);
-			rstkp_n   <= rstkp_c + unsigned(rd);
-		elsif is_instr.branch0 = '1' then
-			vstkp_n   <= vstkp_c - 1;
-		elsif is_instr.call = '1' then
-			rstkp_n   <= rstkp_c + 1;
-			rstk_we   <= '1';
+		if stop_c = '0' then
+			if is_instr.lit = '1' then
+				assert to_integer(vstkp_c) + 1 < stack_size;
+				vstkp_n   <= vstkp_c + 1;
+			end if;
+			if is_instr.alu = '1' then
+				assert (not instruction(6) = '1') or ((to_integer(rstkp_c) + to_integer(signed(rd))) < stack_size);
+				assert ((to_integer(vstkp_c) + to_integer(signed(dd))) < stack_size);
+				rstk_we   <= instruction(6);
+				rstk_data <= tos_c;
+				vstkp_n   <= vstkp_c + unsigned(dd);
+				rstkp_n   <= rstkp_c + unsigned(rd);
+			end if;
+			if is_instr.branch0 = '1' then
+				vstkp_n   <= vstkp_c - 1;
+			end if;
+			if is_instr.call = '1' then
+				if interrupt = '1' then
+					rstk_data <= "00" & pc_c & "0";
+				end if;
+				rstkp_n   <= rstkp_c + 1;
+				rstk_we   <= '1';
+			end if;
 		end if;
 	end process;
 
 	pc_update: process(
-		pc_c,insn, rtos_c, pc_plus_one,
+		pc_c, instruction, rtos_c, pc_plus_one,
 		is_instr,
-		is_interrupt, irq_c, irq_addr_c, irq_addr,irq,
 		compare.zero,
-		stop)
+		stop_c)
 	begin
 		pc_n       <= pc_c;
-		irq_n      <= irq_c;
-		irq_addr_n <= irq_addr_c;
-		irq_n      <= irq;
-
-		if irq = '1' then irq_addr_n <= irq_addr; end if;
-
-		if stop = '1' then
-			null;
-		elsif is_interrupt = '1' then -- Update PC on interrupt
-			irq_n      <= '0';
-			irq_addr_n <= (others => '0');
-			pc_n       <= (others => '0');
-			pc_n(irq_addr'range) <= irq_addr_c;
-		else -- Update PC on normal operations
+		if stop_c = '0' then -- Update PC on normal operations
 			pc_n <=  pc_plus_one;
 			if is_instr.branch = '1' or (is_instr.branch0 = '1' and compare.zero = '1') or is_instr.call = '1' then
-				pc_n <=  insn(12 downto 0);
-			elsif is_instr.alu = '1' and insn(4) = '1' then
+				pc_n <=  instruction(12 downto 0);
+			elsif is_instr.alu = '1' and instruction(4) = '1' then
 				pc_n <=  rtos_c(13 downto 1);
 			end if;
 		end if;

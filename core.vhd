@@ -204,14 +204,14 @@ end architecture;
 --|        priority.
 --|
 --| @author     Richard James Howe.
---| @copyright  Copyright 2017 Richard James Howe.
+--| @copyright  Copyright 2017, 2019 Richard James Howe.
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
 --| This is a simple interrupt handler, interrupts are decoded in priority
 --| order which can be set by a generic. If an interrupt occurs and then
---| another interrupt of the same type occurs before it has been processed
---| the second interrupt will be lost.
+--| another interrupt of occurs before it has been processed the second 
+--| interrupt will be lost.
 --|
 --------------------------------------------------------------------------------
 
@@ -252,7 +252,6 @@ architecture rtl of interrupt_request_handler is
 
 	signal mask_n: std_ulogic_vector(mask'range) := (others => '0');
 begin
-
 	irq_in: entity work.reg
 		generic map(
 			N      => 1)
@@ -286,32 +285,12 @@ begin
 		variable addr_n: std_ulogic_vector(addr'range) := (others => '0');
 	begin
 		addr_n := priority(irc_n, not lowest_interrupt_first);
-		addr <= addr_n;
+		addr_o <= addr_n;
 		if select_bit(mask_n, addr_n) = '1' then
-			irq <= irq_n;
+			irq_o <= irq_n;
 		else
-			irq <= '0';
+			irq_o <= '0';
 		end if;
 	end process;
-
-	irq_out: entity work.reg
-		generic map(
-			N      => 1)
-		port map(
-			clk    =>  clk,
-			rst    =>  rst,
-			we     =>  '1',
-			di(0)  =>  irq,
-			do(0)  =>  irq_o);
-
-	addr_out: entity work.reg
-		generic map(
-			N      => addr_length)
-		port map(
-			clk    =>  clk,
-			rst    =>  rst,
-			we     =>  '1',
-			di     =>  addr,
-			do     =>  addr_o);
 
 end architecture;
