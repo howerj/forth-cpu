@@ -833,13 +833,12 @@ later on )
 ( @warning This disassembler is experimental, and liable not 
 to work / break everything it touches )
 
-: abits $1fff and ; hidden
-
 : validate ( cfa pwd -- nfa | 0 )
 	tuck cfa <> if drop 0 else nfa then ; hidden
 
 : name ( cfa -- nfa )
-	abits 2*
+	$1fff and ( get address bits )
+	2*        ( convert to user address )
 	>r
 	last address
 	begin
@@ -885,7 +884,7 @@ irqTask:
 .set 12 irqTask
 \ .set 14 irqTask
 
-: irq $0040 oIrcMask ! $efff oTimerCtrl !  1 ien drop ;
+: irq $0040 oIrcMask ! $efff oTimerCtrl !  1 ien! ;
 
 ( ==================== Miscellaneous ================================= )
 
