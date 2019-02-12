@@ -1137,18 +1137,6 @@ end architecture;
 ------------------------- Full Adder ------------------------------------------------
 
 ------------------------- FIFO ------------------------------------------------------
-
--- Originally from http://www.deathbylogic.com/2013/07/vhdl-standard-fifo/
--- @copyright Public Domain
--- @todo Add more comments about the FIFOs origin, add assertions test
--- synthesis, make this more generic (with empty FIFO and FIFO count signals)
---
--- The code can be used freely and appears to be public domain, comment
--- from author is: "You can use any code posted here freely, there is no copyright."
---
--- @note The FIFO has been modified from the original to bring it in line with
--- this projects coding standards.
-
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -1168,75 +1156,142 @@ entity fifo is
 		full:  out std_ulogic := '0');
 end fifo;
 
-architecture behavioral of fifo is
+architecture behavior of fifo is
+	type fifo_data_t is array (0 to fifo_depth - 1) of std_ulogic_vector(di'range);
+	signal data: fifo_data_t := (others => (others => '0'));
+
+	signal count:  integer range 0 to fifo_depth - 1 := 0;
+	signal windex: integer range 0 to fifo_depth - 1 := 0;
+	signal rindex: integer range 0 to fifo_depth - 1 := 0;
+
+	signal is_full:  std_ulogic := '0';
+	signal is_empty: std_ulogic := '1';
 begin
+	do       <= data(rindex);
+	full     <= is_full;  -- buffer these bad boys
+	empty    <= is_empty;
+	is_full  <= '1' when count = (fifo_depth - 1) else '0';
+	is_empty <= '1' when count = 0                else '0';
 
-	-- memory pointer process
-	fifo_proc: process (clk, rst)
-		type fifo_memory is array (0 to fifo_depth - 1) of std_ulogic_vector (data_width - 1 downto 0);
-		variable memory: fifo_memory;
-
-		variable head: natural range 0 to fifo_depth - 1;
-		variable tail: natural range 0 to fifo_depth - 1;
-
-		variable looped: boolean;
+	process (rst, clk) is
 	begin
 		if rst = '1' then
-			head := 0;
-			tail := 0;
-
-			looped := false;
-
-			full  <= '0';
-			empty <= '1';
-			do    <= (others => '0');
+			windex <= 0;
+			rindex <= 0;
+			count  <= 0;
 		elsif rising_edge(clk) then
-			do    <= (others => '0');
-			if re = '1' then
-				if looped = true or head /= tail then
-					-- update data output
-					do <= memory(tail);
-
-					-- update tail pointer as needed
-					if tail = fifo_depth - 1 then
-						tail   := 0;
-						looped := false;
-					else
-						tail := tail + 1;
-					end if;
+			-- @todo Allow more control over behavior with options specified by a generic
+			-- @todo Add report/warnings
+			if we = '1' and re = '0' then
+				if is_full = '0' then
+					count <= count + 1;
+				end if;
+			elsif we = '0' and re = '1' then
+				if is_empty = '0' then
+					count <= count - 1;
 				end if;
 			end if;
 
-			if we = '1' then
-				if looped = false or head /= tail then
-					-- write data to memory
-					memory(head) := di;
-
-					-- increment head pointer as needed
-					if head = fifo_depth - 1 then
-						head := 0;
-
-						looped := true;
-					else
-						head := head + 1;
-					end if;
-				end if;
-			end if;
-
-			-- update empty and full flags
-			if head = tail then
-				if looped then
-					full  <= '1';
+			if re = '1' and is_empty = '0' then
+				if rindex = (fifo_depth - 1) then
+					rindex <= 0;
 				else
-					empty <= '1';
+					rindex <= rindex + 1;
 				end if;
-			else
-				empty	<= '0';
-				full	<= '0';
 			end if;
+
+			if we = '1' and is_full = '0' then
+				data(windex) <= di;
+				if windex = (fifo_depth - 1) then
+					windex <= 0;
+				else
+					windex <= windex + 1;
+				end if;
+			end if;
+
 		end if;
 	end process;
-end architecture;
+end behavior;
+
+-- Originally from http://www.deathbylogic.com/2013/07/vhdl-standard-fifo/
+-- @copyright Public Domain
+-- @todo Add more comments about the FIFOs origin, add assertions test
+-- synthesis, make this more generic (with empty FIFO and FIFO count signals)
+--
+-- The code can be used freely and appears to be public domain, comment
+-- from author is: "You can use any code posted here freely, there is no copyright."
+--
+-- @note The FIFO has been modified from the original to bring it in line with
+-- this projects coding standards.
+--architecture behavioral of fifo is
+--begin
+--
+--
+--	-- memory pointer process
+--	fifo_proc: process (clk, rst)
+--		type fifo_memory is array (0 to fifo_depth - 1) of std_ulogic_vector (data_width - 1 downto 0);
+--		variable memory: fifo_memory;
+--
+--		variable head: natural range 0 to fifo_depth - 1;
+--		variable tail: natural range 0 to fifo_depth - 1;
+--
+--		variable looped: boolean;
+--	begin
+--		if rst = '1' then
+--			head := 0;
+--			tail := 0;
+--
+--			looped := false;
+--
+--			full  <= '0';
+--			empty <= '1';
+--			do    <= (others => '0');
+--		elsif rising_edge(clk) then
+--			do    <= (others => '0');
+--			if re = '1' then
+--				if looped = true or head /= tail then
+--					-- update data output
+--					do <= memory(tail);
+--
+--					-- update tail pointer as needed
+--					if tail = fifo_depth - 1 then
+--						tail   := 0;
+--						looped := false;
+--					else
+--						tail := tail + 1;
+--					end if;
+--				end if;
+--			end if;
+--
+--			if we = '1' then
+--				if looped = false or head /= tail then
+--					-- write data to memory
+--					memory(head) := di;
+--
+--					-- increment head pointer as needed
+--					if head = fifo_depth - 1 then
+--						head := 0;
+--						looped := true;
+--					else
+--						head := head + 1;
+--					end if;
+--				end if;
+--			end if;
+--
+--			-- update empty and full flags
+--			if head = tail then
+--				if looped then
+--					full  <= '1';
+--				else
+--					empty <= '1';
+--				end if;
+--			else
+--				empty	<= '0';
+--				full	<= '0';
+--			end if;
+--		end if;
+--	end process;
+--end architecture;
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -1251,7 +1306,7 @@ architecture behavior of fifo_tb is
 	constant data_width: positive := 8;
 	constant fifo_depth: positive := 16;
 
-	signal di:      std_ulogic_vector(data_width - 1 downto 0) := (others => '0');
+	signal di:       std_ulogic_vector(data_width - 1 downto 0) := (others => '0');
 	signal re:       std_ulogic := '0';
 	signal we:       std_ulogic := '0';
 

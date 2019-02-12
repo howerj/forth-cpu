@@ -239,8 +239,8 @@ they can implemented in terms of instructions )
 : count  dup 1+ swap c@ ;                 ( cs -- b u )
 : rot >r swap r> swap ;                   ( n1 n2 n3 -- n2 n3 n1 )
 : -rot swap >r swap r> ;                  ( n1 n2 n3 -- n3 n1 n2 )
-: min over over < if drop exit then nip ; ( n n -- n )
-: max over over > if drop exit then nip ; ( n n -- n )
+: min 2dup < if drop exit then nip ;      ( n n -- n )
+: max 2dup > if drop exit then nip ;      ( n n -- n )
 : >char $7f and dup 127 =bl within if drop [char] _ then ; ( c -- c )
 : tib #tib cell+ @ ; hidden               ( -- a )
 : echo <echo> @execute ; hidden           ( c -- )
@@ -909,7 +909,7 @@ irqTask:
 	context swap for aft tuck ! cell+ then next 0 swap ! ;
 
 \ : root  -1 set-order ; \ should contain set-order, forth-wordlist, forth, and words
-: forth -1 set-order ;
+: forth [-1] set-order ;
 : flash get-order flash-voc swap 1+ set-order ;
 
 : .words space begin dup while dup .id space @ address repeat drop cr ; hidden

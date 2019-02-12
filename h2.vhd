@@ -220,22 +220,22 @@ begin
 		end if;
 	end process;
 
-	interrupts: process(insn, irq_addr_c, interrupt)
+	decode: process(insn, irq_addr_c, interrupt, stop_c, pc_c)
 	begin
 		instruction <= insn;
-		if interrupt = '1' then -- assemble a CALL instruction on interrupt
+		if stop_c = '1' then -- assert a BRANCH instruction to current location on CPU halt
+			instruction <= "000" & pc_c;
+		elsif interrupt = '1' then -- assemble a CALL instruction on interrupt
 			instruction                   <= (others => '0');
 			instruction(15 downto 13)     <= "010";      -- turn into a CALL
 			instruction(irq_addr_c'range) <= irq_addr_c; -- address to call
 		end if;
 	end process;
 
-	alu_select: process(instruction, is_instr, stop_c)
+	alu_select: process(instruction, is_instr)
 	begin
 		aluop <= (others => '0');
-		if stop_c = '1' then
-			aluop <= (others => '0');
-		elsif is_instr.lit = '1' then
+		if is_instr.lit = '1' then
 			aluop <= "10101";
 		elsif is_instr.branch0 = '1' then
 			aluop <= (0 => '1', others => '0');
@@ -251,8 +251,7 @@ begin
 		io_din,
 		vstkp_c, rstkp_c,
 		compare,
-		irq_en_c,
-		stop_c)
+		irq_en_c)
 	begin
 		io_re    <=  '0'; -- hardware reads can have side effects
 		tos_n    <=  tos_c;
@@ -303,53 +302,47 @@ begin
 		pc_c, instruction, tos_c,
 		vstkp_c, dd,
 		rstkp_c, rd,
-		is_instr, pc_plus_one, interrupt, stop_c)
+		is_instr, pc_plus_one, interrupt)
 	begin
 		vstkp_n   <= vstkp_c;
 		rstkp_n   <= rstkp_c;
 		rstk_we   <= '0';
 		rstk_data <= "00" & pc_plus_one & "0";
 
-		if stop_c = '0' then
-			if is_instr.lit = '1' then
-				assert to_integer(vstkp_c) + 1 < stack_size;
-				vstkp_n   <= vstkp_c + 1;
+		if is_instr.lit = '1' then
+			assert to_integer(vstkp_c) + 1 < stack_size;
+			vstkp_n   <= vstkp_c + 1;
+		end if;
+		if is_instr.alu = '1' then
+			assert (not instruction(6) = '1') or ((to_integer(rstkp_c) + to_integer(signed(rd))) < stack_size);
+			assert ((to_integer(vstkp_c) + to_integer(signed(dd))) < stack_size);
+			rstk_we   <= instruction(6);
+			rstk_data <= tos_c;
+			vstkp_n   <= vstkp_c + unsigned(dd);
+			rstkp_n   <= rstkp_c + unsigned(rd);
+		end if;
+		if is_instr.branch0 = '1' then
+			vstkp_n   <= vstkp_c - 1;
+		end if;
+		if is_instr.call = '1' then
+			if interrupt = '1' then
+				rstk_data <= "00" & pc_c & "0";
 			end if;
-			if is_instr.alu = '1' then
-				assert (not instruction(6) = '1') or ((to_integer(rstkp_c) + to_integer(signed(rd))) < stack_size);
-				assert ((to_integer(vstkp_c) + to_integer(signed(dd))) < stack_size);
-				rstk_we   <= instruction(6);
-				rstk_data <= tos_c;
-				vstkp_n   <= vstkp_c + unsigned(dd);
-				rstkp_n   <= rstkp_c + unsigned(rd);
-			end if;
-			if is_instr.branch0 = '1' then
-				vstkp_n   <= vstkp_c - 1;
-			end if;
-			if is_instr.call = '1' then
-				if interrupt = '1' then
-					rstk_data <= "00" & pc_c & "0";
-				end if;
-				rstkp_n   <= rstkp_c + 1;
-				rstk_we   <= '1';
-			end if;
+			rstkp_n   <= rstkp_c + 1;
+			rstk_we   <= '1';
 		end if;
 	end process;
 
 	pc_update: process(
 		pc_c, instruction, rtos_c, pc_plus_one,
 		is_instr,
-		compare.zero,
-		stop_c)
+		compare.zero)
 	begin
-		pc_n       <= pc_c;
-		if stop_c = '0' then -- Update PC on normal operations
-			pc_n <=  pc_plus_one;
-			if is_instr.branch = '1' or (is_instr.branch0 = '1' and compare.zero = '1') or is_instr.call = '1' then
-				pc_n <=  instruction(12 downto 0);
-			elsif is_instr.alu = '1' and instruction(4) = '1' then
-				pc_n <=  rtos_c(13 downto 1);
-			end if;
+		pc_n <= pc_plus_one;
+		if is_instr.branch = '1' or (is_instr.branch0 = '1' and compare.zero = '1') or is_instr.call = '1' then
+			pc_n <=  instruction(12 downto 0);
+		elsif is_instr.alu = '1' and instruction(4) = '1' then
+			pc_n <=  rtos_c(13 downto 1);
 		end if;
 	end process;
 end architecture;

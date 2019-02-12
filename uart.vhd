@@ -169,12 +169,10 @@ begin
 				dout_ack <= '1';
 			end if;
 
-			if tx_fifo_empty_internal = '0' and tx_fifo_full_internal = '0' and din_busy = '0' then
+			if tx_fifo_empty_internal = '0' and din_busy = '0' and wrote_c = '0' then
 				tx_fifo_re <= '1';
 				wrote_n    <= '1';
 			elsif din_ack = '0' and wrote_c = '1' then
-			--elsif wrote_c = '1' then
-				-- assert din_ack = '1' on the next cycle?
 				din_stb    <= '1';
 				wrote_n    <= '0';
 			end if;
@@ -189,7 +187,7 @@ begin
 			rst   => rst,
 			di    => dout,
 			we    => dout_stb,
-			re    => rx_data_re,
+			re    => rx_data_re_n,
 			do    => rx_data_n,
 			full  => rx_fifo_full,
 			empty => rx_fifo_empty);
