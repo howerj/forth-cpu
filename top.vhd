@@ -63,7 +63,7 @@ entity top is
 		MemOE:    out   std_ulogic := '0'; -- negative logic
 		MemWR:    out   std_ulogic := '0'; -- negative logic
 		MemAdv:   out   std_ulogic := '0'; -- negative logic
-		MemWait:  out   std_ulogic := '0'; -- positive!
+		MemWait:  out   std_ulogic := '0'; -- positive logic!
 		FlashCS:  out   std_ulogic := '0';
 		FlashRp:  out   std_ulogic := '1';
 		MemAdr:   out   std_ulogic_vector(26 downto 1) := (others => '0');
@@ -110,11 +110,9 @@ architecture behav of top is
 
 	---- UART
 	signal rx_data:           std_ulogic_vector(7 downto 0) := (others => '0');
-	signal rx_data_n:         std_ulogic_vector(7 downto 0) := (others => '0');
 	signal rx_fifo_empty:     std_ulogic := '0';
 	signal rx_fifo_full:      std_ulogic := '0';
 	signal rx_data_re:        std_ulogic := '0';
-	signal rx_data_re_n:      std_ulogic := '0';
 
 	signal tx_data:           std_ulogic_vector(7 downto 0) := (others => '0');
 	signal tx_fifo_full:      std_ulogic := '0';
@@ -250,7 +248,6 @@ begin
 	clk25MHz <= '0' when rst = '1' else not clk25MHz when rising_edge(clk50MHz);
 
 	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
-	-- assert not(io_wr = '1' or io_re = '1') or not  io_daddr(0) = '1' report "Unaligned register access" severity error;
 
 	vga_data          <= io_dout(vga_data'range);
 	tx_data           <= io_dout(tx_data'range);
@@ -286,7 +283,7 @@ begin
 		sw_d, btnu_d, btnd_d, btnl_d, btnr_d, btnc_d,
 		kbd_char_buf_new, kbd_char_buf,
 
-		rx_data_n,
+		rx_data,
 		rx_fifo_empty,
 		rx_fifo_full,
 
@@ -299,14 +296,13 @@ begin
 
 		mem_data_o)
 	begin
-
 		io_din <= (others => '0');
 
 		-- The signal io_re is not needed as none of the reads have
 		-- any side effects
 		case io_daddr(3 downto 1) is
 		when "000" => -- buttons, plus direct access to UART bit.
-			io_din(7 downto 0) <= rx_data_n;
+			io_din(7 downto 0) <= rx_data;
 			io_din(8)          <= rx_fifo_empty;
 			io_din(9)          <= rx_fifo_full;
 			io_din(11)         <= tx_fifo_empty;
@@ -328,27 +324,6 @@ begin
 	end process;
 
 	--- UART ----------------------------------------------------------
-	-- @todo Move registers inside UART module
-	uart_rx_data_reg_we_0: work.util.reg
-		generic map(
-			N      => 1)
-		port map(
-			clk    => clk,
-			rst    => rst,
-			we     => '1',
-			di(0)  => rx_data_re,
-			do(0)  => rx_data_re_n);
-
-	uart_rx_data_reg_0: work.util.reg
-		generic map(
-			N => rx_data_n'high + 1)
-		port map(
-			clk => clk,
-			rst => rst,
-			we  => rx_data_re_n,
-			di  => rx_data,
-			do  => rx_data_n);
-
 	uart_0: work.uart_pkg.uart_top
 		generic map(
 			baud_rate       => uart_baud_rate,

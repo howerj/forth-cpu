@@ -99,7 +99,7 @@ location <boot>     0  ( -- : execute program at startup )
 location <block>    0  ( a u k -- f : load block )
 location <save>     0  ( a u k -- f : save block )
 location <invalid>  0  ( k -- k : throws error if k invalid )
-location <message>   0  ( n -- : display an error message )
+location <message>  0  ( n -- : display an error message )
 location last-def   0  ( last, possibly unlinked, word definition )
 location flash-voc  0  ( flash and memory word set )
 location cp         0  ( Dictionary Pointer: Set at end of file )
@@ -147,7 +147,7 @@ location failed           "failed"      ( used in start up routine )
 : [-1] -1 ; hidden         ( -- -1 : space saving measure, push -1 onto stack )
 : 0x8000 $8000 ; hidden    ( -- $8000 : space saving measure, push $8000 onto stack )
 : ! store drop ;           ( n a -- : store a value 'n' at location 'a'  )
-\ : 256* 8 lshift ; hidden   ( u -- u : shift left by 8, or multiple by 256 )
+\ : 256* 8 lshift ; hidden ( u -- u : shift left by 8, or multiple by 256 )
 : 256/ 8 rshift ; hidden   ( u -- u : shift right by 8, or divide by 256 )
 : 1+ 1 + ;                 ( n -- n : increment a value  )
 : negate 1- invert ;       ( n -- n : negate a number )
@@ -170,10 +170,10 @@ location failed           "failed"      ( used in start up routine )
 : 2drop drop drop ;        ( n n -- )
 : tuck swap over ;         ( n1 n2 -- n2 n1 n2 )
 : +! tuck @ + swap ! ;     ( n a -- : increment value at address by 'n' )
-: 1+!  1 swap +! ;         ( a -- : increment value at address by 1 )
-: 1-! [-1] swap +! ; hidden  ( a -- : decrement value at address by 1 )
+: 1+!   1 swap +! ;         ( a -- : increment value at address by 1 )
+: 1-! [-1] swap +! ; hidden ( a -- : decrement value at address by 1 )
 : execute >r ;             ( cfa -- : execute a function )
-: c@ dup ( -2 and ) @ swap 1 and if 8 rshift exit else $ff and exit then ; ( b -- c )
+: c@ dup ( -2 and ) @ swap 1 and if 8 rshift exit then $ff and ; ( b -- c )
 : c!                       ( c b -- )
 	swap $ff and dup 8 lshift or swap
 	swap over dup ( -2 and ) @ swap 1 and 0 = $ff xor
@@ -430,7 +430,7 @@ choice words that need depth checking to get quite a large coverage )
 	begin
 		dup @
 	while
-		dup @ @ r@ swap search ?dup if rot rdrop drop exit else drop then
+		dup @ @ r@ swap search ?dup if rdrop rot drop exit else drop then
 		cell+
 	repeat drop r> 0x0000 ;
 

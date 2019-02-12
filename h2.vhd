@@ -181,8 +181,8 @@ begin
 	stop_n           <= stop;
 	dd(0)            <= instruction(0);
 	rd(0)            <= instruction(2);
-	dd(dd'high downto dd'low + 1) <= (others => '1') when instruction(1) = '1' else (others => '0'); -- sign extend
-	rd(rd'high downto rd'low + 1) <= (others => '1') when instruction(3) = '1' else (others => '0'); -- sign extend
+	dd(dd'high downto 1) <= (others => '1') when instruction(1) = '1' else (others => '0'); -- sign extend
+	rd(rd'high downto 1) <= (others => '1') when instruction(3) = '1' else (others => '0'); -- sign extend
 	dstk_we          <= '1' when (is_instr.lit = '1' or (is_instr.alu = '1' and instruction(7) = '1')) else '0';
 
 	next_state: process(clk, rst)

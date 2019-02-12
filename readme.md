@@ -45,7 +45,6 @@ The SoC can also be simulated with a simulator written in C, as shown below:
 
 The System Architecture is as follows:
 
-<! -- ![System Architecture](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/system.svg) -->
 ![System Architecture](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/system.png)
 
 # License
@@ -137,7 +136,6 @@ compilation to the [J1][] core). It also provides a simulator for the system
 written in [C][].
 
 * <https://github.com/samawati/j1eforth>
-
 
 # Manual
 
@@ -1464,6 +1462,7 @@ incredibly minimal compared to this one.
 [VT100]: https://en.wikipedia.org/wiki/VT100
 [embed]: https://github.com/howerj/embed
 [SDL]: https://www.libsdl.org/
+
 <!--
 
 https://www.w3schools.com/css/css_table.asp
@@ -1471,5 +1470,8 @@ http://adis.ca/entry/2011/pretty-code-block-in-css/
 https://www.w3.org/Style/Examples/007/center.en.html
 https://css-tricks.com/centering-css-complete-guide/
 -->
+<!-- 
 
+![System Architecture](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/system.svg) 
+-->
 <style type="text/css">body{margin:40px auto;max-width:850px;line-height:1.6;font-size:16px;color:#444;padding:0 10px}h1,h2,h3{line-height:1.2}table {width: 100%; border-collapse: collapse;}table, th, td{border: 1px solid black;}code { color: #091992; } </style>

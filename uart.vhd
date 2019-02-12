@@ -125,7 +125,27 @@ architecture behav of uart_top is
 
 	signal wrote_c, wrote_n: std_ulogic := '0';
 
+	signal rx_data_re_n: std_ulogic := '0';
+	signal rx_data_n: std_ulogic_vector(rx_data'range) := (others => '0');
 begin
+	uart_rx_data_reg_we_0: work.util.reg
+		generic map(N      => 1)
+		port map(
+			clk    => clk,
+			rst    => rst,
+			we     => '1',
+			di(0)  => rx_data_re,
+			do(0)  => rx_data_re_n);
+
+	uart_rx_data_reg_0: work.util.reg
+		generic map(N => rx_data_n'high + 1)
+		port map(
+			clk => clk,
+			rst => rst,
+			we  => rx_data_re_n,
+			di  => rx_data_n,
+			do  => rx_data);
+
 	uart_deglitch: process (clk, rst)
 	begin
 		if rst = '1' then
@@ -170,7 +190,7 @@ begin
 			di    => dout,
 			we    => dout_stb,
 			re    => rx_data_re,
-			do    => rx_data,
+			do    => rx_data_n,
 			full  => rx_fifo_full,
 			empty => rx_fifo_empty);
 
