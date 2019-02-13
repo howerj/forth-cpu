@@ -1201,10 +1201,12 @@ begin
 			end if;
 
 			if we = '1' and is_full = '0' then
-				data(windex) <= di;
+				-- @todo make configurable; write to current or next
 				if windex = (fifo_depth - 1) then
+					data(0) <= di;
 					windex <= 0;
 				else
+					data(windex + 1) <= di;
 					windex <= windex + 1;
 				end if;
 			end if;

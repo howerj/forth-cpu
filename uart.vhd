@@ -124,28 +124,8 @@ architecture behav of uart_top is
 	signal tx_fifo_full_internal:  std_ulogic := '0';
 
 	signal wrote_c, wrote_n: std_ulogic := '0';
-
-	signal rx_data_re_n: std_ulogic := '0';
-	signal rx_data_n: std_ulogic_vector(rx_data'range) := (others => '0');
 begin
-	uart_rx_data_reg_we_0: work.util.reg
-		generic map(N      => 1)
-		port map(
-			clk    => clk,
-			rst    => rst,
-			we     => '1',
-			di(0)  => rx_data_re,
-			do(0)  => rx_data_re_n);
-
-	uart_rx_data_reg_0: work.util.reg
-		generic map(N => rx_data_n'high + 1)
-		port map(
-			clk => clk,
-			rst => rst,
-			we  => rx_data_re_n,
-			di  => rx_data_n,
-			do  => rx_data);
-
+ 
 	uart_deglitch: process (clk, rst)
 	begin
 		if rst = '1' then
@@ -169,10 +149,10 @@ begin
 				dout_ack <= '1';
 			end if;
 
-			if tx_fifo_empty_internal = '0' and din_busy = '0' and wrote_c = '0' then
+			if tx_fifo_empty_internal = '0' and din_busy = '0' and din_ack = '0' then
 				tx_fifo_re <= '1';
 				wrote_n    <= '1';
-			elsif din_ack = '0' and wrote_c = '1' then
+			elsif wrote_c = '1' then
 				din_stb    <= '1';
 				wrote_n    <= '0';
 			end if;
@@ -187,8 +167,8 @@ begin
 			rst   => rst,
 			di    => dout,
 			we    => dout_stb,
-			re    => rx_data_re_n,
-			do    => rx_data_n,
+			re    => rx_data_re,
+			do    => rx_data,
 			full  => rx_fifo_full,
 			empty => rx_fifo_empty);
 
@@ -211,7 +191,11 @@ begin
 	-- it does not work correctly, so as a temporary hack the busy signal
 	-- is or'd in so the data source can block until the FIFO is 'not full'
 	-- and not lose any data thinking it has been transmitted.
-	tx_fifo_full  <= '1' when tx_fifo_full_internal = '1' or din_busy = '1' else '0';
+	tx_fifo_full  <= '1' when tx_fifo_full_internal = '1'
+					or din_busy = '1'
+					or wrote_c = '1' 
+					or din_ack = '1' 
+					else '0';
 
 	uart: work.uart_pkg.uart_core
 		generic map(
