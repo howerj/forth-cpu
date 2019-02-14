@@ -112,20 +112,20 @@ architecture testing of tb is
 
 	signal configured: boolean := false;
 
-	signal RamCS:     std_ulogic := 'X';
-	signal MemOE:     std_ulogic := 'X'; -- negative logic
-	signal MemWR:     std_ulogic := 'X'; -- negative logic
-	signal MemAdv:    std_ulogic := 'X'; -- negative logic
-	signal MemWait:   std_ulogic := 'X'; -- positive!
-	signal FlashCS:   std_ulogic := 'X';
-	signal FlashRp:   std_ulogic := 'X';
-	signal MemAdr:    std_ulogic_vector(26 downto 1) := (others => 'X');
-	signal MemDB:     std_logic_vector(15 downto 0) := (others => 'X');
+	signal ram_cs:     std_ulogic := 'X';
+	signal mem_oe:     std_ulogic := 'X'; -- negative logic
+	signal mem_wr:     std_ulogic := 'X'; -- negative logic
+	signal mem_adv:    std_ulogic := 'X'; -- negative logic
+	signal mem_wait:   std_ulogic := 'X'; -- positive!
+	signal flash_cs:   std_ulogic := 'X';
+	signal flash_rp:   std_ulogic := 'X';
+	signal mem_addr:   std_ulogic_vector(26 downto 1) := (others => 'X');
+	signal mem_data:   std_logic_vector(15 downto 0)  := (others => 'X');
 
 begin
 ---- Units under test ----------------------------------------------------------
 
-	MemDB <= (others => '0') when MemOE = '1' else (others => 'Z');
+	mem_data <= (others => '0') when mem_oe = '1' else (others => 'Z');
 
 	uut: entity work.top
 	generic map(
@@ -151,15 +151,15 @@ begin
 		ps2_keyboard_data => ps2_keyboard_data,
 		ps2_keyboard_clk  => ps2_keyboard_clk,
 
-		RamCS    =>  RamCS,
-		MemOE    =>  MemOE,
-		MemWR    =>  MemWR,
-		MemAdv   =>  MemAdv,
-		MemWait  =>  MemWait,
-		FlashCS  =>  FlashCS,
-		FlashRp  =>  FlashRp,
-		MemAdr   =>  MemAdr,
-		MemDB    =>  MemDB);
+		ram_cs    =>  ram_cs,
+		mem_oe    =>  mem_oe,
+		mem_wr    =>  mem_wr,
+		mem_adv   =>  mem_adv,
+		mem_wait  =>  mem_wait,
+		flash_cs  =>  flash_cs,
+		flash_rp  =>  flash_rp,
+		mem_addr  =>  mem_addr,
+		mem_data  =>  mem_data);
 
 	uut_util: work.util.util_tb generic map(clock_frequency => clock_frequency);
 	uut_vga:  work.vga_pkg.vt100_tb generic map(clock_frequency => clock_frequency);
@@ -281,12 +281,9 @@ begin
 				din_stb <= '1';
 				wait for clk_period;
 				din_stb <= '0';
-				-- assert din_ack = '1' severity warning;
 				wait for 100 us;
-				-- wait for 10 ms;
 			end loop;
 		end loop;
-		-- stop <= '1';
 		report "input_process end";
 		wait;
 	end process;

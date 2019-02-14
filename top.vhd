@@ -59,15 +59,15 @@ entity top is
 		ps2_keyboard_clk:   in std_ulogic           := '0';
 
 		-- Memory Interface
-		RamCS:    out   std_ulogic := '1';
-		MemOE:    out   std_ulogic := '0'; -- negative logic
-		MemWR:    out   std_ulogic := '0'; -- negative logic
-		MemAdv:   out   std_ulogic := '0'; -- negative logic
-		MemWait:  out   std_ulogic := '0'; -- positive logic!
-		FlashCS:  out   std_ulogic := '0';
-		FlashRp:  out   std_ulogic := '1';
-		MemAdr:   out   std_ulogic_vector(26 downto 1) := (others => '0');
-		MemDB:    inout std_logic_vector(15 downto 0)  := (others => 'Z'));
+		ram_cs:    out   std_ulogic := '1';
+		mem_oe:    out   std_ulogic := '0'; -- negative logic
+		mem_wr:    out   std_ulogic := '0'; -- negative logic
+		mem_adv:   out   std_ulogic := '0'; -- negative logic
+		mem_wait:  out   std_ulogic := '0'; -- positive logic!
+		flash_cs:  out   std_ulogic := '0';
+		flash_rp:  out   std_ulogic := '1';
+		mem_addr:   out   std_ulogic_vector(26 downto 1) := (others => '0');
+		mem_data:    inout std_logic_vector(15 downto 0)  := (others => 'Z'));
 end;
 
 architecture behav of top is
@@ -150,8 +150,6 @@ architecture behav of top is
 	signal mem_data_i_we:     std_ulogic := '0';
 	signal mem_data_o:        std_ulogic_vector(15 downto 0) := (others => '0');
 	signal mem_control_we:    std_ulogic := '0';
-	signal mem_we:            std_ulogic := '0';
-	signal mem_oe:            std_ulogic := '0';
 begin
 -------------------------------------------------------------------------------
 -- The Main components
@@ -249,8 +247,8 @@ begin
 
 	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
 
-	vga_data          <= io_dout(vga_data'range);
-	tx_data           <= io_dout(tx_data'range);
+	vga_data <= io_dout(vga_data'range);
+	tx_data  <= io_dout(tx_data'range);
 
 	io_write: block
 		signal selector: std_ulogic_vector(3 downto 0) := (others => '0');
@@ -346,7 +344,7 @@ begin
 
 	--- LED Output ----------------------------------------------------
 	led_output_reg_0: entity work.reg
-		generic map(N => ld'high + 1)
+		generic map(N => ld'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -465,7 +463,7 @@ begin
 	--- Switches ------------------------------------------------------
 	sw_debouncer: work.util.debounce_block_us
 		generic map(
-			N               => sw'high+1,
+			N               => sw'length,
 			clock_frequency => clock_frequency,
 			timer_period_us => timer_period_us)
 		port map(clk => clk, di => sw, do => sw_d);
@@ -474,26 +472,26 @@ begin
 	--- Memory Interface ----------------------------------------------
 	ram_interface_0: entity work.ram_interface
 	port map(
-		clk                =>  clk,
-		rst                =>  rst,
-		mem_addr_16_1      =>  io_dout,
-		mem_addr_16_1_we   =>  mem_addr_16_1_we,
-		mem_addr_26_17     =>  io_dout(9 downto 0),
-		mem_addr_26_17_we  =>  mem_addr_26_17_we,
-		mem_control_i      =>  io_dout(15 downto 10),
-		mem_control_we     =>  mem_control_we,
-		mem_data_i         =>  io_dout,
-		mem_data_i_we      =>  mem_data_i_we,
-		mem_data_o         =>  mem_data_o,
-		RamCS              =>  RamCS,
-		MemOE              =>  MemOE,
-		MemWR              =>  MemWR,
-		MemAdv             =>  MemAdv,
-		MemWait            =>  MemWait,
-		FlashCS            =>  FlashCS,
-		FlashRp            =>  FlashRp,
-		MemAdr             =>  MemAdr,
-		MemDB              =>  MemDB);
+		clk               =>  clk,
+		rst               =>  rst,
+		mem_addr_16_1     =>  io_dout,
+		mem_addr_16_1_we  =>  mem_addr_16_1_we,
+		mem_addr_26_17    =>  io_dout(9 downto 0),
+		mem_addr_26_17_we =>  mem_addr_26_17_we,
+		mem_control_i     =>  io_dout(15 downto 10),
+		mem_control_we    =>  mem_control_we,
+		mem_data_i        =>  io_dout,
+		mem_data_i_we     =>  mem_data_i_we,
+		mem_data_o        =>  mem_data_o,
+		ram_cs            =>  ram_cs,
+		mem_oe            =>  mem_oe,
+		mem_wr            =>  mem_wr,
+		mem_adv           =>  mem_adv,
+		mem_wait          =>  mem_wait,
+		flash_cs          =>  flash_cs,
+		flash_rp          =>  flash_rp,
+		mem_addr          =>  mem_addr,
+		mem_data          =>  mem_data);
 	--- Memory Interface ----------------------------------------------
 
 -------------------------------------------------------------------------------

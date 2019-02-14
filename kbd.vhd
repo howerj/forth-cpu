@@ -100,7 +100,7 @@ end entity;
 architecture rtl of keyboard  is
 	signal kbd_new_c, kbd_new_n:  std_ulogic := '0';
 	signal kbd_new_edge: std_ulogic := '0';
-	signal kbd_new:      std_ulogic := '0';                                -- new ASCII char available
+	signal kbd_new:      std_ulogic := '0'; -- new ASCII char available
 	signal kbd_char:     std_ulogic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
 	signal kbd_char_o:   std_ulogic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
 begin
@@ -116,7 +116,7 @@ begin
 	end process;
 
 	new_char: entity work.reg
-	generic map(N => kbd_char'high+1)
+	generic map(N => kbd_char'length)
 	port map(
 		clk => clk,
 		rst => rst,
@@ -125,7 +125,7 @@ begin
 		do  => kbd_char_o);
 
 	char_buf: entity work.reg
-	generic map(N => kbd_char'high+1)
+	generic map(N => kbd_char'length)
 	port map(
 		clk => clk,
 		rst => rst,

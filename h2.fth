@@ -95,7 +95,7 @@ location <expect>   0  ( "accept" vector )
 location <tap>      0  ( "tap" vector, for terminal handling )
 location <echo>     0  ( c -- : emit character )
 location <prompt>   0  ( -- : display prompt )
-location <boot>     0  ( -- : execute program at startup )
+\ location <boot>     0  ( -- : execute program at startup )
 location <block>    0  ( a u k -- f : load block )
 location <save>     0  ( a u k -- f : save block )
 location <invalid>  0  ( k -- k : throws error if k invalid )
@@ -128,9 +128,6 @@ constant b/buf 1024 ( size of a block )
 variable blk             -1 ( current blk loaded )
 location block-dirty      0 ( -1 if loaded block buffer is modified )
 constant block-buffer $3C00 hidden
-\ location block-buffer     0 ( block buffer starts here )
-\ .allocate b/buf
-
 location _blockop         0             ( used in 'mblock' )
 location .s-string        " <sp"        ( used by .s )
 location OK               "ok"          ( used by "prompt" )
@@ -173,6 +170,7 @@ location failed           "failed"      ( used in start up routine )
 : 1+!   1 swap +! ;         ( a -- : increment value at address by 1 )
 : 1-! [-1] swap +! ; hidden ( a -- : decrement value at address by 1 )
 : execute >r ;             ( cfa -- : execute a function )
+\ : goto rdrop >r ;        ( cfg -- : goto an address )
 : c@ dup ( -2 and ) @ swap 1 and if 8 rshift exit then $ff and ; ( b -- c )
 : c!                       ( c b -- )
 	swap $ff and dup 8 lshift or swap
@@ -408,7 +406,9 @@ choice words that need depth checking to get quite a large coverage )
 : immediate? @ $4000 and logical ; hidden ( pwd -- f : is immediate? )
 : inline?    @ 0x8000 and logical ; hidden ( pwd -- f : is inline? )
 
+location search-previous 0
 : search ( a a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
+	0 search-previous !
 	swap >r
 	begin
 		dup
@@ -418,7 +418,7 @@ choice words that need depth checking to get quite a large coverage )
 			dup immediate? if 1 else [-1] then
 			rdrop exit
 		then
-		@ address
+		dup search-previous ! @ address
 	repeat
 	drop r> 0x0000 ; hidden
 
@@ -430,7 +430,7 @@ choice words that need depth checking to get quite a large coverage )
 	begin
 		dup @
 	while
-		dup @ @ r@ swap search ?dup if rdrop rot drop exit else drop then
+		dup @ @ r@ swap search ?dup if rdrop rot drop exit then drop
 		cell+
 	repeat drop r> 0x0000 ;
 
@@ -632,7 +632,7 @@ choice words that need depth checking to get quite a large coverage )
 : switches  iSwitches  @ ; ( -- u : get the state of the switches)
 : timer!    oTimerCtrl ! ; ( u -- )
 : timer     iTimerDin  @ ; ( -- u )
-: input rx? if [-1] else ps2? then ; hidden ( -- c -1 | 0 : UART and PS/2 Input )
+: input rx? if [-1] exit then ps2? ; hidden ( -- c -1 | 0 : UART and PS/2 Input )
 : output dup tx! vga! ; hidden ( c -- : write to UART and VGA display )
 : printable? 32 127 within ; hidden ( c -- f )
 : pace 11 emit ; hidden
@@ -644,7 +644,6 @@ choice words that need depth checking to get quite a large coverage )
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? <key> ! ' tx! <emit> ! hand ;
 : interactive ' input <key> ! ' output <emit> ! hand ;
-: ien! ien drop ; hidden
 : io! 0 timer! 0 led! 0 segments!
 	interactive 0 ien! 0 oIrcMask ! interactive ; ( -- : initialize I/O )
 : ver $666 ;
@@ -836,12 +835,12 @@ in which the problem could be solved. )
 ( @warning This disassembler is experimental, and liable not 
 to work / break everything it touches )
 
-: validate ( cfa pwd -- nfa | 0 )
-	tuck cfa <> if drop 0 else nfa then ; hidden
+: validate ( cfa pwd -- nfa | 0 : validate possible CFA is a CFA )
+	tuck cfa <> if drop 0x0000 exit then nfa ; hidden
 
-: name ( cfa -- nfa )
-	$1fff and ( get address bits )
-	2*        ( convert to user address )
+: name ( cfa? -- nfa | 0 : attempt to get name from a possible CFA )
+	2*      ( convert to user address )
+	address ( get address bits )
 	>r
 	last address
 	begin
@@ -852,16 +851,37 @@ to work / break everything it touches )
 		address @
 	repeat rdrop ; hidden
 
-: .name name ?dup if print exit then ; hidden
+: .name name ?dup if space print exit then ; hidden
 
+\ Lookup table 0 = B[Ranch], 1 = Z[ero Branch], 2 = C[all], 3 = A[LU] 
+location tbl-1 $5A42 
+location tbl-2 $4143
 
-\ @todo print out L for literal, B for branch, Z for 0-branch, C for call, A for ALU
+: instruction? ( instruction -- instruction type : determine instruction type )
+   dup 0x8000 and if [char] L exit then
+   dup $6000 and 13 rshift tbl-1 + c@ ; hidden
+
+: .instruction ( instruction type -- : print out an instruction )
+   over 5u.r
+   dup emit
+   dup [char] C = if drop .name exit then
+   dup [char] B = if drop .name exit then
+       [char] L = if $7fff and . exit then
+   drop ; hidden
+
+\ @todo print out immediate status, prettify output, ...
 : see
  	token find 0= if 13 -throw exit then
- 	begin dup here u< while ( @todo print until next word in dictionary, requires change to 'search' )
- 		dup dup 5u.r @ colon dup dup 5u.r $4000 and $4000
- 		= if space .name else drop then cr cell+
- 	repeat drop ;
+	cr
+	search-previous @ ?dup if here min else here then >r
+	cfa
+ 	begin dup r@ u< while
+ 		dup 
+		dup 5 u.r colon @         ( ADDR: )
+		instruction? .instruction ( INST B/Z/C/A/L NUMBER/NAME? )
+		cr
+		cell+
+ 	repeat rdrop drop ;
 
 .set forth-wordlist $pwd
 ( ==================== See =========================================== )
@@ -874,11 +894,11 @@ to work / break everything it touches )
 location #irq 0
 
 irqTask:
-	0 ien!
+	ien? 0 ien!
 	switches led!
 	#irq 1+!
 	#irq @ segments!
-        1 ien! exit
+        ien! exit
 
 \ .set 2 irqTask
 \ .set 4 irqTask
@@ -965,10 +985,10 @@ location memory-select      0    ( SRAM/Flash select SRAM = $400, Flash = 0 )
 
 : mcontrol! ( u -- : write to memory control register )
 	$f3ff and
-	memory-select @ $400 + or  ( select correct memory device )
-	memory-upper-mask invert    and            ( mask off control bits )
-	memory-upper @ memory-upper-mask and or         ( or in higher address bits )
-	oMemControl ! ; hidden            ( and finally write in control )
+	memory-select @ $400 + or               ( select correct memory device )
+	memory-upper-mask invert and            ( mask off control bits )
+	memory-upper @ memory-upper-mask and or ( or in higher address bits )
+	oMemControl ! ; hidden                  ( and finally write in control )
 
 : m! ( n a -- : write to non-volatile memory )
 	oMemAddrLow !
@@ -1056,12 +1076,12 @@ location memory-select      0    ( SRAM/Flash select SRAM = $400, Flash = 0 )
 : boot-block ( -- )
 	0 0 0x8000 transfer
 	0 block c@ printable? if
-		0 dup load exit
+		0 0 load exit
 	then [-1] ; hidden
 
 start:
 .set entry start
-	<boot> @execute  ( <boot> contains zero by default, does nothing )
+	\ <boot> @execute  ( <boot> contains zero by default, does nothing )
 	hi
 	cpu-id segments!
 	loading-string print
@@ -1078,7 +1098,7 @@ start:
 .set <tap>     ktap        ( execution vector of tap,    default the ktap. )
 .set <echo>    output      ( execution vector of echo,   default to output. )
 .set <prompt>  .ok         ( execution vector of prompt, default to '.ok'. )
-.set <boot>    0           ( @execute does nothing if zero )
+\ .set <boot>    0           ( @execute does nothing if zero )
 .set <block>   memory-load ( execution vector of block, used in block )
 .set <save>    memory-save ( execution vector of save-buffers, used in block )
 .set <invalid> minvalid    ( execution vector of _invalid, used in block )

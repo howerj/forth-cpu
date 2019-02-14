@@ -729,8 +729,8 @@ The built in words, with their instruction encodings:
 | or     | 0 | 1 | 1 |       T or N      |   |   |   |   |       |  -1   |
 | depth  | 0 | 1 | 1 |       depth       |   |   |   |   |       |  +1   |
 | 1-     | 0 | 1 | 1 |       T - 1       |   |   |   |   |       |       |
-| seti   | 0 | 1 | 1 |   set interrupts  |   |   |   |   |       |  -1   |
-| iset?  | 0 | 1 | 1 |   interrupts on?  |   |   |   |   |       |  +1   |
+| ien!   | 0 | 1 | 1 | N, Set CPU Status |   |   |   |   |       |  -1   |
+| ien?   | 0 | 1 | 1 | Get CPU Status    |   |   |   |   |       |  +1   |
 | rdepth | 0 | 1 | 1 |      rdepth       |   |   |   |   |       |  +1   |
 | 0=     | 0 | 1 | 1 |        0=         |   |   |   |   |       |       |
 | up1    | 0 | 1 | 1 |        T          |   |   |   |   |       |  +1   |

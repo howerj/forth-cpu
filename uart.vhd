@@ -15,15 +15,13 @@
 --| There have been many changes to the original code, consult the git logs
 --| for a full list of changes.
 --|
---| @note Changes made to range to stop Xilinx warnings and with formatting,
+--| Changes made to range to stop Xilinx warnings and with formatting,
 --| the UART has also been wrapped up in a package and top level component
 --| (called "uart_top") to make the interface easier to use and less confusing.
---| This has not be tested yet.
 --|
---| @note Somewhere along the chain from the computer, to the Nexys3 board,
---| to the UART module, and finally to the H2 core, bytes are being lost in
---| transmission from the computer. This UART really should be buffered
---| as well.
+--| There are a few improvements that could be made; making more of the system
+--| configurable with generics (such as number of stop-bits, parity, number of
+--| bits), splitting up the 'uart_core' module and simplifying its interface.
 --|
 --|  START 0 1 2 3 4 5 6 7 STOP
 --| ----\_/-|-|-|-|-|-|-|-|-|-------
@@ -220,7 +218,6 @@ end;
 ---- UART Top ------------------------------------------------------------------
 
 ---- UART Core -----------------------------------------------------------------
-
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -273,7 +270,7 @@ architecture behav of uart_core is
 	signal  uart_tx_data_block:  std_ulogic_vector(7 downto 0) := (others => '0');
 	signal  uart_tx_data:        std_ulogic := '1';
 	signal  uart_tx_count:       integer range 0 to uart_tx_count_max := 0;
-	signal  uart_rx_data_in_ack: std_ulogic := '0';
+	signal  uart_tx_data_in_ack: std_ulogic := '0';
 	----------------------------------------------------------------------------
 	-- receiver signals
 	----------------------------------------------------------------------------
@@ -294,7 +291,7 @@ architecture behav of uart_core is
 	signal  uart_rx_bit_tick:     std_ulogic := '0';
 begin
 
-	din_ack  <= uart_rx_data_in_ack;
+	din_ack  <= uart_tx_data_in_ack;
 	dout     <= uart_rx_data_block;
 	dout_stb <= uart_rx_data_out_stb;
 	tx       <= uart_tx_data;
@@ -332,14 +329,14 @@ begin
 			uart_tx_data_block  <= (others => '0');
 			uart_tx_count       <= 0;
 			uart_tx_state       <= idle;
-			uart_rx_data_in_ack <= '0';
+			uart_tx_data_in_ack <= '0';
 		elsif rising_edge(clk) then
-			uart_rx_data_in_ack <= '0';
+			uart_tx_data_in_ack <= '0';
 			case uart_tx_state is
 			when idle =>
 				if din_stb = '1' then
 					uart_tx_data_block  <= din;
-					uart_rx_data_in_ack <= '1';
+					uart_tx_data_in_ack <= '1';
 					uart_tx_state       <= wait_for_tick;
 				end if;
 			when wait_for_tick =>
