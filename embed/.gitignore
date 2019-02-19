@@ -1,3 +1,6 @@
 *.a
 *.o
 embed
+hex
+*.hex
+*.bin

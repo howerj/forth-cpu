@@ -28,8 +28,8 @@ fth/doc/doxygen/*
 *.gise
 gui
 h2
-h2.bin
-h2.hex
+*.bin
+*.hex
 h2_tb
 *.htm
 *.html
