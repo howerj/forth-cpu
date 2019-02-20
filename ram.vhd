@@ -34,6 +34,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity ram_interface is
+	generic (
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns); -- simulation only
 	port(
 		clk:               in    std_ulogic;
 		rst:               in    std_ulogic;
@@ -73,7 +76,7 @@ begin
 	mem_addr <= '0' & mem_addr_high & mem_addr_low(mem_addr_low'high downto mem_addr_low'low + 1);
 
 	mem_addr_16_1_reg: entity work.reg
-		generic map(N => mem_addr_16_1'length)
+		generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => mem_addr_16_1'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -82,7 +85,7 @@ begin
 			do  => mem_addr_low);
 
 	mem_addr_26_17_reg: entity work.reg
-		generic map(N => 10)
+		generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => mem_addr_26_17'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -91,7 +94,7 @@ begin
 			do  => mem_addr_high);
 
 	mem_control_reg: entity work.reg
-		generic map(N => 6)
+		generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => mem_control_i'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -100,7 +103,7 @@ begin
 			do  => mem_control_o);
 
 	mem_data_i_reg: entity work.reg
-		generic map(N => mem_data_i'length)
+		generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => mem_data_i'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -108,19 +111,19 @@ begin
 			di  => mem_data_i,
 			do  => mem_data_buf_i);
 
-	flash_cs <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(0) = '1' else '1';
-	ram_cs   <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(1) = '1' else '1';
+	flash_cs <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(0) = '1' else '1' after delay;
+	ram_cs   <= '0' when mem_control_o(5 downto 4) /= "00" and mem_control_o(1) = '1' else '1' after delay;
 	mem_wait <= mem_control_o(2);
-	flash_rp <= '0' when mem_control_o(3) = '1' else '1';
-	mem_adv  <= '0' when mem_oe_internal = '1' or mem_we = '1' else '1';
-	mem_oe_internal <= '1' when mem_control_o(5 downto 4) = "01"  else '0';
-	mem_we   <= '1' when mem_control_o(5 downto 4) = "10"  else '0';
+	flash_rp <= '0' when mem_control_o(3) = '1' else '1' after delay;
+	mem_adv  <= '0' when mem_oe_internal = '1' or mem_we = '1' else '1' after delay;
+	mem_oe_internal <= '1' when mem_control_o(5 downto 4) = "01"  else '0' after delay;
+	mem_we   <= '1' when mem_control_o(5 downto 4) = "10"  else '0' after delay;
 
-	mem_oe   <= not mem_oe_internal;
-	mem_wr   <= not mem_we;
+	mem_oe   <= not mem_oe_internal after delay;
+	mem_wr   <= not mem_we after delay;
 
-	mem_data_o <= std_ulogic_vector(mem_data) when mem_oe_internal = '1' else (others => '0');
-	mem_data   <= std_logic_vector(mem_data_buf_i) when mem_we = '1' else (others => 'Z');
+	mem_data_o <= std_ulogic_vector(mem_data) when mem_oe_internal = '1' else (others => '0') after delay;
+	mem_data   <= std_logic_vector(mem_data_buf_i) when mem_we = '1' else (others => 'Z') after delay;
 
 end architecture;
 

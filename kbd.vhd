@@ -61,6 +61,8 @@ package kbd_pkg is
 
 	component keyboard is
 		generic(
+			asynchronous_reset:        boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:                     time    := 0 ns; -- simulation only, gate delay
 			clock_frequency:           integer := 50000000; -- system clock frequency in hz
 			ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50mhz)
 		port(
@@ -83,6 +85,8 @@ use work.kbd_pkg.all;
 
 entity keyboard is
 	generic(
+		asynchronous_reset:        boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:                     time    := 0 ns; -- simulation only, gate delay
 		clock_frequency:           integer := 50000000; -- system clock frequency in hz
 		ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50mhz)
 	port(
@@ -104,19 +108,23 @@ architecture rtl of keyboard  is
 	signal kbd_char:     std_ulogic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
 	signal kbd_char_o:   std_ulogic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
 begin
-	kbd_char_buf_new <= kbd_new_c;
+	kbd_char_buf_new <= kbd_new_c after delay;
 
 	ps2_next: process(clk, rst)
 	begin
-		if rst = '1' then
-			kbd_new_c  <= '0';
+		if rst = '1' and asynchronous_reset then
+			kbd_new_c  <= '0' after delay;
 		elsif rising_edge(clk) then
-			kbd_new_c   <= kbd_new_n;
+			if rst = '1' and not asynchronous_reset then
+				kbd_new_c <= '0' after delay;
+			else
+				kbd_new_c   <= kbd_new_n after delay;
+			end if;
 		end if;
 	end process;
 
 	new_char: entity work.reg
-	generic map(N => kbd_char'length)
+	generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => kbd_char'length)
 	port map(
 		clk => clk,
 		rst => rst,
@@ -125,7 +133,7 @@ begin
 		do  => kbd_char_o);
 
 	char_buf: entity work.reg
-	generic map(N => kbd_char'length)
+	generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => kbd_char'length)
 	port map(
 		clk => clk,
 		rst => rst,
@@ -136,17 +144,18 @@ begin
 	ps2_proc: process(kbd_new_edge, kbd_new_c, kbd_char_re)
 	begin
 		if kbd_new_edge = '1' then
-			kbd_new_n  <= '1';
+			kbd_new_n  <= '1' after delay;
 		elsif kbd_char_re = '1' then
-			kbd_new_n  <= '0';
+			kbd_new_n  <= '0' after delay;
 		else
-			kbd_new_n  <= kbd_new_c;
+			kbd_new_n  <= kbd_new_c after delay;
 		end if;
 	end process;
 
 	-- Process a kbd_new into a single edge for the rest of the
 	-- system.
 	ps2_edge_new_character_0: entity work.rising_edge_detector
+	generic map(asynchronous_reset => asynchronous_reset, delay => delay)
 	port map(
 		clk => clk,
 		rst => rst,
@@ -606,7 +615,6 @@ architecture rtl of ps2_debounce is
 	signal counter_set: std_ulogic;                    --sync reset to zero
 	signal counter_out: unsigned(counter_size downto 0) := (others => '0'); --counter output
 begin
-
 	counter_set <= flipflops(0) xor flipflops(1);   --determine when to start/reset counter
 
 	process(clk)

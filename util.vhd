@@ -2,7 +2,7 @@
 --| @file util.vhd
 --| @brief A collection of utilities and simple components. The components
 --| should be synthesizable, and the functions can be used within synthesizable
---| components, unless marked with a "_tb" suffix (or is the function n_bits).
+--| components, unless marked with a "_tb" suffix (or if the function n_bits).
 --| @author         Richard James Howe
 --| @copyright      Copyright 2017 Richard James Howe
 --| @license        MIT
@@ -28,7 +28,11 @@ package util is
 	end component;
 
 	component reg
-		generic(N: positive);
+		generic(
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+
+			N:                   positive);
 		port(
 			clk: in  std_ulogic;
 			rst: in  std_ulogic;
@@ -38,7 +42,10 @@ package util is
 	end component;
 
 	component shift_register
-		generic(N: positive);
+		generic(
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+			N:                   positive);
 		port(
 			clk:     in  std_ulogic;
 			rst:     in  std_ulogic;
@@ -57,7 +64,12 @@ package util is
 	end component;
 
 	component timer_us
-		generic(clock_frequency: positive; timer_period_us: natural);
+		generic(
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+
+			clock_frequency:     positive; 
+			timer_period_us:     natural);
 		port(
 			clk: in  std_ulogic;
 			rst: in  std_ulogic;
@@ -69,11 +81,14 @@ package util is
 	end component;
 
 	component rising_edge_detector is
-	port(
-		clk:    in  std_ulogic;
-		rst:    in  std_ulogic;
-		di:     in  std_ulogic;
-       		do:     out std_ulogic);
+		generic(
+			asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns); -- simulation only
+		port(
+			clk:    in  std_ulogic;
+			rst:    in  std_ulogic;
+			di:     in  std_ulogic;
+			do:     out std_ulogic);
 	end component;
 
 	component rising_edge_detector_tb is
@@ -81,17 +96,22 @@ package util is
 	end component;
 
 	component rising_edge_detectors is
-	generic(N: positive);
-	port(
-		clk:    in  std_ulogic;
-		rst:    in  std_ulogic;
-		di:     in  std_ulogic_vector(N - 1 downto 0);
-       		do:     out std_ulogic_vector(N - 1 downto 0));
+		generic(
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+
+			N:                   positive);
+		port(
+			clk:    in  std_ulogic;
+			rst:    in  std_ulogic;
+			di:     in  std_ulogic_vector(N - 1 downto 0);
+			do:     out std_ulogic_vector(N - 1 downto 0));
 	end component;
 
 
 	-- @note half_adder test bench is folded in to full_adder_tb
 	component half_adder is
+		generic(delay:               time    := 0 ns); -- simulation only
 		port(
 			a:     in  std_ulogic;
 			b:     in  std_ulogic;
@@ -100,6 +120,7 @@ package util is
 	end component;
 
 	component full_adder is
+		generic(delay:               time    := 0 ns); -- simulation only
 		port(
 			x:     in    std_ulogic;
 			y:     in    std_ulogic;
@@ -113,8 +134,12 @@ package util is
 	end component;
 
 	component fifo is
-		generic (data_width: positive;
-			fifo_depth: positive);
+		generic (
+ 			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+
+			data_width:          positive;
+			fifo_depth:          positive);
 		port (
 			clk:   in  std_ulogic;
 			rst:   in  std_ulogic;
@@ -134,7 +159,10 @@ package util is
 
 	component counter is
 		generic(
-			N: positive);
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+
+			N:                    positive);
 		port(
 			clk:     in  std_ulogic;
 			rst:     in  std_ulogic;
@@ -152,15 +180,19 @@ package util is
 	end component;
 
 	component lfsr is
-		generic(constant tap: std_ulogic_vector);
+		generic(
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+
+			constant tap:        std_ulogic_vector);
 		port
 		(
 			clk: in  std_ulogic;
 			rst: in  std_ulogic;
 			ce:  in  std_ulogic := '1';
 			we:  in  std_ulogic;
-			di:  in  std_ulogic_vector(tap'high + 1 to tap'low);
-			do:  out std_ulogic_vector(tap'high + 1 to tap'low));
+			di:  in  std_ulogic_vector(tap'high + 1 downto tap'low);
+			do:  out std_ulogic_vector(tap'high + 1 downto tap'low));
 	end component;
 
 	component lfsr_tb is
@@ -169,7 +201,10 @@ package util is
 
 	component io_pins is
 		generic(
-			N: positive);
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+
+			N:                   positive);
 		port
 		(
 			clk:         in    std_ulogic;
@@ -189,7 +224,8 @@ package util is
 	type file_format is (FILE_HEX, FILE_BINARY, FILE_NONE);
 
 	component dual_port_block_ram is
-	generic(addr_length: positive    := 12;
+	generic(delay:       time        := 0 ns; -- simulation only
+		addr_length: positive    := 12;
 		data_length: positive    := 16;
 		file_name:   string      := "memory.bin";
 		file_type:   file_format := FILE_BINARY);
@@ -211,7 +247,8 @@ package util is
 	end component;
 
 	component single_port_block_ram is
-	generic(addr_length: positive    := 12;
+	generic(delay:       time        := 0 ns; -- simulation only
+		addr_length: positive    := 12;
 		data_length: positive    := 16;
 		file_name:   string      := "memory.bin";
 		file_type:   file_format := FILE_BINARY);
@@ -225,7 +262,11 @@ package util is
 	end component;
 
 	component data_source is
-		generic(addr_length: positive    := 12;
+		generic(
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+       
+			addr_length: positive    := 12;
 			data_length: positive    := 16;
 			file_name:   string      := "memory.bin";
 			file_type:   file_format := FILE_BINARY);
@@ -243,7 +284,11 @@ package util is
 	end component;
 
 	component ucpu is
-		generic(width: positive range 8 to 32 := 8);
+		generic(
+			asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+
+			width:               positive range 8 to 32 := 8);
 		port(
 			clk, rst: in  std_ulogic;
 
@@ -263,7 +308,11 @@ package util is
 	end component;
 
 	component restoring_divider is
-		generic(N: positive);
+		generic(
+			asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+       
+			N:                   positive);
 		port(
 			clk:   in  std_ulogic;
 			rst:   in  std_ulogic := '0';
@@ -280,7 +329,8 @@ package util is
 	end component;
 
 	component debounce_us is
-		generic(clock_frequency: positive; timer_period_us: natural);
+		generic(delay:       time        := 0 ns; -- simulation only
+			clock_frequency: positive; timer_period_us: natural);
 		port(
 			clk:   in  std_ulogic;
 			di:    in  std_ulogic;
@@ -288,7 +338,8 @@ package util is
 	end component;
 
 	component debounce_block_us is
-		generic(N: positive; clock_frequency: positive; timer_period_us: natural);
+		generic(delay:       time        := 0 ns; -- simulation only
+			N: positive; clock_frequency: positive; timer_period_us: natural);
 		port(
 			clk:   in  std_ulogic;
 			di:    in  std_ulogic_vector(N - 1 downto 0);
@@ -300,6 +351,9 @@ package util is
 	end component;
 
 	component state_changed is
+		generic(
+			asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns); -- simulation only
 		port(
 			clk: in  std_ulogic;
 			rst: in  std_ulogic;
@@ -308,12 +362,26 @@ package util is
 	end component;
 
 	component state_block_changed is
-		generic(N: positive);
+		generic(
+			asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only
+       
+			N:                   positive);
 		port(
 			clk: in  std_ulogic;
 			rst: in  std_ulogic;
 			di:  in  std_ulogic_vector(N - 1 downto 0);
 			do:  out std_ulogic_vector(N - 1 downto 0));
+	end component;
+
+	component reset_generator is
+		generic (
+			delay:            time     := 0 ns;  -- simulation only
+			clock_frequency:  positive;
+			reset_period_us:  natural  := 0);
+		port(
+			clk: in  std_logic := 'X';
+			rst: out std_logic := '0'); -- reset out!
 	end component;
 
 	function max(a: natural; b: natural) return natural;
@@ -381,7 +449,7 @@ package body util is
 		return n_bits(x'high);
 	end function;
 
-	-- https://stackoverflow.com/questions/13584307
+	-- <https://stackoverflow.com/questions/13584307>
 	function reverse (a: in std_ulogic_vector) return std_ulogic_vector is
 		variable result: std_ulogic_vector(a'range);
 		alias aa: std_ulogic_vector(a'reverse_range) is a;
@@ -730,9 +798,11 @@ use ieee.numeric_std.all;
 
 entity reg is
 	generic(
-		N: positive);
-	port
-	(
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+
+		N:                   positive);
+	port(
 		clk: in  std_ulogic;
 		rst: in  std_ulogic;
 		we:  in  std_ulogic;
@@ -747,10 +817,14 @@ begin
 
 	process(rst, clk)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			r_c <= (others => '0');
 		elsif rising_edge(clk) then
-			r_c <= r_n;
+			if rst = '1' and not asynchronous_reset then
+				r_c <= (others => '0');
+			else
+				r_c <= r_n;
+			end if;
 		end if;
 	end process;
 
@@ -772,15 +846,18 @@ use ieee.numeric_std.all;
 
 -- https://stackoverflow.com/questions/36342960/optional-ports-in-vhdl
 entity shift_register is
-	generic(N: positive);
-	port
-	(
+	generic(
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+		N:                   positive);
+	port(
 		clk:     in  std_ulogic;
 		rst:     in  std_ulogic;
 		we:      in  std_ulogic;
 		di:      in  std_ulogic;
 		do:      out std_ulogic;
 
+		-- optional
 		load_we: in  std_ulogic := '0';
 		load_i:  in  std_ulogic_vector(N - 1 downto 0) := (others => '0');
 		load_o:  out std_ulogic_vector(N - 1 downto 0));
@@ -794,10 +871,14 @@ begin
 
 	process(rst, clk)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			r_c <= (others => '0');
 		elsif rising_edge(clk) then
-			r_c <= r_n;
+			if rst = '1' and not asynchronous_reset then
+				r_c <= (others => '0');
+			else
+				r_c <= r_n;
+			end if;
 		end if;
 	end process;
 
@@ -871,12 +952,15 @@ use work.util.n_bits;
 
 entity timer_us is
 	generic(
-		clock_frequency: positive;
-		timer_period_us: positive := 1);
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+
+		clock_frequency:     positive; 
+		timer_period_us:     natural);
 	port(
-		clk:  in std_ulogic := 'X';
-		rst:  in std_ulogic := 'X';
-		co:  out std_ulogic := '0');
+		clk: in  std_ulogic;
+		rst: in  std_ulogic;
+		co:  out std_ulogic);
 end timer_us;
 
 architecture rtl of timer_us is
@@ -886,10 +970,14 @@ architecture rtl of timer_us is
 begin
 	process (clk, rst)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			c_c <= (others => '0');
 		elsif rising_edge(clk) then
-			c_c <= c_n;
+			if rst = '1' and not asynchronous_reset then
+				c_c <= (others => '0');
+			else
+				c_c <= c_n;
+			end if;
 		end if;
 	end process;
 
@@ -945,11 +1033,14 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity rising_edge_detector is
-port(
-	clk:    in  std_ulogic;
-	rst:    in  std_ulogic;
-	di:     in  std_ulogic;
-	do:     out std_ulogic);
+	generic(
+		asynchronous_reset:  boolean := true;   -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns); -- simulation only
+	port(
+		clk:    in  std_ulogic;
+		rst:    in  std_ulogic;
+		di:     in  std_ulogic;
+		do:     out std_ulogic);
 end;
 
 architecture rtl of rising_edge_detector is
@@ -958,12 +1049,17 @@ architecture rtl of rising_edge_detector is
 begin
 	red: process(clk, rst)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			sin_0 <= '0';
 			sin_1 <= '0';
 		elsif rising_edge(clk) then
-			sin_0 <= di;
-			sin_1 <= sin_0;
+			if rst = '1' and not asynchronous_reset then
+				sin_0 <= '0';
+				sin_1 <= '0';
+			else
+				sin_0 <= di;
+				sin_1 <= sin_0;
+			end if;
 		end if;
 	end process;
 	do <= not sin_1 and sin_0;
@@ -1016,18 +1112,23 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity rising_edge_detectors is
-generic(N: positive);
-port(
-	clk:    in  std_ulogic;
-	rst:    in  std_ulogic;
-	di:     in  std_ulogic_vector(N - 1 downto 0);
-	do:     out std_ulogic_vector(N - 1 downto 0));
+	generic(
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+
+		N:                   positive);
+	port(
+		clk:    in  std_ulogic;
+		rst:    in  std_ulogic;
+		di:     in  std_ulogic_vector(N - 1 downto 0);
+		do:     out std_ulogic_vector(N - 1 downto 0));
 end entity;
 
 architecture structural of rising_edge_detectors is
 begin
 	changes: for i in N - 1 downto 0 generate
 		d_instance: work.util.rising_edge_detector
+			generic map(asynchronous_reset => asynchronous_reset, delay => delay)
 			port map(clk => clk, rst => rst, di => di(i), do => do(i));
 	end generate;
 end architecture;
@@ -1039,6 +1140,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity half_adder is
+	generic(delay:               time    := 0 ns); -- simulation only
 	port(
 		a:     in  std_ulogic;
 		b:     in  std_ulogic;
@@ -1060,6 +1162,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 entity full_adder is
+	generic(delay:               time    := 0 ns); -- simulation only
 	port(
 		x:     in    std_ulogic;
 		y:     in    std_ulogic;
@@ -1071,8 +1174,8 @@ end entity;
 architecture rtl of full_adder is
 	signal carry1, carry2, sum1: std_ulogic;
 begin
-	ha1: entity work.half_adder port map(a => x,    b => y, sum => sum1, carry => carry1);
-	ha2: entity work.half_adder port map(a => sum1, b => z, sum => sum,  carry => carry2);
+	ha1: entity work.half_adder generic map(delay => delay) port map(a => x,    b => y, sum => sum1, carry => carry1);
+	ha2: entity work.half_adder generic map(delay => delay) port map(a => sum1, b => z, sum => sum,  carry => carry2);
 	carry <= carry1 or carry2;
 end architecture;
 
@@ -1142,18 +1245,23 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity fifo is
-	generic(
-		data_width: positive;
-		fifo_depth: positive);
-	port(
+	generic (
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+
+		data_width:          positive;
+		fifo_depth:          positive);
+	port (
 		clk:   in  std_ulogic;
 		rst:   in  std_ulogic;
+		di:    in  std_ulogic_vector(data_width - 1 downto 0);
 		we:    in  std_ulogic;
-		di:    in  std_ulogic_vector (data_width - 1 downto 0);
 		re:    in  std_ulogic;
-		do:    out std_ulogic_vector (data_width - 1 downto 0);
-		empty: out std_ulogic := '1';
-		full:  out std_ulogic := '0');
+		do:    out std_ulogic_vector(data_width - 1 downto 0);
+
+		-- optional
+		full:  out std_ulogic := '0';
+		empty: out std_ulogic := '1');
 end fifo;
 
 architecture behavior of fifo is
@@ -1175,42 +1283,47 @@ begin
 
 	process (rst, clk) is
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			windex <= 0;
 			rindex <= 0;
 			count  <= 0;
 		elsif rising_edge(clk) then
-			-- @todo Allow more control over behavior with options specified by a generic
-			-- @todo Add report/warnings
-			if we = '1' and re = '0' then
-				if is_full = '0' then
-					count <= count + 1;
+			if rst = '1' and not asynchronous_reset then
+				windex <= 0;
+				rindex <= 0;
+				count  <= 0;
+			else
+				-- @todo Allow more control over behavior with options specified by a generic
+				-- @todo Add report/warnings
+				if we = '1' and re = '0' then
+					if is_full = '0' then
+						count <= count + 1;
+					end if;
+				elsif we = '0' and re = '1' then
+					if is_empty = '0' then
+						count <= count - 1;
+					end if;
 				end if;
-			elsif we = '0' and re = '1' then
-				if is_empty = '0' then
-					count <= count - 1;
+
+				if re = '1' and is_empty = '0' then
+					if rindex = (fifo_depth - 1) then
+						rindex <= 0;
+					else
+						rindex <= rindex + 1;
+					end if;
+				end if;
+
+				if we = '1' and is_full = '0' then
+					-- @todo make configurable; write to current or next
+					if windex = (fifo_depth - 1) then
+						data(0) <= di;
+						windex <= 0;
+					else
+						data(windex + 1) <= di;
+						windex <= windex + 1;
+					end if;
 				end if;
 			end if;
-
-			if re = '1' and is_empty = '0' then
-				if rindex = (fifo_depth - 1) then
-					rindex <= 0;
-				else
-					rindex <= rindex + 1;
-				end if;
-			end if;
-
-			if we = '1' and is_full = '0' then
-				-- @todo make configurable; write to current or next
-				if windex = (fifo_depth - 1) then
-					data(0) <= di;
-					windex <= 0;
-				else
-					data(windex + 1) <= di;
-					windex <= windex + 1;
-				end if;
-			end if;
-
 		end if;
 	end process;
 end behavior;
@@ -1312,7 +1425,10 @@ use ieee.numeric_std.all;
 
 entity counter is
 	generic(
-		N: positive);
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+
+		N:                    positive);
 	port(
 		clk:     in  std_ulogic;
 		rst:     in  std_ulogic;
@@ -1320,6 +1436,7 @@ entity counter is
 		cr:      in  std_ulogic;
 		dout:    out std_ulogic_vector(N - 1 downto 0);
 
+		-- optional
 		load_we: in  std_ulogic := '0';
 		load_i:  in  std_ulogic_vector(N - 1 downto 0) := (others => '0'));
 end entity;
@@ -1331,10 +1448,14 @@ begin
 
 	process(clk, rst)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			c_c <= (others => '0');
 		elsif rising_edge(clk) then
-			c_c <= c_n;
+			if rst = '1' and not asynchronous_reset then
+				c_c <= (others => '0');
+			else
+				c_c <= c_n;
+			end if;
 		end if;
 	end process;
 
@@ -1468,13 +1589,17 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity lfsr is
-	generic(constant tap: std_ulogic_vector);
+	generic(
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+
+		constant tap:        std_ulogic_vector);
 	port
 	(
 		clk: in  std_ulogic;
 		rst: in  std_ulogic;
-		we:  in  std_ulogic;
 		ce:  in  std_ulogic := '1';
+		we:  in  std_ulogic;
 		di:  in  std_ulogic_vector(tap'high + 1 downto tap'low);
 		do:  out std_ulogic_vector(tap'high + 1 downto tap'low));
 end entity;
@@ -1486,10 +1611,14 @@ begin
 
 	process(rst, clk)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			r_c <= (others => '0');
 		elsif rising_edge(clk) then
-			r_c <= r_n;
+			if rst = '1' and not asynchronous_reset then
+				r_c <= (others => '0');
+			else
+				r_c <= r_n;
+			end if;
 		end if;
 	end process;
 
@@ -1498,7 +1627,6 @@ begin
 		if we = '1' then
 			r_n <= di;
 		elsif ce = '1' then
-
 			r_n(r_n'high) <= r_c(r_c'low);
 
 			for i in tap'high downto tap'low loop
@@ -1570,7 +1698,10 @@ use ieee.numeric_std.all;
 
 entity io_pins is
 	generic(
-		N: positive);
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+
+		N:                   positive);
 	port
 	(
 		clk:         in    std_ulogic;
@@ -1588,12 +1719,14 @@ architecture rtl of io_pins is
 	signal din_o:     std_ulogic_vector(din'range)     := (others => '0');
 begin
 
-	control_r: entity work.reg generic map(N => N) port map(clk => clk, rst => rst, di => control, we => control_we, do => control_o);
-	din_r:     entity work.reg generic map(N => N) port map(clk => clk, rst => rst, di => din,     we => din_we,     do => din_o);
+	control_r: entity work.reg generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => N) 
+				port map(clk => clk, rst => rst, di => control, we => control_we, do => control_o);
+	din_r:     entity work.reg generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => N)
+				port map(clk => clk, rst => rst, di => din,     we => din_we,     do => din_o);
 
 	pins_i: for i in control_o'range generate
-		dout(i) <= pins(i)  when control_o(i) = '0' else '0';
-		pins(i) <= din_o(i) when control_o(i) = '1' else 'Z';
+		dout(i) <= pins(i)  when control_o(i) = '0' else '0' after delay;
+		pins(i) <= din_o(i) when control_o(i) = '1' else 'Z' after delay;
 	end generate;
 
 end architecture;
@@ -1693,7 +1826,8 @@ entity dual_port_block_ram is
 	-- These default values for addr_length and data_length have been
 	-- chosen so as to fill the block RAM available on a Spartan 6.
 	--
-	generic(addr_length: positive    := 12;
+	generic(delay:       time        := 0 ns; -- simulation only
+		addr_length: positive    := 12;
 		data_length: positive    := 16;
 		file_name:   string      := "memory.bin";
 		file_type:   file_format := FILE_BINARY);
@@ -1763,9 +1897,9 @@ begin
 				ram(to_integer(unsigned(a_addr))) := a_din;
 			end if;
 			if a_dre = '1' then
-				a_dout <= ram(to_integer(unsigned(a_addr)));
+				a_dout <= ram(to_integer(unsigned(a_addr))) after delay;
 			else
-				a_dout <= (others => '0');
+				a_dout <= (others => '0') after delay;
 			end if;
 		end if;
 	end process;
@@ -1777,9 +1911,9 @@ begin
 				ram(to_integer(unsigned(b_addr))) := b_din;
 			end if;
 			if b_dre = '1' then
-				b_dout <= ram(to_integer(unsigned(b_addr)));
+				b_dout <= ram(to_integer(unsigned(b_addr))) after delay;
 			else
-				b_dout <= (others => '0');
+				b_dout <= (others => '0') after delay;
 			end if;
 		end if;
 	end process;
@@ -1794,7 +1928,8 @@ use std.textio.all;
 use work.util.all;
 
 entity single_port_block_ram is
-	generic(addr_length: positive    := 12;
+	generic(delay:       time        := 0 ns; -- simulation only
+		addr_length: positive    := 12;
 		data_length: positive    := 16;
 		file_name:   string      := "memory.bin";
 		file_type:   file_format := FILE_BINARY);
@@ -1857,9 +1992,9 @@ begin
 			end if;
 
 			if dre = '1' then
-				dout <= ram(to_integer(unsigned(addr)));
+				dout <= ram(to_integer(unsigned(addr))) after delay;
 			else
-				dout <= (others => '0');
+				dout <= (others => '0') after delay;
 			end if;
 		end if;
 	end process;
@@ -1886,7 +2021,11 @@ use work.util.counter;
 use work.util.all;
 
 entity data_source is
-	generic(addr_length: positive    := 12;
+	generic(
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+       
+		addr_length: positive    := 12;
 		data_length: positive    := 16;
 		file_name:   string      := "memory.bin";
 		file_type:   file_format := FILE_BINARY);
@@ -1908,7 +2047,9 @@ architecture structural of data_source is
 begin
 	count: work.util.counter
 		generic map(
-			N => addr_length)
+			asynchronous_reset => asynchronous_reset,
+			delay              => delay,
+			N                  => addr_length)
 		port map(
 			clk      =>  clk,
 			rst      =>  rst,
@@ -1958,7 +2099,8 @@ end architecture;
 -- state to fetch the operand and another register, or more states.
 --
 -- @todo Test in hardware, document, make assembler, and a project that
--- just contains an instantiation of this core.
+-- just contains an instantiation of this core, Select CPU behaviour with
+-- generics (instructions, branch conditions...)
 --
 
 library ieee,work;
@@ -1966,7 +2108,11 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity ucpu is
-	generic(width: positive range 8 to 32 := 8);
+	generic(
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+
+		width:               positive range 8 to 32 := 8);
 	port(
 		clk, rst: in  std_ulogic;
 
@@ -1998,14 +2144,20 @@ begin
 
 	process(clk, rst)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			a_c     <= (others => '0');
 			pc_c    <= (others => '0');
 			state_c <= '0';
 		elsif rising_edge(clk) then
-			a_c     <= a_n;
-			pc_c    <= pc_n;
-			state_c <= state_n;
+			if rst = '1' and not asynchronous_reset then
+				a_c     <= (others => '0');
+				pc_c    <= (others => '0');
+				state_c <= '0';
+			else
+				a_c     <= a_n;
+				pc_c    <= pc_n;
+				state_c <= state_n;
+			end if;
 		end if;
 	end process;
 
@@ -2117,16 +2269,20 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity restoring_divider is
-	generic(N: positive);
+	generic(
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+
+		N:                   positive);
 	port(
 		clk:   in  std_ulogic;
 		rst:   in  std_ulogic := '0';
 
-		a:     in  unsigned(N - 1 downto 0);
-		b:     in  unsigned(N - 1 downto 0);
+		a:     in  std_ulogic_vector(N - 1 downto 0);
+		b:     in  std_ulogic_vector(N - 1 downto 0);
 		start: in  std_ulogic;
 		done:  out std_ulogic;
-		c:     out unsigned(N - 1 downto 0));
+		c:     out std_ulogic_vector(N - 1 downto 0));
 end entity;
 
 architecture rtl of restoring_divider is
@@ -2137,24 +2293,32 @@ architecture rtl of restoring_divider is
 	signal e_c, e_n: std_ulogic         := '0';
 	signal count_c, count_n: unsigned(work.util.n_bits(N) downto 0) := (others => '0');
 begin
-	c <= o_n;
+	c <= std_ulogic_vector(o_n);
 
 	process(clk, rst)
-	begin
-		if rst = '1' then
+		procedure reset is
+		begin
 			a_c      <=  (others  =>  '0');
 			b_c      <=  (others  =>  '0');
 			m_c      <=  (others  =>  '0');
 			o_c      <=  (others  =>  '0');
 			e_c      <=  '0';
 			count_c  <=  (others  =>  '0');
+		end procedure;
+	begin
+		if rst = '1' and asynchronous_reset then
+			reset;
 		elsif rising_edge(clk) then
-			a_c      <=  a_n;
-			b_c      <=  b_n;
-			m_c      <=  m_n;
-			o_c      <=  o_n;
-			e_c      <=  e_n;
-			count_c  <=  count_n;
+			if rst = '1' and not asynchronous_reset then
+				reset;
+			else
+				a_c      <=  a_n;
+				b_c      <=  b_n;
+				m_c      <=  m_n;
+				o_c      <=  o_n;
+				e_c      <=  e_n;
+				count_c  <=  count_n;
+			end if;
 		end if;
 	end process;
 
@@ -2169,8 +2333,8 @@ begin
 		o_n      <=  o_c;
 		count_n  <=  count_c;
 		if start = '1' then
-			a_n   <= a;
-			b_n   <= b;
+			a_n   <= unsigned(a);
+			b_n   <= unsigned(b);
 			m_v   := (others => '0');
 			e_n   <= '1';
 			o_n   <= (others => '0');
@@ -2214,9 +2378,9 @@ architecture testing of restoring_divider_tb is
 	constant clk_period: time     := 1000 ms / clock_frequency;
 	constant N:          positive := 8;
 
-	signal a: unsigned(N - 1 downto 0) := (others => '0');
-	signal b: unsigned(N - 1 downto 0) := (others => '0');
-	signal c: unsigned(N - 1 downto 0) := (others => '0');
+	signal a: std_ulogic_vector(N - 1 downto 0) := (others => '0');
+	signal b: std_ulogic_vector(N - 1 downto 0) := (others => '0');
+	signal c: std_ulogic_vector(N - 1 downto 0) := (others => '0');
 	signal start, done: std_ulogic := '0';
 
 	signal clk, rst: std_ulogic := '0';
@@ -2271,7 +2435,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity debounce_us is
-	generic(clock_frequency: positive; timer_period_us: natural);
+	generic(delay:       time        := 0 ns; -- simulation only 
+		clock_frequency: positive; timer_period_us: natural);
 	port(
 		clk:   in  std_ulogic;
 		di:    in  std_ulogic;
@@ -2284,8 +2449,10 @@ architecture rtl of debounce_us is
 begin
 	timer: work.util.timer_us
 		generic map(
-			clock_frequency => clock_frequency,
-			timer_period_us => timer_period_us)
+			delay              => delay,
+			asynchronous_reset => true,
+			clock_frequency    => clock_frequency,
+			timer_period_us    => timer_period_us)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -2294,13 +2461,14 @@ begin
 	process(clk)
 	begin
 		if rising_edge(clk) then
-			ff(0) <= di;
-			ff(1) <= ff(0);
-			rst   <= '0';
+			ff(0) <= di    after delay;
+			ff(1) <= ff(0) after delay;
 			if (ff(0) xor ff(1)) = '1' then
-				rst <= '1';
+				rst <= '1' after delay;
 			elsif done = '1' then
-				do  <= ff(1);
+				do  <= ff(1) after delay;
+			else
+				rst   <= '0';
 			end if;
 		end if;
 	end process;
@@ -2349,7 +2517,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity debounce_block_us is
-	generic(N: positive; clock_frequency: positive; timer_period_us: natural);
+	generic(delay:       time        := 0 ns; -- simulation only
+		N: positive; clock_frequency: positive; timer_period_us: natural);
 	port(
 		clk:   in  std_ulogic;
 		di:    in  std_ulogic_vector(N - 1 downto 0);
@@ -2361,6 +2530,7 @@ begin
 	debouncer: for i in N - 1 downto 0 generate
 		d_instance: work.util.debounce_us
 			generic map(
+				delay           => delay,
 				clock_frequency => clock_frequency,
 				timer_period_us => timer_period_us)
 			port map(clk => clk, di => di(i), do => do(i));
@@ -2375,6 +2545,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity state_changed is
+	generic(
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns); -- simulation only
 	port(
 		clk: in  std_ulogic;
 		rst: in  std_ulogic;
@@ -2387,10 +2560,14 @@ architecture rtl of state_changed is
 begin
 	process(clk, rst)
 	begin
-		if rst = '1' then
-			state_c <= (others => '0');
+		if rst = '1' and asynchronous_reset then
+			state_c <= (others => '0') after delay;
 		elsif rising_edge(clk) then
-			state_c <= state_n;
+			if rst = '1' and not asynchronous_reset then
+				state_c <= (others => '0') after delay;
+			else
+				state_c <= state_n after delay;
+			end if;
 		end if;
 	end process;
 
@@ -2398,8 +2575,8 @@ begin
 
 	process(di, state_c)
 	begin
-		state_n(0) <= state_c(1);
-		state_n(1) <= di;
+		state_n(0) <= state_c(1) after delay;
+		state_n(1) <= di after delay;
 	end process;
 end architecture;
 
@@ -2411,7 +2588,11 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity state_block_changed is
-	generic(N: positive);
+	generic(
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only
+
+		N:                   positive);
 	port(
 		clk: in  std_ulogic;
 		rst: in  std_ulogic;
@@ -2423,8 +2604,51 @@ architecture structural of state_block_changed is
 begin
 	changes: for i in N - 1 downto 0 generate
 		d_instance: work.util.state_changed
+			generic map(asynchronous_reset => asynchronous_reset, delay => delay)
 			port map(clk => clk, rst => rst, di => di(i), do => do(i));
 	end generate;
 end architecture;
 
 ------------------------- Change State Block --------------------------------------------------
+
+------------------------- Reset Signal Generator ----------------------------------------------
+-- @todo allow retriggering of interrupt, make a test bench
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.all;
+
+entity reset_generator is
+	generic (
+		delay:            time     := 0 ns;  -- simulation only
+		clock_frequency:  positive;
+		reset_period_us:  natural  := 0);
+	port(
+		clk: in  std_logic := 'X';
+		rst: out std_logic := '0'); -- reset out!
+end entity;
+
+architecture behaviour of reset_generator is
+	constant cycles:  natural := (clock_frequency / 1000000) * reset_period_us;
+	subtype  counter is unsigned(max(1, n_bits(cycles) - 1) downto 0);
+	signal   c_c, c_n: counter := (others => '0');
+begin
+	process (clk)
+	begin
+		if rising_edge(clk) then
+			c_c <= c_n after delay;
+		end if;
+	end process;
+
+	process (c_c)
+	begin
+		if c_c = (cycles - 1) then
+			c_n <= c_c after delay;
+			rst <= '0' after delay;
+		else
+			c_n <= c_c + 1 after delay;
+			rst <= '1' after delay;
+		end if;
+	end process;
+end architecture;
+------------------------- Reset Signal Generator ----------------------------------------------

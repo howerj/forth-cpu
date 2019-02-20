@@ -23,6 +23,10 @@ use work.util.state_block_changed;
 
 entity top is
 	generic(
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only, gate delay
+		reset_period_us:     natural := 1;
+
 		clock_frequency:      positive := 100_000_000;
 		uart_baud_rate:       positive := 115200;
 		uart_fifo_depth:      positive := 8);
@@ -155,11 +159,16 @@ begin
 -- The Main components
 -------------------------------------------------------------------------------
 
-------- Output assignments (Not in a process) ---------------------------------
+	cpu_wait   <= btnc_d; -- temporary testing measure only!
 
-	-- @warning These are both temporary measures for testing only!
-	-- rst        <= btnu_d;
-	cpu_wait   <= btnc_d;
+	system_reset: work.util.reset_generator
+	generic map(
+		delay           => delay,
+		clock_frequency => clock_frequency,
+		reset_period_us => reset_period_us)
+	port map(
+		clk        => clk,
+		rst        => rst);
 
 	irq_block: block
 		signal rx_fifo_not_empty: std_ulogic := '0';
@@ -177,7 +186,10 @@ begin
 		-- @note It might be best to move this into the IRQ handler,
 		-- to ensure all inputs are edge triggered.
 		irq_edges: work.util.rising_edge_detectors
-		generic map(N => 5)
+		generic map(
+			asynchronous_reset => asynchronous_reset,
+			delay              => delay,
+			N                  => 5)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -214,7 +226,10 @@ begin
 	end block;
 
 	core_0: entity work.core
-	generic map(number_of_interrupts => number_of_interrupts)
+	generic map(
+		asynchronous_reset   => asynchronous_reset,
+		delay                => delay,
+		number_of_interrupts => number_of_interrupts)
 	port map(
 -- synthesis translate_off
 		debug            => debug,
@@ -324,9 +339,11 @@ begin
 	--- UART ----------------------------------------------------------
 	uart_0: work.uart_pkg.uart_top
 		generic map(
-			baud_rate       => uart_baud_rate,
-			clock_frequency => clock_frequency,
-			fifo_depth      => uart_fifo_depth)
+			asynchronous_reset => asynchronous_reset,
+			delay              => delay,
+			baud_rate          => uart_baud_rate,
+			clock_frequency    => clock_frequency,
+			fifo_depth         => uart_fifo_depth)
 		port map(
 			clk             =>  clk,
 			rst             =>  rst,
@@ -344,7 +361,10 @@ begin
 
 	--- LED Output ----------------------------------------------------
 	led_output_reg_0: entity work.reg
-		generic map(N => ld'length)
+		generic map(
+			asynchronous_reset => asynchronous_reset,
+			delay              => delay,
+			N                  => ld'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -355,7 +375,10 @@ begin
 
 	--- Timer ---------------------------------------------------------
 	timer_0: entity work.timer
-	generic map(timer_length => timer_length)
+	generic map(
+		asynchronous_reset => asynchronous_reset,
+		delay              => delay,
+		timer_length       => timer_length)
 	port map(
 		clk       => clk,
 		rst       => rst,
@@ -367,6 +390,9 @@ begin
 
 	--- VGA -----------------------------------------------------------
 	vt100_0: work.vga_pkg.vt100
+	generic map(
+		asynchronous_reset => asynchronous_reset,
+		delay              => delay)
 	port map(
 		clk         =>  clk,
 		clk25MHz    =>  clk25MHz,
@@ -380,6 +406,8 @@ begin
 	--- Keyboard ------------------------------------------------------
 	keyboard_0: work.kbd_pkg.keyboard
 	generic map(
+		asynchronous_reset        => asynchronous_reset,
+		delay                     => delay,
 		clock_frequency           => clock_frequency,
 		ps2_debounce_counter_size => 8)
 	port map(
@@ -397,6 +425,8 @@ begin
 	--- LED 8 Segment display -----------------------------------------
 	ledseg_0: entity work.led_8_segment_display
 	generic map(
+		asynchronous_reset     => asynchronous_reset,
+		delay                  => delay,
 		number_of_led_displays => number_of_led_displays,
 		clock_frequency        => clock_frequency,
 		use_bcd_not_hex        => false)
@@ -414,9 +444,10 @@ begin
 	--- Buttons -------------------------------------------------------
 	button_debouncer: work.util.debounce_block_us
 	generic map(
-		N               => 5,
-		clock_frequency => clock_frequency,
-		timer_period_us => timer_period_us)
+		delay              => delay,
+		N                  => 5,
+		clock_frequency    => clock_frequency,
+		timer_period_us    => timer_period_us)
 	port map(
 		clk   => clk,
 		di(0) => btnu,
@@ -435,7 +466,10 @@ begin
 		signal any_changed_signals: std_ulogic := '0';
 	begin
 		state_changed: work.util.state_block_changed
-		generic map(N => changed_signals'length)
+		generic map(
+			asynchronous_reset => asynchronous_reset,
+			delay              => delay,
+			N                  => changed_signals'length)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -449,7 +483,10 @@ begin
 		any_changed_signals <= '1' when changed_signals /= "00000" else '0';
 
 		state_changed_reg: work.util.reg
-		generic map(N => 1)
+		generic map(
+			asynchronous_reset => asynchronous_reset,
+			delay              => delay,
+			N                  => 1)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -463,6 +500,7 @@ begin
 	--- Switches ------------------------------------------------------
 	sw_debouncer: work.util.debounce_block_us
 		generic map(
+			delay           => delay,
 			N               => sw'length,
 			clock_frequency => clock_frequency,
 			timer_period_us => timer_period_us)
@@ -471,6 +509,7 @@ begin
 
 	--- Memory Interface ----------------------------------------------
 	ram_interface_0: entity work.ram_interface
+	generic map(asynchronous_reset => asynchronous_reset, delay => delay)
 	port map(
 		clk               =>  clk,
 		rst               =>  rst,

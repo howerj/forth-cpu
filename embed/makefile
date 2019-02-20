@@ -12,4 +12,4 @@ embed.hex: hex new.blk
 	cp $@ ..
 
 clean:
-	rm -f *.o embed new.blk embed.hex
+	rm -f *.o embed new.blk embed.hex hex

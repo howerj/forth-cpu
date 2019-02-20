@@ -21,6 +21,9 @@ package led_pkg is
 
 	component led_8_segment_display is
 		generic(
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only, gate delay
+
 			clock_frequency:        positive;
 			use_bcd_not_hex:        boolean := true;
 			refresh_rate_us:        natural := 1500;
@@ -64,6 +67,9 @@ use work.led_pkg.all;
 
 entity led_8_segment_display is
 	generic(
+		asynchronous_reset:     boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:                  time    := 0 ns; -- simulation only, gate delay
+
 		clock_frequency:        positive;
 		use_bcd_not_hex:        boolean  := true;
 		refresh_rate_us:        natural  := 1500;
@@ -193,10 +199,13 @@ architecture rtl of led_8_segment_display is
 	signal leds_reg_o: std_ulogic_vector(leds'range) := (others => '0');
 	signal leds_reg_we_o: std_ulogic := '0';
 begin
-	an <= invert(shift_reg);
+	an <= invert(shift_reg) after delay;
 
 	segment_reg: entity work.reg
-		generic map(N => number_of_led_displays * character_length)
+		generic map(
+			asynchronous_reset => asynchronous_reset,
+			delay              => delay,
+			N                  => number_of_led_displays * character_length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -205,7 +214,10 @@ begin
 			do  => leds_reg_o);
 
 	segment_reg_re: entity work.reg
-		generic map(N => 1)
+		generic map(
+			asynchronous_reset => asynchronous_reset,
+			delay              => delay,
+			N                  => 1)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -216,7 +228,9 @@ begin
 	led_gen: for i in number_of_led_displays - 1 downto 0 generate
 		led_i: entity work.reg
 			generic map(
-				N   => character_length)
+				asynchronous_reset => asynchronous_reset,
+				delay              => delay,
+				N                  => character_length)
 			port map(
 				clk => clk,
 				rst => rst,
@@ -227,31 +241,40 @@ begin
 
 	timer: entity work.timer_us
 		generic map(
-			clock_frequency => clock_frequency,
-			timer_period_us => refresh_rate_us)
+			asynchronous_reset => asynchronous_reset,
+			delay              => delay,
+			clock_frequency    => clock_frequency,
+			timer_period_us    => refresh_rate_us)
 		port map(
 			clk             => clk,
 			rst             => rst,
 			co              => do_shift);
 
-	process(clk, do_shift, shift_reg)
+	process(rst, clk, do_shift, shift_reg)
 	begin
-		if rising_edge(clk) then
-			if do_shift = '1' then
-				shift_reg <= shift_reg(number_of_led_displays - 2 downto 0) & shift_reg(number_of_led_displays - 1);
+		if rst = '1' and asynchronous_reset then
+			shift_reg    <= (others => '0') after delay;
+			shift_reg(0) <= '1' after delay;
+		elsif rising_edge(clk) then
+			if rst = '1' and not asynchronous_reset then
+				shift_reg    <= (others => '0') after delay;
+				shift_reg(0) <= '1' after delay;
+			else
+				if do_shift = '1' then
+					shift_reg <= shift_reg(number_of_led_displays - 2 downto 0) & shift_reg(number_of_led_displays - 1) after delay;
+				else
+					shift_reg <= shift_reg after delay;
+				end if;
 			end if;
-		else
-			shift_reg <= shift_reg;
 		end if;
 	end process;
 
 	process(leds_o, shift_reg)
 	begin
 		ka <= (others => '0');
-
 		for i in  number_of_led_displays - 1 downto 0 loop
 			if '1' = shift_reg(number_of_led_displays - i - 1) then
-				ka <= char_to_8segment(leds_o(i*character_length + character_length - 1 downto (i*character_length)));
+				ka <= char_to_8segment(leds_o(i*character_length + character_length - 1 downto (i*character_length))) after delay;
 			end if;
 		end loop;
 	end process;

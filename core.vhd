@@ -28,7 +28,10 @@ package core_pkg is
 	end record;
 
 	component core is
-	generic(number_of_interrupts: positive := 8);
+	generic(
+		asynchronous_reset:   boolean  := true; -- use asynchronous reset if true, synchronous if false
+		delay:                time     := 0 ns; -- simulation only, gate delay
+		number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
 		debug:           out cpu_debug_interface;
@@ -54,6 +57,8 @@ package core_pkg is
 
 	component interrupt_request_handler is
 	generic(
+		asynchronous_reset:     boolean  := true; -- use asynchronous reset if true, synchronous if false
+		delay:                  time     := 0 ns; -- simulation only, gate delay
 		number_of_interrupts:   positive := 8;
 		lowest_interrupt_first: boolean  := true);
 	port(
@@ -82,7 +87,10 @@ use work.util.file_format;
 use work.util.FILE_HEX;
 
 entity core is
-	generic(number_of_interrupts: positive := 8);
+	generic(
+		asynchronous_reset:   boolean  := true; -- use asynchronous reset if true, synchronous if false
+		delay:                time     := 0 ns; -- simulation only, gate delay
+		number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
 		debug:           out cpu_debug_interface;
@@ -133,7 +141,7 @@ begin
 	-- synthesis translate_on
 
 	irqh_0: work.core_pkg.interrupt_request_handler
-	generic map(number_of_interrupts => number_of_interrupts)
+	generic map(asynchronous_reset => asynchronous_reset, delay => delay, number_of_interrupts => number_of_interrupts)
 	port map(
 		clk    => clk,
 		rst    => rst,
@@ -148,7 +156,7 @@ begin
 		mask_we => cpu_irc_mask_we);
 
 	h2_0: work.h2_pkg.h2 -- The actual CPU instance (H2)
-	generic map(interrupt_address_length => interrupt_address_length)
+	generic map(asynchronous_reset => asynchronous_reset, delay => delay, interrupt_address_length => interrupt_address_length)
 	port map(
 		clk       =>    clk,
 		rst       =>    rst,
@@ -176,6 +184,7 @@ begin
 
 	mem_h2_0: entity work.dual_port_block_ram
 	generic map(
+		delay         => delay,
 		addr_length   => address'length,
 		data_length   => word'length,
 		file_name     => file_name,
@@ -226,6 +235,8 @@ use work.util.priority;
 
 entity interrupt_request_handler is
 	generic(
+		asynchronous_reset:     boolean  := true; -- use asynchronous reset if true, synchronous if false
+		delay:                  time     := 0 ns; -- simulation only, gate delay
 		number_of_interrupts:   positive := 8;
 		lowest_interrupt_first: boolean  := true);
 	port(
@@ -253,8 +264,7 @@ architecture rtl of interrupt_request_handler is
 	signal mask_n: std_ulogic_vector(mask'range) := (others => '0');
 begin
 	irq_in: entity work.reg
-		generic map(
-			N      => 1)
+		generic map(asynchronous_reset => asynchronous_reset, delay => delay, N  => 1)
 		port map(
 			clk    =>  clk,
 			rst    =>  rst,
@@ -263,8 +273,7 @@ begin
 			do(0)  =>  irq_n);
 
 	irc_in: entity work.reg
-		generic map(
-			N    => number_of_interrupts)
+		generic map(asynchronous_reset => asynchronous_reset, delay => delay, N  => number_of_interrupts)
 		port map(
 			clk  =>  clk,
 			rst  =>  rst,
@@ -272,8 +281,7 @@ begin
 			di   =>  irc_i,
 			do   =>  irc_n);
 
-	irc_mask: entity work.reg generic map(
-			N    => number_of_interrupts)
+	irc_mask: entity work.reg generic map(asynchronous_reset => asynchronous_reset, delay => delay, N  => number_of_interrupts)
 		port map(
 			clk  =>  clk,
 			rst  =>  rst,
@@ -285,11 +293,11 @@ begin
 		variable addr_n: std_ulogic_vector(addr'range) := (others => '0');
 	begin
 		addr_n := priority(irc_n, not lowest_interrupt_first);
-		addr_o <= addr_n;
+		addr_o <= addr_n after delay;
 		if select_bit(mask_n, addr_n) = '1' then
-			irq_o <= irq_n;
+			irq_o <= irq_n after delay;
 		else
-			irq_o <= '0';
+			irq_o <= '0' after delay;
 		end if;
 	end process;
 

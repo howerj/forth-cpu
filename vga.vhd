@@ -57,6 +57,9 @@ package vga_pkg is
 			ctl => '0');
 
 	component vga_top is
+	generic(
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns); -- simulation only, gate delay
 	port(
 		clk:         in  std_ulogic;
 		clk25MHz:    in  std_ulogic;
@@ -77,6 +80,9 @@ package vga_pkg is
 
 	-- VGA test bench, not-synthesizeable
 	component vga_core is
+	generic(
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns); -- simulation only, gate delay
 	port (
 		rst:       in  std_ulogic;
 		clk25MHz:  in  std_ulogic;
@@ -96,7 +102,10 @@ package vga_pkg is
 	end component;
 
 	component losr is
-	generic (N: positive := 4);
+	generic (
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only, gate delay
+		N: positive := 4);
 	port
 	(
 		rst:  in  std_ulogic;
@@ -108,7 +117,10 @@ package vga_pkg is
 	end component;
 
 	component ctrm is
-	generic (M: positive := 8);
+	generic (
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only, gate delay
+		M: positive := 8);
 	port (
 		rst: in  std_ulogic; -- asynchronous rst
 		clk: in  std_ulogic;
@@ -118,6 +130,9 @@ package vga_pkg is
 	end component;
 
 	component vt100 is
+	generic (
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns); -- simulation only, gate delay
 	port(
 		clk:        in  std_ulogic;
 		clk25MHz:   in  std_ulogic;
@@ -135,7 +150,9 @@ package vga_pkg is
 
 	component atoi is
 		generic(
-			N:      positive := 16);
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+			delay:               time    := 0 ns; -- simulation only, gate delay
+			N:                   positive := 16);
 		port(
 			clk:    in  std_ulogic;
 			rst:    in  std_ulogic;
@@ -262,6 +279,9 @@ use work.vga_pkg.all;
 
 entity atoi is
 	generic(
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only, gate delay
+
 		N:      positive := 16);
 	port(
 		clk:    in  std_ulogic;
@@ -289,63 +309,67 @@ begin
 	process(clk, rst)
 		variable akk: unsigned((2 * N) - 1 downto 0) := (others => '0');
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			state_n   <= RESET;
 		elsif rising_edge(clk) then
-			state_c <= state_n;
-			c_c     <= c_n;
-			n_c     <= n_n;
-			f_c     <= f_n;
-			done_o  <= '0';
-
-			if state_c = RESET then
-				c_n     <= (others => '0');
-				n_n     <= (others => '0');
-				f_n     <= true;
-				state_n <= WAITING;
-			elsif state_c = WAITING then
-				if we = '1' then
-					c_n     <= unsigned(char);
-					state_n <= COMMAND;
-				end if;
-			elsif state_c = COMMAND then
-				state_n <= ACCUMULATE;
-				case c_c is
-				when x"30"  =>
-				when x"31"  =>
-				when x"32"  =>
-				when x"33"  =>
-				when x"34"  =>
-				when x"35"  =>
-				when x"36"  =>
-				when x"37"  =>
-				when x"38"  =>
-				when x"39"  =>
-				when others =>
-					state_n <= WRITE;
-				end case;
-			elsif state_c = ACCUMULATE then
-				if f_c then
-					f_n <= false;
-					n_n <= n_c + (c_c - x"30");
-				else
-					akk := n_c * to_unsigned(10, N);
-					n_n <= akk(N - 1 downto 0) + (c_c - x"30");
-				end if;
-				state_n <= WAITING;
-			elsif state_c = WRITE then
-				done_o  <= '1';
-				state_n <= FINISHED;
-			elsif state_c = FINISHED then
-				null; -- wait for a reset
+			if rst = '1' and not asynchronous_reset then
+				state_n <= RESET;
 			else
-				state_n <= RESET;
-				report "Invalid State" severity failure;
-			end if;
+				state_c <= state_n;
+				c_c     <= c_n;
+				n_c     <= n_n;
+				f_c     <= f_n;
+				done_o  <= '0';
 
-			if init = '1' then
-				assert state_c = FINISHED report "Lost Conversion" severity error;
-				state_n <= RESET;
+				if state_c = RESET then
+					c_n     <= (others => '0');
+					n_n     <= (others => '0');
+					f_n     <= true;
+					state_n <= WAITING;
+				elsif state_c = WAITING then
+					if we = '1' then
+						c_n     <= unsigned(char);
+						state_n <= COMMAND;
+					end if;
+				elsif state_c = COMMAND then
+					state_n <= ACCUMULATE;
+					case c_c is
+					when x"30"  =>
+					when x"31"  =>
+					when x"32"  =>
+					when x"33"  =>
+					when x"34"  =>
+					when x"35"  =>
+					when x"36"  =>
+					when x"37"  =>
+					when x"38"  =>
+					when x"39"  =>
+					when others =>
+						state_n <= WRITE;
+					end case;
+				elsif state_c = ACCUMULATE then
+					if f_c then
+						f_n <= false;
+						n_n <= n_c + (c_c - x"30");
+					else
+						akk := n_c * to_unsigned(10, N);
+						n_n <= akk(N - 1 downto 0) + (c_c - x"30");
+					end if;
+					state_n <= WAITING;
+				elsif state_c = WRITE then
+					done_o  <= '1';
+					state_n <= FINISHED;
+				elsif state_c = FINISHED then
+					null; -- wait for a reset
+				else
+					state_n <= RESET;
+					report "Invalid State" severity failure;
+				end if;
+
+				if init = '1' then
+					assert state_c = FINISHED report "Lost Conversion" severity error;
+					state_n <= RESET;
+				end if;
 			end if;
 		end if;
 	end process;
@@ -371,6 +395,9 @@ use ieee.numeric_std.all;
 use work.vga_pkg.all;
 
 entity vt100 is
+	generic(
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns); -- simulation only, gate delay
 	port(
 		clk:        in  std_ulogic;
 		clk25MHz:   in  std_ulogic;
@@ -448,7 +475,7 @@ architecture rtl of vt100 is
 	signal akk_char_o:  std_ulogic_vector(char'range)  := (others => '0');
 begin
 	accumulator_0: work.vga_pkg.atoi
-		generic map(N => number)
+		generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => number)
 		port map(
 			clk    => clk,
 			rst    => rst,
@@ -471,15 +498,15 @@ begin
 
 	x_minus_one         <= x_c - 1;
 	x_plus_one          <= x_c + 1;
-	x_underflow         <= true when x_minus_one > width  - 1 else false;
-	x_overflow          <= true when x_c         > width  - 1 else false;
+	x_underflow         <= x_minus_one > (width  - 1);
+	x_overflow          <= x_c         > (width  - 1);
 	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
 	x_plus_one_limited  <= to_unsigned(width - 1, x_c'length) when x_overflow else x_plus_one;
 
 	y_plus_one          <= y_c + 1;
 	y_minus_one         <= y_c - 1;
-	y_overflow          <= true when y_c         > height - 1 else false;
-	y_underflow         <= true when y_minus_one > height - 1 else false;
+	y_overflow          <= y_c         > (height - 1);
+	y_underflow         <= y_minus_one > (height - 1);
 	y_minus_one_limited <= (others => '0') when y_underflow else y_minus_one;
 	y_plus_one_limited  <= to_unsigned(height - 1, y_c'length) when y_overflow else y_plus_one;
 
@@ -506,6 +533,7 @@ begin
 		vga_ctr_we.ctl <= cursor_we;
 
 		vga_0: work.vga_pkg.vga_top
+		generic map(asynchronous_reset => asynchronous_reset, delay => delay)
 		port map(
 			clk               =>  clk,
 			clk25MHz          =>  clk25MHz,
@@ -530,255 +558,259 @@ begin
 		variable repeat:      boolean    := false;
 		variable exit_repeat: state_type := RESET;
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			state_c <= RESET;
 		elsif rising_edge(clk) then
-			x_c       <= x_n;
-			y_c       <= y_n;
-			c_c       <= c_n;
-			count_c   <= count_n;
-			limit_c   <= limit_n;
-			state_c   <= state_n;
-			n1_c      <= n1_n;
-			n2_c      <= n2_n;
-			data_we   <= '0';
-			cursor_we <= '0';
-			akk_init  <= '0';
-			attr_c    <= attr_n;
-			ctl_c     <= ctl_n;
-			conceal_c <= conceal_n;
+			if rst = '1' and not asynchronous_reset then
+				state_c <= RESET;
+			else
+				x_c       <= x_n;
+				y_c       <= y_n;
+				c_c       <= c_n;
+				count_c   <= count_n;
+				limit_c   <= limit_n;
+				state_c   <= state_n;
+				n1_c      <= n1_n;
+				n2_c      <= n2_n;
+				data_we   <= '0';
+				cursor_we <= '0';
+				akk_init  <= '0';
+				attr_c    <= attr_n;
+				ctl_c     <= ctl_n;
+				conceal_c <= conceal_n;
 
-			if state_c = RESET then
-				n1_n      <= (others => '0');
-				n2_n      <= (others => '0');
-				x_n       <= (others => '0');
-				y_n       <= (others => '0');
-				c_n       <= (others => '0');
-				count_n   <= (others => '0');
-				limit_n   <= (others => '0');
-				state_n   <= ACCEPT;
-				attr_n    <= attr_default;
-				ctl_n     <= ctl_default;
-				conceal_n <= false;
-			elsif state_c = ACCEPT then
-				if we = '1' then
-					c_n   <= unsigned(char);
-					state_n <= NORMAL;
-				end if;
-			elsif state_c = NORMAL then
-				case c_c is
-				when tab =>
-					x_n     <= (x_c and "1111000") + 8;
-					state_n <= ERASING;
-					c_n     <= blank;
-					limit_value := unsigned(addr and "1111111111000") + 8;
-					limit_n <= limit_value(limit_n'high + 3 downto limit_n'low + 3);
-					count_n <= unsigned(addr);
-				when cr =>
-					y_n     <= y_plus_one;
-					state_n <= WRAP;
-				when lf =>
-					x_n     <= (others => '0');
-					state_n <= WRITE;
-				when backspace =>
-					x_n     <= x_minus_one_limited;
-					state_n <= WRITE;
-				when esc =>
-					state_n <= CSI;
-				when others =>
-					data_we <= '1';
-					state_n <= ADVANCE;
-				end case;
-			elsif state_c = ADVANCE then
-				x_n     <= x_plus_one;
-				state_n <= WRAP;
-			elsif state_c = CSI then
-				if we = '1' then
-					c_n <= unsigned(char);
-					state_n <= COMMAND;
-				end if;
-			elsif state_c = COMMAND then
-				case c_c is
-				when ascii_c => -- @todo Erase screen as well
-					state_n <= RESET;
-				when lsqb =>
-					state_n  <= NUMBER1;
-					akk_init <= '1';
-				when others => -- Error
-					state_n <= ACCEPT;
-				end case;
-			elsif state_c = NUMBER1 then
-				if akk_done_o = '1' then
-					state_n <= COMMAND1;
-					n1_n    <= n_o(n1_n'range);
-				end if;
-			elsif state_c = COMMAND1 then
-				repeat := false;
-				case akk_char_o is
-				when x"41" => -- CSI n 'A' : CUU Cursor up
-					y_n         <= y_minus_one_limited;
-					exit_repeat := WRITE;
-					repeat      := true;
-				when x"42" => -- CSI n 'B' : CUD Cursor Down
-					y_n         <= y_plus_one_limited;
-					exit_repeat := LIMIT;
-					repeat      := true;
-				when x"43" => -- CSI n 'C' : CUF Cursor Forward
-					x_n         <= x_plus_one_limited;
-					exit_repeat := LIMIT;
-					repeat      := true;
-				when x"44" => -- CSI n 'D' : CUB Cursor Back
-					x_n         <= x_minus_one_limited;
-					exit_repeat := WRITE;
-					repeat      := true;
-				when x"45" => -- CSI n 'E'
-					y_n         <= y_minus_one_limited;
-					x_n         <= (others => '0');
-					exit_repeat := WRITE;
-					repeat      := true;
-				when x"46" => -- CSI n 'F'
-					y_n         <= y_plus_one_limited;
-					x_n         <= (others => '0');
-					exit_repeat := LIMIT;
-					repeat      := true;
-				when x"47" => -- CSI n 'G' : CHA Cursor Horizontal Absolute
-					x_n      <= n1_c(x_n'range);
-					state_n  <= LIMIT;
-				when x"4a" => -- CSI n 'J'
+				if state_c = RESET then
+					n1_n      <= (others => '0');
+					n2_n      <= (others => '0');
 					x_n       <= (others => '0');
 					y_n       <= (others => '0');
-					cursor_we <= '1';
-					state_n   <= ERASING;
-					c_n       <= blank;
+					c_n       <= (others => '0');
 					count_n   <= (others => '0');
-					limit_n   <= "1000000000";
-				when x"3b" => -- ESC n ';' ...
-					state_n <= NUMBER2;
-					akk_init <= '1';
-				when x"6d" => -- CSI n 'm' : SGR
-					state_n <= ATTRIB1;
-				when x"53" => -- CSI n 'S' : scroll up
-					ctl_n(4) <= '0';
-					state_n  <= WRITE;
-				when x"54" => -- CSI n 'T' : scroll down
-					ctl_n(4) <= '1';
-					state_n  <= WRITE;
-				-- when x"3f" => -- ESC ? 25 (l,h)
-				--	state_n  <= NUMBER2;
-				--	akk_init <= '1';
-
-				-- @warning This is an extension! It is for setting the
-				-- control lines of the VGA module directly.
-				when x"78" => -- ESC n 'x' : Set VGA control registers directly
-					ctl_n    <= n1_c(ctl_n'range);
-					state_n  <= WRITE;
-				when others => -- Error
-					state_n <= ACCEPT;
-				end case;
-
-				if repeat then
-					if n1_c = 0 then
-						state_n <= exit_repeat;
-					else
-						n1_n <= n1_c - 1;
-					end if;
-				end if;
-			elsif state_c = NUMBER2 then
-				if akk_done_o = '1' then
-					state_n <= COMMAND2;
-					n2_n    <= n_o(n2_n'range);
-				end if;
-			elsif state_c = COMMAND2 then
-				case akk_char_o is
-				when x"66" => -- f
-					y_n       <= n1_c(y_n'range) - 1;
-					x_n       <= n2_c(x_n'range) - 1;
-					cursor_we <= '1';
-					state_n   <= LIMIT;
-				when x"48" => -- H
-					y_n       <= n1_c(y_n'range) - 1;
-					x_n       <= n2_c(x_n'range) - 1;
-					cursor_we <= '1';
-					state_n   <= LIMIT;
-				when x"6d" => -- ESC n ';' m 'm'
-					state_n <= ATTRIB1;
-				when others =>
-					state_n <= ACCEPT;
-				end case;
-			elsif state_c = WRAP then
-				if x_overflow then
-					x_n <= (others => '0');
-					y_n <= y_plus_one;
-				elsif y_overflow then
-					x_n     <= (others => '0');
-					y_n     <= (others => '0');
-					state_n <= ERASING;
-					c_n     <= blank;
-					count_n <= (others => '0');
-					limit_n <= "1000000000";
-				else
-					state_n <= WRITE;
-				end if;
-			elsif state_c = LIMIT then
-				if x_overflow then
-					x_n <= to_unsigned(width - 1, x_n'high + 1);
-				end if;
-				if y_overflow then
-					y_n <= to_unsigned(height - 1, y_n'high + 1);
-				end if;
-				state_n <= WRITE;
-			elsif state_c = WRITE then
-				state_n   <= ACCEPT;
-				cursor_we <= '1';
-			elsif state_c = ERASING then
-				if count_c(limit_c'high + 3 downto limit_c'low + 3) /= limit_c then
-					count_n <= count_c + 1;
-					data_we <= '1';
-				else
-					state_n <= WRAP;
-				end if;
-			elsif state_c = ATTRIB1 then
-				case n1_c is
-				when x"00"  =>
+					limit_n   <= (others => '0');
+					state_n   <= ACCEPT;
 					attr_n    <= attr_default;
+					ctl_n     <= ctl_default;
 					conceal_n <= false;
-				when x"01"  => attr_n(6) <= '1'; -- bold
-				when x"07"  => attr_n(7) <= '1'; -- reverse video
-				when x"08"  => conceal_n <= true;
+				elsif state_c = ACCEPT then
+					if we = '1' then
+						c_n   <= unsigned(char);
+						state_n <= NORMAL;
+					end if;
+				elsif state_c = NORMAL then
+					case c_c is
+					when tab =>
+						x_n     <= (x_c and "1111000") + 8;
+						state_n <= ERASING;
+						c_n     <= blank;
+						limit_value := unsigned(addr and "1111111111000") + 8;
+						limit_n <= limit_value(limit_n'high + 3 downto limit_n'low + 3);
+						count_n <= unsigned(addr);
+					when cr =>
+						y_n     <= y_plus_one;
+						state_n <= WRAP;
+					when lf =>
+						x_n     <= (others => '0');
+						state_n <= WRITE;
+					when backspace =>
+						x_n     <= x_minus_one_limited;
+						state_n <= WRITE;
+					when esc =>
+						state_n <= CSI;
+					when others =>
+						data_we <= '1';
+						state_n <= ADVANCE;
+					end case;
+				elsif state_c = ADVANCE then
+					x_n     <= x_plus_one;
+					state_n <= WRAP;
+				elsif state_c = CSI then
+					if we = '1' then
+						c_n <= unsigned(char);
+						state_n <= COMMAND;
+					end if;
+				elsif state_c = COMMAND then
+					case c_c is
+					when ascii_c => -- @todo Erase screen as well
+						state_n <= RESET;
+					when lsqb =>
+						state_n  <= NUMBER1;
+						akk_init <= '1';
+					when others => -- Error
+						state_n <= ACCEPT;
+					end case;
+				elsif state_c = NUMBER1 then
+					if akk_done_o = '1' then
+						state_n <= COMMAND1;
+						n1_n    <= n_o(n1_n'range);
+					end if;
+				elsif state_c = COMMAND1 then
+					repeat := false;
+					case akk_char_o is
+					when x"41" => -- CSI n 'A' : CUU Cursor up
+						y_n         <= y_minus_one_limited;
+						exit_repeat := WRITE;
+						repeat      := true;
+					when x"42" => -- CSI n 'B' : CUD Cursor Down
+						y_n         <= y_plus_one_limited;
+						exit_repeat := LIMIT;
+						repeat      := true;
+					when x"43" => -- CSI n 'C' : CUF Cursor Forward
+						x_n         <= x_plus_one_limited;
+						exit_repeat := LIMIT;
+						repeat      := true;
+					when x"44" => -- CSI n 'D' : CUB Cursor Back
+						x_n         <= x_minus_one_limited;
+						exit_repeat := WRITE;
+						repeat      := true;
+					when x"45" => -- CSI n 'E'
+						y_n         <= y_minus_one_limited;
+						x_n         <= (others => '0');
+						exit_repeat := WRITE;
+						repeat      := true;
+					when x"46" => -- CSI n 'F'
+						y_n         <= y_plus_one_limited;
+						x_n         <= (others => '0');
+						exit_repeat := LIMIT;
+						repeat      := true;
+					when x"47" => -- CSI n 'G' : CHA Cursor Horizontal Absolute
+						x_n      <= n1_c(x_n'range);
+						state_n  <= LIMIT;
+					when x"4a" => -- CSI n 'J'
+						x_n       <= (others => '0');
+						y_n       <= (others => '0');
+						cursor_we <= '1';
+						state_n   <= ERASING;
+						c_n       <= blank;
+						count_n   <= (others => '0');
+						limit_n   <= "1000000000";
+					when x"3b" => -- ESC n ';' ...
+						state_n <= NUMBER2;
+						akk_init <= '1';
+					when x"6d" => -- CSI n 'm' : SGR
+						state_n <= ATTRIB1;
+					when x"53" => -- CSI n 'S' : scroll up
+						ctl_n(4) <= '0';
+						state_n  <= WRITE;
+					when x"54" => -- CSI n 'T' : scroll down
+						ctl_n(4) <= '1';
+						state_n  <= WRITE;
+					-- when x"3f" => -- ESC ? 25 (l,h)
+					--	state_n  <= NUMBER2;
+					--	akk_init <= '1';
 
-				-- when x"6c" => if n2_c = x"19" then ctl_n(2) <= '0'; end if; -- l, hide cursor
-				-- when x"68" => if n2_c = x"19" then ctl_n(2) <= '1'; end if; -- h, show cursor
+					-- @warning This is an extension! It is for setting the
+					-- control lines of the VGA module directly.
+					when x"78" => -- ESC n 'x' : Set VGA control registers directly
+						ctl_n    <= n1_c(ctl_n'range);
+						state_n  <= WRITE;
+					when others => -- Error
+						state_n <= ACCEPT;
+					end case;
 
-				-- @todo This should make the _text_ blink, not the cursor!
-				when x"05"  => ctl_n(1) <= '1'; -- blink slow
-				when x"19"  => ctl_n(1) <= '0'; -- blink off
+					if repeat then
+						if n1_c = 0 then
+							state_n <= exit_repeat;
+						else
+							n1_n <= n1_c - 1;
+						end if;
+					end if;
+				elsif state_c = NUMBER2 then
+					if akk_done_o = '1' then
+						state_n <= COMMAND2;
+						n2_n    <= n_o(n2_n'range);
+					end if;
+				elsif state_c = COMMAND2 then
+					case akk_char_o is
+					when x"66" => -- f
+						y_n       <= n1_c(y_n'range) - 1;
+						x_n       <= n2_c(x_n'range) - 1;
+						cursor_we <= '1';
+						state_n   <= LIMIT;
+					when x"48" => -- H
+						y_n       <= n1_c(y_n'range) - 1;
+						x_n       <= n2_c(x_n'range) - 1;
+						cursor_we <= '1';
+						state_n   <= LIMIT;
+					when x"6d" => -- ESC n ';' m 'm'
+						state_n <= ATTRIB1;
+					when others =>
+						state_n <= ACCEPT;
+					end case;
+				elsif state_c = WRAP then
+					if x_overflow then
+						x_n <= (others => '0');
+						y_n <= y_plus_one;
+					elsif y_overflow then
+						x_n     <= (others => '0');
+						y_n     <= (others => '0');
+						state_n <= ERASING;
+						c_n     <= blank;
+						count_n <= (others => '0');
+						limit_n <= "1000000000";
+					else
+						state_n <= WRITE;
+					end if;
+				elsif state_c = LIMIT then
+					if x_overflow then
+						x_n <= to_unsigned(width - 1, x_n'high + 1);
+					end if;
+					if y_overflow then
+						y_n <= to_unsigned(height - 1, y_n'high + 1);
+					end if;
+					state_n <= WRITE;
+				elsif state_c = WRITE then
+					state_n   <= ACCEPT;
+					cursor_we <= '1';
+				elsif state_c = ERASING then
+					if count_c(limit_c'high + 3 downto limit_c'low + 3) /= limit_c then
+						count_n <= count_c + 1;
+						data_we <= '1';
+					else
+						state_n <= WRAP;
+					end if;
+				elsif state_c = ATTRIB1 then
+					case n1_c is
+					when x"00"  =>
+						attr_n    <= attr_default;
+						conceal_n <= false;
+					when x"01"  => attr_n(6) <= '1'; -- bold
+					when x"07"  => attr_n(7) <= '1'; -- reverse video
+					when x"08"  => conceal_n <= true;
 
-				when x"1E"  => attr_n(5 downto 3) <= "000"; -- 30
-				when x"1F"  => attr_n(5 downto 3) <= "001";
-				when x"20"  => attr_n(5 downto 3) <= "010";
-				when x"21"  => attr_n(5 downto 3) <= "011";
-				when x"22"  => attr_n(5 downto 3) <= "100";
-				when x"23"  => attr_n(5 downto 3) <= "101";
-				when x"24"  => attr_n(5 downto 3) <= "110";
-				when x"25"  => attr_n(5 downto 3) <= "111";
+					-- when x"6c" => if n2_c = x"19" then ctl_n(2) <= '0'; end if; -- l, hide cursor
+					-- when x"68" => if n2_c = x"19" then ctl_n(2) <= '1'; end if; -- h, show cursor
 
-				when x"28"  => attr_n(2 downto 0) <= "000"; -- 40
-				when x"29"  => attr_n(2 downto 0) <= "001";
-				when x"2A"  => attr_n(2 downto 0) <= "010";
-				when x"2B"  => attr_n(2 downto 0) <= "011";
-				when x"2C"  => attr_n(2 downto 0) <= "100";
-				when x"2D"  => attr_n(2 downto 0) <= "101";
-				when x"2E"  => attr_n(2 downto 0) <= "110";
-				when x"2F"  => attr_n(2 downto 0) <= "111";
-				when others =>
-				end case;
-				state_n <= ATTRIB2;
-			elsif state_c = ATTRIB2 then
-				-- @todo Implement two attributes in a row
-				state_n <= ACCEPT;
-			else
-				state_n <= RESET;
-				report "Invalid State" severity failure;
+					-- @todo This should make the _text_ blink, not the cursor!
+					when x"05"  => ctl_n(1) <= '1'; -- blink slow
+					when x"19"  => ctl_n(1) <= '0'; -- blink off
+
+					when x"1E"  => attr_n(5 downto 3) <= "000"; -- 30
+					when x"1F"  => attr_n(5 downto 3) <= "001";
+					when x"20"  => attr_n(5 downto 3) <= "010";
+					when x"21"  => attr_n(5 downto 3) <= "011";
+					when x"22"  => attr_n(5 downto 3) <= "100";
+					when x"23"  => attr_n(5 downto 3) <= "101";
+					when x"24"  => attr_n(5 downto 3) <= "110";
+					when x"25"  => attr_n(5 downto 3) <= "111";
+
+					when x"28"  => attr_n(2 downto 0) <= "000"; -- 40
+					when x"29"  => attr_n(2 downto 0) <= "001";
+					when x"2A"  => attr_n(2 downto 0) <= "010";
+					when x"2B"  => attr_n(2 downto 0) <= "011";
+					when x"2C"  => attr_n(2 downto 0) <= "100";
+					when x"2D"  => attr_n(2 downto 0) <= "101";
+					when x"2E"  => attr_n(2 downto 0) <= "110";
+					when x"2F"  => attr_n(2 downto 0) <= "111";
+					when others =>
+					end case;
+					state_n <= ATTRIB2;
+				elsif state_c = ATTRIB2 then
+					-- @todo Implement two attributes in a row
+					state_n <= ACCEPT;
+				else
+					state_n <= RESET;
+					report "Invalid State" severity failure;
+				end if;
 			end if;
 		end if;
 	end process;
@@ -795,6 +827,9 @@ use work.util.FILE_HEX;
 use work.util.FILE_BINARY;
 
 entity vga_top is
+	generic(
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns); -- simulation only, gate delay
 	port(
 		clk:              in  std_ulogic;
 		clk25MHz:         in  std_ulogic;
@@ -876,10 +911,14 @@ begin
 	-- Next state on clk edge rising
 	vga_ns: process(clk, rst)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			control_c   <= vga_control_registers_initialize;
 		elsif rising_edge(clk) then
-			control_c   <= control_n;
+			if rst = '1' and not asynchronous_reset then
+				control_c <= vga_control_registers_initialize;
+			else
+				control_c   <= control_n;
+			end if;
 		end if;
 	end process;
 
@@ -898,7 +937,9 @@ begin
 	end process;
 
 	-- The actual VGA module
-	u_vga: work.vga_pkg.vga_core port map (
+	u_vga: work.vga_pkg.vga_core 
+		generic map(asynchronous_reset => asynchronous_reset, delay => delay)
+		port map (
 		rst       => rst,
 		clk25MHz  => clk25MHz,
 
@@ -923,10 +964,11 @@ begin
 	--| monitor. The text buffer holds at least 80*40 characters.
 	u_text: entity work.dual_port_block_ram
 	generic map(
-	    addr_length => text_addr_length,
-	    data_length => text_data_length,
-	    file_name   => text_file_name,
-	    file_type   => text_file_type)
+		delay       => delay,
+		addr_length => text_addr_length,
+		data_length => text_data_length,
+		file_name   => text_file_name,
+		file_type   => text_file_type)
 	port map (
 		a_clk   => clk,
 		-- External interface
@@ -946,6 +988,7 @@ begin
 	--| VGA Font memory
 	u_font: entity work.single_port_block_ram
 	generic map(
+		delay       => delay,
 		addr_length => font_addr_length,
 		data_length => font_data_length,
 		file_name   => font_file_name,
@@ -971,6 +1014,9 @@ use work.vga_pkg.ctrm;
 use work.vga_pkg.losr;
 
 entity vga_core is
+	generic(
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns); -- simulation only, gate delay
 	port (
 		rst:      in  std_ulogic;
 		clk25MHz: in  std_ulogic;
@@ -1022,13 +1068,17 @@ begin
 	-- hsync generator, initialized with '1'
 	process (rst, clk25MHz)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			hsync_int <= '1';
 		elsif rising_edge(clk25MHz) then
-			if (hctr > 663) and (hctr < 757) then
-				hsync_int <= '0';
-			else
+			if rst = '1' and not asynchronous_reset then
 				hsync_int <= '1';
+			else
+				if (hctr > 663) and (hctr < 757) then
+					hsync_int <= '0';
+				else
+					hsync_int <= '1';
+				end if;
 			end if;
 		end if;
 	end process;
@@ -1036,13 +1086,17 @@ begin
 	-- vsync generator, initialized with '1'
 	process (rst, clk25MHz)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			vsync_int <= '1';
 		elsif rising_edge(clk25MHz) then
-			if (vctr > 499) and (vctr < 502) then
-				vsync_int <= '0';
-			else
+			if rst = '1' and not asynchronous_reset then
 				vsync_int <= '1';
+			else
+				if (vctr > 499) and (vctr < 502) then
+					vsync_int <= '0';
+				else
+					vsync_int <= '1';
+				end if;
 			end if;
 		end if;
 	end process;
@@ -1055,11 +1109,15 @@ begin
 	-- flip-flips for sync of R, G y B signal, initialized with '0'
 	process (rst, clk25MHz)
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			foreground_draw <= '0';
 		elsif rising_edge(clk25MHz) then
-			foreground_draw <= foreground_draw_int;
-			background_draw <= background_draw_int;
+			if rst = '1' and not asynchronous_reset then
+				foreground_draw <= '0';
+			else
+				foreground_draw <= foreground_draw_int;
+				background_draw <= background_draw_int;
+			end if;
 		end if;
 	end process;
 
@@ -1099,18 +1157,24 @@ begin
 
 		-- @todo Rename these signals to something more sensible
 	begin
-		u_hctr: work.vga_pkg.ctrm generic map (M => 794) port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
-		u_vctr: work.vga_pkg.ctrm generic map (M => 525) port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
+		u_hctr: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 794) 
+					port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
+		u_vctr: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 525) 
+					port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
 
 		hctr_ce <= '1';
 		hctr_rs <= '1' when hctr = 793 else '0';
 		vctr_ce <= '1' when hctr = 663 else '0';
 		vctr_rs <= '1' when vctr = 524 else '0';
 
-		u_chrx: work.vga_pkg.ctrm generic map (M => 8)  port map (rst, clk25MHz, chrx_ce, chrx_rs, chrx);
-		u_chry: work.vga_pkg.ctrm generic map (M => 12) port map (rst, clk25MHz, chry_ce, chry_rs, chry);
-		u_scrx: work.vga_pkg.ctrm generic map (M => 80) port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx);
-		u_scry: work.vga_pkg.ctrm generic map (M => 40) port map (rst, clk25MHz, scry_ce, scry_rs, scry);
+		u_chrx: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 8)  
+					port map (rst, clk25MHz, chrx_ce, chrx_rs, chrx);
+		u_chry: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 12) 
+					port map (rst, clk25MHz, chry_ce, chry_rs, chry);
+		u_scrx: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 80) 
+					port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx);
+		u_scry: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 40) 
+					port map (rst, clk25MHz, scry_ce, scry_rs, scry);
 
 		hctr_639 <= '1' when hctr = 639 else '0';
 		vctr_479 <= '1' when vctr = 479 else '0';
@@ -1137,7 +1201,7 @@ begin
 		font_a  <= std_ulogic_vector(rom_tmp);
 	end block;
 
-	u_losr: work.vga_pkg.losr generic map (N => 8)
+	u_losr: work.vga_pkg.losr generic map (asynchronous_reset => asynchronous_reset, delay => delay, N => 8)
 	port map (rst, clk25MHz, losr_ld, losr_ce, losr_do, FONT_D);
 
 	losr_ce <= blank;
@@ -1195,7 +1259,11 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity ctrm is
-	generic (M: positive := 8);
+	generic (
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only, gate delay
+
+		M:                   positive := 8);
 	port (
 		rst: in  std_ulogic; -- asynchronous rst
 		clk: in  std_ulogic;
@@ -1210,14 +1278,18 @@ begin
 	do <= c;
 	process(rst, clk)
 	begin
-		if rst = '1' then
-			c <= 0;
+		if rst = '1' and asynchronous_reset then
+			c <= 0 after delay;
 		elsif rising_edge(clk) then
-			if ce = '1' then
-				if rs = '1' then
-					c <= 0;
-				else
-					c <= c + 1;
+			if rst = '1' and not asynchronous_reset then
+				c <= 0 after delay;
+			else
+				if ce = '1' then
+					if rs = '1' then
+						c <= 0 after delay;
+					else
+						c <= c + 1 after delay;
+					end if;
 				end if;
 			end if;
 		end if;
@@ -1238,7 +1310,11 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity losr is
-	generic (N: positive := 4);
+	generic (
+		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		delay:               time    := 0 ns; -- simulation only, gate delay
+		
+		N: positive := 4);
 	port
 	(
 		rst:  in  std_ulogic;
@@ -1254,13 +1330,17 @@ begin
 	process(rst, clk)
 		variable data : std_ulogic_vector(N - 1 downto 0) := (others => '0');
 	begin
-		if rst = '1' then
+		if rst = '1' and asynchronous_reset then
 			data := (others => '0');
 		elsif rising_edge(clk) then
-			if load = '1' then
-				data := di;
-			elsif ce = '1' then
-				data := data(N-2 downto 0) & "0";
+			if rst = '1' and not asynchronous_reset then
+				data := (others => '0');
+			else
+				if load = '1' then
+					data := di;
+				elsif ce = '1' then
+					data := data(N-2 downto 0) & "0";
+				end if;
 			end if;
 		end if;
 		do <= data(N-1);

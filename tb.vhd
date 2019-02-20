@@ -38,6 +38,9 @@ architecture testing of tb is
 	constant clk_period:              time     := 1000 ms / clock_frequency;
 	constant uart_tx_time:            time     := (10*1000 ms) / 115200;
 	constant uart_default_input:      std_ulogic_vector(7 downto 0) := x"AA";
+	constant asynchronous_reset:      boolean  := true;
+	constant delay:                   time     := 0 ns;
+	constant reset_period_us:         natural  := 1;
 
 	-- Test bench configurable options --
 
@@ -129,6 +132,9 @@ begin
 
 	uut: entity work.top
 	generic map(
+		asynchronous_reset   => asynchronous_reset,
+		delay                => delay,
+		reset_period_us      => reset_period_us,
 		clock_frequency      => clock_frequency,
 		uart_baud_rate       => uart_baud_rate)
 	port map(
