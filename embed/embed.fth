@@ -605,6 +605,7 @@ h: ?depth depth < ?exit 4 -throw ; ( ??? n -- check depth )
 : decimal  $A fallthrough;  ( -- : set base to decimal )
 h: base! base ! ;           ( u -- : set base )
 : hex     $10 base! ;                      ( -- )
+h: radix base@ dup 2 - $23 u< ?exit decimal $28 -throw ; ( -- u )
 : hold   hld @ 1- dup hld ! c! fallthrough;     ( c -- )
 h: ?hold hld @ pad $80 - u> ?exit $11 -throw ; ( -- )
 h: extract dup>r um/mod r> swap >r um/mod r> rot ;  ( ud ud -- ud u )
@@ -655,9 +656,9 @@ h: ktap                                  ( bot eot cur c -- bot eot cur )
  if delete? \ =bs xor
    if =bl tap exit then ^h exit
  then fallthrough;
-\ h: drop-nip-dup drop nip dup ;
+h: drop-nip-dup drop nip dup ;
 h: ktap? dup =bl - $5F u< swap =del <> and ; ( c -- t : possible ktap? )
-\ h: raw? [-1] ; ( c -- t : raw terminal mode? )
+h: raw? [-1] ; ( c -- t : raw terminal mode? )
 : accept ( b u -- b u )
   over+ over
   begin
@@ -667,12 +668,12 @@ h: ktap? dup =bl - $5F u< swap =del <> and ; ( c -- t : possible ktap? )
     \ is exhausted it is an exit and potential entry point into the program,
     \ so we should try to keep the stack elements from 'accept' hidden
     >r 2>r key 2r> rot r> swap dup
-    \ raw? if ( we need to handle echoing, and handling delete keys )
+    raw? if ( we need to handle echoing, and handling delete keys )
       \ =bl - 95 u< if tap else <tap> @execute then
       ktap? if tap else <tap> @execute then
-    \ else ( the terminal takes care of it )
-    \  =lf xor if tap else drop-nip-dup then
-    \ then
+    else ( the terminal takes care of it )
+      =lf xor if tap else drop-nip-dup then
+    then
   repeat drop over- ;
 : expect <expect> @execute span ! drop ;   ( b u -- )
 : query tib tib-length <expect> @execute #tib ! drop-0 fallthrough;
