@@ -41,6 +41,7 @@ architecture testing of tb is
 	constant asynchronous_reset:      boolean  := true;
 	constant delay:                   time     := 0 ns;
 	constant reset_period_us:         natural  := 1;
+	constant jitter_on:               boolean  := false;
 
 	-- Test bench configurable options --
 
@@ -75,8 +76,8 @@ architecture testing of tb is
 	signal stop:  std_ulogic :=  '0';
 	signal dbgi:  cpu_debug_interface;
 
-	signal clk:   std_ulogic := '0';
-	signal rst:   std_ulogic := '0';
+	signal clk:          std_ulogic := '0';
+	signal rst:          std_ulogic := '0';
 
 --	signal  cpu_wait: std_ulogic := '0'; -- CPU wait flag
 
@@ -167,14 +168,13 @@ begin
 		mem_addr  =>  mem_addr,
 		mem_data  =>  mem_data);
 
-	uut_util: work.util.util_tb generic map(clock_frequency => clock_frequency);
-	uut_vga:  work.vga_pkg.vt100_tb generic map(clock_frequency => clock_frequency);
+	uut_util: work.util.util_tb generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_vga:  work.vga_pkg.vt100_tb generic map(clock_frequency => clock_frequency, delay => delay);
 
-	-- The "io_pins_tb" works correctly, however GHDL 0.29, compiled under
-	-- Windows, cannot, and it fails to simulate this component correctly, resulting
+	-- The "io_pins_tb" works correctly, however in GHDL 0.29, compiled under
+	-- Windows, fails to simulate this component correctly, resulting
 	-- in a crash. This does not affect the Linux build of GHDL. It has
-	-- something to do with 'Z' values for std_ulogic types.
-	--
+	-- something to do with 'Z' values for std_logic types.
 
 	uut_io_pins: work.util.io_pins_tb      generic map(clock_frequency => clock_frequency);
 
@@ -196,12 +196,28 @@ begin
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
+		variable seed1, seed2 : positive;
+		variable r : real;
+		variable jit_high, jit_low: time  := 0 ns;
 	begin
 		while stop = '0' loop
+			if jitter_on then
+				uniform(seed1, seed2, r);
+				jit_high := r * delay;
+				uniform(seed1, seed2, r);
+				jit_low := r * delay;
+				uniform(seed1, seed2, r);
+				if r < 0.5 then jit_high := -jit_high; end if;
+				uniform(seed1, seed2, r);
+				if r < 0.5 then jit_low := -jit_low; end if;
+			else
+				jit_high := 0 ns;
+				jit_low  := 0 ns;
+			end if;
 			clk <= '1';
-			wait for clk_period / 2;
+			wait for (clk_period / 2) + jit_high;
 			clk <= '0';
-			wait for clk_period / 2;
+			wait for (clk_period / 2) + jit_low;
 		end loop;
 		report "clk_process end";
 		wait;

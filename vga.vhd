@@ -145,7 +145,7 @@ package vga_pkg is
 	end component;
 
 	component vt100_tb is
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
 	component atoi is
@@ -179,7 +179,7 @@ use ieee.math_real.all;
 use work.util.all;
 
 entity vt100_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end entity;
 
 architecture behav of vt100_tb is
@@ -208,15 +208,16 @@ architecture behav of vt100_tb is
 	shared variable index: integer := 1; -- starts at '1' due to string range
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	cs25MHz: entity work.clock_source_tb
-		generic map(clock_frequency => 25000000, hold_rst => 2)
+		generic map(clock_frequency => 25000000, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk25MHz, rst => rst25MHz);
 
 
 	uut: work.vga_pkg.vt100
+	generic map(delay => delay)
 	port map(
 		clk      => clk,
 		clk25MHz => clk25MHz,

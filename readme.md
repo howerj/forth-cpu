@@ -1342,10 +1342,6 @@ are.
 
 # To Do
 
-* Interrupts are currently buggy. This should be fixed, but it is quite
-difficult to track down, interrupts work fine in the C simulation, and have not
-really been tested much in the VHDL simulation. Interrupts seem to work
-partially, but then cause something to be corrupted.
 * There is a bug with the VT100 component, the color attributes are not
 correctly placed in the right location, but in the previous one.
 * The [embed][] project, which was derived from the simulator and Forth for this
@@ -1354,7 +1350,7 @@ this project. The [embed][] project features a metacompiler suitable for 16-bit
 systems like this one, it could be used in lieu of the Pseudo-Forth compiler.
 A massively cut down and minimal simulator and toolchain could be made, which
 would make the project much easier to understand, there is no reason to include
-everything in a single binary (made from [h2.c][]).
+everything in a single binary (made from [h2.c][]). (Partially complete!)
 * Even better than using the [embed][] project directly, would be to port the
 [embed][] project so the meta-compiler runs directly on the hardware. The
 simulator could then be used to assemble new images, making the system (much
@@ -1373,10 +1369,9 @@ simplified as well.
 proper textures for the buttons and displays, instead of the current simulator
 which looks like an early 90s test application for OpenGL.
 * Prepare more documentation
-* Fix SVG system architecture diagram
-* Implement assembler directive in the debugger
-* Add an options to the toolchain to allow separate compilation of units, and
-  other things expected of a toolchain.
+* Implement assembler directive in the debugger. This would allow code to
+be modified more easily when debugging, and make it even more similar to
+the DEBUG.COM command.
 * A much more minimal system could be created, consisting of only the H2 CPU
 core, a minimal (perhaps interactive) testbench, RAM blocks, UARTs and simulator. 
 The [j1eforth][] project could be used as an example of simplicity. The project
@@ -1385,6 +1380,16 @@ interpreter that runs on the J1 core (~1100 lines of Forth), the source for the
 target (the original J1 core, and UART at ~800 lines of Verilog and VHDL), and
 a simple simulator written in C (at only 186 lines of C code!). This system is
 incredibly minimal compared to this one.
+* A separate project of interest would be to use the H2 core, possibly in a
+modified form, to form the basis of a VGA graphics processor. It would be more
+complex than the current VT100 simulator, but potentially much more flexible,
+allowing for greater graphics capabilities using a little more memory and
+roughly the same amount of layout space. The idea would be to compute a VGA
+line (either 640x480, or 800x600) during the sync period and whilst the line is
+currently being drawn; commands could be given to the H2 core, such as 'draw a
+circle of radius R at position X,Y', or 'draw a line of text at X,Y'. Collision
+detection could be used to determine which pixel to color, rotation could
+perhaps be handled by manipulating the pixel value to be currently drawn.
 * Add notes about picocom, and setting up the hardware:
 
 <!-- -->

@@ -3,8 +3,11 @@
 --| @brief A collection of utilities and simple components. The components
 --| should be synthesizable, and the functions can be used within synthesizable
 --| components, unless marked with a "_tb" suffix (or if the function n_bits).
+--|
+--| @todo Add communication modules for SPI and UART, for certain modules
+--|
 --| @author         Richard James Howe
---| @copyright      Copyright 2017 Richard James Howe
+--| @copyright      Copyright 2017, 2019 Richard James Howe
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 -------------------------------------------------------------------------------
@@ -15,11 +18,11 @@ use std.textio.all;
 
 package util is
 	component util_tb is
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
 	component clock_source_tb is
-		generic(clock_frequency: positive; hold_rst: positive := 1);
+		generic(clock_frequency: positive; delay: time := 0 ns; hold_rst: positive := 1);
 		port(
 			stop:            in     std_ulogic := '0';
 			clk:             buffer std_ulogic;
@@ -60,7 +63,7 @@ package util is
 	end component;
 
 	component shift_register_tb
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
 	component timer_us
@@ -77,7 +80,7 @@ package util is
 	end component;
 
 	component timer_us_tb
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
 	component rising_edge_detector is
@@ -92,7 +95,7 @@ package util is
 	end component;
 
 	component rising_edge_detector_tb is
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
 	component rising_edge_detectors is
@@ -130,7 +133,7 @@ package util is
 	end component;
 
 	component full_adder_tb is
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
 	component fifo is
@@ -154,7 +157,7 @@ package util is
 	end component;
 
 	component fifo_tb is
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
 	component counter is
@@ -176,7 +179,7 @@ package util is
 	end component;
 
 	component counter_tb is
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
 	component lfsr is
@@ -196,7 +199,7 @@ package util is
 	end component;
 
 	component lfsr_tb is
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
 	component io_pins is
@@ -218,7 +221,7 @@ package util is
 	end component;
 
 	component io_pins_tb is
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
 	type file_format is (FILE_HEX, FILE_BINARY, FILE_NONE);
@@ -304,6 +307,7 @@ package util is
 	component ucpu_tb is
 		generic(
 			clock_frequency: positive;
+			delay: time := 0 ns;
 			file_name: string := "ucpu.bin");
 	end component;
 
@@ -325,7 +329,7 @@ package util is
 	end component;
 
 	component restoring_divider_tb is
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time    := 0 ns);
 	end component;
 
 	component debounce_us is
@@ -347,7 +351,7 @@ package util is
 	end component;
 
 	component debounce_us_tb is
-		generic(clock_frequency: positive);
+		generic(clock_frequency: positive; delay: time    := 0 ns);
 	end component;
 
 	component state_changed is
@@ -363,7 +367,7 @@ package util is
 
 	component state_block_changed is
 		generic(
-			asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
 			delay:               time    := 0 ns; -- simulation only
        
 			N:                   positive);
@@ -384,10 +388,43 @@ package util is
 			rst: out std_logic := '0'); -- reset out!
 	end component;
 
-	function max(a: natural; b: natural) return natural;
-	function min(a: natural; b: natural) return natural;
+	component reset_generator_tb is
+		generic(clock_frequency: positive; delay: time := 0 ns);
+	end component;
+
 	function n_bits(x: natural) return natural;
 	function n_bits(x: std_ulogic_vector) return natural;
+
+	component bit_count is
+		generic (
+			delay: time     := 0 ns;  -- simulation only
+			N:     positive);
+		port(
+			bits:   in std_ulogic_vector(N - 1 downto 0);
+			count: out std_ulogic_vector(n_bits(N) downto 0));
+	end component;
+
+	component bit_count_tb is
+		generic(clock_frequency: positive; delay: time := 0 ns);
+	end component;
+
+	component majority is
+		generic (
+			delay:     time     := 0 ns;  -- simulation only
+			even_wins: boolean  := false; -- for even N, N/2 wins if true, otherwise N/2 + 1 required
+			N:         positive);
+		port(
+			bits: in std_ulogic_vector(N - 1 downto 0);
+			vote: out std_ulogic;
+			tie: out std_ulogic);
+	end component;
+
+	component majority_tb is
+		generic(clock_frequency: positive; delay: time := 0 ns);
+	end component;
+
+	function max(a: natural; b: natural) return natural;
+	function min(a: natural; b: natural) return natural;
 	function reverse (a: in std_ulogic_vector) return std_ulogic_vector;
 	function invert(slv:std_ulogic_vector) return std_ulogic_vector;
 	function parity(slv:std_ulogic_vector; even: boolean) return std_ulogic;
@@ -684,21 +721,24 @@ use ieee.std_logic_1164.all;
 use work.util.all;
 
 entity util_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end entity;
 
 architecture behav of util_tb is
 begin
-	uut_shiftReg: work.util.shift_register_tb    generic map(clock_frequency => clock_frequency);
-	uut_timer_us: work.util.timer_us_tb          generic map(clock_frequency => clock_frequency);
-	uut_full_add: work.util.full_adder_tb        generic map(clock_frequency => clock_frequency);
-	uut_fifo:     work.util.fifo_tb              generic map(clock_frequency => clock_frequency);
-	uut_counter:  work.util.counter_tb           generic map(clock_frequency => clock_frequency);
-	uut_lfsr:     work.util.lfsr_tb              generic map(clock_frequency => clock_frequency);
-	uut_ucpu:     work.util.ucpu_tb              generic map(clock_frequency => clock_frequency);
-	uut_rdivider: work.util.restoring_divider_tb generic map(clock_frequency => clock_frequency);
-	uut_debounce: work.util.debounce_us_tb       generic map(clock_frequency => clock_frequency);
-	uut_rising_edge_detector: work.util.rising_edge_detector_tb generic map(clock_frequency => clock_frequency);
+	uut_shiftReg: work.util.shift_register_tb    generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_timer_us: work.util.timer_us_tb          generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_full_add: work.util.full_adder_tb        generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_fifo:     work.util.fifo_tb              generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_counter:  work.util.counter_tb           generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_lfsr:     work.util.lfsr_tb              generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_ucpu:     work.util.ucpu_tb              generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_rdivider: work.util.restoring_divider_tb generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_debounce: work.util.debounce_us_tb       generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_rst_gen:  work.util.reset_generator_tb   generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_bit_cnt:  work.util.bit_count_tb         generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_majority: work.util.majority_tb          generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_rising_edge_detector: work.util.rising_edge_detector_tb generic map(clock_frequency => clock_frequency, delay => delay);
 
 	stimulus_process: process
 	begin
@@ -749,7 +789,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 
 entity clock_source_tb is
-	generic(clock_frequency: positive; hold_rst: positive := 1);
+	generic(clock_frequency: positive; delay: time := 0 ns; hold_rst: positive := 1);
 	port(
 		stop:            in     std_ulogic := '0';
 		clk:             buffer std_ulogic;
@@ -813,26 +853,27 @@ end entity;
 architecture rtl of reg is
 	signal r_c, r_n: std_ulogic_vector(N - 1 downto 0) := (others => '0');
 begin
-	do <= r_c;
+	do <= r_c after delay;
 
 	process(rst, clk)
 	begin
 		if rst = '1' and asynchronous_reset then
-			r_c <= (others => '0');
+			r_c <= (others => '0') after delay;
 		elsif rising_edge(clk) then
 			if rst = '1' and not asynchronous_reset then
-				r_c <= (others => '0');
+				r_c <= (others => '0') after delay;
 			else
-				r_c <= r_n;
+				r_c <= r_n after delay;
 			end if;
 		end if;
 	end process;
 
 	process(r_c, di, we)
 	begin
-		r_n <= r_c;
 		if we = '1' then
-			r_n <= di;
+			r_n <= di after delay;
+		else
+			r_n <= r_c after delay;
 		end if;
 	end process;
 end;
@@ -872,12 +913,12 @@ begin
 	process(rst, clk)
 	begin
 		if rst = '1' and asynchronous_reset then
-			r_c <= (others => '0');
+			r_c <= (others => '0') after delay;
 		elsif rising_edge(clk) then
 			if rst = '1' and not asynchronous_reset then
-				r_c <= (others => '0');
+				r_c <= (others => '0') after delay;
 			else
-				r_c <= r_n;
+				r_c <= r_n after delay;
 			end if;
 		end if;
 	end process;
@@ -885,11 +926,11 @@ begin
 	process(r_c, di, we, load_i, load_we)
 	begin
 		if load_we = '1' then
-			r_n <= load_i;
+			r_n <= load_i after delay;
 		else
-			r_n <= "0" & r_c(N - 1 downto 1);
+			r_n <= "0" & r_c(N - 1 downto 1) after delay;
 			if we = '1' then
-				r_n(N-1) <= di;
+				r_n(N-1) <= di after delay;
 			end if;
 		end if;
 	end process;
@@ -900,7 +941,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity shift_register_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end entity;
 
 architecture behav of shift_register_tb is
@@ -914,11 +955,11 @@ architecture behav of shift_register_tb is
 	signal stop: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.shift_register
-	generic map(N => N) port map(clk => clk, rst => rst, we => we, di => di, do => do);
+	generic map(N => N, delay => delay) port map(clk => clk, rst => rst, we => we, di => di, do => do);
 
 	stimulus_process: process
 	begin
@@ -971,12 +1012,12 @@ begin
 	process (clk, rst)
 	begin
 		if rst = '1' and asynchronous_reset then
-			c_c <= (others => '0');
+			c_c <= (others => '0') after delay;
 		elsif rising_edge(clk) then
 			if rst = '1' and not asynchronous_reset then
-				c_c <= (others => '0');
+				c_c <= (others => '0') after delay;
 			else
-				c_c <= c_n;
+				c_c <= c_n after delay;
 			end if;
 		end if;
 	end process;
@@ -984,11 +1025,11 @@ begin
 	process (c_c)
 	begin
 		if c_c = (cycles - 1) then
-			c_n <= (others => '0');
-			co  <= '1';
+			c_n <= (others => '0') after delay;
+			co  <= '1' after delay;
 		else
-			c_n <= c_c + 1;
-			co  <= '0';
+			c_n <= c_c + 1 after delay;
+			co  <= '0' after delay;
 		end if;
 	end process;
 end;
@@ -998,7 +1039,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity timer_us_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end;
 
 architecture behav of timer_us_tb is
@@ -1008,11 +1049,11 @@ architecture behav of timer_us_tb is
 	signal stop: std_ulogic      := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.timer_us
-		generic map(clock_frequency => clock_frequency, timer_period_us => 1)
+		generic map(clock_frequency => clock_frequency, timer_period_us => 1, delay => delay)
 		port map(clk => clk, rst => rst, co => co);
 
 	stimulus_process: process
@@ -1050,15 +1091,15 @@ begin
 	red: process(clk, rst)
 	begin
 		if rst = '1' and asynchronous_reset then
-			sin_0 <= '0';
-			sin_1 <= '0';
+			sin_0 <= '0' after delay;
+			sin_1 <= '0' after delay;
 		elsif rising_edge(clk) then
 			if rst = '1' and not asynchronous_reset then
-				sin_0 <= '0';
-				sin_1 <= '0';
+				sin_0 <= '0' after delay;
+				sin_1 <= '0' after delay;
 			else
-				sin_0 <= di;
-				sin_1 <= sin_0;
+				sin_0 <= di after delay;
+				sin_1 <= sin_0 after delay;
 			end if;
 		end if;
 	end process;
@@ -1070,7 +1111,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity rising_edge_detector_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end;
 
 architecture behav of rising_edge_detector_tb is
@@ -1082,7 +1123,7 @@ architecture behav of rising_edge_detector_tb is
 	signal stop: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.rising_edge_detector
@@ -1150,8 +1191,8 @@ end entity;
 
 architecture rtl of half_adder is
 begin
-	sum   <= a xor b;
-	carry <= a and b;
+	sum   <= a xor b after delay;
+	carry <= a and b after delay;
 end architecture;
 
 ------------------------- Half Adder ------------------------------------------------
@@ -1176,14 +1217,14 @@ architecture rtl of full_adder is
 begin
 	ha1: entity work.half_adder generic map(delay => delay) port map(a => x,    b => y, sum => sum1, carry => carry1);
 	ha2: entity work.half_adder generic map(delay => delay) port map(a => sum1, b => z, sum => sum,  carry => carry2);
-	carry <= carry1 or carry2;
+	carry <= carry1 or carry2 after delay;
 end architecture;
 
 library ieee;
 use ieee.std_logic_1164.all;
 
 entity full_adder_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end entity;
 
 architecture behav of full_adder_tb is
@@ -1210,10 +1251,12 @@ architecture behav of full_adder_tb is
 	signal stop: std_ulogic     := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
-	uut: entity work.full_adder port map(x => x, y => y, z => z, sum => sum, carry => carry);
+	uut: entity work.full_adder 
+		generic map(delay => delay)
+		port map(x => x, y => y, z => z, sum => sum, carry => carry);
 
 	stimulus_process: process
 	begin
@@ -1275,52 +1318,52 @@ architecture behavior of fifo is
 	signal is_full:  std_ulogic := '0';
 	signal is_empty: std_ulogic := '1';
 begin
-	do       <= data(rindex);
-	full     <= is_full;  -- buffer these bad boys
-	empty    <= is_empty;
-	is_full  <= '1' when count = (fifo_depth - 1) else '0';
-	is_empty <= '1' when count = 0                else '0';
+	do       <= data(rindex) after delay;
+	full     <= is_full after delay;  -- buffer these bad boys
+	empty    <= is_empty after delay;
+	is_full  <= '1' when count = (fifo_depth - 1) else '0' after delay;
+	is_empty <= '1' when count = 0                else '0' after delay;
 
 	process (rst, clk) is
 	begin
 		if rst = '1' and asynchronous_reset then
-			windex <= 0;
-			rindex <= 0;
-			count  <= 0;
+			windex <= 0 after delay;
+			rindex <= 0 after delay;
+			count  <= 0 after delay;
 		elsif rising_edge(clk) then
 			if rst = '1' and not asynchronous_reset then
-				windex <= 0;
-				rindex <= 0;
-				count  <= 0;
+				windex <= 0 after delay;
+				rindex <= 0 after delay;
+				count  <= 0 after delay;
 			else
 				-- @todo Allow more control over behavior with options specified by a generic
 				-- @todo Add report/warnings
 				if we = '1' and re = '0' then
 					if is_full = '0' then
-						count <= count + 1;
+						count <= count + 1 after delay;
 					end if;
 				elsif we = '0' and re = '1' then
 					if is_empty = '0' then
-						count <= count - 1;
+						count <= count - 1 after delay;
 					end if;
 				end if;
 
 				if re = '1' and is_empty = '0' then
 					if rindex = (fifo_depth - 1) then
-						rindex <= 0;
+						rindex <= 0 after delay;
 					else
-						rindex <= rindex + 1;
+						rindex <= rindex + 1 after delay;
 					end if;
 				end if;
 
 				if we = '1' and is_full = '0' then
 					-- @todo make configurable; write to current or next
 					if windex = (fifo_depth - 1) then
-						data(0) <= di;
-						windex <= 0;
+						data(0) <= di after delay;
+						windex <= 0 after delay;
 					else
-						data(windex + 1) <= di;
-						windex <= windex + 1;
+						data(windex + 1) <= di after delay;
+						windex <= windex + 1 after delay;
 					end if;
 				end if;
 			end if;
@@ -1333,7 +1376,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity fifo_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end entity;
 
 architecture behavior of fifo_tb is
@@ -1355,13 +1398,13 @@ architecture behavior of fifo_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	stop <= '1' when stop_w = '1' and stop_r = '1' else '0';
 
 	uut: entity work.fifo
-		generic map(data_width => data_width, fifo_depth => fifo_depth)
+		generic map(data_width => data_width, fifo_depth => fifo_depth, delay => delay)
 		port map (
 			clk   => clk,
 			rst   => rst,
@@ -1444,17 +1487,17 @@ end entity;
 architecture rtl of counter is
 	signal c_c, c_n: unsigned(N - 1 downto 0) := (others => '0');
 begin
-	dout <= std_ulogic_vector(c_c);
+	dout <= std_ulogic_vector(c_c) after delay;
 
 	process(clk, rst)
 	begin
 		if rst = '1' and asynchronous_reset then
-			c_c <= (others => '0');
+			c_c <= (others => '0') after delay;
 		elsif rising_edge(clk) then
 			if rst = '1' and not asynchronous_reset then
-				c_c <= (others => '0');
+				c_c <= (others => '0') after delay;
 			else
-				c_c <= c_n;
+				c_c <= c_n after delay;
 			end if;
 		end if;
 	end process;
@@ -1463,12 +1506,12 @@ begin
 	begin
 		c_n <= c_c;
 		if load_we = '1' then
-			c_n <= unsigned(load_i);
+			c_n <= unsigned(load_i) after delay;
 		else
 			if cr = '1' then
-				c_n <= (others => '0');
+				c_n <= (others => '0') after delay;
 			elsif ce = '1' then
-				c_n <= c_c + 1;
+				c_n <= c_c + 1 after delay;
 			end if;
 		end if;
 	end process;
@@ -1480,7 +1523,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity counter_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end entity;
 
 architecture behavior of counter_tb is
@@ -1524,12 +1567,11 @@ architecture behavior of counter_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.counter
-		generic map(
-			N => length)
+		generic map(N => length, delay => delay)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -1607,17 +1649,17 @@ end entity;
 architecture rtl of lfsr is
 	signal r_c, r_n : std_ulogic_vector(di'range) := (others => '0');
 begin
-	do <= r_c;
+	do <= r_c after delay;
 
 	process(rst, clk)
 	begin
 		if rst = '1' and asynchronous_reset then
-			r_c <= (others => '0');
+			r_c <= (others => '0') after delay;
 		elsif rising_edge(clk) then
 			if rst = '1' and not asynchronous_reset then
-				r_c <= (others => '0');
+				r_c <= (others => '0') after delay;
 			else
-				r_c <= r_n;
+				r_c <= r_n after delay;
 			end if;
 		end if;
 	end process;
@@ -1625,15 +1667,15 @@ begin
 	process(r_c, di, we, ce)
 	begin
 		if we = '1' then
-			r_n <= di;
+			r_n <= di after delay;
 		elsif ce = '1' then
 			r_n(r_n'high) <= r_c(r_c'low);
 
 			for i in tap'high downto tap'low loop
 				if tap(i) = '1' then
-					r_n(i) <= r_c(r_c'low) xor r_c(i+1);
+					r_n(i) <= r_c(r_c'low) xor r_c(i+1) after delay;
 				else
-					r_n(i) <= r_c(i+1);
+					r_n(i) <= r_c(i+1) after delay;
 				end if;
 			end loop;
 		else
@@ -1647,7 +1689,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity lfsr_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end entity;
 
 architecture behavior of lfsr_tb is
@@ -1659,11 +1701,11 @@ architecture behavior of lfsr_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.lfsr
-		generic map(tap => "0111001")
+		generic map(tap => "0111001", delay => delay)
 		port map(clk => clk,
 			 rst => rst,
 			 we => we,
@@ -1736,7 +1778,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity io_pins_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end entity;
 
 architecture behavior of io_pins_tb is
@@ -1756,11 +1798,11 @@ architecture behavior of io_pins_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.io_pins
-		generic map(N => N)
+		generic map(N => N, delay => delay)
 		port map(
 			clk         =>  clk,
 			rst         =>  rst,
@@ -2013,7 +2055,7 @@ end architecture;
 --| generic options, to lower the clock rate.
 --|
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util.single_port_block_ram;
@@ -2103,7 +2145,7 @@ end architecture;
 -- generics (instructions, branch conditions...)
 --
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
@@ -2128,54 +2170,54 @@ end entity;
 architecture rtl of ucpu is
 	signal a_c,   a_n:       unsigned(di'high + 1 downto di'low) := (others => '0'); -- accumulator
 	signal pc_c,  pc_n:      unsigned(pc'range)                  := (others => '0');
-	signal alu:              std_ulogic_vector(1 downto 0)        := (others => '0');
-	signal state_c, state_n: std_ulogic                           := '0'; -- FETCH/Single cycle instruction or EXECUTE
+	signal alu:              std_ulogic_vector(1 downto 0)       := (others => '0');
+	signal state_c, state_n: std_ulogic                          := '0'; -- FETCH/Single cycle instruction or EXECUTE
 begin
-	pc          <= std_ulogic_vector(pc_n);
-	do          <= std_ulogic_vector(a_c(do'range));
-	alu         <= op(op'high downto op'high - 1);
-	adr         <= op(adr'range);
-	we          <= '1' when alu = "10" else '0'; -- STORE
-	re          <= alu(1) nor state_c;           -- FETCH for ADD and NOR
-	state_n     <= alu(1) nor state_c;           -- FETCH not taken or FETCH done
+	pc          <= std_ulogic_vector(pc_n) after delay;
+	do          <= std_ulogic_vector(a_c(do'range)) after delay;
+	alu         <= op(op'high downto op'high - 1) after delay;
+	adr         <= op(adr'range) after delay;
+	we          <= '1' when alu = "10" else '0' after delay; -- STORE
+	re          <= alu(1) nor state_c after delay;           -- FETCH for ADD and NOR
+	state_n     <= alu(1) nor state_c after delay;           -- FETCH not taken or FETCH done
 	pc_n        <= unsigned(op(pc_n'range)) when (alu = "11"    and a_c(a_c'high) = '0') else -- Jump when carry set
 			pc_c                    when (state_c = '0' and alu(1) = '0')        else -- FETCH
-			pc_c + 1; -- EXECUTE
+			(pc_c + 1) after delay; -- EXECUTE
 
 	process(clk, rst)
 	begin
 		if rst = '1' and asynchronous_reset then
-			a_c     <= (others => '0');
-			pc_c    <= (others => '0');
-			state_c <= '0';
+			a_c     <= (others => '0') after delay;
+			pc_c    <= (others => '0') after delay;
+			state_c <= '0' after delay;
 		elsif rising_edge(clk) then
 			if rst = '1' and not asynchronous_reset then
-				a_c     <= (others => '0');
-				pc_c    <= (others => '0');
-				state_c <= '0';
+				a_c     <= (others => '0') after delay;
+				pc_c    <= (others => '0') after delay;
+				state_c <= '0' after delay;
 			else
-				a_c     <= a_n;
-				pc_c    <= pc_n;
-				state_c <= state_n;
+				a_c     <= a_n after delay;
+				pc_c    <= pc_n after delay;
+				state_c <= state_n after delay;
 			end if;
 		end if;
 	end process;
 
 	process(op, alu, di, a_c, state_c)
 	begin
-		a_n     <= a_c;
+		a_n     <= a_c after delay;
 
-		if alu = "11" and a_c(a_c'high) = '0' then a_n(a_n'high) <= '0'; end if;
+		if alu = "11" and a_c(a_c'high) = '0' then a_n(a_n'high) <= '0' after delay; end if;
 
 		if state_c = '1' then -- EXECUTE for ADD and NOR
 			assert alu(1) = '0' severity failure;
-			if alu(0) = '0' then a_n <= '0' & a_c(di'range) + unsigned('0' & di); end if;
-			if alu(0) = '1' then a_n <= a_c nor '0' & unsigned(di); end if;
+			if alu(0) = '0' then a_n <= '0' & a_c(di'range) + unsigned('0' & di) after delay; end if;
+			if alu(0) = '1' then a_n <= a_c nor '0' & unsigned(di) after delay; end if;
 		end if;
 	end process;
 end architecture;
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
@@ -2184,6 +2226,7 @@ use work.util.all;
 entity ucpu_tb is
 	generic(
 		clock_frequency: positive;
+		delay: time := 0 ns;
 		file_name: string := "ucpu.bin");
 end entity;
 
@@ -2206,11 +2249,12 @@ architecture testing of ucpu_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	bram_0: entity work.dual_port_block_ram
 	generic map(
+		delay       => delay,
 		addr_length => addr_length,
 		data_length => data_length,
 		file_name   => file_name,
@@ -2231,7 +2275,7 @@ begin
 		b_dout  =>  b_dout);
 
 	ucpu_0: entity work.ucpu
-	generic map(width => data_length)
+	generic map(delay => delay, width => data_length)
 	port map(
 		clk => clk,
 		rst => rst,
@@ -2264,7 +2308,7 @@ end architecture;
 -- https://en.wikipedia.org/wiki/Division_algorithm#Restoring_division
 --
 --
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
@@ -2298,12 +2342,12 @@ begin
 	process(clk, rst)
 		procedure reset is
 		begin
-			a_c      <=  (others  =>  '0');
-			b_c      <=  (others  =>  '0');
-			m_c      <=  (others  =>  '0');
-			o_c      <=  (others  =>  '0');
-			e_c      <=  '0';
-			count_c  <=  (others  =>  '0');
+			a_c      <=  (others  =>  '0') after delay;
+			b_c      <=  (others  =>  '0') after delay;
+			m_c      <=  (others  =>  '0') after delay;
+			o_c      <=  (others  =>  '0') after delay;
+			e_c      <=  '0' after delay;
+			count_c  <=  (others  =>  '0') after delay;
 		end procedure;
 	begin
 		if rst = '1' and asynchronous_reset then
@@ -2312,12 +2356,12 @@ begin
 			if rst = '1' and not asynchronous_reset then
 				reset;
 			else
-				a_c      <=  a_n;
-				b_c      <=  b_n;
-				m_c      <=  m_n;
-				o_c      <=  o_n;
-				e_c      <=  e_n;
-				count_c  <=  count_n;
+				a_c      <=  a_n after delay;
+				b_c      <=  b_n after delay;
+				m_c      <=  m_n after delay;
+				o_c      <=  o_n after delay;
+				e_c      <=  e_n after delay;
+				count_c  <=  count_n after delay;
 			end if;
 		end if;
 	end process;
@@ -2333,45 +2377,45 @@ begin
 		o_n      <=  o_c;
 		count_n  <=  count_c;
 		if start = '1' then
-			a_n   <= unsigned(a);
-			b_n   <= unsigned(b);
+			a_n   <= unsigned(a) after delay;
+			b_n   <= unsigned(b) after delay;
 			m_v   := (others => '0');
-			e_n   <= '1';
-			o_n   <= (others => '0');
-			count_n <= (others => '0');
+			e_n   <= '1' after delay;
+			o_n   <= (others => '0') after delay;
+			count_n <= (others => '0') after delay;
 		elsif e_c = '1' then
 			if count_c(count_c'high) = '1' then
-				done  <= '1';
-				e_n   <= '0';
-				o_n   <= a_c;
-				count_n <= (others => '0');
+				done  <= '1' after delay;
+				e_n   <= '0' after delay;
+				o_n   <= a_c after delay;
+				count_n <= (others => '0') after delay;
 			else
 				m_v(b'high downto 1) := m_v(b'high - 1 downto 0);
 				m_v(0) := a_c(a'high);
-				a_n(a'high downto 1) <= a_c(a'high - 1 downto 0);
+				a_n(a'high downto 1) <= a_c(a'high - 1 downto 0) after delay;
 				m_v := m_v - b_c;
 				if m_v(m_v'high) = '1' then
 					m_v := m_v + b_c;
-					a_n(0) <= '0';
+					a_n(0) <= '0' after delay;
 				else
-					a_n(0) <= '1';
+					a_n(0) <= '1' after delay;
 				end if;
-				count_n <= count_c + 1;
+				count_n <= count_c + 1 after delay;
 			end if;
 		else
-			count_n <= (others => '0');
+			count_n <= (others => '0') after delay;
 		end if;
-		m_n <= m_v;
+		m_n <= m_v after delay;
 	end process;
 end architecture;
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
 
 entity restoring_divider_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end entity;
 
 architecture testing of restoring_divider_tb is
@@ -2387,11 +2431,11 @@ architecture testing of restoring_divider_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.restoring_divider
-		generic map(N => N)
+		generic map(N => N, delay => delay)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -2430,7 +2474,7 @@ end architecture;
 
 ------------------------- Debouncer -----------------------------------------------------------
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
@@ -2474,12 +2518,12 @@ begin
 	end process;
 end architecture;
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity debounce_us_tb is
-	generic(clock_frequency: positive);
+	generic(clock_frequency: positive; delay: time := 0 ns);
 end entity;
 
 architecture testing of debounce_us_tb is
@@ -2490,11 +2534,11 @@ architecture testing of debounce_us_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2)
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: work.util.debounce_us
-		generic map(clock_frequency => clock_frequency, timer_period_us => 1)
+		generic map(clock_frequency => clock_frequency, timer_period_us => 1, delay => delay)
 		port map(clk => clk, di => di, do => do);
 
 	stimulus_process: process
@@ -2512,7 +2556,7 @@ end architecture;
 
 ------------------------- Debouncer Block -----------------------------------------------------
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
@@ -2527,7 +2571,7 @@ end entity;
 
 architecture structural of debounce_block_us is
 begin
-	debouncer: for i in N - 1 downto 0 generate
+	debouncer: for i in (N - 1) downto 0 generate
 		d_instance: work.util.debounce_us
 			generic map(
 				delay           => delay,
@@ -2540,7 +2584,7 @@ end architecture;
 ------------------------- Debouncer Block -----------------------------------------------------
 
 ------------------------- State Changed -------------------------------------------------------
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
@@ -2583,7 +2627,7 @@ end architecture;
 ------------------------- Change State --------------------------------------------------------
 
 ------------------------- Change State Block --------------------------------------------------
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
@@ -2602,7 +2646,7 @@ end entity;
 
 architecture structural of state_block_changed is
 begin
-	changes: for i in N - 1 downto 0 generate
+	changes: for i in (N - 1) downto 0 generate
 		d_instance: work.util.state_changed
 			generic map(asynchronous_reset => asynchronous_reset, delay => delay)
 			port map(clk => clk, rst => rst, di => di(i), do => do(i));
@@ -2612,8 +2656,8 @@ end architecture;
 ------------------------- Change State Block --------------------------------------------------
 
 ------------------------- Reset Signal Generator ----------------------------------------------
--- @todo allow retriggering of interrupt, make a test bench
-library ieee,work;
+-- @todo Allow retriggering of the reset, perhaps even add watchdog functionality to it.
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util.all;
@@ -2651,4 +2695,258 @@ begin
 		end if;
 	end process;
 end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+
+entity reset_generator_tb is
+	generic(clock_frequency: positive; delay: time := 0 ns);
+end entity;
+
+architecture testing of reset_generator_tb is
+	constant clk_period:      time     := 1000 ms / clock_frequency;
+	signal stop, clk, rst: std_ulogic := '0';
+begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
+		port map(stop => stop, clk => clk, rst => open);
+
+	uut: entity work.reset_generator
+		generic map(clock_frequency => clock_frequency, delay => delay, reset_period_us => 1)
+		port map(clk => clk, rst => rst);
+
+	stimulus_process: process
+	begin
+		wait for clk_period;
+		assert rst = '1' severity failure;
+		wait for 1 us;
+		assert rst = '0' severity failure;
+		stop <= '1';
+		wait;
+	end process;
+
+end architecture;
+
 ------------------------- Reset Signal Generator ----------------------------------------------
+------------------------- Bit Count -----------------------------------------------------------
+library ieee, work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.all;
+
+entity bit_count is
+	generic (
+		delay: time     := 0 ns;  -- simulation only
+		N:     positive);
+	port(
+		bits:   in std_ulogic_vector(N - 1 downto 0);
+		count: out std_ulogic_vector(n_bits(N) downto 0));
+end entity;
+
+architecture behaviour of bit_count is
+begin
+	process (bits)
+		constant zero: unsigned(count'high - 1 downto count'low)  := (others => '0');
+		variable t: unsigned(count'range) := (others => '0');
+	begin
+		t := (others => '0');
+		for i in bits'low to bits'high loop
+			t := t + (zero & bits(i));
+		end loop;
+		count <= std_ulogic_vector(t);
+	end process;
+
+end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+use work.util.n_bits;
+
+entity bit_count_tb is
+	generic(clock_frequency: positive; delay: time := 0 ns);
+end entity;
+
+architecture testing of bit_count_tb is
+	constant clk_period:  time     := 1000 ms / clock_frequency;
+	constant N:           positive := 3;
+	signal bits:  std_ulogic_vector(N - 1 downto 0)         := (others => '0');
+	signal count: std_ulogic_vector(n_bits(N) downto 0) := (others => '0');
+begin
+	uut: entity work.bit_count
+		generic map(delay => delay, N => N)
+		port map(bits => bits, count => count);
+
+	stimulus_process: process
+		procedure test(b: std_ulogic_vector; c: std_ulogic_vector)  is
+		begin
+			bits <= b;
+			wait for clk_period;
+			assert count = c severity failure;
+		end procedure;
+	begin
+		-- @todo make 'count' bit length optimal for non-power of 2 numbers
+		test("000", "000");
+		test("001", "001");
+		test("010", "001");
+		test("011", "010");
+		test("100", "001");
+		test("101", "010");
+		test("110", "010");
+		test("111", "011");
+		wait;
+	end process;
+
+end architecture;
+------------------------- Bit Count -----------------------------------------------------------
+------------------------- Majority Voter ------------------------------------------------------
+library ieee, work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.all;
+
+entity majority is
+	generic (
+		delay:     time     := 0 ns;  -- simulation only
+		even_wins: boolean  := false; -- for even N, N/2 wins if true, otherwise N/2 + 1 required
+		N:         positive);
+	port(
+		bits: in std_ulogic_vector(N - 1 downto 0);
+		vote: out std_ulogic;
+		tie:  out std_ulogic);
+end entity;
+
+architecture behaviour of majority is
+	signal count: std_ulogic_vector(n_bits(N) downto 0) := (others => '0');
+begin
+	-- TODO: Handle N = 1, 2, 3, 4, and 5 as special cases
+	bit_counter: entity work.bit_count
+		generic map(delay => delay, N => N)
+		port map(bits => bits, count => count);
+
+	tie <= '1' when (unsigned(count) = N/2) and (N mod 2) = 0 else '0' after delay;
+
+	process (count)
+	begin
+		if even_wins and (N mod 2) = 0 then
+			if unsigned(count) >= (N/2) then
+				vote <= '1' after delay;
+			else
+				vote <= '0' after delay;
+			end if;
+		else
+			if unsigned(count) > (N/2) then
+				vote <= '1' after delay;
+			else
+				vote <= '0' after delay;
+			end if;
+		end if;
+	end process;
+end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.all;
+
+entity majority_tb is
+	generic(clock_frequency: positive; delay: time := 0 ns);
+end entity;
+
+architecture testing of majority_tb is
+	constant clk_period: time := 1000 ms / clock_frequency;
+
+	constant N_3:    positive := 3;
+	constant N_4_t:  positive := 4;
+	constant N_4_m:  positive := 4;
+
+	signal bits_3:   std_ulogic_vector(N_3   - 1 downto 0) := (others => '0');
+	signal bits_4_t: std_ulogic_vector(N_4_t - 1 downto 0) := (others => '0');
+	signal bits_4_m: std_ulogic_vector(N_4_m - 1 downto 0) := (others => '0');
+
+	signal vote_3,     tie_3: std_ulogic := '0';
+	signal vote_4_t, tie_4_t: std_ulogic := '0';
+	signal vote_4_m, tie_4_m: std_ulogic := '0';
+begin
+	uut_3: entity work.majority
+		generic map(delay => delay, N => N_3)
+		port map(bits => bits_3, vote => vote_3, tie => tie_3);
+
+	uut_4_t: entity work.majority
+		generic map(delay => delay, N => N_4_t, even_wins => true)
+		port map(bits => bits_4_t, vote => vote_4_t, tie => tie_4_t);
+
+	uut_4_m: entity work.majority
+		generic map(delay => delay, N => N_4_m)
+		port map(bits => bits_4_m, vote => vote_4_m, tie => tie_4_m);
+
+	stimulus_process: process
+		procedure test_3(b: std_ulogic_vector; vote, tie: std_ulogic)  is
+		begin
+			bits_3 <= b;
+			wait for clk_period;
+			assert vote_3 = vote and tie_3 = tie severity failure;
+		end procedure;
+
+		procedure test_4_t(b: std_ulogic_vector; vote, tie: std_ulogic)  is
+		begin
+			bits_4_t <= b;
+			wait for clk_period;
+			assert vote_4_t = vote and tie_4_t = tie severity failure;
+		end procedure;
+
+		procedure test_4_m(b: std_ulogic_vector; vote, tie: std_ulogic)  is
+		begin
+			bits_4_m <= b;
+			wait for clk_period;
+			assert vote_4_m = vote and tie_4_m = tie severity failure;
+		end procedure;
+	begin
+		test_3("000", '0', '0');
+		test_3("001", '0', '0');
+		test_3("010", '0', '0');
+		test_3("011", '1', '0');
+		test_3("100", '0', '0');
+		test_3("101", '1', '0');
+		test_3("110", '1', '0');
+		test_3("111", '1', '0');
+
+		test_4_t("0000", '0', '0');
+		test_4_t("0001", '0', '0');
+		test_4_t("0010", '0', '0');
+		test_4_t("0011", '1', '1');
+		test_4_t("0100", '0', '0');
+		test_4_t("0101", '1', '1');
+		test_4_t("0110", '1', '1');
+		test_4_t("0111", '1', '0');
+		test_4_t("1000", '0', '0');
+		test_4_t("1001", '1', '1');
+		test_4_t("1010", '1', '1');
+		test_4_t("1011", '1', '0');
+		test_4_t("1100", '1', '1');
+		test_4_t("1101", '1', '0');
+		test_4_t("1110", '1', '0');
+		test_4_t("1111", '1', '0');
+
+		test_4_m("0000", '0', '0');
+		test_4_m("0001", '0', '0');
+		test_4_m("0010", '0', '0');
+		test_4_m("0011", '0', '1');
+		test_4_m("0100", '0', '0');
+		test_4_m("0101", '0', '1');
+		test_4_m("0110", '0', '1');
+		test_4_m("0111", '1', '0');
+		test_4_m("1000", '0', '0');
+		test_4_m("1001", '0', '1');
+		test_4_m("1010", '0', '1');
+		test_4_m("1011", '1', '0');
+		test_4_m("1100", '0', '1');
+		test_4_m("1101", '1', '0');
+		test_4_m("1110", '1', '0');
+		test_4_m("1111", '1', '0');
+
+		wait;
+	end process;
+end architecture;
+
+------------------------- Majority Voter ------------------------------------------------------
+
