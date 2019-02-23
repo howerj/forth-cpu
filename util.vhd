@@ -4,7 +4,9 @@
 --| should be synthesizable, and the functions can be used within synthesizable
 --| components, unless marked with a "_tb" suffix (or if the function n_bits).
 --|
---| @todo Add communication modules for SPI and UART, for certain modules
+--| @todo Add communication modules for SPI and UART, also a VGA controller,
+--| and if this were to be its own project - a H2 Core with an eForth image 
+--| ready to go. Also, a simple N Cycle delay module could be of use.
 --|
 --| @author         Richard James Howe
 --| @copyright      Copyright 2017, 2019 Richard James Howe
@@ -165,7 +167,7 @@ package util is
 			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
 			delay:               time    := 0 ns; -- simulation only
 
-			N:                    positive);
+			N:                   positive);
 		port(
 			clk:     in  std_ulogic;
 			rst:     in  std_ulogic;
@@ -188,8 +190,7 @@ package util is
 			delay:               time    := 0 ns; -- simulation only
 
 			constant tap:        std_ulogic_vector);
-		port
-		(
+		port (
 			clk: in  std_ulogic;
 			rst: in  std_ulogic;
 			ce:  in  std_ulogic := '1';
@@ -208,8 +209,7 @@ package util is
 			delay:               time    := 0 ns; -- simulation only
 
 			N:                   positive);
-		port
-		(
+		port (
 			clk:         in    std_ulogic;
 			rst:         in    std_ulogic;
 			control:     in    std_ulogic_vector(N - 1 downto 0);
@@ -227,12 +227,12 @@ package util is
 	type file_format is (FILE_HEX, FILE_BINARY, FILE_NONE);
 
 	component dual_port_block_ram is
-	generic(delay:       time        := 0 ns; -- simulation only
+	generic (delay:       time        := 0 ns; -- simulation only
 		addr_length: positive    := 12;
 		data_length: positive    := 16;
 		file_name:   string      := "memory.bin";
 		file_type:   file_format := FILE_BINARY);
-	port(
+	port (
 		-- port A of dual port RAM
 		a_clk:  in  std_ulogic;
 		a_dwe:  in  std_ulogic;
@@ -250,12 +250,12 @@ package util is
 	end component;
 
 	component single_port_block_ram is
-	generic(delay:       time        := 0 ns; -- simulation only
+	generic (delay:       time        := 0 ns; -- simulation only
 		addr_length: positive    := 12;
 		data_length: positive    := 16;
 		file_name:   string      := "memory.bin";
 		file_type:   file_format := FILE_BINARY);
-	port(
+	port (
 		clk:  in  std_ulogic;
 		dwe:  in  std_ulogic;
 		dre:  in  std_ulogic;
@@ -265,7 +265,7 @@ package util is
 	end component;
 
 	component data_source is
-		generic(
+		generic (
 			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
 			delay:               time    := 0 ns; -- simulation only
        
@@ -273,7 +273,7 @@ package util is
 			data_length: positive    := 16;
 			file_name:   string      := "memory.bin";
 			file_type:   file_format := FILE_BINARY);
-		port(
+		port (
 			clk:     in  std_ulogic;
 			rst:     in  std_ulogic;
 
@@ -287,12 +287,12 @@ package util is
 	end component;
 
 	component ucpu is
-		generic(
-			asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		generic (
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
 			delay:               time    := 0 ns; -- simulation only
 
 			width:               positive range 8 to 32 := 8);
-		port(
+		port (
 			clk, rst: in  std_ulogic;
 
 			pc:       out std_ulogic_vector(width - 3 downto 0);
@@ -312,12 +312,12 @@ package util is
 	end component;
 
 	component restoring_divider is
-		generic(
-			asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
+		generic (
+			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
 			delay:               time    := 0 ns; -- simulation only
        
 			N:                   positive);
-		port(
+		port (
 			clk:   in  std_ulogic;
 			rst:   in  std_ulogic := '0';
 
@@ -437,6 +437,7 @@ package util is
 	function decode(encoded: std_ulogic_vector) return std_ulogic_vector;
 	function hex_char_to_std_ulogic_vector(hc: character) return std_ulogic_vector;
 	function to_std_ulogic_vector(s: string) return std_ulogic_vector;
+	function logical(b: boolean) return std_ulogic;
 
 	type ulogic_string is array(integer range <>) of std_ulogic_vector(7 downto 0);
   	function to_std_ulogic_vector(s: string) return ulogic_string;
@@ -585,6 +586,11 @@ package body util is
 		i    := to_integer(unsigned(encoded));
 		r(i) := '1';
 		return r;
+	end;
+
+	function logical(b: boolean) return std_ulogic is
+	begin
+		if b then return '1'; else return '0'; end if;
 	end;
 
 	function hex_char_to_std_ulogic_vector(hc: character) return std_ulogic_vector is
@@ -802,14 +808,32 @@ architecture rtl of clock_source_tb is
 	signal jitter_delay:   time      := 0 ns;
 	signal jitter_clk:     std_ulogic := '0';
 begin
-	clk_process: process
-		variable seed1, seed2 : positive;
-		variable r : real;
+	jitter_clk_process: process
+		variable seed1, seed2: positive;
+		variable r: real;
+		variable jit_high, jit_low: time  := 0 ns;
 	begin
 		while stop = '0' loop
 			uniform(seed1, seed2, r);
-			jitter_delay <= r * 1 ns;
+			jit_high := r * delay;
+			uniform(seed1, seed2, r);
+			jit_low := r * delay;
+			uniform(seed1, seed2, r);
+			if r < 0.5 then jit_high := -jit_high; end if;
+			uniform(seed1, seed2, r);
+			if r < 0.5 then jit_low := -jit_low; end if;
+			clk_with_jitter <= '1';
+			wait for (clock_period / 2) + jit_high;
+			clk_with_jitter <= '0';
+			wait for (clock_period / 2) + jit_low;
 
+		end loop;
+		wait;
+	end process;
+
+	clk_process: process
+	begin
+		while stop = '0' loop
 			clk <= '1';
 			wait for clock_period / 2;
 			clk <= '0';
@@ -817,8 +841,6 @@ begin
 		end loop;
 		wait;
 	end process;
-
-	clk_with_jitter <= transport clk after jitter_delay;
 
 	rst_process: process
 	begin

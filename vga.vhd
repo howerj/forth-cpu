@@ -499,15 +499,15 @@ begin
 
 	x_minus_one         <= x_c - 1;
 	x_plus_one          <= x_c + 1;
-	x_underflow         <= x_minus_one > (width  - 1);
-	x_overflow          <= x_c         > (width  - 1);
+	x_underflow         <= x_minus_one >= (width  - 1);
+	x_overflow          <= x_c         >  (width  - 1);
 	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
 	x_plus_one_limited  <= to_unsigned(width - 1, x_c'length) when x_overflow else x_plus_one;
 
 	y_plus_one          <= y_c + 1;
 	y_minus_one         <= y_c - 1;
-	y_overflow          <= y_c         > (height - 1);
-	y_underflow         <= y_minus_one > (height - 1);
+	y_overflow          <= y_c         >= (height - 1);
+	y_underflow         <= y_minus_one >  (height - 1);
 	y_minus_one_limited <= (others => '0') when y_underflow else y_minus_one;
 	y_plus_one_limited  <= to_unsigned(height - 1, y_c'length) when y_overflow else y_plus_one;
 
@@ -526,7 +526,7 @@ begin
 		ch             <= x"2a" when conceal_c else std_ulogic_vector(c_c);
 		attr           <= attr_c when state_c /= ERASING else attr_default;
 		vga_din        <= std_ulogic_vector(attr) & ch;
-		vga_ctr.crx    <= std_ulogic_vector(x_plus_one);
+		vga_ctr.crx    <= std_ulogic_vector(x_plus_one); -- not limited, goes off screen edge
 		vga_ctr.cry    <= std_ulogic_vector(y_c);
 		vga_ctr.ctl    <= std_ulogic_vector(ctl_c);
 		vga_ctr_we.crx <= cursor_we;
@@ -1063,7 +1063,6 @@ architecture rtl of vga_core is
 	signal cur_en:    std_ulogic := '0';
 	signal cur_mode:  std_ulogic := '0';
 	signal cur_blink: std_ulogic := '0';
-
 begin
 
 	-- hsync generator, initialized with '1'

@@ -1227,7 +1227,7 @@ example:
 	{
 		/* notice also that the 'case' clauses are inline with the
 		 * switch selector */
-		switch(ALU_OP(instruction)) {
+		switch (ALU_OP(instruction)) {
 		case ALU_OP_T:                  return "T";
 		case ALU_OP_N:                  return "N";
 		case ALU_OP_T_PLUS_N:           return "T+N";
@@ -1257,7 +1257,7 @@ example:
 
 <!-- -->
 
-	if(foo)
+	if (foo)
 		bar();
 	else
 		baz();

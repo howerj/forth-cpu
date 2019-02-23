@@ -34,16 +34,15 @@ package h2_pkg is
 		);           
 		port(
 			clk:      in  std_ulogic;
-			rst:      in  std_ulogic;
-
-			-- IO interface
+			rst:      in  std_ulogic; -- active high reset, configurable async/sync
 			stop:     in  std_ulogic; -- Assert high to halt the H2 core
 
+			-- IO interface
 			io_wr:    out std_ulogic; -- Output Write Enable
 			io_re:    out std_ulogic; -- Input  Read  Enable
-			io_din:   in  word;      -- Data  Input from register
-			io_dout:  out word;      -- Data  Output to register
-			io_daddr: out word;      -- Data  Address for I/O action
+			io_din:   in  word;       -- Data Input from register
+			io_dout:  out word;       -- Data Output to register
+			io_daddr: out word;       -- Data Address for I/O action
 
 			irq:      in  std_ulogic; -- Interrupt Request
 			irq_addr: in  std_ulogic_vector(interrupt_address_length - 1 downto 0); -- Address to jump to on Interrupt Request
@@ -143,8 +142,8 @@ architecture rtl of h2 is
 
 	signal compare: compare_type := ('0', '0', '0', '0');
 
-	signal stop_c:     std_ulogic := '1';
-	signal stop_n:     std_ulogic := '0'; -- processor wait state
+	signal stop_c:     std_ulogic := '1'; -- processor wait state register (current)
+	signal stop_n:     std_ulogic := '0'; -- processor wait state register (next)
 
 	signal irq_en_c, irq_en_n: std_ulogic := '0'; -- interrupt enable
 	signal irq_c, irq_n:       std_ulogic := '0'; -- pending interrupt request
@@ -159,12 +158,18 @@ architecture rtl of h2 is
 	signal instruction:  word := (others => '0'); -- processed 'insn'
 begin
 	assert stack_size > 4 report "stack size too small: " & integer'image(stack_size) severity failure;
+	-- More assertions would be nice, such as:
+	-- assert is_instr.alu = '0' and io_wr = '0' and io_re = '0' severity failure; -- need to buffer outputs
+	-- assert only one instruction active at one time
+	assert dd /= "10" severity warning; -- valid, but odd
+	assert rd /= "10" severity warning; -- valid, but rare
+	assert use_interrupts or (not use_interrupts and stop_c = '0') severity failure;
 
-	is_instr.alu     <= '1' when instruction(15 downto 13) = "011" else '0' after delay;
-	is_instr.lit     <= '1' when instruction(15)           = '1'   else '0' after delay;
 	is_instr.branch  <= '1' when instruction(15 downto 13) = "000" else '0' after delay;
 	is_instr.branch0 <= '1' when instruction(15 downto 13) = "001" else '0' after delay;
 	is_instr.call    <= '1' when instruction(15 downto 13) = "010" else '0' after delay;
+	is_instr.alu     <= '1' when instruction(15 downto 13) = "011" else '0' after delay;
+	is_instr.lit     <= '1' when instruction(15)           = '1'   else '0' after delay;
 	is_ram_write     <= '1' when is_instr.alu = '1' and instruction(5) = '1' else '0' after delay;
 	compare.more     <= '1' when   signed(tos_c) >   signed(nos) else '0' after delay;
 	compare.umore    <= '1' when unsigned(tos_c) > unsigned(nos) else '0' after delay;
@@ -194,14 +199,14 @@ begin
 	next_state: process(clk, rst)
 		procedure reset is
 		begin
+			pc_c       <= std_ulogic_vector(to_unsigned(start_address, pc_c'length)) after delay;
+			stop_c     <= '1' after delay; -- start in stopped state
 			vstkp_c    <= (others => '0') after delay;
 			rstkp_c    <= (others => '0') after delay;
-			pc_c       <= std_ulogic_vector(to_unsigned(start_address, pc_c'length)) after delay;
 			tos_c      <= (others => '0') after delay;
-			stop_c     <= '1' after delay; -- !
+			irq_addr_c <= (others => '0') after delay;
 			irq_en_c   <= '0' after delay;
 			irq_c      <= '0' after delay;
-			irq_addr_c <= (others => '0') after delay;
 		end reset;
 	begin
 		if rst = '1' and asynchronous_reset then
@@ -210,14 +215,19 @@ begin
 			if rst = '1' and not asynchronous_reset then
 				reset;
 			else
+				-- TODO: Try to make these asserts happen all the time, not just on rising_edge()s
+				assert stop_c = '0' or (stop_c = '1' and is_instr.branch = '1') severity failure;
+				assert (not rstk_we = '1') or (((is_instr.alu = '1' and instruction(6) = '1') or is_instr.call = '1')) severity failure;
+				assert (not dstk_we = '1') or (((is_instr.alu = '1' and instruction(7) = '1') or is_instr.lit = '1')) severity failure;
+
+				pc_c       <= pc_n after delay;
+				stop_c     <= stop_n after delay;
 				vstkp_c    <= vstkp_n after delay;
 				rstkp_c    <= rstkp_n after delay;
-				pc_c       <= pc_n after delay;
 				tos_c      <= tos_n after delay;
-				stop_c     <= stop_n after delay;
+				irq_addr_c <= irq_addr_n after delay;
 				irq_en_c   <= irq_en_n after delay;
 				irq_c      <= irq_n after delay;
-				irq_addr_c <= irq_addr_n after delay;
 			end if;
 		end if;
 	end process;
@@ -268,9 +278,9 @@ begin
 		compare,
 		irq_en_c)
 	begin
-		io_re    <=  '0'; -- hardware reads can have side effects
-		tos_n    <=  tos_c;
-		irq_en_n <=  irq_en_c;
+		io_re    <= '0'; -- hardware reads can have side effects
+		tos_n    <= tos_c;
+		irq_en_n <= irq_en_c;
 		case aluop is
 		-- Register Operations
 		when "00000" => tos_n <= tos_c after delay;

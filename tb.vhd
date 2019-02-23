@@ -73,7 +73,7 @@ architecture testing of tb is
 
 	-- Test bench configurable options --
 
-	signal stop:  std_ulogic :=  '0';
+	signal stop:  boolean := false;
 	signal dbgi:  cpu_debug_interface;
 
 	signal clk:          std_ulogic := '0';
@@ -200,7 +200,7 @@ begin
 		variable r : real;
 		variable jit_high, jit_low: time  := 0 ns;
 	begin
-		while stop = '0' loop
+		while not stop loop
 			if jitter_on then
 				uniform(seed1, seed2, r);
 				jit_high := r * delay;
@@ -237,9 +237,9 @@ begin
 		end if;
 
 		report "Writing to STDOUT";
-		while stop = '0' loop
-			wait until (dout_stb = '1' or stop = '1');
-			if stop = '0' then
+		while not stop loop
+			wait until (dout_stb = '1' or stop);
+			if not stop then
 				c := character'val(to_integer(unsigned(dout)));
 				write(oline, c);
 				have_char := true;
@@ -286,11 +286,11 @@ begin
 		report "Waiting for " & time'image(cfg.input_wait_for) & " (before reading from STDIN)";
 		wait for cfg.input_wait_for;
 		report "Reading from STDIN (Hit EOF/CTRL-D/CTRL-Z After entering a line)";
-		while (not endfile(input)) and stop = '0' and eoi = false loop
+		while (not endfile(input)) and not stop and eoi = false loop
 			report "readline...";
 			readline(input, iline);
 			good := true;
-			while good and stop = '0' loop
+			while good and not stop loop
 				read(iline, c, good);
 				if good then
 					report "" & c;
@@ -385,7 +385,7 @@ begin
 		assert hsync_gone_high report "HSYNC not active - H2 failed to initialize VGA module";
 		assert vsync_gone_high report "VSYNC not active - H2 failed to initialize VGA module";
 
-		stop   <=  '1';
+		stop   <=  true;
 		report "stimulus_process end";
 		wait;
 	end process;

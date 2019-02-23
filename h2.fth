@@ -1082,6 +1082,7 @@ location memory-select      0    ( SRAM/Flash select SRAM = $400, Flash = 0 )
 start:
 .set entry start
 	\ <boot> @execute  ( <boot> contains zero by default, does nothing )
+	\ $2A sgr
 	hi
 	cpu-id segments!
 	loading-string print
