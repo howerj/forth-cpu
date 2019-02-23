@@ -87,7 +87,7 @@ package vga_pkg is
 		rst:       in  std_ulogic;
 		clk25MHz:  in  std_ulogic;
 		text_a:    out std_ulogic_vector(11 downto 0); -- text buffer
-		text_d:    in  std_ulogic_vector( 7 downto 0);
+		text_d:    in  std_ulogic_vector(15 downto 0);
 		font_a:    out std_ulogic_vector(11 downto 0); -- font buffer
 		font_d:    in  std_ulogic_vector( 7 downto 0);
 		 --
@@ -95,10 +95,7 @@ package vga_pkg is
 		ocry:      in  std_ulogic_vector(5 downto 0);
 		octl:      in  std_ulogic_vector(3 downto 0);
 		--
-		foreground_draw: out std_ulogic;
-		background_draw: out std_ulogic;
-		hsync:     out std_ulogic;
-		vsync:     out std_ulogic);
+		o_vga: out vga_physical_interface);
 	end component;
 
 	component losr is
@@ -881,33 +878,6 @@ architecture behav of vga_top is
 	signal  foreground_draw: std_ulogic := '0';
 	signal  background_draw: std_ulogic := '0';
 begin
-
-	color_block: block
-		signal red_on:   std_ulogic := '0';
-		signal green_on: std_ulogic := '0';
-		signal blue_on:  std_ulogic := '0';
-		signal bold:     std_ulogic := '0';
-		signal reverse:  std_ulogic := '0';
-		signal set:      std_ulogic_vector(2 downto 0) := "110";
-		signal final:    std_ulogic_vector(2 downto 0) := "111";
-	begin
-		bold        <= text_dout(14);
-		reverse     <= text_dout(15);
-		set         <= "100" when bold = '0' else "111";
-		final       <= set   when reverse = '0' else not set;
-
-		red_on      <= text_dout(11) when foreground_draw = '1' else
-			       text_dout(8)  when background_draw = '1' else '0';
-		green_on    <= text_dout(12) when foreground_draw = '1' else
-			       text_dout(9)  when background_draw = '1' else '0';
-		blue_on     <= text_dout(13) when foreground_draw = '1' else
-			       text_dout(10) when background_draw = '1' else '0';
-
-		o_vga.red   <= final             when red_on    = '1' else "000";
-		o_vga.green <= final             when green_on  = '1' else "000";
-		o_vga.blue  <= final(2 downto 1) when blue_on   = '1' else "00";
-	end block;
-
 	-- Internal control registers
 	-- Next state on clk edge rising
 	vga_ns: process(clk, rst)
@@ -945,7 +915,7 @@ begin
 		clk25MHz  => clk25MHz,
 
 		text_a    => text_addr,
-		text_d    => text_dout(7 downto 0),
+		text_d    => text_dout,
 
 		font_a    => font_addr,
 		font_d    => font_dout,
@@ -954,10 +924,7 @@ begin
 		ocry      => control_c.cry,
 		octl      => control_c.ctl(3 downto 0),
 
-		foreground_draw => foreground_draw,
-		background_draw => background_draw,
-		hsync     => o_vga.hsync,
-		vsync     => o_vga.vsync);
+		o_vga     => o_vga);
 
 	text_addr_full <= control_c.ctl(4) & text_addr;
 
@@ -1011,8 +978,7 @@ end architecture;
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.vga_pkg.ctrm;
-use work.vga_pkg.losr;
+use work.vga_pkg.all;
 
 entity vga_core is
 	generic(
@@ -1022,7 +988,7 @@ entity vga_core is
 		rst:      in  std_ulogic;
 		clk25MHz: in  std_ulogic;
 		text_a:   out std_ulogic_vector(11 downto 0); -- text buffer
-		text_d:   in  std_ulogic_vector( 7 downto 0);
+		text_d:   in  std_ulogic_vector(15 downto 0);
 		font_a:   out std_ulogic_vector(11 downto 0); -- font buffer
 		font_d:   in  std_ulogic_vector( 7 downto 0);
 		 --
@@ -1030,10 +996,7 @@ entity vga_core is
 		ocry:     in  std_ulogic_vector(5 downto 0);
 		octl:     in  std_ulogic_vector(3 downto 0);
 		--
-		foreground_draw: out std_ulogic; -- If '1', we should draw the character
-		background_draw: out std_ulogic;
-		hsync:     out std_ulogic;
-		vsync:     out std_ulogic);
+		o_vga:    out vga_physical_interface);
 end entity;
 
 architecture rtl of vga_core is
@@ -1063,6 +1026,9 @@ architecture rtl of vga_core is
 	signal cur_en:    std_ulogic := '0';
 	signal cur_mode:  std_ulogic := '0';
 	signal cur_blink: std_ulogic := '0';
+
+	signal background_draw, foreground_draw: std_ulogic := '0';
+	signal attr:      std_ulogic_vector(7 downto 0) := (others =>'0');
 begin
 
 	-- hsync generator, initialized with '1'
@@ -1155,6 +1121,8 @@ begin
 		signal mul:     unsigned(15 downto 0) := (others => '0');
 		signal rom_tmp: unsigned(11 downto 0) := (others => '0'); -- range 3071 downto 0;
 
+		signal text_d_tmp: std_ulogic_vector(7 downto 0) := (others => '0');
+
 		-- @todo Rename these signals to something more sensible
 	begin
 		u_hctr: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 794) 
@@ -1191,18 +1159,48 @@ begin
 		chry_ce <= hctr_639 and blank;
 		scry_ce <= chry_011 and hctr_639;
 
-		ram_tmp <=  (to_unsigned(scry,ram_tmp'length) sll 4) +
-				(to_unsigned(scry,ram_tmp'length) sll 6) +
-				to_unsigned(scrx,ram_tmp'length);
+		ram_tmp <=  (to_unsigned(scry, ram_tmp'length) sll 4) +
+				(to_unsigned(scry, ram_tmp'length) sll 6) +
+				to_unsigned(scrx, ram_tmp'length);
 
+		text_d_tmp <= text_d(7 downto 0);
 		text_a  <= std_ulogic_vector(ram_tmp);
-		mul     <= unsigned(text_d) * 12;
+		mul     <= unsigned(text_d_tmp) * 12;
 		rom_tmp <= mul(rom_tmp'range) + chry;
 		font_a  <= std_ulogic_vector(rom_tmp);
 	end block;
 
+	color_block: block
+		signal red_on:   std_ulogic := '0';
+		signal green_on: std_ulogic := '0';
+		signal blue_on:  std_ulogic := '0';
+		signal bold:     std_ulogic := '0';
+		signal reverse:  std_ulogic := '0';
+		signal set:      std_ulogic_vector(2 downto 0) := "110";
+		signal final:    std_ulogic_vector(2 downto 0) := "111";
+	begin
+		bold        <= attr(14-8);
+		reverse     <= attr(15-8);
+		set         <= "100" when bold = '0' else "111";
+		final       <= set   when reverse = '0' else not set;
+
+		red_on      <= attr(11-8) when foreground_draw = '1' else
+			       attr(8-8)  when background_draw = '1' else '0';
+		green_on    <= attr(12-8) when foreground_draw = '1' else
+			       attr(9-8)  when background_draw = '1' else '0';
+		blue_on     <= attr(13-8) when foreground_draw = '1' else
+			       attr(10-8) when background_draw = '1' else '0';
+
+		o_vga.red   <= final             when red_on    = '1' else "000";
+		o_vga.green <= final             when green_on  = '1' else "000";
+		o_vga.blue  <= final(2 downto 1) when blue_on   = '1' else "00";
+	end block;
+
+	u_reg: work.util.reg generic map (asynchronous_reset => asynchronous_reset, delay => delay, N => 8)
+	port map( clk => clk25MHz, rst => rst, we => losr_ld, di => text_d(15 downto 8), do => attr);
+
 	u_losr: work.vga_pkg.losr generic map (asynchronous_reset => asynchronous_reset, delay => delay, N => 8)
-	port map (rst, clk25MHz, losr_ld, losr_ce, losr_do, FONT_D);
+	port map (rst => rst, clk => clk25MHz, load => losr_ld, ce => losr_ce, do => losr_do, di => font_d);
 
 	losr_ce <= blank;
 	losr_ld <= '1' when (chrx = 7) else '0';
@@ -1211,8 +1209,8 @@ begin
 	foreground_draw_int <=      y  and blank;
 	background_draw_int <= (not y) and blank;
 
-	hsync <= hsync_int and vga_en;
-	vsync <= vsync_int and vga_en;
+	o_vga.hsync <= hsync_int and vga_en;
+	o_vga.vsync <= vsync_int and vga_en;
 
 	-- Hardware Cursor
 	hw_cursor: block

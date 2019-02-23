@@ -227,7 +227,7 @@ package util is
 	type file_format is (FILE_HEX, FILE_BINARY, FILE_NONE);
 
 	component dual_port_block_ram is
-	generic (delay:       time        := 0 ns; -- simulation only
+	generic (delay:       time       := 0 ns; -- simulation only
 		addr_length: positive    := 12;
 		data_length: positive    := 16;
 		file_name:   string      := "memory.bin";

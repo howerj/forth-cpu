@@ -1343,7 +1343,8 @@ are.
 # To Do
 
 * There is a bug with the VT100 component, the color attributes are not
-correctly placed in the right location, but in the previous one.
+correctly placed in the right location, but in the previous one. (Work in
+progress - mostly fixed!)
 * The [embed][] project, which was derived from the simulator and Forth for this
 project, has an improved version of Forth which could be reintegrated with
 this project. The [embed][] project features a metacompiler suitable for 16-bit
