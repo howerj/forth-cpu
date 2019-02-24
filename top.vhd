@@ -205,7 +205,7 @@ begin
 			do(3) => tx_fifo_full_edge,
 			do(4) => kbd_char_buf_new_edge);
 
-		cpu_irc(0) <= '0';
+		cpu_irc(0) <= btnu_d; -- configurable CPU reset (can mask this)
 		cpu_irc(1) <= rx_fifo_not_empty_edge;
 		cpu_irc(2) <= rx_fifo_full_edge;
 		cpu_irc(3) <= tx_fifo_not_empty_edge;

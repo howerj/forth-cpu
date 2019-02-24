@@ -5,8 +5,8 @@
 --| components, unless marked with a "_tb" suffix (or if the function n_bits).
 --|
 --| @todo Add communication modules for SPI and UART, also a VGA controller,
---| and if this were to be its own project - a H2 Core with an eForth image 
---| ready to go. Also, a simple N Cycle delay module could be of use.
+--| CORDIC, --| and if this were to be its own project - a H2 Core with an 
+--| eForth image ready to go. 
 --|
 --| @author         Richard James Howe
 --| @copyright      Copyright 2017, 2019 Richard James Howe
@@ -112,7 +112,6 @@ package util is
 			di:     in  std_ulogic_vector(N - 1 downto 0);
 			do:     out std_ulogic_vector(N - 1 downto 0));
 	end component;
-
 
 	-- @note half_adder test bench is folded in to full_adder_tb
 	component half_adder is
@@ -420,6 +419,23 @@ package util is
 	end component;
 
 	component majority_tb is
+		generic(clock_frequency: positive; delay: time := 0 ns);
+	end component;
+
+	component delay_line is
+		generic(asynchronous_reset: boolean := true; 
+			delay: time := 0 ns;
+			width: positive; 
+			depth: natural);
+		port(
+			clk: in std_ulogic;
+			rst: in std_ulogic;
+			ce:  in std_ulogic := '1';
+			di:  in std_ulogic_vector(width - 1 downto 0);
+			do: out std_ulogic_vector(width - 1 downto 0));
+	end component;
+
+	component delay_line_tb is
 		generic(clock_frequency: positive; delay: time := 0 ns);
 	end component;
 
@@ -744,6 +760,7 @@ begin
 	uut_rst_gen:  work.util.reset_generator_tb   generic map(clock_frequency => clock_frequency, delay => delay);
 	uut_bit_cnt:  work.util.bit_count_tb         generic map(clock_frequency => clock_frequency, delay => delay);
 	uut_majority: work.util.majority_tb          generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_delay_ln: work.util.delay_line_tb        generic map(clock_frequency => clock_frequency, delay => delay);
 	uut_rising_edge_detector: work.util.rising_edge_detector_tb generic map(clock_frequency => clock_frequency, delay => delay);
 
 	stimulus_process: process
@@ -2821,6 +2838,8 @@ begin
 end architecture;
 ------------------------- Bit Count -----------------------------------------------------------
 ------------------------- Majority Voter ------------------------------------------------------
+-- NB. This could be constructed from a more generic 'assert output if bit
+-- count greater than N' module. 
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -2972,3 +2991,93 @@ end architecture;
 
 ------------------------- Majority Voter ------------------------------------------------------
 
+------------------------- Delay Line ----------------------------------------------------------
+-- 'DEPTH' * clock period delay line. Minimum delay of 0.
+--
+-- NB. It would be possible to create a delay line that would allow you to delay samples by 
+-- varying amounts with a FIFO and a counter, which is sort of line a Run
+-- Length Compression Decoder. A sample and a counter would be pushed to the
+-- FIFO, the delay line mechanism would pull a sample/counter and hold the value
+-- for that amount of time.
+library ieee, work;
+use ieee.std_logic_1164.all;
+use work.util.all;
+
+entity delay_line is
+	generic(asynchronous_reset: boolean := true; 
+		delay: time := 0 ns;
+		width: positive; 
+		depth: natural);
+	port(
+		clk:  in std_ulogic;
+		rst:  in std_ulogic;
+		ce:   in std_ulogic := '1';
+		di:   in std_ulogic_vector(width - 1 downto 0);
+		do:  out std_ulogic_vector(width - 1 downto 0));
+end entity;
+
+architecture behaviour of delay_line is
+	type delay_line_t is array(integer range 0 to depth) of std_ulogic_vector(di'range);
+	signal sigs: delay_line_t := (others => (others => '0'));
+begin
+	sigs(0) <= di;
+	delay_line_generate: for i in 0 to depth generate
+		rest: if i > 0 generate
+			ux: work.util.reg
+				generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => width)
+				port map(clk => clk, rst => rst, we => ce, di => sigs(i - 1), do => sigs(i));
+		end generate;
+	end generate;
+	do <= sigs(depth);
+end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+use work.util.all;
+
+entity delay_line_tb is
+	generic(clock_frequency: positive; delay: time := 0 ns);
+end entity;
+
+architecture testing of delay_line_tb is
+	constant clk_period:  time       := 1000 ms / clock_frequency;
+	constant depth:       natural    := 2;
+	constant width:       positive   := 8;
+	signal clk, rst:      std_ulogic := '0';
+	signal stop:          std_ulogic := '0';
+
+	signal di, do: std_ulogic_vector(width - 1 downto 0) := (others => '0');
+begin
+	cs: entity work.clock_source_tb
+		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
+		port map(stop => stop, clk => clk, rst => rst);
+
+	uut: entity work.delay_line
+	generic map(depth => depth, delay => delay, width => width) port map(clk => clk, rst => rst, di => di, do => do, ce => '1');
+
+	stimulus_process: process
+	begin
+		-- put a bit into the shift register and wait
+		-- for it to come out the other size
+		wait until rst = '0';
+		di <= x"AA";
+		wait for clk_period * 1;
+		di <= x"55";
+		wait for clk_period * 1;
+		di <= x"CC";
+		wait for clk_period * 1;
+		di <= x"DD";
+		assert do = x"AA";
+		wait for clk_period * 1;
+		di <= x"00";
+		assert do = x"55";
+		wait for clk_period * 1;
+		assert do = x"CC";
+		wait for clk_period * 1;
+		assert do = x"DD";
+		wait for clk_period * 1;
+		assert do = x"00";
+		stop <= '1';
+		wait;
+	end process;
+end architecture;

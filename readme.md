@@ -993,6 +993,7 @@ VHDL-2008 standard.
 | util.vhd | MIT        | Richard J Howe  | A collection of generic components  |
 | h2.vhd   | MIT        | Richard J Howe  | H2 Forth CPU Core                   |
 | vga.vhd  | LGPL 3.0   | Javier V García | Text Mode VGA 80x40 Display         |
+|          |            | Richard J Howe  | (and VT100 terminal emulator)       |
 | uart.vhd | Apache 2.0 | Peter A Bennett | UART, modified from original        |
 | kbd.vhd  | ???        | Scott Larson    | PS/2 Keyboard                       |
 | led.vhd  | MIT        | Richard J Howe  | LED 7-Segment + Dot Display Driver  |
@@ -1007,62 +1008,6 @@ it is contained within [h2.fth][].
 
 TODO:
 * Describe the Forth environment running on the H2 CPU.
-
-# Using Forth as a bootloader
-
-A running Forth environment can be quite easily used as a bootloader with no
-further modification, a simple protocol for sending data and verification of it
-can be built using only Forth primitives - although it is not the most
-efficient use of bandwidth.
-
-The sender can interrogate the running Forth environment over the serial link
-to determine the amount of space left in memory, and then populate it with an
-assembled binary.
-
-The Forth words needed are:
-
-
-| Word    | Description           |
-| ------- | --------------------- |
-| .free   | show free space       |
-| cp      | compile pointer       |
-| pwd     | previous word pointer |
-| @       | load                  |
-| !       | store                 |
-| cr      | print new line        |
-| execute | execute               |
-| decimal | set decimal output    |
-| cells   | size of cell          |
-| .       | print number          |
-
-
-And of course numeric input, all of which are provided by this interpreter. The
-protocol is line oriented, the host with the program to transfer to the H2
-(called PC) sends a line of text and expects a reply from the H2 board (called
-H2),
-
-	PC: decimal           ( set the H2 core to a known numeric output )
-	PC: .free cp @ . cr   ( query how much space is left, and where to put it )
-	H2: ADDR ADDR         ( H2 replies with both addresses )
-	PC: 1 cells . cr      ( PC queries size of cells )
-	H2: 2                 ( H2 responds, PC now knows to increment ADDR )
-	PC: NUM  ADDR !       ( PC write NUM to ADDR )
-	PC: ADDR @ . cr       ( optionally PC checks value )
-	H2: NUM               ( H2 responds with value stored at ADDR )
-	...                   ( PC and H2 do this as often as necessary )
-	PC: ADDR pwd !        ( PC optionally updates previous word register )
-	PC  ADDR cp  !        ( PC optionally updated compile poiinter )
-	PC: ADDR execute      ( Begin execution of word )
-
-The advantage of this "protocol" is that is human readable, and includes a
-debugger for the microcontroller it is operating on.
-
-# A simple Forth block editor
-
-TODO:
-- Talk about implementing a simple block editor in a few words of Forth.
-
-<http://retroforth.org/pages/?PortsOfRetroEditor>
 
 # Coding standards
 
@@ -1342,9 +1287,6 @@ are.
 
 # To Do
 
-* There is a bug with the VT100 component, the color attributes are not
-correctly placed in the right location, but in the previous one. (Work in
-progress - mostly fixed!)
 * The [embed][] project, which was derived from the simulator and Forth for this
 project, has an improved version of Forth which could be reintegrated with
 this project. The [embed][] project features a metacompiler suitable for 16-bit

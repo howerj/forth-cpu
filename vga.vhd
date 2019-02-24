@@ -4,7 +4,7 @@
 --|             Terminal Emulator
 --| @author     Javier Valcarce García
 --| @author     Richard James Howe
---| @copyright  Copyright 2007 Javier Valcarce García, 2017 Richard James Howe
+--| @copyright  Copyright 2007 Javier Valcarce García, 2017, 2019 Richard James Howe
 --| @license    LGPL version 3
 --| @email      javier.valcarce@gmail.com
 --| @note       (Modifications and repackaging by Richard James Howe)
@@ -16,8 +16,7 @@
 --| @todo Make a VT100 test bench
 --| @todo Fix/Remove processing of semi-colon separated attribute values
 --| @todo Add scrolling by changing the base address "text_a", adding
---| a line
---| @todo Turn this into a stand alone project
+--| a line.
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------
@@ -161,7 +160,6 @@ package vga_pkg is
 			ready:  out std_ulogic;
 			n_o:    out unsigned(N - 1 downto 0));
 	end component;
-
 end package;
 
 ----- VGA Package -------------------------------------------------------------
@@ -195,11 +193,11 @@ architecture behav of vt100_tb is
 	-- LF = Line Feed
 	-- CR = Carriage Return
 	-- ESC = Escape
-	constant CSI: string := ESC & "[";
+	constant CSI:   string := ESC & "[";
 	constant RESET: string := CSI & "0m";
 	constant RED:   string := CSI & "31m";
 	constant GREEN: string := CSI & "32m";
-	constant NL:  string := CR & LF;
+	constant NL:    string := CR & LF;
 	constant test_string: string := "Hello!" & HT & "World!" & RED & NL & "How are you?" & RESET & NL ;
 	shared variable test_vector: ulogic_string(test_string'range) := to_std_ulogic_vector(test_string);
 	shared variable index: integer := 1; -- starts at '1' due to string range
@@ -1010,10 +1008,10 @@ architecture rtl of vga_core is
 	signal vctr:  integer range 524 downto 0 := 0;
 
 	-- character/pixel position on the screen
-	signal scry:  integer range 39 downto 0 := 0;  -- chr row   < 40 (6 bits)
-	signal scrx:  integer range 79 downto 0 := 0;  -- chr col   < 80 (7 bits)
-	signal chry:  integer range 11 downto 0 := 0;  -- chr high  < 12 (4 bits)
-	signal chrx:  integer range 7  downto 0 := 0;  -- chr width < 08 (3 bits)
+	signal scry:  integer range 39 downto 0 := 0; -- chr row   < 40 (6 bits)
+	signal scrx:  integer range 79 downto 0 := 0; -- chr col   < 80 (7 bits)
+	signal chry:  integer range 11 downto 0 := 0; -- chr high  < 12 (4 bits)
+	signal chrx:  integer range 7  downto 0 := 0; -- chr width < 08 (3 bits)
 
 	signal losr_ce: std_ulogic := '0';
 	signal losr_ld: std_ulogic := '0';
@@ -1029,6 +1027,7 @@ architecture rtl of vga_core is
 
 	signal background_draw, foreground_draw: std_ulogic := '0';
 	signal attr:      std_ulogic_vector(7 downto 0) := (others =>'0');
+	signal attr_we_delay: std_ulogic := '0';
 begin
 
 	-- hsync generator, initialized with '1'
@@ -1179,25 +1178,28 @@ begin
 		signal set:      std_ulogic_vector(2 downto 0) := "110";
 		signal final:    std_ulogic_vector(2 downto 0) := "111";
 	begin
-		bold        <= attr(14-8);
-		reverse     <= attr(15-8);
+		bold        <= attr(6);
+		reverse     <= attr(7);
 		set         <= "100" when bold = '0' else "111";
 		final       <= set   when reverse = '0' else not set;
 
-		red_on      <= attr(11-8) when foreground_draw = '1' else
-			       attr(8-8)  when background_draw = '1' else '0';
-		green_on    <= attr(12-8) when foreground_draw = '1' else
-			       attr(9-8)  when background_draw = '1' else '0';
-		blue_on     <= attr(13-8) when foreground_draw = '1' else
-			       attr(10-8) when background_draw = '1' else '0';
+		red_on      <= attr(3) when foreground_draw = '1' else
+			       attr(0) when background_draw = '1' else '0';
+		green_on    <= attr(4) when foreground_draw = '1' else
+			       attr(1) when background_draw = '1' else '0';
+		blue_on     <= attr(5) when foreground_draw = '1' else
+			       attr(2) when background_draw = '1' else '0';
 
 		o_vga.red   <= final             when red_on    = '1' else "000";
 		o_vga.green <= final             when green_on  = '1' else "000";
 		o_vga.blue  <= final(2 downto 1) when blue_on   = '1' else "00";
 	end block;
 
-	u_reg: work.util.reg generic map (asynchronous_reset => asynchronous_reset, delay => delay, N => 8)
-	port map( clk => clk25MHz, rst => rst, we => losr_ld, di => text_d(15 downto 8), do => attr);
+	u_reg_delay: work.util.reg generic map (asynchronous_reset => asynchronous_reset, delay => delay, N => 1)
+	port map(clk => clk25MHz, rst => rst, we => '1', di(0) => losr_ld, do(0) => attr_we_delay);
+
+	u_reg_attr: work.util.reg generic map (asynchronous_reset => asynchronous_reset, delay => delay, N => 8)
+	port map(clk => clk25MHz, rst => rst, we => attr_we_delay, di => text_d(15 downto 8), do => attr);
 
 	u_losr: work.vga_pkg.losr generic map (asynchronous_reset => asynchronous_reset, delay => delay, N => 8)
 	port map (rst => rst, clk => clk25MHz, load => losr_ld, ce => losr_ce, do => losr_do, di => font_d);
@@ -1225,7 +1227,6 @@ begin
 		signal cry:     integer range 64 downto 0;
 		signal counter: unsigned(22 downto 0) := (others => '0');
 	begin
-
 		-- slowclk for blink hardware cursor
 		counter <= counter + 1 when rising_edge(clk25MHz) else counter;
 		slowclk <= counter(22); --2.98Hz
@@ -1268,7 +1269,7 @@ entity ctrm is
 		ce:  in  std_ulogic; -- enable counting
 		rs:  in  std_ulogic; -- synchronous rst
 		do:  out integer range (M-1) downto 0 := 0);
-end ctrm;
+end entity;
 
 architecture rtl of ctrm is
 	signal c: integer range (M-1) downto 0:= 0;
@@ -1321,12 +1322,12 @@ entity losr is
 		ce:   in  std_ulogic;
 		do:   out std_ulogic := '0';
 		di:   in  std_ulogic_vector(N - 1 downto 0));
-end losr;
+end entity;
 
 architecture rtl of losr is
 begin
 	process(rst, clk)
-		variable data : std_ulogic_vector(N - 1 downto 0) := (others => '0');
+		variable data: std_ulogic_vector(N - 1 downto 0) := (others => '0');
 	begin
 		if rst = '1' and asynchronous_reset then
 			data := (others => '0');
