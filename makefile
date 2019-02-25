@@ -150,6 +150,7 @@ kbd.o: util.o kbd.vhd
 vga.o: util.o vga.vhd text.hex font.bin
 core.o: util.o h2.o core.vhd h2.hex
 uart.o: util.o uart.vhd
+timer.o: util.o
 top.o: util.o timer.o core.o uart.o vga.o kbd.o led.o ram.o top.vhd 
 tb.o: top.o util.o tb.vhd 
 

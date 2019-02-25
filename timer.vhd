@@ -24,12 +24,11 @@
 library ieee,work,std;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.util.common_generics;
 
 entity timer is
 	generic(
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only
-
+		g: common_generics;
 		timer_length: positive := 16);
 	port(
 		clk:          in  std_ulogic;
@@ -70,21 +69,21 @@ begin
 
 	counter: process (clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
-			count     <= (others => '0') after delay;
-			control_c <= (others => '0') after delay;
+		if rst = '1' and g.asynchronous_reset then
+			count     <= (others => '0') after g.delay;
+			control_c <= (others => '0') after g.delay;
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
-				count     <= (others => '0') after delay;
-				control_c <= (others => '0') after delay;
+			if rst = '1' and not g.asynchronous_reset then
+				count     <= (others => '0') after g.delay;
+				control_c <= (others => '0') after g.delay;
 			else
 				control_c <= control_n;
 				if reset_timer = '1' or timer_reset = '1' then
-					count <= (others => '0') after delay;
+					count <= (others => '0') after g.delay;
 				elsif enabled = '1' then
-					count <= count + 1 after delay;
+					count <= count + 1 after g.delay;
 				else
-					count <= count after delay;
+					count <= count after g.delay;
 				end if;
 			end if;
 		end if;
@@ -93,18 +92,18 @@ begin
 	output: process(count, we, control_i, control_c, compare, irq_en, enabled)
 	begin
 		if we = '1' then
-			control_n <= control_i after delay;
+			control_n <= control_i after g.delay;
 		else
-			control_n                   <= control_c after delay;
-			control_n(timer_reset_bit)  <= '0' after delay; -- reset
+			control_n                   <= control_c after g.delay;
+			control_n(timer_reset_bit)  <= '0' after g.delay; -- reset
 		end if;
 
 		if count = unsigned(compare) and enabled = '1' then
-			irq         <= irq_en after delay;
-			timer_reset <= '1' after delay;
+			irq         <= irq_en after g.delay;
+			timer_reset <= '1' after g.delay;
 		else
-			irq         <= '0' after delay;
-			timer_reset <= '0' after delay;
+			irq         <= '0' after g.delay;
+			timer_reset <= '0' after g.delay;
 		end if;
 	end process;
 end architecture;

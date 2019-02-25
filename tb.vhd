@@ -3,13 +3,15 @@
 --| @brief Main test bench.
 --|
 --| @author         Richard James Howe.
---| @copyright      Copyright 2013,2017 Richard James Howe.
+--| @copyright      Copyright 2013-2019 Richard James Howe.
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
 --| This test bench does quite a lot. It is not like normal VHDL test benches
---| in the fact that it uses configurable variables that it read in from a
---| file, which it does in an awkward but usable fashion.
+--| in the fact that it uses configurable variables that it reads in from a
+--| file, which it does in an awkward but usable fashion. It also has a
+--| partially working way of connecting a simulated UART to STDIN/STDOUT, which
+--| is a work in progress.
 --|
 --| It also tests multiple modules.
 --|
@@ -31,17 +33,21 @@ entity tb is
 end tb;
 
 architecture testing of tb is
-	constant clock_frequency:         positive := 100_000_000;
+	constant g: common_generics := (
+		clock_frequency    => 100_000_000,
+		asynchronous_reset => true,
+		delay              => 0 ns
+	);
+
 	constant number_of_interrupts:    positive := 8;
 	constant uart_baud_rate:          positive := 115200;
 	constant configuration_file_name: string   := "tb.cfg";
-	constant clk_period:              time     := 1000 ms / clock_frequency;
 	constant uart_tx_time:            time     := (10*1000 ms) / 115200;
 	constant uart_default_input:      std_ulogic_vector(7 downto 0) := x"AA";
-	constant asynchronous_reset:      boolean  := true;
-	constant delay:                   time     := 0 ns;
 	constant reset_period_us:         natural  := 1;
 	constant jitter_on:               boolean  := false;
+
+	constant clock_period:              time     := 1000 ms / g.clock_frequency;
 
 	-- Test bench configurable options --
 
@@ -78,8 +84,6 @@ architecture testing of tb is
 
 	signal clk:          std_ulogic := '0';
 	signal rst:          std_ulogic := '0';
-
---	signal  cpu_wait: std_ulogic := '0'; -- CPU wait flag
 
 	-- Basic I/O
 	signal btnu:  std_ulogic := '0';  -- button up
@@ -133,11 +137,9 @@ begin
 
 	uut: entity work.top
 	generic map(
-		asynchronous_reset   => asynchronous_reset,
-		delay                => delay,
-		reset_period_us      => reset_period_us,
-		clock_frequency      => clock_frequency,
-		uart_baud_rate       => uart_baud_rate)
+		g               => g,
+		reset_period_us => reset_period_us,
+		uart_baud_rate  => uart_baud_rate)
 	port map(
 		debug       => dbgi,
 		clk         => clk,
@@ -168,20 +170,20 @@ begin
 		mem_addr  =>  mem_addr,
 		mem_data  =>  mem_data);
 
-	uut_util: work.util.util_tb generic map(clock_frequency => clock_frequency, delay => delay);
-	uut_vga:  work.vga_pkg.vt100_tb generic map(clock_frequency => clock_frequency, delay => delay);
+	uut_util: work.util.util_tb generic map(g => g);
+	uut_vga:  work.vga_pkg.vt100_tb generic map(clock_frequency => g.clock_frequency, delay => g.delay);
 
 	-- The "io_pins_tb" works correctly, however in GHDL 0.29, compiled under
 	-- Windows, fails to simulate this component correctly, resulting
 	-- in a crash. This does not affect the Linux build of GHDL. It has
 	-- something to do with 'Z' values for std_logic types.
 
-	uut_io_pins: work.util.io_pins_tb      generic map(clock_frequency => clock_frequency);
+	uut_io_pins: work.util.io_pins_tb  generic map(g => g);
 
 	uut_uart: work.uart_pkg.uart_core
 		generic map(
 			baud_rate            =>  uart_baud_rate,
-			clock_frequency      =>  clock_frequency)
+			clock_frequency      =>  g.clock_frequency)
 		port map(
 			clk       =>  clk,
 			rst       =>  rst,
@@ -203,9 +205,9 @@ begin
 		while not stop loop
 			if jitter_on then
 				uniform(seed1, seed2, r);
-				jit_high := r * delay;
+				jit_high := r * g.delay;
 				uniform(seed1, seed2, r);
-				jit_low := r * delay;
+				jit_low := r * g.delay;
 				uniform(seed1, seed2, r);
 				if r < 0.5 then jit_high := -jit_high; end if;
 				uniform(seed1, seed2, r);
@@ -215,9 +217,9 @@ begin
 				jit_low  := 0 ns;
 			end if;
 			clk <= '1';
-			wait for (clk_period / 2) + jit_high;
+			wait for (clock_period / 2) + jit_high;
 			clk <= '0';
-			wait for (clk_period / 2) + jit_low;
+			wait for (clock_period / 2) + jit_low;
 		end loop;
 		report "clk_process end";
 		wait;
@@ -247,9 +249,9 @@ begin
 					writeline(output, oline);
 					have_char := false;
 				end if;
-				wait for clk_period;
+				wait for clock_period;
 				dout_ack <= '1';
-				wait for clk_period;
+				wait for clock_period;
 				dout_ack <= '0';
 			end if;
 		end loop;
@@ -261,7 +263,7 @@ begin
 	end process;
 
 
-	-- @note The Input and Output mechanism that allows the tester to
+	-- The Input and Output mechanism that allows the tester to
 	-- interact with the running simulation needs more work, it is buggy
 	-- and experimental, but demonstrates the principle - that a VHDL
 	-- test bench can be interacted with at run time.
@@ -301,7 +303,7 @@ begin
 				end if;
 				din <= std_ulogic_vector(to_unsigned(character'pos(c), din'length));
 				din_stb <= '1';
-				wait for clk_period;
+				wait for clock_period;
 				din_stb <= '0';
 				wait for 100 us;
 			end loop;
@@ -354,7 +356,7 @@ begin
 		configured <= true;
 
 		rst  <= '1';
-		wait for clk_period * 2;
+		wait for clock_period * 2;
 		rst  <= '0';
 
 		if cfg.number_of_iterations = 0 then
@@ -374,7 +376,7 @@ begin
 					count := count + 1;
 				end if;
 			end if;
-			wait for clk_period * 1;
+			wait for clock_period * 1;
 		end loop;
 
 		-- It would be nice to test the other peripherals as

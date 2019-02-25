@@ -11,9 +11,10 @@
 --| code, in succession, and testing the response.
 --------------------------------------------------------------------------------
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use work.util.n_bits;
+use work.util.common_generics;
 use work.h2_pkg.all;
 
 package core_pkg is
@@ -57,8 +58,7 @@ package core_pkg is
 
 	component interrupt_request_handler is
 	generic(
-		asynchronous_reset:     boolean  := true; -- use asynchronous reset if true, synchronous if false
-		delay:                  time     := 0 ns; -- simulation only, gate delay
+		g: common_generics;
 		number_of_interrupts:   positive := 8;
 		lowest_interrupt_first: boolean  := true);
 	port(
@@ -81,15 +81,15 @@ end package;
 library ieee,work;
 use ieee.std_logic_1164.all;
 use work.util.n_bits;
+use work.util.common_generics;
 use work.core_pkg.all;
 use work.h2_pkg.all;
 use work.util.file_format;
-use work.util.FILE_HEX;
+use work.util.file_hex;
 
 entity core is
 	generic(
-		asynchronous_reset:   boolean  := true; -- use asynchronous reset if true, synchronous if false
-		delay:                time     := 0 ns; -- simulation only, gate delay
+		g: common_generics;
 		number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
@@ -141,7 +141,7 @@ begin
 	-- synthesis translate_on
 
 	irqh_0: work.core_pkg.interrupt_request_handler
-	generic map(asynchronous_reset => asynchronous_reset, delay => delay, number_of_interrupts => number_of_interrupts)
+	generic map(g => g, number_of_interrupts => number_of_interrupts)
 	port map(
 		clk    => clk,
 		rst    => rst,
@@ -156,7 +156,7 @@ begin
 		mask_we => cpu_irc_mask_we);
 
 	h2_0: work.h2_pkg.h2 -- The actual CPU instance (H2)
-	generic map(asynchronous_reset => asynchronous_reset, delay => delay, interrupt_address_length => interrupt_address_length)
+	generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, interrupt_address_length => interrupt_address_length)
 	port map(
 		clk       =>    clk,
 		rst       =>    rst,
@@ -184,7 +184,7 @@ begin
 
 	mem_h2_0: entity work.dual_port_block_ram
 	generic map(
-		delay         => delay,
+		delay         => g.delay,
 		addr_length   => address'length,
 		data_length   => word'length,
 		file_name     => file_name,
@@ -232,11 +232,11 @@ use work.util.reg;
 use work.util.n_bits;
 use work.util.select_bit;
 use work.util.priority;
+use work.util.common_generics;
 
 entity interrupt_request_handler is
 	generic(
-		asynchronous_reset:     boolean  := true; -- use asynchronous reset if true, synchronous if false
-		delay:                  time     := 0 ns; -- simulation only, gate delay
+		g: common_generics;
 		number_of_interrupts:   positive := 8;
 		lowest_interrupt_first: boolean  := true);
 	port(
@@ -264,7 +264,7 @@ architecture rtl of interrupt_request_handler is
 	signal mask_n: std_ulogic_vector(mask'range) := (others => '0');
 begin
 	irq_in: entity work.reg
-		generic map(asynchronous_reset => asynchronous_reset, delay => delay, N  => 1)
+		generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N  => 1)
 		port map(
 			clk    =>  clk,
 			rst    =>  rst,
@@ -273,7 +273,7 @@ begin
 			do(0)  =>  irq_n);
 
 	irc_in: entity work.reg
-		generic map(asynchronous_reset => asynchronous_reset, delay => delay, N  => number_of_interrupts)
+		generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N  => number_of_interrupts)
 		port map(
 			clk  =>  clk,
 			rst  =>  rst,
@@ -281,7 +281,7 @@ begin
 			di   =>  irc_i,
 			do   =>  irc_n);
 
-	irc_mask: entity work.reg generic map(asynchronous_reset => asynchronous_reset, delay => delay, N  => number_of_interrupts)
+	irc_mask: entity work.reg generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N  => number_of_interrupts)
 		port map(
 			clk  =>  clk,
 			rst  =>  rst,
@@ -293,11 +293,11 @@ begin
 		variable addr_n: std_ulogic_vector(addr'range) := (others => '0');
 	begin
 		addr_n := priority(irc_n, not lowest_interrupt_first);
-		addr_o <= addr_n after delay;
+		addr_o <= addr_n after g.delay;
 		if select_bit(mask_n, addr_n) = '1' then
-			irq_o <= irq_n after delay;
+			irq_o <= irq_n after g.delay;
 		else
-			irq_o <= '0' after delay;
+			irq_o <= '0' after g.delay;
 		end if;
 	end process;
 

@@ -11,10 +11,9 @@
 --|
 --| This is a modified version of the text terminal available at
 --| <https://opencores.org/project,interface_vga80x40>. Additions include per
---| character attributes information and a VT100 terminal interface.
+--| character attribute information (color, bold, reverse video) and a VT100 
+--| terminal interface.
 --|
---| @todo Make a VT100 test bench
---| @todo Fix/Remove processing of semi-colon separated attribute values
 --| @todo Add scrolling by changing the base address "text_a", adding
 --| a line.
 -------------------------------------------------------------------------------
@@ -415,7 +414,7 @@ architecture rtl of vt100 is
 	constant number: positive := 8;
 
 	type state_type is (RESET, ACCEPT, NORMAL, WRAP, LIMIT, CSI, COMMAND,
-	NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING, ATTRIB1, ATTRIB2, ADVANCE);
+	NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING, ATTRIB1, ADVANCE);
 	signal state_c, state_n: state_type := RESET;
 
 	constant esc:          unsigned(char'range) := x"1b";
@@ -799,9 +798,6 @@ begin
 					when x"2F"  => attr_n(2 downto 0) <= "111";
 					when others =>
 					end case;
-					state_n <= ATTRIB2;
-				elsif state_c = ATTRIB2 then
-					-- @todo Implement two attributes in a row
 					state_n <= ACCEPT;
 				else
 					state_n <= RESET;
@@ -819,12 +815,12 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.vga_pkg.all;
 use work.util.file_format;
-use work.util.FILE_HEX;
-use work.util.FILE_BINARY;
+use work.util.file_hex;
+use work.util.file_binary;
 
 entity vga_top is
 	generic(
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
+		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
 		delay:               time    := 0 ns); -- simulation only, gate delay
 	port(
 		clk:              in  std_ulogic;

@@ -24,13 +24,14 @@
 --------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
+use work.util.common_generics;
 
 package kbd_pkg is
 
 	component ps2_kbd_top is
 		generic(
-			clock_frequency:           integer := 50000000; -- system clock frequency in hz
-			ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50mhz)
+			clock_frequency:           integer := 50000000; -- system clock frequency in Hz
+			ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50MHz)
 		port(
 			clk:        in  std_ulogic;                     -- system clock input
 			ps2_clk:    in  std_ulogic;                     -- clock signal from PS2 keyboard
@@ -41,8 +42,8 @@ package kbd_pkg is
 
 	component ps2_kbd_core is
 	generic(
-		clock_frequency: integer := 50000000;  -- system clock frequency in hz
-		debounce_counter_size: integer := 8);  -- set such that (2^size)/clock_frequency = 5us (size = 8 for 50mhz)
+		clock_frequency: integer := 50000000;  -- system clock frequency in Hz
+		debounce_counter_size: integer := 8);  -- set such that (2^size)/clock_frequency = 5us (size = 8 for 50MHz)
 	port(
 		clk:          in  std_ulogic; -- system clock
 		ps2_clk:      in  std_ulogic; -- clock signal from PS/2 keyboard
@@ -52,7 +53,7 @@ package kbd_pkg is
 	end component;
 
 	component ps2_debounce is
-		generic(counter_size:  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
+		generic(counter_size:  integer := 19); --counter size (19 bits gives 10.5ms with 50MHz clock)
 		port(
 			clk:    in  std_ulogic;
 			button: in  std_ulogic;  --input signal to be debounced
@@ -61,10 +62,8 @@ package kbd_pkg is
 
 	component keyboard is
 		generic(
-			asynchronous_reset:        boolean := true; -- use asynchronous reset if true, synchronous if false
-			delay:                     time    := 0 ns; -- simulation only, gate delay
-			clock_frequency:           integer := 50000000; -- system clock frequency in hz
-			ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50mhz)
+			g: common_generics;
+			ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50MHz)
 		port(
 			clk:              in  std_ulogic;        -- system clock input
 			rst:              in  std_ulogic;        -- system reset
@@ -79,16 +78,15 @@ package kbd_pkg is
 end package;
 
 ------ Keyboard ----------------------------------------------------------------
-library ieee;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use work.kbd_pkg.all;
+use work.util.common_generics;
 
 entity keyboard is
 	generic(
-		asynchronous_reset:        boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:                     time    := 0 ns; -- simulation only, gate delay
-		clock_frequency:           integer := 50000000; -- system clock frequency in hz
-		ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50mhz)
+		g: common_generics;
+		ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50MHz)
 	port(
 		clk:              in  std_ulogic;        -- system clock input
 		rst:              in  std_ulogic;        -- system reset
@@ -108,23 +106,23 @@ architecture rtl of keyboard  is
 	signal kbd_char:     std_ulogic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
 	signal kbd_char_o:   std_ulogic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
 begin
-	kbd_char_buf_new <= kbd_new_c after delay;
+	kbd_char_buf_new <= kbd_new_c after g.delay;
 
 	ps2_next: process(clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
-			kbd_new_c  <= '0' after delay;
+		if rst = '1' and g.asynchronous_reset then
+			kbd_new_c  <= '0' after g.delay;
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
-				kbd_new_c <= '0' after delay;
+			if rst = '1' and not g.asynchronous_reset then
+				kbd_new_c <= '0' after g.delay;
 			else
-				kbd_new_c   <= kbd_new_n after delay;
+				kbd_new_c   <= kbd_new_n after g.delay;
 			end if;
 		end if;
 	end process;
 
 	new_char: entity work.reg
-	generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => kbd_char'length)
+	generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N => kbd_char'length)
 	port map(
 		clk => clk,
 		rst => rst,
@@ -133,7 +131,7 @@ begin
 		do  => kbd_char_o);
 
 	char_buf: entity work.reg
-	generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => kbd_char'length)
+	generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N => kbd_char'length)
 	port map(
 		clk => clk,
 		rst => rst,
@@ -144,18 +142,18 @@ begin
 	ps2_proc: process(kbd_new_edge, kbd_new_c, kbd_char_re)
 	begin
 		if kbd_new_edge = '1' then
-			kbd_new_n  <= '1' after delay;
+			kbd_new_n  <= '1' after g.delay;
 		elsif kbd_char_re = '1' then
-			kbd_new_n  <= '0' after delay;
+			kbd_new_n  <= '0' after g.delay;
 		else
-			kbd_new_n  <= kbd_new_c after delay;
+			kbd_new_n  <= kbd_new_c after g.delay;
 		end if;
 	end process;
 
 	-- Process a kbd_new into a single edge for the rest of the
 	-- system.
 	ps2_edge_new_character_0: entity work.rising_edge_detector
-	generic map(asynchronous_reset => asynchronous_reset, delay => delay)
+	generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay)
 	port map(
 		clk => clk,
 		rst => rst,
@@ -164,7 +162,7 @@ begin
 
 	ps2_0: work.kbd_pkg.ps2_kbd_top
 	generic map(
-		clock_frequency => clock_frequency,
+		clock_frequency => g.clock_frequency,
 		ps2_debounce_counter_size => ps2_debounce_counter_size)
 	port map(
 		clk        => clk,
@@ -183,8 +181,8 @@ use work.kbd_pkg.all;
 
 entity ps2_kbd_top is
 	generic(
-		clock_frequency:           integer := 50000000; -- system clock frequency in hz
-		ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50mhz)
+		clock_frequency:           integer := 50000000; -- system clock frequency in Hz
+		ps2_debounce_counter_size: integer := 8);       -- set such that 2^size/clock_frequency = 5us (size = 8 for 50MHz)
 	port(
 		clk:        in  std_ulogic;                     -- system clock input
 		ps2_clk:    in  std_ulogic;                     -- clock signal from PS2 keyboard
@@ -496,8 +494,8 @@ use ieee.std_logic_1164.all;
 
 entity ps2_kbd_core is
 	generic(
-		clock_frequency: integer := 50000000;  -- system clock frequency in hz
-		debounce_counter_size: integer := 8);  -- set such that (2^size)/clock_frequency = 5us (size = 8 for 50mhz)
+		clock_frequency: integer := 50000000;  -- system clock frequency in Hz
+		debounce_counter_size: integer := 8);  -- set such that (2^size)/clock_frequency = 5us (size = 8 for 50MHz)
 	port(
 		clk:          in  std_ulogic; -- system clock
 		ps2_clk:      in  std_ulogic; -- clock signal from PS/2 keyboard
@@ -603,7 +601,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity ps2_debounce is
-	generic(counter_size:  integer := 19); --counter size (19 bits gives 10.5ms with 50mhz clock)
+	generic(counter_size:  integer := 19); --counter size (19 bits gives 10.5ms with 50MHz clock)
 	port(
 		clk:    in  std_ulogic;
 		button: in  std_ulogic;  --input signal to be debounced
@@ -622,9 +620,9 @@ begin
 		if rising_edge(clk) then
 			flipflops(0) <= button;
 			flipflops(1) <= flipflops(0);
-			if(counter_set = '1') then                  --reset counter because input is changing
+			if counter_set = '1'  then                  --reset counter because input is changing
 				counter_out <= (others => '0');
-			elsif(counter_out(counter_size) = '0') then --stable input time is not yet met
+			elsif counter_out(counter_size) = '0'  then --stable input time is not yet met
 				counter_out <= counter_out + 1;
 			else                                        --stable input time is met
 				result <= flipflops(1);
