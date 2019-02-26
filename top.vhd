@@ -388,12 +388,15 @@ begin
 		o_vga       =>  o_vga
 	);
 
---	-- TODO: Fix this, it is a work in progress
+	
+	-- Test code
+	-- NOTE: Timing is not the best, VGA monitor loses synchronization
+	-- every so often with this module.	
 --	vga_c1: block
 --		signal row, column: integer := 0;
 --		signal h_blank, v_blank, draw: std_ulogic := '0';
 --	begin
---		draw <= h_blank and v_blank;
+--		draw <= not h_blank and not v_blank;
 --		vga_c: work.util.vga_controller
 --		generic map(
 --			g => g,

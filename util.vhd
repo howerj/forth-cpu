@@ -3562,8 +3562,6 @@ end architecture;
 --  1.907 us   Back Porch _______/   <-(48 pixels)
 --
 
--- TODO: FIX THIS! This only partially works. It can *roughly* generate a sort
--- valid VGA signal.
 library ieee, work;
 use ieee.std_logic_1164.all;
 use work.util.all;
@@ -3577,7 +3575,7 @@ entity vga_controller is
 		clk, rst:          in std_ulogic;
 		h_sync, v_sync:   out std_ulogic;
 		h_blank, v_blank: out std_ulogic;
-		column, row:      out integer);
+		column, row:      out integer); -- TODO: Use unsigned value of minimum necessary width
 end entity;
 
 architecture behavior of vga_controller is
