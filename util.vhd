@@ -3314,7 +3314,6 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util.all;
 
--- XXX TODO FIX THIS
 entity hamming_7_4_decoder is
 	generic (g: common_generics);
 	port (
@@ -3329,7 +3328,7 @@ architecture behaviour of hamming_7_4_decoder is
 	signal co: std_ulogic_vector(di'range)   := (others => '0');
 	signal cp: std_ulogic := '0';
 begin
-	s(2) <= di(0) xor di(4) xor di(5) xor di(6) after g.delay;
+	s(2) <= di(3) xor di(4) xor di(5) xor di(6) after g.delay;
 	s(1) <= di(1) xor di(2) xor di(5) xor di(6) after g.delay;
 	s(0) <= di(0) xor di(2) xor di(4) xor di(6) after g.delay;
 	
@@ -3383,9 +3382,9 @@ begin
 		variable i: integer range 0 to 7;
 	begin
 		encoded_rx    <= encoded_tx;
-		--uniform(seed1, seed2, r);
-		--i := integer(floor(r * 6.99));
-		--encoded_rx(i) <= not encoded_tx(i);
+		uniform(seed1, seed2, r);
+		i := integer(floor(r * 6.99));
+		encoded_rx(i) <= not encoded_tx(i);
 	end process;
 
 	uut_decode: entity work.hamming_7_4_decoder
@@ -3397,6 +3396,8 @@ begin
 		procedure test(slv: std_ulogic_vector) is
 		begin
 			di <= slv;
+			wait for clock_period * 1;
+			assert di = do severity error;
 			wait for clock_period * 1;
 		end procedure;
 	begin
