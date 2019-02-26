@@ -67,10 +67,7 @@ package util is
 	end component;
 
 	component shift_register
-		generic (
-			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-			delay:               time    := 0 ns; -- simulation only
-			N:                   positive);
+		generic (g: common_generics; N: positive);
 		port (
 			clk:     in  std_ulogic;
 			rst:     in  std_ulogic;
@@ -85,7 +82,7 @@ package util is
 	end component;
 
 	component shift_register_tb
-		generic (clock_frequency: positive; delay: time := 0 ns);
+		generic (g: common_generics);
 	end component;
 
 	component timer_us
@@ -106,9 +103,7 @@ package util is
 	end component;
 
 	component rising_edge_detector is
-		generic (
-			asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
-			delay:               time    := 0 ns); -- simulation only
+		generic (g: common_generics);
 		port (
 			clk:    in  std_ulogic;
 			rst:    in  std_ulogic;
@@ -117,15 +112,11 @@ package util is
 	end component;
 
 	component rising_edge_detector_tb is
-		generic (clock_frequency: positive; delay: time := 0 ns);
+		generic (g: common_generics);
 	end component;
 
 	component rising_edge_detectors is
-		generic (
-			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-			delay:               time    := 0 ns; -- simulation only
-
-			N:                   positive);
+		generic (g: common_generics; N: positive);
 		port (
 			clk:    in  std_ulogic;
 			rst:    in  std_ulogic;
@@ -407,23 +398,18 @@ package util is
 	function n_bits(x: std_ulogic_vector) return natural;
 
 	component bit_count is
-		generic (
-			delay: time     := 0 ns;  -- simulation only
-			N:     positive);
+		generic (g: common_generics; N: positive);
 		port (
 			bits:   in std_ulogic_vector(N - 1 downto 0);
 			count: out std_ulogic_vector(n_bits(N) downto 0));
 	end component;
 
 	component bit_count_tb is
-		generic (clock_frequency: positive; delay: time := 0 ns);
+		generic (g: common_generics);
 	end component;
 
 	component majority is
-		generic (
-			delay:     time     := 0 ns;  -- simulation only
-			even_wins: boolean  := false; -- for even N, N/2 wins if true, otherwise N/2 + 1 required
-			N:         positive);
+		generic (g: common_generics; N: positive; even_wins: boolean := false);
 		port (
 			bits: in std_ulogic_vector(N - 1 downto 0);
 			vote: out std_ulogic;
@@ -431,14 +417,11 @@ package util is
 	end component;
 
 	component majority_tb is
-		generic (clock_frequency: positive; delay: time := 0 ns);
+		generic (g: common_generics);
 	end component;
 
 	component delay_line is
-		generic (asynchronous_reset: boolean := true; 
-			delay: time := 0 ns;
-			width: positive; 
-			depth: natural);
+		generic (g: common_generics; width: positive; depth: natural);
 		port (
 			clk: in std_ulogic;
 			rst: in std_ulogic;
@@ -448,7 +431,7 @@ package util is
 	end component;
 
 	component delay_line_tb is
-		generic (clock_frequency: positive; delay: time := 0 ns);
+		generic (g: common_generics);
 	end component;
 
 	component gray_encoder is
@@ -483,16 +466,67 @@ package util is
 	end component;
 
 	component hamming_7_4_decoder is
-		generic (g: common_generics);
+		generic (g: common_generics; secdec: boolean := true);
 		port (
 			di:      in std_ulogic_vector(6 downto 0);
 			parity:  in std_ulogic;
 			do:     out std_ulogic_vector(3 downto 0);
-			err:    out std_ulogic);
+			single, double: out std_ulogic);
 	end component;
 
 	component hamming_7_4_tb is
 		generic (g: common_generics);
+	end component;
+
+	type vga_configuration is record
+		clock_frequency: positive;   -- pixel clock frequency
+		h_pulse:         integer;    -- horizontal sync pulse width in pixels
+		h_back_porch:    integer;    -- horizontal back porch width in pixels
+		h_pixels:        integer;    -- horizontal display width in pixels
+		h_front_porch:   integer;    -- horizontal front porch width in pixels
+		h_polarity:      std_ulogic; -- horizontal sync pulse polarity (1 = positive, 0 = negative)
+
+		v_pulse:         integer;    -- vertical sync pulse width in rows
+		v_back_porch:    integer;    -- vertical back porch width in rows
+		v_pixels:        integer;    -- vertical display width in rows
+		v_front_porch:   integer;    -- vertical front porch width in rows
+		v_polarity:      std_ulogic; -- vertical sync pulse polarity (1 = positive, 0 = negative)
+	end record;
+
+	constant vga_640x480: vga_configuration := (
+		clock_frequency => 25_175_000,
+		h_pulse =>  96, h_back_porch =>  48, h_pixels =>  640, h_front_porch =>  16, h_polarity => '0',
+		v_pulse =>   2, v_back_porch =>  33, v_pixels =>  480, v_front_porch =>  10, v_polarity => '0');
+
+	constant vga_800x600: vga_configuration := (
+		clock_frequency => 40_000_000,
+		h_pulse => 128, h_back_porch =>  88, h_pixels =>  800, h_front_porch =>  40, h_polarity => '1',
+		v_pulse =>   4, v_back_porch =>  23, v_pixels =>  600, v_front_porch =>   1, v_polarity => '1');
+
+	constant vga_1024x768: vga_configuration := (
+		clock_frequency => 44_900_000,
+		h_pulse => 176, h_back_porch =>  56, h_pixels => 1024, h_front_porch =>   8, h_polarity => '1',
+		v_pulse => 8,   v_back_porch =>  41, v_pixels =>  800, v_front_porch =>   0, v_polarity => '1');
+
+	constant vga_1920x1200: vga_configuration := (
+		clock_frequency => 193_160_000,
+		h_pulse => 208, h_back_porch => 336, h_pixels => 1920, h_front_porch => 128, h_polarity => '0',
+		v_pulse => 3,   v_back_porch => 38,  v_pixels => 1200, v_front_porch =>   1, v_polarity => '1');
+
+	component vga_controller is
+	generic(
+		g: common_generics;
+		pixel_clock_frequency:  positive := 25_000_000;
+		constant cfg: vga_configuration  := vga_640x480); 
+	port(
+		clk, rst:          in std_ulogic;  -- pixel clock, must run at configured frequency
+		h_sync, v_sync:   out std_ulogic;  -- sync pulses
+		h_blank, v_blank: out std_ulogic;
+		column, row:      out integer);   -- pixel coordinates
+	end component;
+
+	component vga_tb is
+		generic(g: common_generics; pixel_clock_frequency: positive := 25_000_000; simulation_us: time := 20000 us);
 	end component;
 
 	function max(a: natural; b: natural) return natural;
@@ -512,6 +546,7 @@ package util is
 	function hex_char_to_std_ulogic_vector(hc: character) return std_ulogic_vector;
 	function to_std_ulogic_vector(s: string) return std_ulogic_vector;
 	function logical(b: boolean) return std_ulogic;
+	function bit_count_f(s: std_ulogic_vector) return integer;
 
 	type ulogic_string is array(integer range <>) of std_ulogic_vector(7 downto 0);
   	function to_std_ulogic_vector(s: string) return ulogic_string;
@@ -719,6 +754,17 @@ package body util is
 		return slv;
 	end;
 
+	function bit_count_f(s : std_ulogic_vector) return integer is
+		variable count: natural := 0;
+	begin
+		for i in s'range loop
+			if s(i) = '1' then 
+				count := count + 1; 
+			end if;
+		end loop;
+		return count;
+	end;
+
 	-- <https://stackoverflow.com/questions/30519849/vhdl-convert-string-to-std-logic-vector>
 	function to_std_ulogic_vector(s: string) return std_ulogic_vector is
 	    variable ret: std_ulogic_vector(s'length*8-1 downto 0);
@@ -827,22 +873,23 @@ end entity;
 
 architecture behav of util_tb is
 begin
-	uut_shiftReg: work.util.shift_register_tb    generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_timer_us: work.util.timer_us_tb          generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_full_add: work.util.full_adder_tb        generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_fifo:     work.util.fifo_tb              generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_counter:  work.util.counter_tb           generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_ucpu:     work.util.ucpu_tb              generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_rdivider: work.util.restoring_divider_tb generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_debounce: work.util.debounce_us_tb       generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_rst_gen:  work.util.reset_generator_tb   generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_bit_cnt:  work.util.bit_count_tb         generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_majority: work.util.majority_tb          generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_delay_ln: work.util.delay_line_tb        generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_rising_edge_detector: work.util.rising_edge_detector_tb generic map(clock_frequency => g.clock_frequency, delay => g.delay);
-	uut_lfsr:     work.util.lfsr_tb              generic map(g => g);
-	uut_gray:     work.util.gray_tb              generic map(g => g);
-	uut_ham:      work.util.hamming_7_4_tb       generic map(g => g); -- Oink!
+	uut_timer_us: work.util.timer_us_tb             generic map(clock_frequency => g.clock_frequency, delay => g.delay);
+	uut_full_add: work.util.full_adder_tb           generic map(clock_frequency => g.clock_frequency, delay => g.delay);
+	uut_fifo:     work.util.fifo_tb                 generic map(clock_frequency => g.clock_frequency, delay => g.delay);
+	uut_counter:  work.util.counter_tb              generic map(clock_frequency => g.clock_frequency, delay => g.delay);
+	uut_ucpu:     work.util.ucpu_tb                 generic map(clock_frequency => g.clock_frequency, delay => g.delay);
+	uut_rdivider: work.util.restoring_divider_tb    generic map(clock_frequency => g.clock_frequency, delay => g.delay);
+	uut_debounce: work.util.debounce_us_tb          generic map(clock_frequency => g.clock_frequency, delay => g.delay);
+	uut_rst_gen:  work.util.reset_generator_tb      generic map(clock_frequency => g.clock_frequency, delay => g.delay);
+	uut_bit_cnt:  work.util.bit_count_tb            generic map(g => g);
+	uut_majority: work.util.majority_tb             generic map(g => g);
+	uut_delay_ln: work.util.delay_line_tb           generic map(g => g);
+	uut_rising:   work.util.rising_edge_detector_tb generic map(g => g);
+	uut_shiftReg: work.util.shift_register_tb       generic map(g => g);
+	uut_lfsr:     work.util.lfsr_tb                 generic map(g => g);
+	uut_gray:     work.util.gray_tb                 generic map(g => g);
+	uut_ham:      work.util.hamming_7_4_tb          generic map(g => g); -- Oink!
+	uut_vga:      work.util.vga_tb                  generic map(g => g, simulation_us => 1 us);
 
 	stimulus_process: process
 	begin
@@ -1014,14 +1061,11 @@ end;
 ------------------------- Shift register --------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+use work.util.common_generics;
 
 -- https://stackoverflow.com/questions/36342960/optional-ports-in-vhdl
 entity shift_register is
-	generic (
-		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only
-		N:                   positive);
+	generic (g: common_generics; N: positive);
 	port (
 		clk:     in  std_ulogic;
 		rst:     in  std_ulogic;
@@ -1043,13 +1087,13 @@ begin
 
 	process(rst, clk)
 	begin
-		if rst = '1' and asynchronous_reset then
-			r_c <= (others => '0') after delay;
+		if rst = '1' and g.asynchronous_reset then
+			r_c <= (others => '0') after g.delay;
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
-				r_c <= (others => '0') after delay;
+			if rst = '1' and not g.asynchronous_reset then
+				r_c <= (others => '0') after g.delay;
 			else
-				r_c <= r_n after delay;
+				r_c <= r_n after g.delay;
 			end if;
 		end if;
 	end process;
@@ -1057,11 +1101,11 @@ begin
 	process(r_c, di, we, load_i, load_we)
 	begin
 		if load_we = '1' then
-			r_n <= load_i after delay;
+			r_n <= load_i after g.delay;
 		else
-			r_n <= "0" & r_c(N - 1 downto 1) after delay;
+			r_n <= "0" & r_c(N - 1 downto 1) after g.delay;
 			if we = '1' then
-				r_n(N-1) <= di after delay;
+				r_n(N-1) <= di after g.delay;
 			end if;
 		end if;
 	end process;
@@ -1069,15 +1113,15 @@ end;
 
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+use work.util.common_generics;
 
 entity shift_register_tb is
-	generic (clock_frequency: positive; delay: time := 0 ns);
+	generic (g: common_generics);
 end entity;
 
 architecture behav of shift_register_tb is
 	constant N: positive := 8;
-	constant clock_period: time :=  1000 ms / clock_frequency;
+	constant clock_period: time :=  1000 ms / g.clock_frequency;
 	signal we: std_ulogic := '0';
 	signal di: std_ulogic := '0';
 	signal do: std_ulogic := '0';
@@ -1086,11 +1130,11 @@ architecture behav of shift_register_tb is
 	signal stop: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
+		generic map(clock_frequency => g.clock_frequency, hold_rst => 2, delay => g.delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.shift_register
-	generic map(N => N, delay => delay) port map(clk => clk, rst => rst, we => we, di => di, do => do);
+	generic map(g => g, N => N) port map(clk => clk, rst => rst, we => we, di => di, do => do);
 
 	stimulus_process: process
 	begin
@@ -1203,11 +1247,10 @@ end;
 ------------------------- Rising Edge Detector --------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
+use work.util.common_generics;
 
 entity rising_edge_detector is
-	generic (
-		asynchronous_reset:  boolean := true;   -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns); -- simulation only
+	generic (g: common_generics);
 	port (
 		clk:    in  std_ulogic;
 		rst:    in  std_ulogic;
@@ -1221,32 +1264,32 @@ architecture rtl of rising_edge_detector is
 begin
 	red: process(clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
-			sin_0 <= '0' after delay;
-			sin_1 <= '0' after delay;
+		if rst = '1' and g.asynchronous_reset then
+			sin_0 <= '0' after g.delay;
+			sin_1 <= '0' after g.delay;
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
-				sin_0 <= '0' after delay;
-				sin_1 <= '0' after delay;
+			if rst = '1' and not g.asynchronous_reset then
+				sin_0 <= '0' after g.delay;
+				sin_1 <= '0' after g.delay;
 			else
-				sin_0 <= di after delay;
-				sin_1 <= sin_0 after delay;
+				sin_0 <=    di after g.delay;
+				sin_1 <= sin_0 after g.delay;
 			end if;
 		end if;
 	end process;
 	do <= not sin_1 and sin_0;
 end architecture;
 
-library ieee;
+library ieee, work;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+use work.util.common_generics;
 
 entity rising_edge_detector_tb is
-	generic (clock_frequency: positive; delay: time := 0 ns);
+	generic (g: common_generics);
 end;
 
 architecture behav of rising_edge_detector_tb is
-	constant clock_period: time := 1000 ms / clock_frequency;
+	constant clock_period: time := 1000 ms / g.clock_frequency;
 	signal di:  std_ulogic := '0';
 	signal do: std_ulogic := 'X';
 
@@ -1254,10 +1297,11 @@ architecture behav of rising_edge_detector_tb is
 	signal stop: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
+		generic map(clock_frequency => g.clock_frequency, hold_rst => 2, delay => g.delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.rising_edge_detector
+		generic map(g => g)
 		port map(clk => clk, rst => rst, di => di, do => do);
 
 	stimulus_process: process
@@ -1280,15 +1324,12 @@ begin
 	end process;
 end architecture;
 
-library ieee;
+library ieee, work;
 use ieee.std_logic_1164.all;
+use work.util.common_generics;
 
 entity rising_edge_detectors is
-	generic (
-		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only
-
-		N:                   positive);
+	generic (g: common_generics; N: positive);
 	port (
 		clk:    in  std_ulogic;
 		rst:    in  std_ulogic;
@@ -1300,7 +1341,7 @@ architecture structural of rising_edge_detectors is
 begin
 	changes: for i in N - 1 downto 0 generate
 		d_instance: work.util.rising_edge_detector
-			generic map(asynchronous_reset => asynchronous_reset, delay => delay)
+			generic map(g => g)
 			port map(clk => clk, rst => rst, di => di(i), do => do(i));
 	end generate;
 end architecture;
@@ -2854,12 +2895,11 @@ end architecture;
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.util.all;
+use work.util.n_bits;
+use work.util.common_generics;
 
 entity bit_count is
-	generic (
-		delay: time     := 0 ns;  -- simulation only
-		N:     positive);
+	generic (g: common_generics; N: positive);
 	port (
 		bits:   in std_ulogic_vector(N - 1 downto 0);
 		count: out std_ulogic_vector(n_bits(N) downto 0));
@@ -2875,7 +2915,7 @@ begin
 		for i in bits'low to bits'high loop
 			t := t + (zero & bits(i));
 		end loop;
-		count <= std_ulogic_vector(t);
+		count <= std_ulogic_vector(t) after g.delay;
 	end process;
 
 end architecture;
@@ -2883,19 +2923,20 @@ end architecture;
 library ieee, work;
 use ieee.std_logic_1164.all;
 use work.util.n_bits;
+use work.util.common_generics;
 
 entity bit_count_tb is
-	generic (clock_frequency: positive; delay: time := 0 ns);
+	generic (g: common_generics);
 end entity;
 
 architecture testing of bit_count_tb is
-	constant clock_period:  time     := 1000 ms / clock_frequency;
+	constant clock_period:  time     := 1000 ms / g.clock_frequency;
 	constant N:           positive := 3;
-	signal bits:  std_ulogic_vector(N - 1 downto 0)         := (others => '0');
+	signal bits:  std_ulogic_vector(N - 1 downto 0)     := (others => '0');
 	signal count: std_ulogic_vector(n_bits(N) downto 0) := (others => '0');
 begin
 	uut: entity work.bit_count
-		generic map(delay => delay, N => N)
+		generic map(g => g, N => N)
 		port map(bits => bits, count => count);
 
 	stimulus_process: process
@@ -2929,10 +2970,7 @@ use ieee.numeric_std.all;
 use work.util.all;
 
 entity majority is
-	generic (
-		delay:     time     := 0 ns;  -- simulation only
-		even_wins: boolean  := false; -- for even N, N/2 wins if true, otherwise N/2 + 1 required
-		N:         positive);
+	generic (g: common_generics; N: positive; even_wins: boolean := false);
 	port (
 		bits: in std_ulogic_vector(N - 1 downto 0);
 		vote: out std_ulogic;
@@ -2944,24 +2982,24 @@ architecture behaviour of majority is
 begin
 	-- TODO: Handle N = 1, 2, 3, 4, and 5 as special cases
 	bit_counter: entity work.bit_count
-		generic map(delay => delay, N => N)
+		generic map(g => g, N => N)
 		port map(bits => bits, count => count);
 
-	tie <= '1' when (unsigned(count) = N/2) and (N mod 2) = 0 else '0' after delay;
+	tie <= '1' when (unsigned(count) = N/2) and (N mod 2) = 0 else '0' after g.delay;
 
 	process (count)
 	begin
 		if even_wins and (N mod 2) = 0 then
 			if unsigned(count) >= (N/2) then
-				vote <= '1' after delay;
+				vote <= '1' after g.delay;
 			else
-				vote <= '0' after delay;
+				vote <= '0' after g.delay;
 			end if;
 		else
 			if unsigned(count) > (N/2) then
-				vote <= '1' after delay;
+				vote <= '1' after g.delay;
 			else
-				vote <= '0' after delay;
+				vote <= '0' after g.delay;
 			end if;
 		end if;
 	end process;
@@ -2973,11 +3011,11 @@ use ieee.numeric_std.all;
 use work.util.all;
 
 entity majority_tb is
-	generic (clock_frequency: positive; delay: time := 0 ns);
+	generic (g: common_generics);
 end entity;
 
 architecture testing of majority_tb is
-	constant clock_period: time := 1000 ms / clock_frequency;
+	constant clock_period: time := 1000 ms / g.clock_frequency;
 
 	constant N_3:    positive := 3;
 	constant N_4_t:  positive := 4;
@@ -2992,15 +3030,15 @@ architecture testing of majority_tb is
 	signal vote_4_m, tie_4_m: std_ulogic := '0';
 begin
 	uut_3: entity work.majority
-		generic map(delay => delay, N => N_3)
+		generic map(g => g, N => N_3)
 		port map(bits => bits_3, vote => vote_3, tie => tie_3);
 
 	uut_4_t: entity work.majority
-		generic map(delay => delay, N => N_4_t, even_wins => true)
+		generic map(g => g, N => N_4_t, even_wins => true)
 		port map(bits => bits_4_t, vote => vote_4_t, tie => tie_4_t);
 
 	uut_4_m: entity work.majority
-		generic map(delay => delay, N => N_4_m)
+		generic map(g => g, N => N_4_m)
 		port map(bits => bits_4_m, vote => vote_4_m, tie => tie_4_m);
 
 	stimulus_process: process
@@ -3087,10 +3125,7 @@ use ieee.std_logic_1164.all;
 use work.util.all;
 
 entity delay_line is
-	generic (asynchronous_reset: boolean := true; 
-		delay: time := 0 ns;
-		width: positive; 
-		depth: natural);
+	generic (g: common_generics; width: positive; depth: natural);
 	port (
 		clk:  in std_ulogic;
 		rst:  in std_ulogic;
@@ -3107,7 +3142,7 @@ begin
 	delay_line_generate: for i in 0 to depth generate
 		rest: if i > 0 generate
 			ux: work.util.reg
-				generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => width)
+				generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N => width)
 				port map(clk => clk, rst => rst, we => ce, di => sigs(i - 1), do => sigs(i));
 		end generate;
 	end generate;
@@ -3119,11 +3154,11 @@ use ieee.std_logic_1164.all;
 use work.util.all;
 
 entity delay_line_tb is
-	generic (clock_frequency: positive; delay: time := 0 ns);
+	generic (g: common_generics);
 end entity;
 
 architecture testing of delay_line_tb is
-	constant clock_period:  time     := 1000 ms / clock_frequency;
+	constant clock_period:  time     := 1000 ms / g.clock_frequency;
 	constant depth:       natural    := 2;
 	constant width:       positive   := 8;
 	signal clk, rst:      std_ulogic := '0';
@@ -3132,11 +3167,11 @@ architecture testing of delay_line_tb is
 	signal di, do: std_ulogic_vector(width - 1 downto 0) := (others => '0');
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
+		generic map(clock_frequency => g.clock_frequency, hold_rst => 2, delay => g.delay)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.delay_line
-	generic map(depth => depth, delay => delay, width => width) port map(clk => clk, rst => rst, di => di, do => do, ce => '1');
+	generic map(g => g, depth => depth, width => width) port map(clk => clk, rst => rst, di => di, do => do, ce => '1');
 
 	stimulus_process: process
 	begin
@@ -3280,7 +3315,19 @@ begin
 end architecture;
 ------------------------- Parity Module -------------------------------------------------------
 ------------------------- Hamming CODEC  ------------------------------------------------------
--- TODO: Implement decoder
+-- This is a Hamming encoder/decoder, with an extra parity bit. This can be used for error
+-- correction and detection across a noisy line.
+--
+-- See <https://en.wikipedia.org/wiki/Hamming_code> for more information.
+--
+-- NOTE:
+--   * Perhaps we could separate out the data and parity bits. There is no reason
+--   for the interface to present the encoded data as it is. We really only need to
+--   output the parity bits, the user already knows what the data bits are, so long
+--   as the interface is consistent between the encoder and decoder it should not matter.
+--   * This module could be made to be far more generic, extending it to N-parity bit
+--   Hamming codes. Realistically we would be limited to a (31,26) Hamming code.
+--   * The extra parity bit should optionally be used in decoding.
 library ieee, work;
 use ieee.std_logic_1164.all;
 use work.util.all;
@@ -3306,7 +3353,7 @@ begin
 	do(4) <= di(1) after g.delay;
 	do(5) <= di(2) after g.delay;
 	do(6) <= di(3) after g.delay;
-	parity <= di(0) xor p3 after g.delay;
+	parity <= p1 xor p2 xor p3 xor di(0) xor di(1) xor di(2) xor di(3);
 end architecture;
 
 library ieee, work;
@@ -3315,18 +3362,19 @@ use ieee.numeric_std.all;
 use work.util.all;
 
 entity hamming_7_4_decoder is
-	generic (g: common_generics);
+	generic (g: common_generics; secdec: boolean := true);
 	port (
 		di:      in std_ulogic_vector(6 downto 0);
 		parity:  in std_ulogic;
 		do:     out std_ulogic_vector(3 downto 0);
-		err:    out std_ulogic);
+		single, double: out std_ulogic);
 end entity;
 
 architecture behaviour of hamming_7_4_decoder is
 	signal s:  std_ulogic_vector(2 downto 0) := (others => '0');
-	signal co: std_ulogic_vector(di'range)   := (others => '0');
+	signal co, ct, dip: std_ulogic_vector(di'high + 1 downto 0)   := (others => '0');
 	signal cp: std_ulogic := '0';
+	signal unequal: std_ulogic := '0';
 begin
 	s(2) <= di(3) xor di(4) xor di(5) xor di(6) after g.delay;
 	s(1) <= di(1) xor di(2) xor di(5) xor di(6) after g.delay;
@@ -3337,15 +3385,39 @@ begin
 	do(2) <= co(5) after g.delay;
 	do(3) <= co(6) after g.delay;
 
-	process (s, di)
+	cp <= '0' when not secdec else di(0) xor di(1) xor di(2) xor di(3) xor di(4) xor di(5) xor di(6) after g.delay;
+
+	dip(dip'high) <= parity when secdec else '0' after g.delay;
+	dip(di'range) <= di after g.delay;
+
+	unequal <= '1' when ct(di'range) /= dip(di'range) else '0' after g.delay;
+
+	process (dip, s)
 	begin
-		co <= di;
-		if s /= "000" then
-			err <= '1' after g.delay;
-			co(to_integer(unsigned(s) - 1)) <= not di(to_integer(unsigned(s) - 1));
+		ct <= dip after g.delay;
+		ct(to_integer(unsigned(s) - 1)) <= not dip(to_integer(unsigned(s) - 1)) after g.delay;
+	end process;
+
+	process (s, dip, parity, ct, cp, unequal)
+	begin
+		co <= dip;
+		single <= '0';
+		double <= '0';
+
+		if secdec and parity /= cp then
+			if unequal = '1' then
+				single <= '1';
+				co <= ct;
+			end if;
 		else
-			co <= di;
-			err <= '0' after g.delay;
+			if unequal = '1' then
+				if secdec then
+					double <= '1';
+				else
+					single <= '1';
+					co <= ct;
+				end if;
+			end if;
 		end if;
 	end process;
 end architecture;
@@ -3365,9 +3437,10 @@ architecture testing of hamming_7_4_tb is
 	constant n:           positive   := 3;
 	signal clk, rst:      std_ulogic := '0';
 	signal stop:          std_ulogic := '0';
-	signal di, do: std_ulogic_vector(3 downto 0) := (others => '0');
-	signal encoded_tx, encoded_rx: std_ulogic_vector(6 downto 0) := (others => '0');
-	signal parity, err: std_ulogic := '0';
+	signal di, do, do_s: std_ulogic_vector(3 downto 0) := (others => '0');
+	signal encoded_tx, encoded_rx, ebit: std_ulogic_vector(6 downto 0) := (others => '0');
+	signal parity, single, double: std_ulogic := '0';
+	signal parity_s, single_s, double_s: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
 		generic map(clock_frequency => g.clock_frequency, hold_rst => 2, delay => g.delay)
@@ -3383,47 +3456,232 @@ begin
 	begin
 		encoded_rx    <= encoded_tx;
 		uniform(seed1, seed2, r);
-		i := integer(floor(r * 6.99));
-		encoded_rx(i) <= not encoded_tx(i);
+		if r > 0.5 then
+			uniform(seed1, seed2, r);
+			i := integer(floor(r * 6.99));
+			encoded_rx(i) <= not encoded_tx(i);
+			uniform(seed1, seed2, r);
+		end if;
+		if r > 0.5 then
+			uniform(seed1, seed2, r);
+			i := integer(floor(r * 6.99));
+			encoded_rx(i) <= not encoded_tx(i);
+		end if;
 	end process;
 
-	uut_decode: entity work.hamming_7_4_decoder
-	generic map(g => g) port map(di => encoded_rx, do => do, parity => parity, err => err);
+	ebit <= encoded_tx xor encoded_rx;
+
+	uut_decode_secdec: entity work.hamming_7_4_decoder
+	generic map(g => g) port map(di => encoded_rx, do => do, parity => parity, single => single, double => double);
+
+	uut_decode_single: entity work.hamming_7_4_decoder
+	generic map(g => g, secdec => false) port map(di => encoded_rx, do => do_s, parity => parity_s, single => single_s, double => double_s);
 
 	stimulus_process: process
-		-- TODO Test for all single bit errors
-		-- See <https://en.wikipedia.org/wiki/Hamming_code#[7,4]_Hamming_code_with_an_additional_parity_bit>
 		procedure test(slv: std_ulogic_vector) is
 		begin
 			di <= slv;
-			wait for clock_period * 1;
-			assert di = do severity error;
-			wait for clock_period * 1;
+			wait for clock_period * 2;
+			if bit_count_f(ebit) = 2 then
+				assert double = '1' severity failure;
+				assert single = '0' severity failure;
+			elsif bit_count_f(ebit) = 1 then
+				assert di = do severity failure;
+				assert single = '1' severity failure;
+				assert double = '0' severity failure;
+
+				assert di = do_s severity failure;
+				assert single_s = '1' severity failure;
+			else
+				assert di = do severity failure;
+				assert double = '0' severity failure;
+				assert single = '0' severity failure;
+
+				assert di = do_s severity failure;
+				assert single_s = '0' severity failure;
+			end if;
+			wait for clock_period * 2;
 		end procedure;
+		variable ii: unsigned(7 downto 0) := (others => '1');
 	begin
 		di <= (others => '0');
 		wait until rst = '0';
-		test("0000");
-		test("0001");
-		test("0010");
-		test("0011");
-		test("0100");
-		test("0101");
-		test("0110");
-		test("0111");
 
-		test("1000");
-		test("1001");
-		test("1010");
-		test("1011");
-		test("1100");
-		test("1101");
-		test("1110");
-		test("1111");
+		while ii /= x"00" loop
+			ii := ii - 1;
+			test(std_ulogic_vector(ii(3 downto 0)));
+		end loop;
 		stop <= '1';
 		wait;
 	end process;
 
 end architecture;
 ------------------------- Hamming CODEC  ------------------------------------------------------
+------------------------- VGA Controller ------------------------------------------------------
+-- VGA Controller
+--
+-- See: 
+--  * <https://en.wikipedia.org/wiki/Video_Graphics_Array>
+--  * <http://www.ece.ualberta.ca/~elliott/ee552/studentAppNotes/1998_w/Altera_UP1_Board_Map/vga.html>
+--  * <https://www.digikey.com/eewiki/pages/viewpage.action?pageId=15925278>
+--
+-- This purpose of this VGA controller is to provide the necessary VGA
+-- timings for a given resolution (which has to be determined at instantiation
+-- time and cannot be configured on the fly). The VGA controller will generate
+-- the correct HSYNC and VSYNCH signals needed, as well as the current row and
+-- column that is currently being drawn. This can be used to generate an image.
+--
+-- Example timing for 640 x 480:
+--
+--  |-----800 pixels / 31.778 us---------|
+--  |-----640 Pixels--------|-160 Pixels-|
+--  |-----25.422 us---------|--5.75 us---|
+--   
+--  +-----------------------+------------+   VSYNC
+--  |                       |         ^  |     |
+--  |                       |         |  |     |
+--  |                       |         |  |     |
+--  |    Display Period     |   480 Rows |     |
+--  |                       |         |  |     |
+--  |                       |         |  |     |
+--  |                       |         |  |     |
+--  |                       |         v  |     |
+--  +-----------------------+        --- |     | 
+--  |                                 ^  |    _| <- Front porch 0.318 ms (10 rows)
+--  |                                 |  |   | 
+--  |      Blanking Period       45 Rows |   | <--- VSYNC pulse 0.064 ms (2 rows)
+--  |                                 |  |   |_
+--  |                                 v  |     | <- Back porch 1.048 ms (33 rows)
+--  +------------------------------------+     |
+--                                  
+--                              ___
+--  ___________________________|   |_____ HSYNC
+--                            ^  ^  ^
+--  0.636 us   Front Porch __/  /  / <-(16 pixels)
+--  3.813 us   HSYNC Pulse ____/  /  <-(96 pixels)
+--  1.907 us   Back Porch _______/   <-(48 pixels)
+--
+
+-- TODO: FIX THIS! This only partially works. It can *roughly* generate a sort
+-- valid VGA signal.
+library ieee, work;
+use ieee.std_logic_1164.all;
+use work.util.all;
+
+entity vga_controller is
+	generic(
+		g: common_generics;
+		pixel_clock_frequency:  positive := 25_000_000;
+		constant cfg: vga_configuration  := vga_640x480); 
+	port(
+		clk, rst:          in std_ulogic;
+		h_sync, v_sync:   out std_ulogic;
+		h_blank, v_blank: out std_ulogic;
+		column, row:      out integer);
+end entity;
+
+architecture behavior of vga_controller is
+	constant h_period: integer := cfg.h_pulse + cfg.h_back_porch + cfg.h_pixels + cfg.h_front_porch; -- number of pixel clocks in a row
+	constant v_period: integer := cfg.v_pulse + cfg.v_back_porch + cfg.v_pixels + cfg.v_front_porch; -- number of rows in column
+	signal h_sync_internal, v_sync_internal: std_ulogic := '0';
+begin
+	-- The clock does not need to be exactly the correct value
+	assert pixel_clock_frequency <= (cfg.clock_frequency + 250_000) 
+		and pixel_clock_frequency >= (cfg.clock_frequency - 250_000) severity warning;
+	
+	h_sync <= h_sync_internal xor cfg.h_polarity;
+	v_sync <= v_sync_internal xor cfg.v_polarity;
+
+	process (clk, rst)
+		constant h_start: integer := cfg.h_pixels + cfg.h_front_porch;
+		constant h_end:   integer := cfg.h_pixels + cfg.h_front_porch + cfg.h_pulse;
+		constant v_start: integer := cfg.v_pixels + cfg.v_front_porch;
+		constant v_end:   integer := cfg.v_pixels + cfg.v_front_porch + cfg.v_pulse;
+		variable h_count: integer range 0 to h_period - 1 := 0;  -- horizontal counter (counts the columns)
+		variable v_count: integer range 0 to v_period - 1 := 0;  -- vertical counter (counts the rows)
+		procedure reset is
+		begin
+			h_count         := 0;
+			v_count         := 0;
+			h_blank         <= '0' after g.delay;
+			v_blank         <= '0' after g.delay;
+			column          <= 0 after g.delay;
+			row             <= 0 after g.delay;
+		end procedure;
+	begin
+		if rst = '1' and g.asynchronous_reset then
+			reset;
+		elsif rising_edge(clk) then
+			if rst = '1' and not g.asynchronous_reset then
+				reset;
+			else
+				if h_count < (h_period - 1) then -- pixel count
+					h_count := h_count + 1;
+				else
+					if v_count < (v_period - 1) then -- row count
+						v_count := v_count + 1;
+					else
+						v_count := 0;
+					end if;
+					h_count := 0;
+				end if;
+
+				h_sync_internal <= not logical((h_count < h_start) or (h_count >= h_end)) after g.delay;
+				v_sync_internal <= not logical((v_count < v_start) or (v_count >= v_end)) after g.delay;
+
+				column <= cfg.h_pixels - 1;
+				row    <= cfg.v_pixels - 1;
+
+				if h_count < cfg.h_pixels then h_blank <= '0'; column <= h_count; else h_blank <= '1'; end if;
+				if v_count < cfg.v_pixels then v_blank <= '0'; row    <= v_count; else v_blank <= '1'; end if;
+			end if;
+		end if;
+	end process;
+end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.all;
+
+entity vga_tb is
+	generic(g: common_generics; pixel_clock_frequency: positive := 25_000_000; simulation_us: time := 20000 us);
+end entity;
+
+architecture testing of vga_tb is
+	constant pixel_clock_period: time   := 1000 ms / pixel_clock_frequency;
+	signal rst, clk:        std_ulogic  := '1';
+	signal stop:            boolean     := false;
+	signal h_sync, v_sync:  std_ulogic  := 'X';
+	signal h_blank, v_blank: std_ulogic := 'X';
+	signal column, row:     integer     := 0;
+begin
+	duration: process begin wait for simulation_us; stop <= true; wait; end process;
+	clk_process: process
+	begin
+		rst <= '1';
+		wait for pixel_clock_period * 5;
+		rst <= '0';
+		while not stop loop
+			clk <= '1';
+			wait for pixel_clock_period / 2;
+			clk <= '0';
+			wait for pixel_clock_period / 2;
+		end loop;
+		wait;
+	end process;
+
+	uut: work.util.vga_controller
+		generic map(g => g, pixel_clock_frequency => pixel_clock_frequency)
+		port map(
+			rst     => rst, 
+			clk     => clk,
+			h_sync  => h_sync, 
+			v_sync  => v_sync,
+			h_blank => h_blank,
+			v_blank => v_blank,
+			column  => column, 
+			row     => row);
+end architecture;
+------------------------- VGA Controller ------------------------------------------------------
 

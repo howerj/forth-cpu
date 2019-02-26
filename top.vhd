@@ -18,10 +18,7 @@ use work.core_pkg.all;
 use work.vga_pkg.all;
 use work.led_pkg.all;
 use work.kbd_pkg.ps2_kbd_top;
-use work.uart_pkg.uart_core;
-use work.util.state_block_changed;
-use work.util.common_generics;
-use work.util.default_settings;
+use work.util.all;
 
 entity top is
 	generic(
@@ -181,13 +178,9 @@ begin
 		rx_fifo_not_empty <= not rx_fifo_empty;
 		tx_fifo_not_empty <= not rx_fifo_empty;
 
-		-- @note It might be best to move this into the IRQ handler,
-		-- to ensure all inputs are edge triggered.
+		-- @todo Move this into the IRQ handler, to ensure all inputs are edge triggered.
 		irq_edges: work.util.rising_edge_detectors
-		generic map(
-			asynchronous_reset => g.asynchronous_reset,
-			delay              => g.delay,
-			N                  => 5)
+		generic map(g => g, N => 5)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -392,7 +385,33 @@ begin
 		we          =>  vga_data_we,
 		char        =>  vga_data,
 		busy        =>  vga_data_busy,
-		o_vga       =>  o_vga);
+		o_vga       =>  o_vga
+	);
+
+--	-- TODO: Fix this, it is a work in progress
+--	vga_c1: block
+--		signal row, column: integer := 0;
+--		signal h_blank, v_blank, draw: std_ulogic := '0';
+--	begin
+--		draw <= h_blank and v_blank;
+--		vga_c: work.util.vga_controller
+--		generic map(
+--			g => g,
+--			pixel_clock_frequency => 25_000_000,
+--			cfg => work.util.vga_640x480)
+--		port map(
+--			clk    => clk25MHz,
+--			rst    => rst,
+--			row    => row,
+--			column => column,
+--			h_blank => h_blank,
+--			v_blank => v_blank,
+--			h_sync => o_vga.hsync,
+--			v_sync => o_vga.vsync);
+--		o_vga.red <= "111" when draw = '1' else "000";
+--		o_vga.green <= "111" when (draw = '1' and row < 100 and column < 100) else "000";
+--		o_vga.blue <= "11";
+--	end block;
 	--- VGA -----------------------------------------------------------
 
 	--- Keyboard ------------------------------------------------------

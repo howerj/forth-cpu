@@ -153,7 +153,7 @@ begin
 	-- Process a kbd_new into a single edge for the rest of the
 	-- system.
 	ps2_edge_new_character_0: entity work.rising_edge_detector
-	generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay)
+	generic map(g => g)
 	port map(
 		clk => clk,
 		rst => rst,
