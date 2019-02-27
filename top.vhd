@@ -157,10 +157,7 @@ begin
 	cpu_wait   <= btnc_d; -- temporary testing measure only!
 
 	system_reset: work.util.reset_generator
-	generic map(
-		delay           => g.delay,
-		clock_frequency => g.clock_frequency,
-		reset_period_us => reset_period_us)
+	generic map(g => g, reset_period_us => reset_period_us)
 	port map(
 		clk        => clk,
 		rst        => rst);
@@ -326,12 +323,7 @@ begin
 
 	--- UART ----------------------------------------------------------
 	uart_0: work.uart_pkg.uart_top
-		generic map(
-			asynchronous_reset => g.asynchronous_reset,
-			delay              => g.delay,
-			baud_rate          => uart_baud_rate,
-			clock_frequency    => g.clock_frequency,
-			fifo_depth         => uart_fifo_depth)
+		generic map(g => g, baud_rate => uart_baud_rate, fifo_depth => uart_fifo_depth)
 		port map(
 			clk             =>  clk,
 			rst             =>  rst,
@@ -349,10 +341,7 @@ begin
 
 	--- LED Output ----------------------------------------------------
 	led_output_reg_0: entity work.reg
-		generic map(
-			asynchronous_reset => g.asynchronous_reset,
-			delay              => g.delay,
-			N                  => ld'length)
+		generic map(g => g, N => ld'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -375,9 +364,7 @@ begin
 
 	--- VGA -----------------------------------------------------------
 	vt100_0: work.vga_pkg.vt100
-	generic map(
-		asynchronous_reset => g.asynchronous_reset,
-		delay              => g.delay)
+	generic map(g => g)
 	port map(
 		clk         =>  clk,
 		clk25MHz    =>  clk25MHz,
@@ -451,11 +438,7 @@ begin
 
 	--- Buttons -------------------------------------------------------
 	button_debouncer: work.util.debounce_block_us
-	generic map(
-		delay              => g.delay,
-		N                  => 5,
-		clock_frequency    => g.clock_frequency,
-		timer_period_us    => timer_period_us)
+	generic map(g => g, N => 5, timer_period_us    => timer_period_us)
 	port map(
 		clk   => clk,
 		di(0) => btnu,
@@ -474,10 +457,7 @@ begin
 		signal any_changed_signals: std_ulogic := '0';
 	begin
 		state_changed: work.util.state_block_changed
-		generic map(
-			asynchronous_reset => g.asynchronous_reset,
-			delay              => g.delay,
-			N                  => changed_signals'length)
+		generic map(g => g, N => changed_signals'length)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -491,10 +471,7 @@ begin
 		any_changed_signals <= '1' when changed_signals /= "00000" else '0';
 
 		state_changed_reg: work.util.reg
-		generic map(
-			asynchronous_reset => g.asynchronous_reset,
-			delay              => g.delay,
-			N                  => 1)
+		generic map(g => g, N => 1)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -507,11 +484,7 @@ begin
 
 	--- Switches ------------------------------------------------------
 	sw_debouncer: work.util.debounce_block_us
-		generic map(
-			delay           => g.delay,
-			N               => sw'length,
-			clock_frequency => g.clock_frequency,
-			timer_period_us => timer_period_us)
+		generic map(g => g, N => sw'length, timer_period_us => timer_period_us)
 		port map(clk => clk, di => sw, do => sw_d);
 	--- Switches ------------------------------------------------------
 

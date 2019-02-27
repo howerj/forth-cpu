@@ -19,9 +19,10 @@
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.util.common_generics;
 
 package vga_pkg is
 	type vga_physical_interface is record
@@ -55,9 +56,7 @@ package vga_pkg is
 			ctl => '0');
 
 	component vga_top is
-	generic(
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns); -- simulation only, gate delay
+	generic(g: common_generics);
 	port(
 		clk:         in  std_ulogic;
 		clk25MHz:    in  std_ulogic;
@@ -78,9 +77,7 @@ package vga_pkg is
 
 	-- VGA test bench, not-synthesizeable
 	component vga_core is
-	generic(
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns); -- simulation only, gate delay
+	generic(g: common_generics);
 	port (
 		rst:       in  std_ulogic;
 		clk25MHz:  in  std_ulogic;
@@ -97,10 +94,7 @@ package vga_pkg is
 	end component;
 
 	component losr is
-	generic (
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only, gate delay
-		N: positive := 4);
+	generic (g: common_generics; N: positive := 4);
 	port
 	(
 		rst:  in  std_ulogic;
@@ -112,10 +106,7 @@ package vga_pkg is
 	end component;
 
 	component ctrm is
-	generic (
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only, gate delay
-		M: positive := 8);
+	generic (g: common_generics; M: positive := 8);
 	port (
 		rst: in  std_ulogic; -- asynchronous rst
 		clk: in  std_ulogic;
@@ -125,9 +116,7 @@ package vga_pkg is
 	end component;
 
 	component vt100 is
-	generic (
-		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns); -- simulation only, gate delay
+	generic (g: common_generics);
 	port(
 		clk:        in  std_ulogic;
 		clk25MHz:   in  std_ulogic;
@@ -140,14 +129,11 @@ package vga_pkg is
 	end component;
 
 	component vt100_tb is
-		generic(clock_frequency: positive; delay: time := 0 ns);
+		generic(g: common_generics);
 	end component;
 
 	component atoi is
-		generic(
-			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-			delay:               time    := 0 ns; -- simulation only, gate delay
-			N:                   positive := 16);
+		generic(g: common_generics; N: positive := 16);
 		port(
 			clk:    in  std_ulogic;
 			rst:    in  std_ulogic;
@@ -165,19 +151,19 @@ end package;
 
 ----- VGA Test Bench ----------------------------------------------------------
 
-library ieee;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.vga_pkg.all;
 use ieee.math_real.all;
+use work.vga_pkg.all;
 use work.util.all;
 
 entity vt100_tb is
-	generic(clock_frequency: positive; delay: time := 0 ns);
+	generic(g: common_generics);
 end entity;
 
 architecture behav of vt100_tb is
-	constant clock_period: time := 1000 ms / clock_frequency;
+	constant clock_period: time := 1000 ms / g.clock_frequency;
 	signal clk, rst: std_ulogic := '0';
 	signal stop:     std_ulogic := '0';
 	signal clk25MHz, rst25MHz: std_ulogic := '0';
@@ -200,18 +186,20 @@ architecture behav of vt100_tb is
 	constant test_string: string := "Hello!" & HT & "World!" & RED & NL & "How are you?" & RESET & NL ;
 	shared variable test_vector: ulogic_string(test_string'range) := to_std_ulogic_vector(test_string);
 	shared variable index: integer := 1; -- starts at '1' due to string range
+
+	constant g_cs25MHz: common_generics := (clock_frequency => 25_000_000, asynchronous_reset => g.asynchronous_reset, delay => g.delay);
 begin
 	cs: entity work.clock_source_tb
-		generic map(clock_frequency => clock_frequency, hold_rst => 2, delay => delay)
+		generic map(g => g, hold_rst => 2)
 		port map(stop => stop, clk => clk, rst => rst);
 
 	cs25MHz: entity work.clock_source_tb
-		generic map(clock_frequency => 25000000, hold_rst => 2, delay => delay)
+		generic map(g => g_cs25MHz, hold_rst => 2)
 		port map(stop => stop, clk => clk25MHz, rst => rst25MHz);
 
 
 	uut: work.vga_pkg.vt100
-	generic map(delay => delay)
+	generic map(g => g)
 	port map(
 		clk      => clk,
 		clk25MHz => clk25MHz,
@@ -271,13 +259,10 @@ library ieee,work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.vga_pkg.all;
+use work.util.common_generics;
 
 entity atoi is
-	generic(
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only, gate delay
-
-		N:      positive := 16);
+	generic(g: common_generics; N: positive := 16);
 	port(
 		clk:    in  std_ulogic;
 		rst:    in  std_ulogic;
@@ -304,10 +289,10 @@ begin
 	process(clk, rst)
 		variable akk: unsigned((2 * N) - 1 downto 0) := (others => '0');
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			state_n   <= RESET;
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				state_n <= RESET;
 			else
 				state_c <= state_n;
@@ -384,15 +369,14 @@ end architecture;
 -- and so long as the interface is not busy, it will be written to the screen
 -- (or interpreter as part of a command sequence).
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.vga_pkg.all;
+use work.util.common_generics;
 
 entity vt100 is
-	generic(
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns); -- simulation only, gate delay
+	generic(g: common_generics);
 	port(
 		clk:        in  std_ulogic;
 		clk25MHz:   in  std_ulogic;
@@ -470,7 +454,7 @@ architecture rtl of vt100 is
 	signal akk_char_o:  std_ulogic_vector(char'range)  := (others => '0');
 begin
 	accumulator_0: work.vga_pkg.atoi
-		generic map(asynchronous_reset => asynchronous_reset, delay => delay, N => number)
+		generic map(g => g, N => number)
 		port map(
 			clk    => clk,
 			rst    => rst,
@@ -528,7 +512,7 @@ begin
 		vga_ctr_we.ctl <= cursor_we;
 
 		vga_0: work.vga_pkg.vga_top
-		generic map(asynchronous_reset => asynchronous_reset, delay => delay)
+		generic map(g => g)
 		port map(
 			clk               =>  clk,
 			clk25MHz          =>  clk25MHz,
@@ -553,10 +537,10 @@ begin
 		variable repeat:      boolean    := false;
 		variable exit_repeat: state_type := RESET;
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			state_c <= RESET;
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				state_c <= RESET;
 			else
 				x_c       <= x_n;
@@ -817,11 +801,10 @@ use work.vga_pkg.all;
 use work.util.file_format;
 use work.util.file_hex;
 use work.util.file_binary;
+use work.util.common_generics;
 
 entity vga_top is
-	generic(
-		asynchronous_reset:  boolean := true;  -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns); -- simulation only, gate delay
+	generic(g: common_generics);
 	port(
 		clk:              in  std_ulogic;
 		clk25MHz:         in  std_ulogic;
@@ -876,10 +859,10 @@ begin
 	-- Next state on clk edge rising
 	vga_ns: process(clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			control_c   <= vga_control_registers_initialize;
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				control_c <= vga_control_registers_initialize;
 			else
 				control_c   <= control_n;
@@ -903,7 +886,7 @@ begin
 
 	-- The actual VGA module
 	u_vga: work.vga_pkg.vga_core 
-		generic map(asynchronous_reset => asynchronous_reset, delay => delay)
+		generic map(g => g)
 		port map (
 		rst       => rst,
 		clk25MHz  => clk25MHz,
@@ -925,8 +908,7 @@ begin
 	--| @brief This RAM module holds the text we want to display on to the
 	--| monitor. The text buffer holds at least 80*40 characters.
 	u_text: entity work.dual_port_block_ram
-	generic map(
-		delay       => delay,
+	generic map(g => g,
 		addr_length => text_addr_length,
 		data_length => text_data_length,
 		file_name   => text_file_name,
@@ -949,8 +931,7 @@ begin
 
 	--| VGA Font memory
 	u_font: entity work.single_port_block_ram
-	generic map(
-		delay       => delay,
+	generic map(g => g,
 		addr_length => font_addr_length,
 		data_length => font_data_length,
 		file_name   => font_file_name,
@@ -973,11 +954,10 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.vga_pkg.all;
+use work.util.common_generics;
 
 entity vga_core is
-	generic(
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns); -- simulation only, gate delay
+	generic(g: common_generics);
 	port (
 		rst:      in  std_ulogic;
 		clk25MHz: in  std_ulogic;
@@ -1029,10 +1009,10 @@ begin
 	-- hsync generator, initialized with '1'
 	process (rst, clk25MHz)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			hsync_int <= '1';
 		elsif rising_edge(clk25MHz) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				hsync_int <= '1';
 			else
 				if (hctr > 663) and (hctr < 757) then
@@ -1047,10 +1027,10 @@ begin
 	-- vsync generator, initialized with '1'
 	process (rst, clk25MHz)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			vsync_int <= '1';
 		elsif rising_edge(clk25MHz) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				vsync_int <= '1';
 			else
 				if (vctr > 499) and (vctr < 502) then
@@ -1070,10 +1050,10 @@ begin
 	-- flip-flips for sync of R, G y B signal, initialized with '0'
 	process (rst, clk25MHz)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			foreground_draw <= '0';
 		elsif rising_edge(clk25MHz) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				foreground_draw <= '0';
 			else
 				foreground_draw <= foreground_draw_int;
@@ -1120,9 +1100,9 @@ begin
 
 		-- @todo Rename these signals to something more sensible
 	begin
-		u_hctr: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 794) 
+		u_hctr: work.vga_pkg.ctrm generic map (g => g, M => 794) 
 					port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
-		u_vctr: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 525) 
+		u_vctr: work.vga_pkg.ctrm generic map (g => g, M => 525) 
 					port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
 
 		hctr_ce <= '1';
@@ -1130,13 +1110,13 @@ begin
 		vctr_ce <= '1' when hctr = 663 else '0';
 		vctr_rs <= '1' when vctr = 524 else '0';
 
-		u_chrx: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 8)  
+		u_chrx: work.vga_pkg.ctrm generic map (g => g, M => 8)  
 					port map (rst, clk25MHz, chrx_ce, chrx_rs, chrx);
-		u_chry: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 12) 
+		u_chry: work.vga_pkg.ctrm generic map (g => g, M => 12) 
 					port map (rst, clk25MHz, chry_ce, chry_rs, chry);
-		u_scrx: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 80) 
+		u_scrx: work.vga_pkg.ctrm generic map (g => g, M => 80) 
 					port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx);
-		u_scry: work.vga_pkg.ctrm generic map (asynchronous_reset => asynchronous_reset, delay => delay, M => 40) 
+		u_scry: work.vga_pkg.ctrm generic map (g => g, M => 40) 
 					port map (rst, clk25MHz, scry_ce, scry_rs, scry);
 
 		hctr_639 <= '1' when hctr = 639 else '0';
@@ -1191,13 +1171,13 @@ begin
 		o_vga.blue  <= final(2 downto 1) when blue_on   = '1' else "00";
 	end block;
 
-	u_reg_delay: work.util.reg generic map (asynchronous_reset => asynchronous_reset, delay => delay, N => 1)
+	u_reg_delay: work.util.reg generic map (g => g, N => 1)
 	port map(clk => clk25MHz, rst => rst, we => '1', di(0) => losr_ld, do(0) => attr_we_delay);
 
-	u_reg_attr: work.util.reg generic map (asynchronous_reset => asynchronous_reset, delay => delay, N => 8)
+	u_reg_attr: work.util.reg generic map (g => g, N => 8)
 	port map(clk => clk25MHz, rst => rst, we => attr_we_delay, di => text_d(15 downto 8), do => attr);
 
-	u_losr: work.vga_pkg.losr generic map (asynchronous_reset => asynchronous_reset, delay => delay, N => 8)
+	u_losr: work.vga_pkg.losr generic map (g => g, N => font_d'length)
 	port map (rst => rst, clk => clk25MHz, load => losr_ld, ce => losr_ce, do => losr_do, di => font_d);
 
 	losr_ce <= blank;
@@ -1249,16 +1229,13 @@ end;
 --| @license        LGPL version 3
 --| @email          javier.valcarce@gmail.com
 -------------------------------------------------------------------------------
-library ieee;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.util.common_generics;
 
 entity ctrm is
-	generic (
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only, gate delay
-
-		M:                   positive := 8);
+	generic (g: common_generics; M: positive := 8);
 	port (
 		rst: in  std_ulogic; -- asynchronous rst
 		clk: in  std_ulogic;
@@ -1273,17 +1250,17 @@ begin
 	do <= c;
 	process(rst, clk)
 	begin
-		if rst = '1' and asynchronous_reset then
-			c <= 0 after delay;
+		if rst = '1' and g.asynchronous_reset then
+			c <= 0 after g.delay;
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
-				c <= 0 after delay;
+			if rst = '1' and not g.asynchronous_reset then
+				c <= 0 after g.delay;
 			else
 				if ce = '1' then
 					if rs = '1' then
-						c <= 0 after delay;
+						c <= 0 after g.delay;
 					else
-						c <= c + 1 after delay;
+						c <= c + 1 after g.delay;
 					end if;
 				end if;
 			end if;
@@ -1300,16 +1277,13 @@ end;
 --| @license        LGPL version 3
 --| @email          javier.valcarce@gmail.com
 -------------------------------------------------------------------------------
-library ieee;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.util.common_generics;
 
 entity losr is
-	generic (
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only, gate delay
-		
-		N: positive := 4);
+	generic (g: common_generics; N: positive := 4);
 	port
 	(
 		rst:  in  std_ulogic;
@@ -1325,10 +1299,10 @@ begin
 	process(rst, clk)
 		variable data: std_ulogic_vector(N - 1 downto 0) := (others => '0');
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			data := (others => '0');
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				data := (others => '0');
 			else
 				if load = '1' then
@@ -1338,7 +1312,7 @@ begin
 				end if;
 			end if;
 		end if;
-		do <= data(N-1);
+		do <= data(N-1) after g.delay;
 	end process;
 end;
 

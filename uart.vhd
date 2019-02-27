@@ -27,16 +27,14 @@
 --| ----\_/-|-|-|-|-|-|-|-|-|-------
 --|
 --------------------------------------------------------------------------------
-library ieee;
+library ieee, work;
 use ieee.std_logic_1164.all;
+use work.util.common_generics;
 
 package uart_pkg is
 
 	component uart_top is
-	generic (
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only, gate delay
-		baud_rate: positive; clock_frequency: positive; fifo_depth: positive := 8);
+	generic (g: common_generics; baud_rate: positive; fifo_depth: positive := 8);
 	port (
 		clk:                 in      std_ulogic;
 		rst:                 in      std_ulogic;
@@ -57,10 +55,7 @@ package uart_pkg is
 	end component;
 
 	component uart_core is
-		generic (
-			asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-			delay:               time    := 0 ns; -- simulation only, gate delay
-			baud_rate: positive; clock_frequency: positive);
+		generic (g: common_generics; baud_rate: positive);
 		port (
 			clk:       in      std_ulogic;
 			rst:       in      std_ulogic;
@@ -89,12 +84,10 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util.fifo;
 use work.uart_pkg.uart_core;
+use work.util.common_generics;
 
 entity uart_top is
-	generic (
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only, gate delay
-		baud_rate: positive; clock_frequency: positive; fifo_depth: positive := 8);
+	generic (g: common_generics; baud_rate: positive; fifo_depth: positive := 8);
 	port (
 		clk:                 in      std_ulogic;
 		rst:                 in      std_ulogic;
@@ -135,13 +128,13 @@ begin
  
 	uart_deglitch: process (clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			rx_sync <= '0';
 			rx_uart <= '0';
 			tx      <= '0';
 			wrote_c <= '0';
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				rx_sync <= '0';
 				rx_uart <= '0';
 				tx      <= '0';
@@ -176,11 +169,7 @@ begin
 	end process;
 
 	rx_fifo: work.util.fifo
-		generic map (
-			asynchronous_reset => asynchronous_reset,
-			delay              => delay,
-			data_width         => 8,
-			fifo_depth         => fifo_depth)
+		generic map (g => g, data_width => rx_data'length, fifo_depth => fifo_depth)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -192,11 +181,7 @@ begin
 			empty => rx_fifo_empty);
 
 	tx_fifo: work.util.fifo
-		generic map (
-			asynchronous_reset => asynchronous_reset,
-			delay              => delay,
-			data_width         => 8,
-			fifo_depth         => fifo_depth)
+		generic map (g => g, data_width => tx_data'length, fifo_depth => fifo_depth)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -219,11 +204,7 @@ begin
 					else '0';
 
 	uart: work.uart_pkg.uart_core
-		generic map(
-			asynchronous_reset => asynchronous_reset,
-			delay              => delay,
-			baud_rate          => baud_rate,
-			clock_frequency    => clock_frequency)
+		generic map(g => g, baud_rate => baud_rate)
 		port map(
 			clk      => clk,
 			rst      => rst,
@@ -243,16 +224,13 @@ end;
 ---- UART Top ------------------------------------------------------------------
 
 ---- UART Core -----------------------------------------------------------------
-library ieee;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.util.common_generics;
 
 entity uart_core is
-	generic(
-		asynchronous_reset:  boolean := true; -- use asynchronous reset if true, synchronous if false
-		delay:               time    := 0 ns; -- simulation only, gate delay
-       
-		baud_rate: positive; clock_frequency: positive);
+	generic(g: common_generics; baud_rate: positive);
 	port(
 		clk:       in      std_ulogic;
 		rst:       in      std_ulogic;
@@ -271,14 +249,13 @@ entity uart_core is
 end entity;
 
 architecture behav of uart_core is
-
 	constant uart_tx_count_max: positive := 7;
 	constant uart_rx_count_max: positive := 7;
 	----------------------------------------------------------------------------
 	-- baud generation
 	----------------------------------------------------------------------------
-	constant c_tx_divider_val: integer := clock_frequency / baud_rate;
-	constant c_rx_divider_val: integer := clock_frequency / (baud_rate * 16);
+	constant c_tx_divider_val: integer := g.clock_frequency / baud_rate;
+	constant c_rx_divider_val: integer := g.clock_frequency / (baud_rate * 16);
 
 	signal baud_counter:            integer range 0 to c_tx_divider_val;
 	signal baud_tick:               std_ulogic := '0';
@@ -334,11 +311,11 @@ begin
 	-- every 1/115200
 	tx_clk_divider: process (clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			baud_counter <= 0;
 			baud_tick    <= '0';
 		elsif rising_edge (clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				baud_counter <= 0;
 				baud_tick    <= '0';
 			else
@@ -358,14 +335,14 @@ begin
 	-- wait 1 tick, send start bit (0), send data 0-7, send stop bit (1)
 	uart_send_data:	process(clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			uart_tx_data        <= '1';
 			uart_tx_data_block  <= (others => '0');
 			uart_tx_count       <= 0;
 			uart_tx_state       <= idle;
 			uart_tx_data_in_ack <= '0';
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				uart_tx_data        <= '1';
 				uart_tx_data_block  <= (others => '0');
 				uart_tx_count       <= 0;
@@ -417,11 +394,11 @@ begin
 	-- generate an oversampled tick (baud * 16)
 	oversample_clk_divider: process (clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			oversample_baud_counter <= 0;
 			oversample_baud_tick    <= '0';
 		elsif rising_edge (clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				oversample_baud_counter <= 0;
 				oversample_baud_tick    <= '0';
 			else
@@ -439,10 +416,10 @@ begin
 	-- synchronise rxd to the oversampled baud
 	rxd_synchronise: process(clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			uart_rx_data_vec <= (others => '0');
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				uart_rx_data_vec <= (others => '0');
 			else
 				if oversample_baud_tick = '1' then
@@ -456,11 +433,11 @@ begin
 	-- filter rxd with a 2 bit counter.
 	rxd_filter: process(clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			uart_rx_filter <= (others => '1');
 			uart_rx_bit    <= '1';
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				uart_rx_filter <= (others => '1');
 				uart_rx_bit    <= '1';
 			else
@@ -484,11 +461,11 @@ begin
 
 	rx_bit_spacing: process (clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			uart_rx_bit_tick    <= '0';
 			uart_rx_bit_spacing <= (others => '0');
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				uart_rx_bit_tick    <= '0';
 				uart_rx_bit_spacing <= (others => '0');
 			else
@@ -510,13 +487,13 @@ begin
 
 	uart_receive_data: process(clk, rst)
 	begin
-		if rst = '1' and asynchronous_reset then
+		if rst = '1' and g.asynchronous_reset then
 			uart_rx_state        <= rx_get_start_bit;
 			uart_rx_data_block   <= (others => '0');
 			uart_rx_count        <= 0;
 			uart_rx_data_out_stb <= '0';
 		elsif rising_edge(clk) then
-			if rst = '1' and not asynchronous_reset then
+			if rst = '1' and not g.asynchronous_reset then
 				uart_rx_state        <= rx_get_start_bit;
 				uart_rx_data_block   <= (others => '0');
 				uart_rx_count        <= 0;

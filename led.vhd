@@ -21,12 +21,11 @@ package led_pkg is
 	subtype led_8_segment is std_ulogic_vector(7 downto 0);
 
 	component led_8_segment_display is
-		generic(
-			g:               common_generics;
+		generic (g: common_generics;
 			use_bcd_not_hex:         boolean := true;
 			refresh_rate_us:         natural := 1500;
 			number_of_led_displays: positive := 4);
-		port(
+		port (
 			clk:      in   std_ulogic;
 			rst:      in   std_ulogic;
 
@@ -198,10 +197,7 @@ begin
 	an <= invert(shift_reg) after g.delay;
 
 	segment_reg: entity work.reg
-		generic map(
-			asynchronous_reset => g.asynchronous_reset,
-			delay              => g.delay,
-			N                  => number_of_led_displays * character_length)
+		generic map(g => g, N => number_of_led_displays * character_length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -210,10 +206,7 @@ begin
 			do  => leds_reg_o);
 
 	segment_reg_re: entity work.reg
-		generic map(
-			asynchronous_reset => g.asynchronous_reset,
-			delay              => g.delay,
-			N                  => 1)
+		generic map(g => g, N => 1)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -223,10 +216,7 @@ begin
 
 	led_gen: for i in number_of_led_displays - 1 downto 0 generate
 		led_i: entity work.reg
-			generic map(
-				asynchronous_reset => g.asynchronous_reset,
-				delay              => g.delay,
-				N                  => character_length)
+			generic map(g => g, N => character_length)
 			port map(
 				clk => clk,
 				rst => rst,
@@ -236,11 +226,7 @@ begin
 	end generate;
 
 	timer: entity work.timer_us
-		generic map(
-			asynchronous_reset => g.asynchronous_reset,
-			delay              => g.delay,
-			clock_frequency    => g.clock_frequency,
-			timer_period_us    => refresh_rate_us)
+		generic map(g => g, timer_period_us => refresh_rate_us)
 		port map(
 			clk             => clk,
 			rst             => rst,

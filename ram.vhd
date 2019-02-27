@@ -73,7 +73,7 @@ begin
 	mem_addr <= '0' & mem_addr_high & mem_addr_low(mem_addr_low'high downto mem_addr_low'low + 1);
 
 	mem_addr_16_1_reg: entity work.reg
-		generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N => mem_addr_16_1'length)
+		generic map(g => g, N => mem_addr_16_1'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -82,7 +82,7 @@ begin
 			do  => mem_addr_low);
 
 	mem_addr_26_17_reg: entity work.reg
-		generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N => mem_addr_26_17'length)
+		generic map(g => g, N => mem_addr_26_17'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -91,7 +91,7 @@ begin
 			do  => mem_addr_high);
 
 	mem_control_reg: entity work.reg
-		generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N => mem_control_i'length)
+		generic map(g => g, N => mem_control_i'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -100,7 +100,7 @@ begin
 			do  => mem_control_o);
 
 	mem_data_i_reg: entity work.reg
-		generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N => mem_data_i'length)
+		generic map(g => g, N => mem_data_i'length)
 		port map(
 			clk => clk,
 			rst => rst,

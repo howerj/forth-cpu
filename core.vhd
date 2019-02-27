@@ -29,10 +29,7 @@ package core_pkg is
 	end record;
 
 	component core is
-	generic(
-		asynchronous_reset:   boolean  := true; -- use asynchronous reset if true, synchronous if false
-		delay:                time     := 0 ns; -- simulation only, gate delay
-		number_of_interrupts: positive := 8);
+	generic(g: common_generics; number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
 		debug:           out cpu_debug_interface;
@@ -77,20 +74,17 @@ package core_pkg is
 end package;
 
 ----- CPU ----------------------------------------------------------------------
-
 library ieee,work;
 use ieee.std_logic_1164.all;
-use work.util.n_bits;
-use work.util.common_generics;
 use work.core_pkg.all;
 use work.h2_pkg.all;
+use work.util.n_bits;
+use work.util.common_generics;
 use work.util.file_format;
 use work.util.file_hex;
 
 entity core is
-	generic(
-		g: common_generics;
-		number_of_interrupts: positive := 8);
+	generic(g: common_generics; number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
 		debug:           out cpu_debug_interface;
@@ -184,7 +178,7 @@ begin
 
 	mem_h2_0: entity work.dual_port_block_ram
 	generic map(
-		delay         => g.delay,
+		g             => g,
 		addr_length   => address'length,
 		data_length   => word'length,
 		file_name     => file_name,
@@ -264,7 +258,7 @@ architecture rtl of interrupt_request_handler is
 	signal mask_n: std_ulogic_vector(mask'range) := (others => '0');
 begin
 	irq_in: entity work.reg
-		generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N  => 1)
+		generic map(g => g, N  => 1)
 		port map(
 			clk    =>  clk,
 			rst    =>  rst,
@@ -273,7 +267,7 @@ begin
 			do(0)  =>  irq_n);
 
 	irc_in: entity work.reg
-		generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N  => number_of_interrupts)
+		generic map(g => g, N  => number_of_interrupts)
 		port map(
 			clk  =>  clk,
 			rst  =>  rst,
@@ -281,7 +275,7 @@ begin
 			di   =>  irc_i,
 			do   =>  irc_n);
 
-	irc_mask: entity work.reg generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N  => number_of_interrupts)
+	irc_mask: entity work.reg generic map(g => g, N  => number_of_interrupts)
 		port map(
 			clk  =>  clk,
 			rst  =>  rst,

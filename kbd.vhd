@@ -122,7 +122,7 @@ begin
 	end process;
 
 	new_char: entity work.reg
-	generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N => kbd_char'length)
+	generic map(g => g, N => kbd_char'length)
 	port map(
 		clk => clk,
 		rst => rst,
@@ -131,7 +131,7 @@ begin
 		do  => kbd_char_o);
 
 	char_buf: entity work.reg
-	generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, N => kbd_char'length)
+	generic map(g => g, N => kbd_char'length)
 	port map(
 		clk => clk,
 		rst => rst,

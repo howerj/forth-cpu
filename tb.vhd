@@ -171,7 +171,7 @@ begin
 		mem_data  =>  mem_data);
 
 	uut_util: work.util.util_tb generic map(g => g);
-	uut_vga:  work.vga_pkg.vt100_tb generic map(clock_frequency => g.clock_frequency, delay => g.delay);
+	uut_vga:  work.vga_pkg.vt100_tb generic map(g => g);
 
 	-- The "io_pins_tb" works correctly, however in GHDL 0.29, compiled under
 	-- Windows, fails to simulate this component correctly, resulting
@@ -181,9 +181,7 @@ begin
 	uut_io_pins: work.util.io_pins_tb  generic map(g => g);
 
 	uut_uart: work.uart_pkg.uart_core
-		generic map(
-			baud_rate            =>  uart_baud_rate,
-			clock_frequency      =>  g.clock_frequency)
+		generic map(g => g, baud_rate =>  uart_baud_rate)
 		port map(
 			clk       =>  clk,
 			rst       =>  rst,
