@@ -22,6 +22,8 @@ The goals of the project are as follows:
 * Create a [FORTH][] for the processor which can take its input either from a
   [UART][] or a USB keyboard and a [VGA][] adapter.
 
+All three of which have been completed.
+
 The H2 processor, like the [J1][], is a stack based processor that executes an
 instruction set especially suited for [FORTH][].
 
@@ -51,8 +53,8 @@ The System Architecture is as follows:
 
 The licenses used by the project are mixed and are on a per file basis. For my
 code I use the [MIT][] license - so feel free to use it as you wish. The other
-licenses used are the [LGPL][], they are confined to single modules so could be
-removed if you have some aversion to [LGPL][] code.
+licenses used are the [LGPL][] and the [Apache 2.0][] license, they are confined 
+to single modules so could be removed if you have some aversion to [LGPL][] code.
 
 # Target Board
 
@@ -231,11 +233,12 @@ All ALU operations replace T:
 |  13   |     N << T     |  Logical Left Shift   |
 |  14   |     depth      |  Depth of stack       |
 |  15   |     N u< T     |  Unsigned comparison  |
-|  16   | set interrupts |  Enable interrupts    |
-|  17   | interrupts on? |  Are interrupts on?   |
+|  16   | Set CPU State  |  Enable interrupts    |
+|  17   | Get CPU State  |  Are interrupts on?   |
 |  18   |     rdepth     |  Depth of return stk  |
 |  19   |      0=        |  T == 0?              |
 |  20   |     CPU ID     |  CPU Identifier       |
+|  21   |     LITERAL    |  Internal Instruction |
 
 
 ### Peripherals and registers
@@ -258,7 +261,7 @@ from <https://github.com/pabennett/uart>
 * [PS/2][] Keyboard
 from <https://eewiki.net/pages/viewpage.action?pageId=28279002>
 * [LED][] next to a bank of switches
-* An [8 Segment LED Display][] driver (a 7 segment display with a decimal point)
+* An [7 Segment LED Display][] driver (a 7 segment display with a decimal point)
 
 The SoC also features a limited set of interrupts that can be enabled or
 disabled.
@@ -274,7 +277,7 @@ The output register map:
 | oMemDout    | 0x4008  | Memory Data Output              |
 | oMemControl | 0x400A  | Memory Control / Hi Address     |
 | oMemAddrLow | 0x400C  | Memory Lo Address               |
-| o7SegLED    | 0x400E  | 4 x LED 8 Segment display       |
+| o7SegLED    | 0x400E  | 4 x LED 7 Segment display       |
 | oIrcMask    | 0x4010  | CPU Interrupt Mask              |
 
 
@@ -442,8 +445,8 @@ This is the lower address bits of the RAM.
 
 #### o7SegLED
 
-On the [Nexys3][] board there is a bank of 7 segment displays, with a dot
-(8-segment really), which can be used for numeric output. The LED segments
+On the [Nexys3][] board there is a bank of 7 segment displays, with a decimal 
+point (8-segment really), which can be used for numeric output. The LED segments
 cannot be directly addressed. Instead the value stored in L8SD is mapped
 to a hexadecimal display value (or a BCD value, but this requires regeneration
 of the SoC and modification of a generic in the VHDL).
@@ -996,7 +999,6 @@ VHDL-2008 standard.
 |          |            | Richard J Howe  | (and VT100 terminal emulator)       |
 | uart.vhd | Apache 2.0 | Peter A Bennett | UART, modified from original        |
 | kbd.vhd  | ???        | Scott Larson    | PS/2 Keyboard                       |
-| led.vhd  | MIT        | Richard J Howe  | LED 7-Segment + Dot Display Driver  |
 
 
 # eForth on the H2
@@ -1098,14 +1100,14 @@ width register:
 	-- Lots of comments about what the unit does should go
 	-- here. Describe the waveforms, states and use ASCII
 	-- art where possible.
-	library ieee;
+	library ieee, work;
 	use ieee.std_logic_1164.all;
 	use ieee.numeric_std.all;    -- numeric_std not std_logic_arith
 
 	entity reg is -- generic and port indented one tab, their parameters two
-		generic(
+		generic (
 			N: positive); -- Generic parameters make for a generic component
-		port(
+		port (
 			clk: in  std_logic; -- standard signal names
 			rst: in  std_logic; --
 			we:  in  std_logic;
@@ -1168,8 +1170,7 @@ example:
 
 <!-- -->
 
-	static const char *alu_op_to_string(uint16_t instruction)
-	{
+	static const char *alu_op_to_string(uint16_t instruction) {
 		/* notice also that the 'case' clauses are inline with the
 		 * switch selector */
 		switch (ALU_OP(instruction)) {
@@ -1390,7 +1391,7 @@ perhaps be handled by manipulating the pixel value to be currently drawn.
 [VGA]: https://en.wikipedia.org/wiki/Video_Graphics_Array
 [PS/2]: https://en.wikipedia.org/wiki/PS/2_port
 [LED]: https://en.wikipedia.org/wiki/Light-emitting_diode
-[8 Segment LED Display]: https://en.wikipedia.org/wiki/Seven-segment_display
+[7 Segment LED Display]: https://en.wikipedia.org/wiki/Seven-segment_display
 [ISO 8859-1 (Latin-1)]: https://cs.stanford.edu/people/miles/iso8859.html
 [Spartan 6]: https://www.xilinx.com/products/silicon-devices/fpga/spartan-6.html
 [FPGA]: https://en.wikipedia.org/wiki/Field-programmable_gate_array
@@ -1410,6 +1411,7 @@ perhaps be handled by manipulating the pixel value to be currently drawn.
 [VT100]: https://en.wikipedia.org/wiki/VT100
 [embed]: https://github.com/howerj/embed
 [SDL]: https://www.libsdl.org/
+[Apache 2.0]: https://www.apache.org/licenses/LICENSE-2.0.html
 
 <!--
 

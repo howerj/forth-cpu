@@ -66,7 +66,6 @@ package vga_pkg is
 		vga_we_ram:  in  std_ulogic; -- Write enable RAM
 		vga_din:     in  std_ulogic_vector(15 downto 0);
 		vga_addr:    in  std_ulogic_vector(12 downto 0);
-		vga_dout:    out std_ulogic_vector(15 downto 0):= (others => '0');
 
 		-- VGA control registers
 		i_vga_control_we: in vga_control_registers_we_interface;
@@ -489,10 +488,11 @@ begin
 	y_minus_one_limited <= (others => '0') when y_underflow else y_minus_one;
 	y_plus_one_limited  <= to_unsigned(height - 1, y_c'length) when y_overflow else y_plus_one;
 
-	busy                <= '0' when state_c = ACCEPT
-				       or state_c = CSI
-				       or state_c = NUMBER1
-				       or state_c = NUMBER2 else '1';
+	busy                <= '0' when akk_ready_o = '0'
+				or state_c = ACCEPT
+				or state_c = CSI
+				or state_c = NUMBER1
+				or state_c = NUMBER2 else '1';
 
 	vga_blk: block
 		signal vga_din:    std_ulogic_vector(15 downto 0)     := (others => '0');
@@ -814,7 +814,6 @@ entity vga_top is
 		vga_we_ram:       in  std_ulogic; -- Write enable RAM
 		vga_din:          in  std_ulogic_vector(15 downto 0);
 		vga_addr:         in  std_ulogic_vector(12 downto 0);
-		vga_dout:         out std_ulogic_vector(15 downto 0) := (others => '0');
 
 		-- VGA control registers
 		i_vga_control_we: in vga_control_registers_we_interface;
@@ -920,7 +919,7 @@ begin
 		a_dre   => '1',
 		a_addr  => vga_addr,
 		a_din   => vga_din,
-		a_dout  => vga_dout,
+		a_dout  => open,
 		-- Internal interface
 		b_clk   => clk25MHz,
 		b_dwe   => '0',

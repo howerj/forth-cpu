@@ -383,9 +383,6 @@ begin
 						uart_tx_data <= '1';
 						uart_tx_state <= idle;
 					end if;
-				when others =>
-					uart_tx_data  <= '1';
-					uart_tx_state <= idle;
 				end case;
 			end if;
 		end if;

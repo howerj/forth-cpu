@@ -47,7 +47,6 @@ package core_pkg is
 		io_daddr:        out  word:= (others => 'X');
 
 		-- Interrupts
-		cpu_irq:         in std_ulogic;
 		cpu_irc:         in std_ulogic_vector(number_of_interrupts - 1 downto 0);
 		cpu_irc_mask:    in std_ulogic_vector(number_of_interrupts - 1 downto 0);
 		cpu_irc_mask_we: in std_ulogic);
@@ -82,6 +81,7 @@ use work.util.n_bits;
 use work.util.common_generics;
 use work.util.file_format;
 use work.util.file_hex;
+use work.util.or_reduce;
 
 entity core is
 	generic(g: common_generics; number_of_interrupts: positive := 8);
@@ -102,7 +102,6 @@ entity core is
 		io_daddr:        out  word := (others => 'X');
 
 		-- Interrupts
-		cpu_irq:         in std_ulogic;
 		cpu_irc:         in std_ulogic_vector(number_of_interrupts - 1 downto 0);
 		cpu_irc_mask:    in std_ulogic_vector(number_of_interrupts - 1 downto 0);
 		cpu_irc_mask_we: in std_ulogic);
@@ -111,16 +110,16 @@ end;
 architecture structural of core is
 	constant interrupt_address_length: natural     := n_bits(number_of_interrupts);
 	constant file_name:                string      := "h2.hex";
-	constant file_type:                file_format := FILE_HEX;
-
-	signal pc:    address   := (others => '0'); -- Program counter
-	signal insn:  word      := (others => '0'); -- Instruction issued by program counter
+	constant file_type:                file_format := file_hex;
+	signal pc:    address    := (others => '0'); -- Program counter
+	signal insn:  word       := (others => '0'); -- Instruction issued by program counter
 	signal dwe:   std_ulogic := '0'; -- Write enable
 	signal dre:   std_ulogic := '0'; -- Read enable
-	signal din:   word      := (others => '0');
-	signal dout:  word      := (others => '0');
-	signal daddr: address   := (others => '0');
-
+	signal din:   word       := (others => '0');
+	signal dout:  word       := (others => '0');
+	signal daddr: address    := (others => '0');
+	signal irc_edges:    std_ulogic_vector(cpu_irc'range) := (others => '0');
+	signal irq_edges:    std_ulogic := '0';
 	signal h2_irq:       std_ulogic := '0';
 	signal h2_irq_addr:  std_ulogic_vector(interrupt_address_length - 1 downto 0) := (others=>'0');
 begin
@@ -134,14 +133,25 @@ begin
 	debug.daddr <= daddr;
 	-- synthesis translate_on
 
+	-- Ensure all interrupts occur are rising edge triggered
+	edges: work.util.rising_edge_detectors
+	generic map(g => g, N => cpu_irc'length)
+	port map(
+		clk   => clk,
+		rst   => rst,
+		di    => cpu_irc,
+		do    => irc_edges);
+		
+	irq_edges <= or_reduce(irc_edges);
+
 	irqh_0: work.core_pkg.interrupt_request_handler
 	generic map(g => g, number_of_interrupts => number_of_interrupts)
 	port map(
 		clk    => clk,
 		rst    => rst,
 
-		irq_i  => cpu_irq,
-		irc_i  => cpu_irc,
+		irq_i  => irq_edges,
+		irc_i  => irc_edges,
 
 		irq_o  => h2_irq,
 		addr_o => h2_irq_addr,

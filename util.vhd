@@ -12,6 +12,10 @@
 --| Leading Zeros, Count Trailing Zeros, Manchester CODEC, Wishbone interface
 --| types and Wishbone Bus Arbitrator.
 --|
+--| More exotic modules would include; encryption, compression, sorting networks,
+--| switching networks, Reed-Solomon CODEC, Discrete Fourier Transform/Discrete 
+--| Cosine Transform, Pulse Width/Code/Position Modulation modules, so long as
+--| they are fairly generic and synthesizable.
 --|
 --| @author         Richard James Howe
 --| @copyright      Copyright 2017, 2019 Richard James Howe
@@ -47,7 +51,7 @@ package util is
 		generic (g: common_generics; hold_rst: positive := 1);
 		port (
 			stop:            in     std_ulogic := '0';
-			clk:             buffer std_ulogic;
+			clk:             out    std_ulogic;
 			clk_with_jitter: out    std_ulogic := '0';
 			rst:             out    std_ulogic := '0');
 	end component;
@@ -347,7 +351,7 @@ package util is
 	end component;
 
 	component reset_generator is
-		generic (g: common_generics; reset_period_us:  natural  := 0);
+		generic (g: common_generics; reset_period_us: natural := 1);
 		port (
 			clk: in  std_logic := 'X';
 			rst: out std_logic := '0'); -- reset out!
@@ -357,8 +361,8 @@ package util is
 		generic (g: common_generics);
 	end component;
 
-	function n_bits(x: natural) return natural;
-	function n_bits(x: std_ulogic_vector) return natural;
+	function n_bits(x: natural) return natural;           -- Not synthesizable
+	function n_bits(x: std_ulogic_vector) return natural; -- Not synthesizable
 
 	component bit_count is
 		generic (g: common_generics; N: positive);
@@ -492,6 +496,31 @@ package util is
 		generic(g: common_generics; pixel_clock_frequency: positive := 25_000_000; simulation_us: time := 20000 us);
 	end component;
 
+	constant led_7_segment_character_length: positive := 4;
+	subtype led_7_segment_character is std_ulogic_vector(led_7_segment_character_length - 1 downto 0);
+	subtype led_7_segment is std_ulogic_vector(7 downto 0);
+
+	component led_7_segment_display is
+		generic (g: common_generics;
+			use_bcd_not_hex:         boolean := true;
+			refresh_rate_us:         natural := 1500;
+			number_of_led_displays: positive := 4);
+		port (
+			clk:      in   std_ulogic;
+			rst:      in   std_ulogic;
+
+			leds_we:  in   std_ulogic;
+			leds:     in   std_ulogic_vector((number_of_led_displays * led_7_segment_character_length) - 1 downto 0);
+
+			-- Physical outputs
+			an:       out  std_ulogic_vector(number_of_led_displays - 1 downto 0);  -- anodes, controls on/off
+			ka:       out  std_ulogic_vector(7 downto 0)); -- cathodes, data on display
+	end component;
+
+	component led_7_segment_display_tb is
+		generic (g: common_generics);
+	end component;
+
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
 	function reverse (a: in std_ulogic_vector) return std_ulogic_vector;
@@ -506,15 +535,13 @@ package util is
 	function mux(a: std_ulogic; b: std_ulogic; sel: std_ulogic) return std_ulogic;
 	function mux(a, b : std_ulogic_vector) return std_ulogic;
 	function decode(encoded: std_ulogic_vector) return std_ulogic_vector;
-	function hex_char_to_std_ulogic_vector(hc: character) return std_ulogic_vector;
 	function to_std_ulogic_vector(s: string) return std_ulogic_vector;
 	function logical(b: boolean) return std_ulogic;
 	function bit_count_f(s: std_ulogic_vector) return integer;
+	function hex_char_to_std_ulogic_vector_tb(hc: character) return std_ulogic_vector;
 
 	type ulogic_string is array(integer range <>) of std_ulogic_vector(7 downto 0);
   	function to_std_ulogic_vector(s: string) return ulogic_string;
-
-	--- Not synthesizable ---
 
 	-- synthesis translate_off
 	subtype configuration_name is string(1 to 8);
@@ -529,7 +556,6 @@ package util is
 	function search_configuration_tb(find_me: configuration_name; ci: configuration_items) return integer;
 	procedure read_configuration_tb(file_name:  string; ci: inout configuration_items);
 	procedure write_configuration_tb(file_name: string; ci: configuration_items);
-
 	-- synthesis translate_on
 end;
 
@@ -545,7 +571,7 @@ package body util is
 		if (a < b) then return a; else return b; end if;
 	end function;
 
-	function n_bits(x: natural) return natural is
+	function n_bits(x: natural) return natural is -- Not synthesizable
 		variable x1: natural := max(x, 1) - 1;
 		variable n:  natural := 1;
 	begin
@@ -556,7 +582,7 @@ package body util is
 		return n;
 	end function;
 
-	function n_bits(x: std_ulogic_vector) return natural is
+	function n_bits(x: std_ulogic_vector) return natural is -- Not synthesizable
 	begin
 		return n_bits(x'high);
 	end function;
@@ -685,7 +711,7 @@ package body util is
 		if b then return '1'; else return '0'; end if;
 	end;
 
-	function hex_char_to_std_ulogic_vector(hc: character) return std_ulogic_vector is
+	function hex_char_to_std_ulogic_vector_tb(hc: character) return std_ulogic_vector is
 		variable slv: std_ulogic_vector(3 downto 0);
 	begin
 		case hc is
@@ -853,6 +879,7 @@ begin
 	uut_gray:     work.util.gray_tb                 generic map(g => g);
 	uut_ham:      work.util.hamming_7_4_tb          generic map(g => g); -- Oink!
 	uut_vga:      work.util.vga_tb                  generic map(g => g, simulation_us => 1 us);
+	uut_7_seg:   work.util.led_7_segment_display_tb generic map(g => g);
 
 	stimulus_process: process
 	begin
@@ -918,7 +945,7 @@ entity clock_source_tb is
 	generic (g: common_generics; hold_rst: positive);
 	port (
 		stop:            in     std_ulogic := '0';
-		clk:             buffer std_ulogic;
+		clk:             out    std_ulogic;
 		clk_with_jitter: out    std_ulogic := '0';
 		rst:             out    std_ulogic := '0');
 end entity;
@@ -946,7 +973,6 @@ begin
 			wait for (clock_period / 2) + jit_high;
 			clk_with_jitter <= '0';
 			wait for (clock_period / 2) + jit_low;
-
 		end loop;
 		wait;
 	end process;
@@ -2035,7 +2061,7 @@ architecture behav of dual_port_block_ram is
 					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 					for j in 1 to (data_length/4) loop
 						c:= input_line((data_length/4) - j + 1);
-						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_ulogic_vector(c);
+						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_ulogic_vector_tb(c);
 					end loop;
 					ram_data(i) := slv;
 				else
@@ -2129,7 +2155,7 @@ architecture behav of single_port_block_ram is
 					assert (data_length mod 4) = 0 report "(data_length%4)!=0" severity failure;
 					for j in 1 to (data_length/4) loop
 						c:= input_line((data_length/4) - j + 1);
-						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_ulogic_vector(c);
+						slv((j*4)-1 downto (j*4)-4) := hex_char_to_std_ulogic_vector_tb(c);
 					end loop;
 					ram_data(i) := slv;
 				else
@@ -3616,4 +3642,268 @@ begin
 			row     => row);
 end architecture;
 ------------------------- VGA Controller ------------------------------------------------------
+------------------------- LED Controller ------------------------------------------------------
+--| This module implements a 7 segment display (plus decimal point) driver, 
+--|  with 4 displays in total:
+--|
+--|    _____________________ an (selects segment)
+--|    |     |     |     |
+--|   __    __    __    __
+--|  |  |  |  |  |  |  |  |
+--|  |__|  |__|  |__|  |__|
+--|  |  |  |  |  |  |  |  |
+--|  |__|. |__|. |__|. |__|.
+--|   |____|_____|_____|____ ka (value to display on segment)
+--|
+--| Each of the display shares a common anode for all of its LEDs, this can be
+--| used to select an individual display
+
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.all;
+
+entity led_7_segment_display is
+	generic(
+		g:                      common_generics;
+		use_bcd_not_hex:        boolean  := true;
+		refresh_rate_us:        natural  := 1500;
+		number_of_led_displays: positive := 4);
+	port(
+		clk:      in   std_ulogic;
+		rst:      in   std_ulogic;
+
+		leds_we:  in   std_ulogic;
+		leds:     in   std_ulogic_vector((number_of_led_displays * led_7_segment_character_length) - 1 downto 0);
+
+		-- Physical outputs
+		an:       out  std_ulogic_vector(number_of_led_displays - 1 downto 0);  -- anodes, controls on/off
+		ka:       out  std_ulogic_vector(7 downto 0)); -- cathodes, data on display
+end;
+
+architecture rtl of led_7_segment_display is
+
+	-- This lookup table converts a BCD character into a value
+	-- that can be displayed on an 7 segment display. The layout of which
+	-- is as follows:
+	--
+	--       A
+	--      ---
+	--   F |   | B
+	--     |___|
+	--   E | G | C
+	--     |___| . DP
+	--       D
+	--
+	-- The following encoding is used to convert the input BCD character
+	-- into a value that can be put onto the display.
+	--
+	--  -----------------------------------------
+	-- |   | DP| G | F | E | D | C | B | A | Hex |
+	-- |BCD| 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |Hi Lo|
+	--  -----------------------------------------
+	-- | 0 |   |   | 1 | 1 | 1 | 1 | 1 | 1 | 3 F |
+	-- | 1 |   |   |   |   |   | 1 | 1 |   | 0 6 |
+	-- | 2 |   | 1 |   | 1 | 1 |   | 1 | 1 | 5 B |
+	-- | 3 |   | 1 |   |   | 1 | 1 | 1 | 1 | 4 F |
+	-- | 4 |   | 1 | 1 |   |   | 1 | 1 |   | 6 6 |
+	-- | 5 |   | 1 | 1 |   | 1 | 1 |   | 1 | 6 D |
+	-- | 6 |   | 1 | 1 | 1 | 1 | 1 |   | 1 | 7 D |
+	-- | 7 |   |   |   |   |   | 1 | 1 | 1 | 0 7 |
+	-- | 8 |   | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 7 F |
+	-- | 9 |   | 1 | 1 |   | 1 | 1 | 1 | 1 | 6 F |
+	-- |   |   |   |   |   |   |   |   |   | 0 0 |
+	-- | . | 1 |   |   |   |   |   |   |   | 8 0 |
+	-- | - |   | 1 |   |   |   |   |   |   | 4 0 |
+	--  -----------------------------------------
+	-- | A |   | 1 | 1 | 1 |   | 1 | 1 | 1 | 7 7 |
+	-- | b |   | 1 | 1 | 1 | 1 | 1 |   |   | 7 C |
+	-- | C |   |   | 1 | 1 | 1 |   |   | 1 | 3 9 |
+	-- | d |   | 1 |   | 1 | 1 | 1 | 1 |   | 5 E |
+	-- | E |   | 1 | 1 | 1 | 1 |   |   | 1 | 7 9 |
+	-- | F |   | 1 | 1 | 1 |   |   |   | 1 | 7 1 |
+	--  -----------------------------------------
+	--
+	-- The table is then inverted before it goes to the output.
+	--
+
+	function hex_to_7_segment(a: led_7_segment_character) return led_7_segment is
+		variable r: std_ulogic_vector(7 downto 0);
+	begin
+		case a is
+			when "0000" => r := x"3F"; -- 0
+			when "0001" => r := x"06"; -- 1
+			when "0010" => r := x"5B"; -- 2
+			when "0011" => r := x"4F"; -- 3
+			when "0100" => r := x"66"; -- 4
+			when "0101" => r := x"6D"; -- 5
+			when "0110" => r := x"7D"; -- 6
+			when "0111" => r := x"07"; -- 7
+			when "1000" => r := x"7F"; -- 8
+			when "1001" => r := x"6F"; -- 9
+			when "1010" => r := x"77"; -- A
+			when "1011" => r := x"7C"; -- b
+			when "1100" => r := x"39"; -- C
+			when "1101" => r := x"5E"; -- d
+			when "1110" => r := x"79"; -- E
+			when "1111" => r := x"71"; -- F
+			when others => r := x"00"; -- Unused
+		end case;
+		return r;
+	end function;
+
+	function bcd_to_7_segment(a: led_7_segment_character) return led_7_segment is
+		variable r: std_ulogic_vector(7 downto 0);
+	begin
+		case a is
+			when "0000" => r := x"3F"; -- 0
+			when "0001" => r := x"06"; -- 1
+			when "0010" => r := x"5B"; -- 2
+			when "0011" => r := x"4F"; -- 3
+			when "0100" => r := x"66"; -- 4
+			when "0101" => r := x"6D"; -- 5
+			when "0110" => r := x"7D"; -- 6
+			when "0111" => r := x"07"; -- 7
+			when "1000" => r := x"7F"; -- 8
+			when "1001" => r := x"6F"; -- 9
+			when "1010" => r := x"00"; -- Blank
+			when "1011" => r := x"80"; -- .
+			when "1100" => r := x"40"; -- -
+			when "1101" => r := x"00"; -- Unused
+			when "1110" => r := x"00"; -- Unused
+			when "1111" => r := x"00"; -- Unused
+			when others => r := x"00"; -- Unused
+		end case;
+		return r;
+	end function;
+
+	function char_to_7_segment(a: led_7_segment_character) return led_7_segment is
+	begin
+		if use_bcd_not_hex then
+			return invert(bcd_to_7_segment(a));
+		else
+			return invert(hex_to_7_segment(a));
+		end if;
+	end function;
+
+	signal leds_o: std_ulogic_vector(leds'range) := (others => '0');
+
+	signal do_shift:  std_ulogic := '0';
+	signal shift_reg: std_ulogic_vector(number_of_led_displays - 1 downto 0);
+
+	signal leds_reg_o: std_ulogic_vector(leds'range) := (others => '0');
+	signal leds_reg_we_o: std_ulogic := '0';
+begin
+	an <= invert(shift_reg) after g.delay;
+
+	segment_reg: entity work.reg
+		generic map(g => g, N => number_of_led_displays * led_7_segment_character_length)
+		port map(
+			clk => clk,
+			rst => rst,
+			we  => leds_we,
+			di  => leds,
+			do  => leds_reg_o);
+
+	segment_reg_re: entity work.reg
+		generic map(g => g, N => 1)
+		port map(
+			clk   => clk,
+			rst   => rst,
+			we    => '1',
+			di(0) => leds_we,
+			do(0) => leds_reg_we_o);
+
+	led_gen: for i in number_of_led_displays - 1 downto 0 generate
+		led_i: entity work.reg
+			generic map(g => g, N => led_7_segment_character_length)
+			port map(
+				clk => clk,
+				rst => rst,
+				we  => leds_reg_we_o,
+				di  => leds_reg_o((i*led_7_segment_character_length) + led_7_segment_character_length - 1 downto (i*led_7_segment_character_length)),
+				do  => leds_o((i*led_7_segment_character_length) + led_7_segment_character_length - 1 downto (i*led_7_segment_character_length)));
+	end generate;
+
+	timer: entity work.timer_us
+		generic map(g => g, timer_period_us => refresh_rate_us)
+		port map(
+			clk             => clk,
+			rst             => rst,
+			co              => do_shift);
+
+	process(rst, clk, do_shift, shift_reg)
+	begin
+		if rst = '1' and g.asynchronous_reset then
+			shift_reg    <= (others => '0') after g.delay;
+			shift_reg(0) <= '1' after g.delay;
+		elsif rising_edge(clk) then
+			if rst = '1' and not g.asynchronous_reset then
+				shift_reg    <= (others => '0') after g.delay;
+				shift_reg(0) <= '1' after g.delay;
+			else
+				if do_shift = '1' then
+					shift_reg <= shift_reg(number_of_led_displays - 2 downto 0) & shift_reg(number_of_led_displays - 1) after g.delay;
+				else
+					shift_reg <= shift_reg after g.delay;
+				end if;
+			end if;
+		end if;
+	end process;
+
+	process(leds_o, shift_reg)
+	begin
+		ka <= (others => '0');
+		for i in  number_of_led_displays - 1 downto 0 loop
+			if '1' = shift_reg(number_of_led_displays - i - 1) then
+				ka <= char_to_7_segment(leds_o(i*led_7_segment_character_length + led_7_segment_character_length - 1 downto (i*led_7_segment_character_length))) after g.delay;
+			end if;
+		end loop;
+	end process;
+end architecture;
+
+library ieee,work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.all;
+
+entity led_7_segment_display_tb is
+	generic (g: common_generics);
+end entity;
+
+architecture testing of led_7_segment_display_tb is
+	constant clock_period:  time     := 1000 ms / g.clock_frequency;
+	signal clk, rst:      std_ulogic := '0';
+	signal stop:          std_ulogic := '0';
+
+	constant number_of_led_displays: positive := 4;
+	signal an: std_ulogic_vector(number_of_led_displays - 1 downto 0);
+	signal ka: std_ulogic_vector(7 downto 0);
+	signal leds_we: std_ulogic;
+	signal leds:    std_ulogic_vector((number_of_led_displays * led_7_segment_character_length) - 1 downto 0);
+begin
+	cs: entity work.clock_source_tb
+		generic map(g => g, hold_rst => 2)
+		port map(stop => stop, clk => clk, rst => rst);
+
+	-- We have a very fast refresh rate here, just for testing purposes.
+	uut: entity work.led_7_segment_display
+		generic map(g => g, refresh_rate_us => 1)
+		port map(clk => clk, rst => rst, leds_we => leds_we, leds => leds, an => an, ka => ka);
+
+	stimulus_process: process
+	begin
+		wait for clock_period * 2;
+		leds_we <= '1';
+		leds <= x"1234";
+		wait for clock_period * 1;
+		leds_we <= '0';
+		wait for clock_period * 1000;
+		stop <= '1';
+		wait;
+	end process;
+
+end architecture;
+
+------------------------- LED Controller ------------------------------------------------------
 

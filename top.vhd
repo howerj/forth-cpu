@@ -16,7 +16,6 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.core_pkg.all;
 use work.vga_pkg.all;
-use work.led_pkg.all;
 use work.kbd_pkg.ps2_kbd_top;
 use work.util.all;
 
@@ -87,7 +86,6 @@ architecture behav of top is
 	signal io_daddr: std_ulogic_vector(15 downto 0) := (others => '0');
 
 	-- CPU H2 Interrupts
-	signal cpu_irq:         std_ulogic := '0';
 	signal cpu_irc:         std_ulogic_vector(number_of_interrupts - 1 downto 0) := (others => '0');
 	signal cpu_irc_mask_we: std_ulogic := '0';
 
@@ -162,56 +160,14 @@ begin
 		clk        => clk,
 		rst        => rst);
 
-	irq_block: block
-		signal rx_fifo_not_empty: std_ulogic := '0';
-		signal tx_fifo_not_empty: std_ulogic := '0';
-
-		signal rx_fifo_not_empty_edge: std_ulogic := '0';
-		signal rx_fifo_full_edge:      std_ulogic := '0';
-		signal tx_fifo_not_empty_edge: std_ulogic := '0';
-		signal tx_fifo_full_edge:      std_ulogic := '0';
-		signal kbd_char_buf_new_edge:  std_ulogic := '0';
-	begin
-		rx_fifo_not_empty <= not rx_fifo_empty;
-		tx_fifo_not_empty <= not rx_fifo_empty;
-
-		-- @todo Move this into the IRQ handler, to ensure all inputs are edge triggered.
-		irq_edges: work.util.rising_edge_detectors
-		generic map(g => g, N => 5)
-		port map(
-			clk   => clk,
-			rst   => rst,
-			di(0) => rx_fifo_not_empty,
-			di(1) => rx_fifo_full,
-			di(2) => tx_fifo_not_empty,
-			di(3) => tx_fifo_full,
-			di(4) => kbd_char_buf_new,
-
-			do(0) => rx_fifo_not_empty_edge,
-			do(1) => rx_fifo_full_edge,
-			do(2) => tx_fifo_not_empty_edge,
-			do(3) => tx_fifo_full_edge,
-			do(4) => kbd_char_buf_new_edge);
-
-		cpu_irc(0) <= btnu_d; -- configurable CPU reset (can mask this)
-		cpu_irc(1) <= rx_fifo_not_empty_edge;
-		cpu_irc(2) <= rx_fifo_full_edge;
-		cpu_irc(3) <= tx_fifo_not_empty_edge;
-		cpu_irc(4) <= tx_fifo_full_edge;
-		cpu_irc(5) <= kbd_char_buf_new_edge;
-		cpu_irc(6) <= timer_irq;
-		cpu_irc(7) <= button_changed;
-
-		cpu_irq    <= '1' when
-				timer_irq              = '1' or
-				rx_fifo_not_empty_edge = '1' or
-				rx_fifo_full_edge      = '1' or
-				tx_fifo_not_empty_edge = '1' or
-				tx_fifo_full_edge      = '1' or
-				kbd_char_buf_new_edge  = '1' or
-				button_changed         = '1'
-				else '0';
-	end block;
+	cpu_irc(0) <= btnu_d; -- configurable CPU reset (can mask this)
+	cpu_irc(1) <= not rx_fifo_empty;
+	cpu_irc(2) <= rx_fifo_full;
+	cpu_irc(3) <= not tx_fifo_empty;
+	cpu_irc(4) <= tx_fifo_full;
+	cpu_irc(5) <= kbd_char_buf_new;
+	cpu_irc(6) <= timer_irq;
+	cpu_irc(7) <= button_changed;
 
 	core_0: entity work.core
 	generic map(g => g, number_of_interrupts => number_of_interrupts)
@@ -227,7 +183,6 @@ begin
 		io_din           => io_din,
 		io_dout          => io_dout,
 		io_daddr         => io_daddr,
-		cpu_irq          => cpu_irq,
 		cpu_irc          => cpu_irc,
 		cpu_irc_mask     => io_dout(number_of_interrupts - 1 downto 0),
 		cpu_irc_mask_we  => cpu_irc_mask_we);
@@ -420,7 +375,7 @@ begin
 	--- Keyboard ------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------
-	ledseg_0: entity work.led_8_segment_display
+	ledseg_0: entity work.led_7_segment_display
 	generic map(
 		g                      => g,
 		number_of_led_displays => number_of_led_displays,
