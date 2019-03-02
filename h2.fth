@@ -89,12 +89,12 @@ constant iMemDin       $4008 hidden ( Memory input for reads )
 
 ( Execution vectors for changing the behaviour of the program,
 they are set at the end of this file )
-location <key>      0  ( -- c -1 | 0 : new character available? )
-location <emit>     0  ( c -- : emit character )
+variable <key>      0  ( -- c -1 | 0 : new character available? )
+variable <emit>     0  ( c -- : emit character )
 location <expect>   0  ( "accept" vector )
 location <tap>      0  ( "tap" vector, for terminal handling )
 location <echo>     0  ( c -- : emit character )
-location <prompt>   0  ( -- : display prompt )
+variable <ok>       0  ( -- : display prompt )
 \ location <boot>     0  ( -- : execute program at startup )
 location <block>    0  ( a u k -- f : load block )
 location <save>     0  ( a u k -- f : save block )
@@ -113,7 +113,6 @@ variable hld        0  ( Pointer into hold area for numeric output )
 variable base      $10 ( Current output radix )
 variable span       0  ( Hold character count received by expect   )
 variable loaded     0  ( Used by boot block to indicate it has been loaded  )
-variable border    -1  ( Put border around block begin displayed with 'list' )
 constant #vocs            8 hidden ( number of vocabularies in allowed )
 variable forth-wordlist   0 ( set at the end near the end of the file )
 location context          0 ( holds current context for vocabulary search order )
@@ -182,13 +181,17 @@ location failed           "failed"      ( used in start up routine )
 : doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
 
 : uart? ( uart-register -- c -1 | 0 : generic UART input functions )
-      dup @ $0100 and if drop 0x0000 exit then dup $0400 swap ! @ $ff and [-1] ; hidden
+	dup @ $0100 and if drop 0x0000 exit then
+\	dup @ $ff and swap $0400 swap ! [-1] ; hidden \ read val first, then ack data
+	dup   $0400 swap ! @ $ff and [-1] ; hidden \ ack data, then read val
 
 : rx?  iUart uart? ; hidden ( -- c -1 | 0 : read in a character of input from UART )
 : ps2? iVT100 uart? ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
 
+\ : not-busy @ $0800 and ; hidden
 : uart! ( c uart-register -- )
-	begin dup @ $1000 and 0= until swap $2000 or swap ! ; hidden
+\	begin dup @ $1000 and 0= until swap $2000 or swap ! ; hidden  \ check full
+	begin dup @ $0800 and until swap $2000 or swap ! ; hidden     \ check empty
 
 : tx!  iUart uart! ; hidden
 : vga! iVT100 uart! ; hidden ( n a -- : output character to VT100 display )
@@ -513,11 +516,8 @@ location search-previous 0
 
 : .error ( n -- )
 	abs dup 60 < loaded @ and
-	if
-		dup l/b / + 32 + <message> @execute
-	else
-		negate . cr
-	then ; hidden
+	if dup l/b / + 32 + <message> @execute exit then
+	negate . cr ; hidden
 
 : ?error ( n -- : perform actions on error )
 	?dup if
@@ -553,28 +553,24 @@ location search-previous 0
 		if
 			0> if \ immediate
 				cfa execute exit
-			else
-				$compile exit
 			then
-		else
-			drop cfa execute exit
+			$compile exit
 		then
-	else \ not a word
-		dup count number? if
-			nip
-			state @ if literal exit then
-		else
-			drop space print 13 -throw exit
-		then
-	then ;
+		drop cfa execute exit
+	then \ not a word
+	dup count number? if
+		nip
+		state @ if literal exit then exit
+	then
+	drop space print 13 -throw ;
 
 : "immediate" last address $4000 toggle ;
 : .ok state @ 0= if space OK print space then cr ;
-: eval begin token dup count nip while interpret repeat drop <prompt> @execute ; hidden
+: eval begin token dup count nip while interpret repeat drop <ok> @execute ; hidden
 : quit quitLoop: preset [ begin query ' eval catch ?error again ;
 
 : evaluate ( a u -- )
-	<prompt> @ >r  0 <prompt> !
+	<ok>    @ >r  0 <ok> !
 	_id     @ >r [-1] _id !
 	>in     @ >r  0 >in !
 	source >r >r
@@ -583,7 +579,7 @@ location search-previous 0
 	r> r> #tib 2!
 	r> >in !
 	r> _id !
-	r> <prompt> !
+	r> <ok> !
 	throw ;
 
 : ccitt ( crc c -- crc : calculate polynomial $1021 AKA "x16 + x12 + x5 + 1" )
@@ -603,27 +599,44 @@ location search-previous 0
 
 : random seed @ dup 15 lshift ccitt dup iTimerDin @ + seed ! ; ( -- u )
 
-: 5u.r 5 u.r space ; hidden
-: dm+ 2/ for aft dup @ 5u.r cell+ then next ; ( a u -- a )
-: colon 58 emit ; hidden ( -- )
-
-: dump ( a u -- )
-	dump-width /
-	for
-		aft
-			cr dump-width 2dup
-			over 5u.r colon 
-			dm+ -rot
-			2 spaces $type
-		then
-	next drop ;
-
 : CSI $1b emit [char] [ emit ; hidden
 : 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( u -- )
 : ansi swap CSI 10u. emit ; ( n c -- )
 : at-xy CSI 10u. $3b emit 10u. [char] H emit ; ( x y -- )
 : page 2 [char] J ansi 1 1 at-xy ; ( -- )
 : sgr [char] m ansi ; ( -- )
+: up    [char] A ansi ;
+: down  [char] B ansi ;
+: right [char] C ansi ;
+: left  [char] D ansi ;
+
+
+: 5u.r 5 u.r space ; hidden
+: dm+ 2/ for aft dup @ 5u.r cell+ then next ; ( a u -- a )
+: colon 58 emit ; hidden ( -- )
+
+\ It would be nice to colorize the dump output.
+: dump ( a u -- )
+	dump-width /
+	for
+		aft
+			cr dump-width 2dup
+			over  5u.r colon 
+			dm+ -rot
+			2 spaces $type
+		then
+	next drop ;
+
+: rainbow $7 for $7 r@ - $1E + dup sgr u. next cr ; hidden
+: tableu
+	$7 for
+		$a right $7 r@ - $28 + dup sgr u. colon 
+		rainbow
+	next ; hidden
+
+: table page 0 sgr $2 down  tableu 1 sgr $2 down tableu 0 sgr ;
+
+\ : nuf? key? if drop [-1] exit then 0x0000 ; ( -- f )
 
 ( ==================== Advanced I/O Control ========================== )
 
@@ -636,13 +649,14 @@ location search-previous 0
 : output dup tx! vga! ; hidden ( c -- : write to UART and VGA display )
 : printable? 32 127 within ; hidden ( c -- f )
 : pace 11 emit ; hidden
-: xio  ' accept <expect> ! <tap> ! <echo> ! <prompt> ! ; hidden
+: xio  ' accept <expect> ! <tap> ! <echo> ! <ok> ! ; hidden
 : file ' pace ' "drop" ' ktap xio ;
 : star $2A emit ; hidden
-: [conceal] dup 33 127 within if drop star else output then ; hidden
+: [conceal] dup 33 127 within if drop star exit then output ; hidden
 : conceal ' .ok ' [conceal] ' ktap xio ;
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? <key> ! ' tx! <emit> ! hand ;
+: vt100 ' ps2? <key> ! ' vga! <emit> ! hand ;
 : interactive ' input <key> ! ' output <emit> ! hand ;
 : io! 0 timer! 0 led! 0 segments!
 	interactive 0 ien! 0 oIrcMask ! interactive ; ( -- : initialize I/O )
@@ -650,6 +664,17 @@ location search-previous 0
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr [ ;
 : cold io! branch entry ;
 : bye cold ;
+
+: pipe [char] | emit ; hidden
+( 
+: u.b base @ >r $2  base ! u.r r> base ! ; hidden
+: u.d base @ >r decimal    u.r r> base ! ; hidden
+: u.h base @ >r hex        u.r r> base ! ; hidden
+: .at 
+   dup $6 u.d pipe dup $5 u.h pipe dup $9 u.b pipe space
+   dup printable? if emit exit then drop [char] . emit ; hidden
+: ascii-table cr $FF for $FF r@ - .at cr next ; )
+
 
 ( ==================== Advanced I/O Control ========================== )
 
@@ -774,7 +799,7 @@ in which the problem could be solved. )
 
 ( ==================== Block Word Set ================================ )
 \ @todo 'blk' being set to zero should indicate an invalid block number, not -1
-\ The usuage of 'blk' is incorrect, it should be set to the block number
+\ The usage of 'blk' is incorrect, it should be set to the block number
 \ most recently LOAD'ed, not the one most recently BLOCK'ed
 \ 
 : updated? block-dirty @ ; hidden      ( -- f )
@@ -800,24 +825,23 @@ in which the problem could be solved. )
 : line swap block swap c/l * + c/l ; hidden ( k u -- a u )
 : loadline line evaluate ; hidden ( k u -- )
 : load 0 l/b 1- for 2dup >r >r loadline r> r> 1+ next 2drop ;
-: pipe [char] | emit ; hidden
 : .line line -trailing $type ; hidden
-: .border border @ if 3 spaces c/l 45 banner cr exit then ; hidden
-: #line border @ if dup 2 u.r exit then ; hidden ( u -- u : print line number )
-: ?pipe border @ if pipe exit then ; hidden
-: ?page border @ if page exit then ; hidden
+: .border 3 spaces c/l 45 banner cr ; hidden
+: #line dup 2 u.r ; hidden ( u -- u : print line number )
 : thru over-m for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
 : message l/b extract .line cr ; ( u -- )
 : list
-	?page
+	page
 	cr
 	.border
 	0 begin
 		dup l/b <
 	while
-		2dup #line ?pipe line $type ?pipe cr 1+
+		2dup #line pipe line $type pipe cr 1+
 	repeat .border 2drop ;
+
+\ : list  block l/b for dup l/b 1- r@ - c/l * + c/l type cr next ;
 
 : index ( k1 k2 -- : show titles for block k1 to k2 )
 	over-m cr
@@ -1098,7 +1122,7 @@ start:
 .set <expect>  accept      ( execution vector of expect, default to 'accept'. )
 .set <tap>     ktap        ( execution vector of tap,    default the ktap. )
 .set <echo>    output      ( execution vector of echo,   default to output. )
-.set <prompt>  .ok         ( execution vector of prompt, default to '.ok'. )
+.set <ok>      .ok         ( execution vector of prompt, default to '.ok'. )
 \ .set <boot>    0           ( @execute does nothing if zero )
 .set <block>   memory-load ( execution vector of block, used in block )
 .set <save>    memory-save ( execution vector of save-buffers, used in block )

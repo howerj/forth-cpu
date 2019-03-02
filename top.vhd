@@ -18,6 +18,7 @@ use work.core_pkg.all;
 use work.vga_pkg.all;
 use work.kbd_pkg.ps2_kbd_top;
 use work.util.all;
+use work.uart_pkg.all;
 
 entity top is
 	generic(
@@ -117,6 +118,8 @@ architecture behav of top is
 	signal tx_fifo_empty:     std_ulogic := '0';
 	signal tx_data_we:        std_ulogic := '0';
 
+	signal uart_clock_tx_we:  std_ulogic := '0';
+	signal uart_clock_rx_we:  std_ulogic := '0';
 	---- Timer
 	signal timer_control_we:  std_ulogic := '0';
 	signal timer_counter_o:   std_ulogic_vector(timer_length - 4 downto 0) := (others =>'0');
@@ -200,11 +203,14 @@ begin
 	---- Clock divider /2. Pixel clock is 25MHz
 	clk25MHz <= '0' when rst = '1' else not clk25MHz when rising_edge(clk50MHz);
 
+	-- It possible for CPU to issue both signals at the same time, but it should
+	-- not happen with a standard instruction.
 	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
 
 	vga_data <= io_dout(vga_data'range);
 	tx_data  <= io_dout(tx_data'range);
 
+	-- TODO: Raise trap (interrupt with bus error) on invalid memory access.
 	io_write: block
 		signal selector: std_ulogic_vector(3 downto 0) := (others => '0');
 		signal is_write: boolean := false;
@@ -229,6 +235,9 @@ begin
 
 		leds_reg_we       <= '1'         when is_write and selector = x"7" else '0';
 		cpu_irc_mask_we   <= '1'         when is_write and selector = x"8" else '0';
+
+		uart_clock_tx_we  <= '1'         when is_write and selector = x"9" else '0';
+		uart_clock_rx_we  <= '1'         when is_write and selector = x"A" else '0';
 	end block;
 
 	io_read: process(
@@ -253,6 +262,7 @@ begin
 
 		-- The signal io_re is not needed as none of the reads have
 		-- any side effects
+
 		case io_daddr(3 downto 1) is
 		when "000" => -- buttons, plus direct access to UART bit.
 			io_din(7 downto 0) <= rx_data;
@@ -277,21 +287,39 @@ begin
 	end process;
 
 	--- UART ----------------------------------------------------------
-	uart_0: work.uart_pkg.uart_top
-		generic map(g => g, baud_rate => uart_baud_rate, fifo_depth => uart_fifo_depth)
-		port map(
-			clk             =>  clk,
-			rst             =>  rst,
-			rx_data         =>  rx_data,
-			rx_fifo_empty   =>  rx_fifo_empty,
-			rx_fifo_full    =>  rx_fifo_full,
-			rx_data_re      =>  rx_data_re,
-			tx_data         =>  tx_data,
-			tx_fifo_full    =>  tx_fifo_full,
-			tx_fifo_empty   =>  tx_fifo_empty,
-			tx_data_we      =>  tx_data_we,
-			tx              =>  tx,
-			rx              =>  rx);
+	uart_0_blk: block
+		signal tx_ok, rx_nd: std_ulogic;
+	begin
+		tx_fifo_full  <= not tx_ok;
+		tx_fifo_empty <= tx_ok;
+
+		rx_fifo_full  <= rx_nd;
+		rx_fifo_empty <= not rx_nd;
+		uart_0: work.uart_pkg.uart_top
+			generic map(clock_frequency => g.clock_frequency, 
+				    asynchronous_reset => g.asynchronous_reset, 
+				    tx_init => 54, -- 115200 @ 100 MHz
+				    rx_init => 50, -- 115200 @ 100 MHz + Fudge Factor
+				    N => 8)
+			port map(
+				clk   => clk,
+				rst   => rst,
+				tx_di => tx_data,
+				tx_we => tx_data_we,
+				tx_ok => tx_ok,
+				tx    => tx,
+			
+				rx    => rx,
+				rx_ok => open,
+				rx_nd => rx_nd,
+				rx_do => rx_data,
+				rx_re => rx_data_re,
+			
+				clock_reg    => io_dout,
+				clock_reg_tx_we => uart_clock_tx_we,
+				clock_reg_rx_we => uart_clock_rx_we
+			);
+	end block;
 	--- UART ----------------------------------------------------------
 
 	--- LED Output ----------------------------------------------------
@@ -329,7 +357,6 @@ begin
 		busy        =>  vga_data_busy,
 		o_vga       =>  o_vga
 	);
-
 	
 	-- Test code
 	-- NOTE: Timing is not the best, VGA monitor loses synchronization

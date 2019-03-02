@@ -27,7 +27,6 @@ use std.textio.all;
 use work.util.all;
 use work.core_pkg.all;
 use work.vga_pkg.all;
-use work.uart_pkg.uart_core;
 
 entity tb is
 end tb;
@@ -180,19 +179,20 @@ begin
 
 	uut_io_pins: work.util.io_pins_tb  generic map(g => g);
 
-	uut_uart: work.uart_pkg.uart_core
-		generic map(g => g, baud_rate =>  uart_baud_rate)
-		port map(
-			clk       =>  clk,
-			rst       =>  rst,
-			din       =>  din,
-			din_stb   =>  din_stb,
-			din_ack   =>  din_ack,
-			tx        =>  rx,
-			rx        =>  tx,
-			dout_ack  =>  dout_ack,
-			dout_stb  =>  dout_stb,
-			dout      =>  dout);
+--	-- TODO: Use new UART core
+--	uut_uart: work.uart_pkg.uart_core
+--		generic map(g => g, baud_rate =>  uart_baud_rate)
+--		port map(
+--			clk       =>  clk,
+--			rst       =>  rst,
+--			din       =>  din,
+--			din_stb   =>  din_stb,
+--			din_ack   =>  din_ack,
+--			tx        =>  rx,
+--			rx        =>  tx,
+--			dout_ack  =>  dout_ack,
+--			dout_stb  =>  dout_stb,
+--			dout      =>  dout);
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process

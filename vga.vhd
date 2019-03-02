@@ -14,8 +14,13 @@
 --| character attribute information (color, bold, reverse video) and a VT100 
 --| terminal interface.
 --|
+--| See also <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>.
+--|
 --| @todo Add scrolling by changing the base address "text_a", adding
 --| a line.
+--| @todo Rewrite so the code is cleaner, and FSM are used.
+--| @todo SGR 11-19 could be used to select from multiple fonts in font
+--| memory. We have enough space to store 5 fonts in an 16KiB block RAM.
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------
@@ -397,7 +402,7 @@ architecture rtl of vt100 is
 	constant number: positive := 8;
 
 	type state_type is (RESET, ACCEPT, NORMAL, WRAP, LIMIT, CSI, COMMAND,
-	NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING, ATTRIB1, ADVANCE);
+	NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING, ATTRIB, ADVANCE);
 	signal state_c, state_n: state_type := RESET;
 
 	constant esc:          unsigned(char'range) := x"1b";
@@ -407,6 +412,7 @@ architecture rtl of vt100 is
 	constant lf:           unsigned(char'range) := x"0a";
 	constant backspace:    unsigned(char'range) := x"08";
 	constant blank:        unsigned(char'range) := x"20";
+	constant asterisk:     unsigned(char'range) := x"2A";
 	constant ascii_c:      unsigned(char'range) := x"63"; -- c
 	constant attr_default: unsigned(7 downto 0) := "00111000";
 	constant ctl_default:  unsigned(4 downto 0) := "01111";
@@ -445,12 +451,14 @@ architecture rtl of vt100 is
 
 	signal count_c, count_n:    unsigned(addr'range) := (others => '0');
 	signal limit_c, limit_n:    unsigned(addr'high - 3 downto 0) := (others => '0');
+	-- signal base_c, base_n:      std_ulogic_vector(addr'range) := (others => '0');
 
 	signal akk_done_o:  std_ulogic := '0';
 	signal akk_ready_o: std_ulogic := '0';
 	signal akk_init:    std_ulogic := '0';
 	signal n_o:         unsigned(number - 1 downto 0) := (others => '0');
 	signal akk_char_o:  std_ulogic_vector(char'range)  := (others => '0');
+
 begin
 	accumulator_0: work.vga_pkg.atoi
 		generic map(g => g, N => number)
@@ -471,6 +479,7 @@ begin
 	begin
 		mul      <= to_unsigned(to_integer(y_c) * width, mul'length);
 		addr_int <= mul(addr_int'range) + ("000000" & x_c);
+		-- addr_int <= mul(addr_int'range) + ("000000" & x_c) + unsigned(base_c);
 		addr     <= std_ulogic_vector(addr_int) when state_c /= ERASING else std_ulogic_vector(count_c);
 	end block;
 
@@ -501,7 +510,7 @@ begin
 		signal attr:       unsigned(attr_c'range)             := attr_default;
 		signal ch:         std_ulogic_vector(c_c'range)       := (others => '0');
 	begin
-		ch             <= x"2a" when conceal_c else std_ulogic_vector(c_c);
+		ch             <= std_ulogic_vector(asterisk) when conceal_c else std_ulogic_vector(c_c);
 		attr           <= attr_c when state_c /= ERASING else attr_default;
 		vga_din        <= std_ulogic_vector(attr) & ch;
 		vga_ctr.crx    <= std_ulogic_vector(x_plus_one); -- not limited, goes off screen edge
@@ -557,6 +566,7 @@ begin
 				attr_c    <= attr_n;
 				ctl_c     <= ctl_n;
 				conceal_c <= conceal_n;
+				-- base_c    <= base_n;
 
 				if state_c = RESET then
 					n1_n      <= (others => '0');
@@ -570,6 +580,7 @@ begin
 					attr_n    <= attr_default;
 					ctl_n     <= ctl_default;
 					conceal_n <= false;
+					-- base_n    <= (others => '0');
 				elsif state_c = ACCEPT then
 					if we = '1' then
 						c_n   <= unsigned(char);
@@ -666,13 +677,15 @@ begin
 						state_n <= NUMBER2;
 						akk_init <= '1';
 					when x"6d" => -- CSI n 'm' : SGR
-						state_n <= ATTRIB1;
+						state_n <= ATTRIB;
 					when x"53" => -- CSI n 'S' : scroll up
 						ctl_n(4) <= '0';
 						state_n  <= WRITE;
 					when x"54" => -- CSI n 'T' : scroll down
 						ctl_n(4) <= '1';
 						state_n  <= WRITE;
+
+					-- CSI ? NUMBER ('h' or 'l')
 					-- when x"3f" => -- ESC ? 25 (l,h)
 					--	state_n  <= NUMBER2;
 					--	akk_init <= '1';
@@ -711,7 +724,7 @@ begin
 						cursor_we <= '1';
 						state_n   <= LIMIT;
 					when x"6d" => -- ESC n ';' m 'm'
-						state_n <= ATTRIB1;
+						state_n <= ATTRIB;
 					when others =>
 						state_n <= ACCEPT;
 					end case;
@@ -726,6 +739,7 @@ begin
 						c_n     <= blank;
 						count_n <= (others => '0');
 						limit_n <= "1000000000";
+						-- base_n  <= std_ulogic_vector(unsigned(base_c) + 80);
 					else
 						state_n <= WRITE;
 					end if;
@@ -747,7 +761,7 @@ begin
 					else
 						state_n <= WRAP;
 					end if;
-				elsif state_c = ATTRIB1 then
+				elsif state_c = ATTRIB then
 					case n1_c is
 					when x"00"  =>
 						attr_n    <= attr_default;
@@ -755,11 +769,13 @@ begin
 					when x"01"  => attr_n(6) <= '1'; -- bold
 					when x"07"  => attr_n(7) <= '1'; -- reverse video
 					when x"08"  => conceal_n <= true;
+					when x"1C"  => conceal_n <= false;
 
+					-- CSI ? NUMBER ('h' or 'l')
 					-- when x"6c" => if n2_c = x"19" then ctl_n(2) <= '0'; end if; -- l, hide cursor
 					-- when x"68" => if n2_c = x"19" then ctl_n(2) <= '1'; end if; -- h, show cursor
 
-					-- @todo This should make the _text_ blink, not the cursor!
+					-- NOTE: This should make the _text_ blink, not the cursor!
 					when x"05"  => ctl_n(1) <= '1'; -- blink slow
 					when x"19"  => ctl_n(1) <= '0'; -- blink off
 
@@ -854,8 +870,7 @@ architecture behav of vga_top is
 	signal  foreground_draw: std_ulogic := '0';
 	signal  background_draw: std_ulogic := '0';
 begin
-	-- Internal control registers
-	-- Next state on clk edge rising
+
 	vga_ns: process(clk, rst)
 	begin
 		if rst = '1' and g.asynchronous_reset then
@@ -864,13 +879,11 @@ begin
 			if rst = '1' and not g.asynchronous_reset then
 				control_c <= vga_control_registers_initialize;
 			else
-				control_c   <= control_n;
+				control_c <= control_n;
 			end if;
 		end if;
 	end process;
 
-	-- Internal control register
-	-- We write into the registers here.
 	vga_creg_we: process(
 		control_c,
 		i_vga_control,
@@ -883,7 +896,6 @@ begin
 		if i_vga_control_we.ctl = '1' then control_n.ctl <= i_vga_control.ctl; end if;
 	end process;
 
-	-- The actual VGA module
 	u_vga: work.vga_pkg.vga_core 
 		generic map(g => g)
 		port map (
@@ -904,9 +916,7 @@ begin
 
 	text_addr_full <= control_c.ctl(4) & text_addr;
 
-	--| @brief This RAM module holds the text we want to display on to the
-	--| monitor. The text buffer holds at least 80*40 characters.
-	u_text: entity work.dual_port_block_ram
+	u_text_memory: entity work.dual_port_block_ram -- holds at least 80x40 characters
 	generic map(g => g,
 		addr_length => text_addr_length,
 		data_length => text_data_length,
@@ -928,8 +938,7 @@ begin
 		b_din   => (others => '0'),
 		b_dout  => text_dout);
 
-	--| VGA Font memory
-	u_font: entity work.single_port_block_ram
+	u_font_memory: entity work.single_port_block_ram
 	generic map(g => g,
 		addr_length => font_addr_length,
 		data_length => font_data_length,

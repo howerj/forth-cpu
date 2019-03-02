@@ -918,6 +918,8 @@ void soc_print(FILE *out, const h2_soc_state_t * const soc) {
 	fprintf(out, "Flash Control:    %04"PRIx16"\n", soc->mem_control);
 	fprintf(out, "Flash Address Lo: %04"PRIx16"\n", soc->mem_addr_low);
 	fprintf(out, "Flash Data Out:   %04"PRIx16"\n", soc->mem_dout);
+	fprintf(out, "UART TX Baud:     %04"PRIx16"\n", soc->uart_tx_baud);
+	fprintf(out, "UART RX Baud:     %04"PRIx16"\n", soc->uart_rx_baud);
 }
 
 static void terminal_default_command_sequence(vt100_t * const t) {
@@ -1588,6 +1590,8 @@ static void h2_io_set_default(h2_soc_state_t *soc, const uint16_t addr, const ui
 	}
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
+	case oUartTxBaud: soc->uart_tx_baud   = value; break;
+	case oUartRxBaud: soc->uart_rx_baud   = value; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 	}
