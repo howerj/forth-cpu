@@ -860,7 +860,11 @@ h: (ok) state@ ?exit ."  ok" cr ;  ( -- : default state aware prompt )
 ( : ok <ok> @execute ; )
 h: preset tib-start #tib cell+ ! 0 in! id zero ;  ( -- : reset input )
 h: quite? 0 ; ( -- t : are we operating in quite mode? )
-: io! preset fallthrough;  ( -- : initialize I/O )
+: io! preset 
+  $36 $4012 ! ( set TX baud rate )
+  $32 $4014 ! ( set TX baud rate )
+  $8484 $4016 ! ( set UART control register; 8 bits, 1 stop, no parity )
+  fallthrough;  ( -- : initialize I/O )
 h: console ' rx? <key> ! ' tx! <emit> ! fallthrough;
 h: hand
    quite? 0= ' (ok) and

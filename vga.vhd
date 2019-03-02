@@ -18,7 +18,11 @@
 --|
 --| @todo Add scrolling by changing the base address "text_a", adding
 --| a line.
+--| @todo Add a single pixel boarder (an optional one) around the display
+--| so it is easier to see if picture timing is correct.
 --| @todo Rewrite so the code is cleaner, and FSM are used.
+--| @todo ANSI.SYS supports some more codes which might be useful, such
+--| as 'ESC[+' (turn output on) and 'ESC[-' (turn output off).
 --| @todo SGR 11-19 could be used to select from multiple fonts in font
 --| memory. We have enough space to store 5 fonts in an 16KiB block RAM.
 -------------------------------------------------------------------------------
@@ -73,6 +77,7 @@ package vga_pkg is
 		vga_addr:    in  std_ulogic_vector(12 downto 0);
 
 		-- VGA control registers
+		i_font_sel:       in std_ulogic_vector(0 downto 0);
 		i_vga_control_we: in vga_control_registers_we_interface;
 		i_vga_control:    in vga_control_registers_interface;
 
@@ -87,8 +92,9 @@ package vga_pkg is
 		clk25MHz:  in  std_ulogic;
 		text_a:    out std_ulogic_vector(11 downto 0); -- text buffer
 		text_d:    in  std_ulogic_vector(15 downto 0);
-		font_a:    out std_ulogic_vector(11 downto 0); -- font buffer
+		font_a:    out std_ulogic_vector(12 downto 0); -- font buffer
 		font_d:    in  std_ulogic_vector( 7 downto 0);
+		font_sel:  in  std_ulogic_vector(0 downto 0);
 		 --
 		ocrx:      in  std_ulogic_vector(6 downto 0);
 		ocry:      in  std_ulogic_vector(5 downto 0);
@@ -459,6 +465,7 @@ architecture rtl of vt100 is
 	signal n_o:         unsigned(number - 1 downto 0) := (others => '0');
 	signal akk_char_o:  std_ulogic_vector(char'range)  := (others => '0');
 
+	signal font_sel_c, font_sel_n: std_ulogic := '0';
 begin
 	accumulator_0: work.vga_pkg.atoi
 		generic map(g => g, N => number)
@@ -529,6 +536,7 @@ begin
 			vga_we_ram        =>  data_we,
 			vga_din           =>  vga_din,
 			vga_addr          =>  addr,
+			i_font_sel(0)     =>  font_sel_c,
 			i_vga_control_we  =>  vga_ctr_we,
 			i_vga_control     =>  vga_ctr,
 			o_vga             =>  o_vga);
@@ -566,6 +574,7 @@ begin
 				attr_c    <= attr_n;
 				ctl_c     <= ctl_n;
 				conceal_c <= conceal_n;
+				font_sel_c<= font_sel_n;
 				-- base_c    <= base_n;
 
 				if state_c = RESET then
@@ -580,6 +589,7 @@ begin
 					attr_n    <= attr_default;
 					ctl_n     <= ctl_default;
 					conceal_n <= false;
+					font_sel_n<= '0';
 					-- base_n    <= (others => '0');
 				elsif state_c = ACCEPT then
 					if we = '1' then
@@ -779,6 +789,9 @@ begin
 					when x"05"  => ctl_n(1) <= '1'; -- blink slow
 					when x"19"  => ctl_n(1) <= '0'; -- blink off
 
+					when x"0A"  => font_sel_n <= '0';
+					when x"0B"  => font_sel_n <= '1';
+
 					when x"1E"  => attr_n(5 downto 3) <= "000"; -- 30
 					when x"1F"  => attr_n(5 downto 3) <= "001";
 					when x"20"  => attr_n(5 downto 3) <= "010";
@@ -832,6 +845,7 @@ entity vga_top is
 		vga_addr:         in  std_ulogic_vector(12 downto 0);
 
 		-- VGA control registers
+		i_font_sel:       in std_ulogic_vector(0 downto 0);
 		i_vga_control_we: in vga_control_registers_we_interface;
 		i_vga_control:    in vga_control_registers_interface;
 
@@ -847,7 +861,7 @@ architecture behav of vga_top is
 	constant text_file_type:   file_format := FILE_HEX;
 
 	-- Setup for font buffer memory
-	constant font_addr_length: positive    := 12;
+	constant font_addr_length: positive    := 13;
 	constant font_data_length: positive    := 8;
 	constant font_file_name:   string      := "font.bin";
 	constant font_file_type:   file_format := FILE_BINARY;
@@ -862,7 +876,7 @@ architecture behav of vga_top is
 	signal  text_addr_full:  std_ulogic_vector(12 downto 0) := (others => '0');
 
 	-- Font ROM signals, ROM<-->VGA module
-	signal  font_addr:       std_ulogic_vector(11 downto 0) := (others => '0');
+	signal  font_addr:       std_ulogic_vector(12 downto 0) := (others => '0');
 	signal  font_dout:       std_ulogic_vector( 7 downto 0) := (others => '0');
 
 	signal  control_c, control_n: vga_control_registers_interface := vga_control_registers_initialize;
@@ -907,6 +921,8 @@ begin
 
 		font_a    => font_addr,
 		font_d    => font_dout,
+
+		font_sel  => i_font_sel,
 
 		ocrx      => control_c.crx,
 		ocry      => control_c.cry,
@@ -971,8 +987,9 @@ entity vga_core is
 		clk25MHz: in  std_ulogic;
 		text_a:   out std_ulogic_vector(11 downto 0); -- text buffer
 		text_d:   in  std_ulogic_vector(15 downto 0);
-		font_a:   out std_ulogic_vector(11 downto 0); -- font buffer
+		font_a:   out std_ulogic_vector(12 downto 0); -- font buffer
 		font_d:   in  std_ulogic_vector( 7 downto 0);
+		font_sel: in  std_ulogic_vector(0 downto 0);
 		 --
 		ocrx:     in  std_ulogic_vector(6 downto 0);
 		ocry:     in  std_ulogic_vector(5 downto 0);
@@ -1150,7 +1167,7 @@ begin
 		text_a  <= std_ulogic_vector(ram_tmp);
 		mul     <= unsigned(text_d_tmp) * 12;
 		rom_tmp <= mul(rom_tmp'range) + chry;
-		font_a  <= std_ulogic_vector(rom_tmp);
+		font_a  <= font_sel & std_ulogic_vector(rom_tmp);
 	end block;
 
 	color_block: block

@@ -75,6 +75,9 @@ constant oMemControl   $400A hidden ( Memory control and high address bits )
 constant oMemAddrLow   $400C hidden ( Lower memory address bits )
 constant o7SegLED      $400E hidden ( 4x7 Segment display )
 constant oIrcMask      $4010 hidden ( Interrupt Mask )
+constant oUartTxBaud   $4012 hidden ( TX baud rate )
+constant oUartRxBaud   $4014 hidden ( RX baud rate )
+constant oUartControl  $4016 hidden ( UART control register )
 
 ( Inputs: $6000 - $7FFF )
 constant iUart         $4000 hidden ( Matching registers for iUart )
@@ -635,8 +638,8 @@ location search-previous 0
 	next ; hidden
 
 : table page 0 sgr $2 down  tableu 1 sgr $2 down tableu 0 sgr ;
-
-\ : nuf? key? if drop [-1] exit then 0x0000 ; ( -- f )
+: nuf? key? if drop [-1] exit then 0x0000 ; ( -- f )
+\ : ttt begin table nuf? until ; \ fast redraw causes tearing on VGA display
 
 ( ==================== Advanced I/O Control ========================== )
 
@@ -658,8 +661,12 @@ location search-previous 0
 : console ' rx? <key> ! ' tx! <emit> ! hand ;
 : vt100 ' ps2? <key> ! ' vga! <emit> ! hand ;
 : interactive ' input <key> ! ' output <emit> ! hand ;
-: io! 0 timer! 0 led! 0 segments!
-	interactive 0 ien! 0 oIrcMask ! interactive ; ( -- : initialize I/O )
+: io! 
+	$36 oUartTxBaud  ! ( set TX baud rate )
+	$32 oUartRxBaud  ! ( set TX baud rate )
+	$8484 oUartControl ! ( set UART control register; 8 bits, 1 stop, no parity )
+	0 timer! 0 led! 0 segments!
+	0 ien! 0 oIrcMask ! interactive ; ( -- : initialize I/O )
 : ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr [ ;
 : cold io! branch entry ;
@@ -736,6 +743,11 @@ displaying block files as they are read in )
 \	else
 \		swap ! exit
 \	then ; immediate
+
+\ : marker ( "name", -- : create an eraser )
+\  here >r current @ dup @ r> 
+\  create , 2, 
+\  does> dup cell+ 2@ swap ! @ here - allot ;
 
 : "constant" create ' doConst make-callable here cell- ! , ;
 

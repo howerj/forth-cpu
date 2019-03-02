@@ -920,6 +920,7 @@ void soc_print(FILE *out, const h2_soc_state_t * const soc) {
 	fprintf(out, "Flash Data Out:   %04"PRIx16"\n", soc->mem_dout);
 	fprintf(out, "UART TX Baud:     %04"PRIx16"\n", soc->uart_tx_baud);
 	fprintf(out, "UART RX Baud:     %04"PRIx16"\n", soc->uart_rx_baud);
+	fprintf(out, "UART Control:     %04"PRIx16"\n", soc->uart_control);
 }
 
 static void terminal_default_command_sequence(vt100_t * const t) {
@@ -1588,10 +1589,11 @@ static void h2_io_set_default(h2_soc_state_t *soc, const uint16_t addr, const ui
 			soc->vram[(((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low) >> 1] = soc->mem_dout;
 		break;
 	}
-	case oMemAddrLow: soc->mem_addr_low   = value; break;
-	case oMemDout:    soc->mem_dout       = value; break;
-	case oUartTxBaud: soc->uart_tx_baud   = value; break;
-	case oUartRxBaud: soc->uart_rx_baud   = value; break;
+	case oMemAddrLow:  soc->mem_addr_low = value; break;
+	case oMemDout:     soc->mem_dout     = value; break;
+	case oUartTxBaud:  soc->uart_tx_baud = value; break;
+	case oUartRxBaud:  soc->uart_rx_baud = value; break;
+	case oUartControl: soc->uart_control = value; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 	}

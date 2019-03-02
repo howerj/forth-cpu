@@ -232,7 +232,7 @@ typedef struct {
 	bool interrupt;
 	uint8_t interrupt_selector;
 
-	uint16_t uart_tx_baud, uart_rx_baud;
+	uint16_t uart_tx_baud, uart_rx_baud, uart_control;
 } h2_soc_state_t;
 
 typedef uint16_t (*h2_io_get)(const h2_soc_state_t *soc, uint16_t addr, bool *debug_on);
@@ -266,6 +266,7 @@ typedef enum {
 	oIrcMask      = 0x4010,
 	oUartTxBaud   = 0x4012,
 	oUartRxBaud   = 0x4014,
+	oUartControl  = 0x4016,
 } h2_output_addr_t;
 
 typedef enum {

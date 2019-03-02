@@ -179,7 +179,32 @@ begin
 
 	uut_io_pins: work.util.io_pins_tb  generic map(g => g);
 
---	-- TODO: Use new UART core
+	uart_0_blk: block 
+		signal uart_clock_rx_we, uart_clock_tx_we, uart_control_we: std_ulogic := '0';
+		signal uart_reg: std_ulogic_vector(15 downto 0);	
+	begin
+		uart_0: work.uart_pkg.uart_top
+			generic map (g => g)
+			port map (
+				clk   => clk,
+				rst   => rst,
+				tx_di => din,
+				tx_we => din_stb,
+				tx_ok => din_ack,
+				tx    => rx,
+			
+				rx    => tx,
+				rx_ok => open,
+				rx_nd => dout_stb,
+				rx_do => dout,
+				rx_re => dout_ack,
+			
+				reg             => uart_reg,
+				clock_reg_tx_we => uart_clock_tx_we,
+				clock_reg_rx_we => uart_clock_rx_we,
+				control_reg_we  => uart_control_we);
+	end block;
+
 --	uut_uart: work.uart_pkg.uart_core
 --		generic map(g => g, baud_rate =>  uart_baud_rate)
 --		port map(

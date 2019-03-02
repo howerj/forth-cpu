@@ -526,6 +526,7 @@ package util is
 	function reverse (a: in std_ulogic_vector) return std_ulogic_vector;
 	function invert(slv:std_ulogic_vector) return std_ulogic_vector;
 	function parity(slv:std_ulogic_vector; even: boolean) return std_ulogic;
+	function parity(slv:std_ulogic_vector; even: std_ulogic) return std_ulogic;
 	function or_reduce(slv:std_ulogic_vector) return std_ulogic;
 	function and_reduce(slv:std_ulogic_vector) return std_ulogic;
 	function select_bit(indexed, selector: std_ulogic_vector) return std_ulogic;
@@ -617,6 +618,15 @@ package body util is
 			z := z xor slv(i);
 		end loop;
 		return z;
+	end;
+
+	function parity(slv:std_ulogic_vector; even: std_ulogic) return std_ulogic is
+		variable z: boolean := false;
+	begin
+		if even = '1' then
+			z := true;
+		end if;
+		return parity(slv, z);
 	end;
 
 	function or_reduce(slv:std_ulogic_vector) return std_ulogic is

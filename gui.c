@@ -1,6 +1,6 @@
 /**@file      gui.c
  * @brief     GUI Simulator for the H2 SoC
- * @copyright Richard James Howe (2017)
+ * @copyright Richard James Howe (2017-2019)
  * @license   MIT
  *
  * @todo Implement reset/reload, and save/load state, a very good
@@ -8,8 +8,11 @@
  * <https://stackoverflow.com/questions/6002528/c-serialization-techniques>
  * @todo Implement drawing of characters outside of the printable range,
  * and non-ASCII characters, all 256 characters have an associated glyph
- * in the hardware. This would allow applications that take advantage
- * of the semi-graphics font set to be developed. */
+ * in the hardware. The font can be read in from the same font file used by
+ * the hardware, once converted to a texture it could be displayed on the
+ * screen.
+ * @note It would have been better to make this in SDL, se
+ * <https://www.libsdl.org/>.  */
 
 #include "h2.h"
 #include <assert.h>
@@ -935,8 +938,11 @@ static void h2_io_set_gui(h2_soc_state_t *soc, const uint16_t addr, const uint16
 				soc->vram[(((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low) >> 1] = soc->mem_dout;
 			break;
 		}
-	case oMemAddrLow: soc->mem_addr_low   = value; break;
-	case oMemDout:    soc->mem_dout       = value; break;
+	case oMemAddrLow:  soc->mem_addr_low = value; break;
+	case oMemDout:     soc->mem_dout     = value; break;
+	case oUartTxBaud:  soc->uart_tx_baud = value; break;
+	case oUartRxBaud:  soc->uart_rx_baud = value; break;
+	case oUartControl: soc->uart_control = value; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 		break;
@@ -973,12 +979,12 @@ static void draw_debug_info(const world_t *world, double fps, double x, double y
 	if (world->debug_extra) {
 		char buf[256] = { 0 };
 		fill_textbox(&t, "Mode:               %s", world->debug_mode ? "step" : "continue");
-		fill_textbox(&t, "%s RX fifo full:  %s",   fifo_str, fifo_is_full(f)  ? "true" : "false");
-		fill_textbox(&t, "%s RX fifo empty: %s",   fifo_str, fifo_is_empty(f) ? "true" : "false");
-		fill_textbox(&t, "%s RX fifo count: %u",   fifo_str, (unsigned)fifo_count(f));
-		fill_textbox(&t, "UART TX fifo full:  %s", fifo_is_full(uart_tx_fifo)  ? "true" : "false");
-		fill_textbox(&t, "UART TX fifo empty: %s", fifo_is_empty(uart_tx_fifo) ? "true" : "false");
-		fill_textbox(&t, "UART TX fifo count: %u", (unsigned)fifo_count(uart_tx_fifo));
+		fill_textbox(&t, "%s RX FIFO full:  %s",   fifo_str, fifo_is_full(f)  ? "true" : "false");
+		fill_textbox(&t, "%s RX FIFO empty: %s",   fifo_str, fifo_is_empty(f) ? "true" : "false");
+		fill_textbox(&t, "%s RX FIFO count: %u",   fifo_str, (unsigned)fifo_count(f));
+		fill_textbox(&t, "UART TX FIFO full:  %s", fifo_is_full(uart_tx_fifo)  ? "true" : "false");
+		fill_textbox(&t, "UART TX FIFO empty: %s", fifo_is_empty(uart_tx_fifo) ? "true" : "false");
+		fill_textbox(&t, "UART TX FIFO count: %u", (unsigned)fifo_count(uart_tx_fifo));
 
 		sprintf(buf, "%08lu", (unsigned long)(world->cycle_count));
 		fill_textbox(&t, "cycles:             %s", buf);
@@ -1044,6 +1050,10 @@ static void draw_debug_h2_screen_3(const h2_io_t * const io, const double x, con
 	fill_textbox(&t, "address arg 1:  %x", (unsigned)s->flash.arg1_address);
 	fill_textbox(&t, "data            %x", (unsigned)s->flash.data);
 	fill_textbox(&t, "cycle:          %x", (unsigned)s->flash.cycle);
+	fill_textbox(&t, "UART Control");
+	fill_textbox(&t, "UART TX Baud:   %x", (unsigned)s->uart_tx_baud);
+	fill_textbox(&t, "UART RX Baud:   %x", (unsigned)s->uart_rx_baud);
+	fill_textbox(&t, "UART Control:   %x", (unsigned)s->uart_control);
 	draw_textbox(&t);
 }
 

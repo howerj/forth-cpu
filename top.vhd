@@ -120,6 +120,7 @@ architecture behav of top is
 
 	signal uart_clock_tx_we:  std_ulogic := '0';
 	signal uart_clock_rx_we:  std_ulogic := '0';
+	signal uart_control_we:   std_ulogic := '0';
 	---- Timer
 	signal timer_control_we:  std_ulogic := '0';
 	signal timer_counter_o:   std_ulogic_vector(timer_length - 4 downto 0) := (others =>'0');
@@ -158,8 +159,8 @@ begin
 	cpu_wait   <= btnc_d; -- temporary testing measure only!
 
 	system_reset: work.util.reset_generator
-	generic map(g => g, reset_period_us => reset_period_us)
-	port map(
+	generic map (g => g, reset_period_us => reset_period_us)
+	port map (
 		clk        => clk,
 		rst        => rst);
 
@@ -173,8 +174,8 @@ begin
 	cpu_irc(7) <= button_changed;
 
 	core_0: entity work.core
-	generic map(g => g, number_of_interrupts => number_of_interrupts)
-	port map(
+	generic map (g => g, number_of_interrupts => number_of_interrupts)
+	port map (
 -- synthesis translate_off
 		debug            => debug,
 -- synthesis translate_on
@@ -190,9 +191,16 @@ begin
 		cpu_irc_mask     => io_dout(number_of_interrupts - 1 downto 0),
 		cpu_irc_mask_we  => cpu_irc_mask_we);
 
--------------------------------------------------------------------------------
--- IO
--------------------------------------------------------------------------------
+	-------------------------------------------------------------------------------
+	-- IO
+	-------------------------------------------------------------------------------
+
+	-- NOTE: A Wishbone Interface on each of the components would simplify the
+	-- system overall. However, each peripheral would need an interface
+	-- specifying. This module could be made to be much smaller.
+	-- See: <https://en.wikipedia.org/wiki/Wishbone_(computer_bus)>
+	-- And: <http://cdn.opencores.org/downloads/wbspec_b4.pdf>
+
 	-- Xilinx Application Note:
 	-- It seems like it buffers the clock correctly here, so no need to
 	-- use a DCM. However, see:
@@ -238,6 +246,7 @@ begin
 
 		uart_clock_tx_we  <= '1'         when is_write and selector = x"9" else '0';
 		uart_clock_rx_we  <= '1'         when is_write and selector = x"A" else '0';
+		uart_control_we   <= '1'         when is_write and selector = x"B" else '0';
 	end block;
 
 	io_read: process(
@@ -296,12 +305,8 @@ begin
 		rx_fifo_full  <= rx_nd;
 		rx_fifo_empty <= not rx_nd;
 		uart_0: work.uart_pkg.uart_top
-			generic map(clock_frequency => g.clock_frequency, 
-				    asynchronous_reset => g.asynchronous_reset, 
-				    tx_init => 54, -- 115200 @ 100 MHz
-				    rx_init => 50, -- 115200 @ 100 MHz + Fudge Factor
-				    N => 8)
-			port map(
+			generic map (g => g)
+			port map (
 				clk   => clk,
 				rst   => rst,
 				tx_di => tx_data,
@@ -315,17 +320,18 @@ begin
 				rx_do => rx_data,
 				rx_re => rx_data_re,
 			
-				clock_reg    => io_dout,
+				reg             => io_dout,
 				clock_reg_tx_we => uart_clock_tx_we,
-				clock_reg_rx_we => uart_clock_rx_we
+				clock_reg_rx_we => uart_clock_rx_we,
+				control_reg_we  => uart_control_we
 			);
 	end block;
 	--- UART ----------------------------------------------------------
 
 	--- LED Output ----------------------------------------------------
 	led_output_reg_0: entity work.reg
-		generic map(g => g, N => ld'length)
-		port map(
+		generic map (g => g, N => ld'length)
+		port map (
 			clk => clk,
 			rst => rst,
 			we  => ld_we,
@@ -335,8 +341,8 @@ begin
 
 	--- Timer ---------------------------------------------------------
 	timer_0: entity work.timer
-	generic map(g => g, timer_length => timer_length)
-	port map(
+	generic map (g => g, timer_length => timer_length)
+	port map (
 		clk       => clk,
 		rst       => rst,
 		we        => timer_control_we,
@@ -347,8 +353,8 @@ begin
 
 	--- VGA -----------------------------------------------------------
 	vt100_0: work.vga_pkg.vt100
-	generic map(g => g)
-	port map(
+	generic map (g => g)
+	port map (
 		clk         =>  clk,
 		clk25MHz    =>  clk25MHz,
 		rst         =>  rst,
@@ -367,11 +373,11 @@ begin
 --	begin
 --		draw <= not h_blank and not v_blank;
 --		vga_c: work.util.vga_controller
---		generic map(
+--		generic map (
 --			g => g,
 --			pixel_clock_frequency => 25_000_000,
 --			cfg => work.util.vga_640x480)
---		port map(
+--		port map (
 --			clk    => clk25MHz,
 --			rst    => rst,
 --			row    => row,
@@ -388,8 +394,8 @@ begin
 
 	--- Keyboard ------------------------------------------------------
 	keyboard_0: work.kbd_pkg.keyboard
-	generic map(g => g, ps2_debounce_counter_size => 8)
-	port map(
+	generic map (g => g, ps2_debounce_counter_size => 8)
+	port map (
 		clk              => clk,
 		rst              => rst,
 
@@ -403,11 +409,11 @@ begin
 
 	--- LED 8 Segment display -----------------------------------------
 	ledseg_0: entity work.led_7_segment_display
-	generic map(
+	generic map (
 		g                      => g,
 		number_of_led_displays => number_of_led_displays,
 		use_bcd_not_hex        => false)
-	port map(
+	port map (
 		clk        => clk,
 		rst        => rst,
 
@@ -420,8 +426,8 @@ begin
 
 	--- Buttons -------------------------------------------------------
 	button_debouncer: work.util.debounce_block_us
-	generic map(g => g, N => 5, timer_period_us    => timer_period_us)
-	port map(
+	generic map (g => g, N => 5, timer_period_us    => timer_period_us)
+	port map (
 		clk   => clk,
 		di(0) => btnu,
 		di(1) => btnd,
@@ -439,8 +445,8 @@ begin
 		signal any_changed_signals: std_ulogic := '0';
 	begin
 		state_changed: work.util.state_block_changed
-		generic map(g => g, N => changed_signals'length)
-		port map(
+		generic map (g => g, N => changed_signals'length)
+		port map (
 			clk   => clk,
 			rst   => rst,
 			di(0) => btnu_d,
@@ -453,8 +459,8 @@ begin
 		any_changed_signals <= '1' when changed_signals /= "00000" else '0';
 
 		state_changed_reg: work.util.reg
-		generic map(g => g, N => 1)
-		port map(
+		generic map (g => g, N => 1)
+		port map (
 			clk   => clk,
 			rst   => rst,
 			di(0) => any_changed_signals,
@@ -466,14 +472,14 @@ begin
 
 	--- Switches ------------------------------------------------------
 	sw_debouncer: work.util.debounce_block_us
-		generic map(g => g, N => sw'length, timer_period_us => timer_period_us)
-		port map(clk => clk, di => sw, do => sw_d);
+		generic map (g => g, N => sw'length, timer_period_us => timer_period_us)
+		port map (clk => clk, di => sw, do => sw_d);
 	--- Switches ------------------------------------------------------
 
 	--- Memory Interface ----------------------------------------------
 	ram_interface_0: entity work.ram_interface
-	generic map(g => g)
-	port map(
+	generic map (g => g)
+	port map (
 		clk               =>  clk,
 		rst               =>  rst,
 		mem_addr_16_1     =>  io_dout,

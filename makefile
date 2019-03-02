@@ -158,7 +158,7 @@ tb: ${OBJECTS} tb.o
 # max stack alloc needed for GHDL >0.35
 # ghdl -r $< --wave=$<.ghw --max-stack-alloc=16384 --unbuffered --ieee-asserts=disable 
 %.ghw: % %.cfg
-	ghdl -r $< --wave=$<.ghw --max-stack-alloc=16384 --ieee-asserts=disable 
+	ghdl -r $< --wave=$<.ghw --max-stack-alloc=16384 --ieee-asserts=disable --unbuffered
 
 simulation: tb.ghw h2${EXE}
 
