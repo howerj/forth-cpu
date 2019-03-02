@@ -1,514 +1,763 @@
---------------------------------------------------------------------------------
---| @file uart.vhd
---| @brief implements a universal asynchronous receiver transmitter with
---| parameterisable baud rate. tested on a spartan 6 lx9 connected to a
---| silicon labs cp210 usb-uart bridge.
---|
---| @author         peter a bennett
---| @copyright      (c) 2012 peter a bennett
---| @license        Apache 2.0
---| @email          pab850@googlemail.com
---| @contact        www.bytebash.com
---|
---| See https://github.com/pabennett/uart
---|
---| There have been many changes to the original code, consult the git logs
---| for a full list of changes.
---|
---| @note Changes made to range to stop Xilinx warnings and with formatting,
---| the UART has also been wrapped up in a package and top level component
---| (called "uart_top") to make the interface easier to use and less confusing.
---| This has not be tested yet.
---|
---| @note Somewhere along the chain from the computer, to the Nexys3 board,
---| to the UART module, and finally to the H2 core, bytes are being lost in
---| transmission from the computer. This UART really should be buffered
---| as well.
---|
---|  START 0 1 2 3 4 5 6 7 STOP
---| ----\_/-|-|-|-|-|-|-|-|-|-------
---|
---------------------------------------------------------------------------------
-library ieee;
+-- BRIEF:     UART TX/RX module
+-- LICENSE:   MIT
+-- COPYRIGHT: Richard James Howe (2019)
+--
+-- The UART (Universal Asynchronous Receiver/Transmitter) is one of the simplest
+-- serial communication methods available. It is often used for debugging, for
+-- issuing commands to embedded devices and sometimes even for uploading firmware
+-- to devices. The data format and speed are configurable but there is no method
+-- for automatically configuring a UART, both sides must have agreed on the
+-- settings before hand. Configurable options include; baud, use of an
+-- even of odd parity bit, number of data bits and number of stop bits.
+--
+-- The clock is not transmitted as part of the signal (which is why baud
+-- must be agreed upon before hand), a single packet starts with a 'start bit',
+-- where the line goes low. The receiver must synchronize to this start bit (it
+-- resets the clock that generates pulse at the sample rate and baud when it
+-- encounters a start bit).
+--
+-- A transmission with 8 data bits, 1 parity bit and 1 stop bit looks like
+-- this:
+-- ____   ______________________________   ________________
+--     \_/|0|1|2|3|4|5|6|7|P|S|         \_/
+--     Start   Data     Parity Stop    |--- More data --->
+--
+-- Start bits are always low, stop bits high. The most common format is
+-- 8 data bits, no parity bit, and 1 stop bit at either 9600 or 115200 baud.
+--
+-- For the receiver a clock that is a multiple of the baud is used so the
+-- bits can be sampled with a higher frequency than the bit rate.
+--
+-- See: 
+-- * <https://en.wikipedia.org/wiki/Universal_asynchronous_receiver-transmitter>
+--
+-- TODO: We could make this very configurable; sending N-bits, variable baud, 
+-- even/odd parity, etc. We could even allow the transmission of a break 
+-- (all zeros). The module could be made to be generic, but the logic removed
+-- by setting the write enable for that setting to '1' and the value to a
+-- a constant value. This would be the best of both worlds. Another configuration
+-- option would be whether or not we both the rest of the system if there is
+-- a frame or parity error on the UART RX side.
+-- TODO: Convert this so records are used for the state, this should make
+-- things a little more compact.
+-- TODO: Fold this into 'util.vhd'.
+-- TODO: The generics need cleaning up and renaming (N, D, tx_init and
+-- rx_init should be set by baud rate and not clock value).
+-- TODO: Add an optional FIFO which to be instantiated, and make the
+-- top module have a FIFO interface regardless.
+-- NOTE: A much more simple UART TX module could also be potentially more 
+-- powerful. Instead of having states for start and stop bits, instead the
+-- user of the system could prepare a register with the start bit, data, parity,
+-- and stop bits. This would mean you could make a 5 bit UART with 1 parity and
+-- 3 stop bits - if you wanted, just by loading the register with the right value.
+-- The only thing the UART would need to do is; output each bit in sequence at
+-- the correct baud, and inform the producer when it is busy.
+-- NOTE: We could replace this entire package with an entirely software driven
+-- solution. The only hardware we would need two timers driven at the sample
+-- rate (one for RX, one for TX) and a deglitched RX signal. An interrupt
+-- would be generated on the timers expiry.
+library ieee, work;
 use ieee.std_logic_1164.all;
 
 package uart_pkg is
+	component uart_tx is
+		generic (
+			N:                  positive; 
+			stops:              positive; 
+			use_parity:         boolean; 
+			asynchronous_reset: boolean := true; 
+			even_parity:        boolean := true
+		);
+		port (
+			clk:   in std_ulogic;
+			rst:   in std_ulogic;
+			baud:  in std_ulogic;
+			tx:   out std_ulogic;
+			ok:   out std_ulogic;
+			we:    in std_ulogic;
+			di:    in std_ulogic_vector(N - 1 downto 0));
+	end component;
+
+	component uart_rx is
+		generic (
+			N:                  positive; 
+			D:                  positive; 
+			stops:              positive; 
+			use_parity:         boolean; 
+			asynchronous_reset: boolean := true; 
+			even_parity:        boolean := true
+		);
+		port (
+			clk:   in std_ulogic;
+			rst:   in std_ulogic;
+			cr:   out std_ulogic;
+			baud, sample: in std_ulogic;
+			failed: out std_ulogic_vector(1 downto 0);
+			rx:    in std_ulogic;
+			we:   out std_ulogic;
+			do:   out std_ulogic_vector(N - 1 downto 0));
+	end component;
+	
+	component uart_baud is -- Generates a pulse at the sample rate and baud
+		generic (clock_frequency: positive; asynchronous_reset: boolean; init: integer; N: positive := 16; D: positive := 3);
+		port (
+			clk:      in std_ulogic; 
+			rst:      in std_ulogic; 
+			we:       in std_ulogic;
+			cnt:      in std_ulogic_vector(N - 1 downto 0);
+			cr:       in std_ulogic := '0';
+			sample:  out std_ulogic; 
+			baud:    out std_ulogic);
+	end component;
 
 	component uart_top is
-	generic (baud_rate: positive; clock_frequency: positive; fifo_depth: positive := 8);
-	port (
-		clk:                 in      std_ulogic;
-		rst:                 in      std_ulogic;
-
-		rx_data:             out     std_ulogic_vector(7 downto 0);
-		rx_fifo_empty:       out     std_ulogic;
-		rx_fifo_full:        out     std_ulogic;
-		rx_data_re:          in      std_ulogic;
-
-		tx_data:             in      std_ulogic_vector(7 downto 0);
-		tx_fifo_full:        out     std_ulogic;
-		tx_fifo_empty:       out     std_ulogic;
-		tx_data_we:          in      std_ulogic;
-
-		tx:                  out     std_ulogic;
-		rx:                  in      std_ulogic);
-
-	end component;
-
-	component uart_core is
-		generic (baud_rate: positive; clock_frequency: positive);
+		generic (clock_frequency: positive; asynchronous_reset: boolean; tx_init, rx_init: integer; N: positive := 8);
 		port (
-			clk:       in      std_ulogic;
-			rst:       in      std_ulogic;
-			din:       in      std_ulogic_vector(7 downto 0);
-			din_stb:   in      std_ulogic;
-			din_ack:   out     std_ulogic := '0';
-			din_busy:  out     std_ulogic;
+			clk:    in std_ulogic;
+			rst:    in std_ulogic;
 
-			dout:      out     std_ulogic_vector(7 downto 0);
-			dout_stb:  out     std_ulogic;
-			dout_ack:  in      std_ulogic;
-			dout_busy: out     std_ulogic;
-
-			tx:        out     std_ulogic;
-			rx:        in      std_ulogic);
+			tx:    out std_ulogic;
+			tx_ok: out std_ulogic;
+			tx_we:  in std_ulogic;
+			tx_di:  in std_ulogic_vector(N - 1 downto 0);
+		
+			rx:     in std_ulogic;
+			rx_ok: out std_ulogic;
+			rx_nd: out std_ulogic;
+			rx_re:  in std_ulogic;
+			rx_do: out std_ulogic_vector(N - 1 downto 0);
+		
+			clock_reg:       in std_ulogic_vector(15 downto 0);
+			clock_reg_tx_we: in std_ulogic;
+			clock_reg_rx_we: in std_ulogic
+		);
 	end component;
 
+	component uart_tb is
+		generic(clock_frequency: positive := 100_000_000; delay: time := 0 ns);
+	end component;
 end package;
 
----- UART Package --------------------------------------------------------------
-
----- UART Top ------------------------------------------------------------------
-
-library ieee;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.util.fifo;
-use work.uart_pkg.uart_core;
+use work.uart_pkg.all;
 
 entity uart_top is
-	generic (baud_rate: positive; clock_frequency: positive; fifo_depth: positive := 8);
+	generic (clock_frequency: positive; asynchronous_reset: boolean; tx_init, rx_init: integer; N: positive := 8);
 	port (
-		clk:                 in      std_ulogic;
-		rst:                 in      std_ulogic;
+		clk:    in std_ulogic;
+		rst:    in std_ulogic;
 
-		rx_data:             out     std_ulogic_vector(7 downto 0);
-		rx_fifo_empty:       out     std_ulogic;
-		rx_fifo_full:        out     std_ulogic;
-		rx_data_re:          in      std_ulogic;
+		tx:    out std_ulogic; -- physical UART TX signal
+		tx_ok: out std_ulogic; -- not busy
+		tx_we:  in std_ulogic; -- write data
+		tx_di:  in std_ulogic_vector(N - 1 downto 0);
+	
+		rx:     in std_ulogic; -- physical UART RX signal
+		rx_ok: out std_ulogic; -- data has no errors (parity or frame)
+		rx_re:  in std_ulogic; -- read data
+		rx_nd: out std_ulogic; -- new data available
+		rx_do: out std_ulogic_vector(N - 1 downto 0);
 
-		tx_data:             in      std_ulogic_vector(7 downto 0);
-		tx_fifo_full:        out     std_ulogic;
-		tx_fifo_empty:       out     std_ulogic;
-		tx_data_we:          in      std_ulogic;
-
-		tx:                  out     std_ulogic;
-		rx:                  in      std_ulogic);
+		clock_reg:       in std_ulogic_vector(15 downto 0);
+		clock_reg_tx_we: in std_ulogic;
+		clock_reg_rx_we: in std_ulogic
+	);
 end entity;
 
-architecture behav of uart_top is
-	signal rx_sync, rx_uart, tx_uart: std_ulogic := '0';
+architecture structural of uart_top is
+	signal tx_sample, tx_baud: std_ulogic;
+	signal rx_sample, rx_baud, rx_cr, rx_we: std_ulogic;
+	signal rx_fail: std_ulogic_vector(1 downto 0);
 
-	signal din:       std_ulogic_vector(7 downto 0) := (others => '0');
-	signal din_stb:   std_ulogic := '0';
-	signal din_ack:   std_ulogic := '0';
-	signal din_busy:  std_ulogic := '0';
+	signal do, do_c, do_n: std_ulogic_vector(rx_do'range);
+	signal nd_c, nd_n: std_ulogic; -- new data
+begin 
+	rx_ok <= not (rx_fail(0) or rx_fail(1));
+	rx_do <= do;
+	rx_nd <= nd_c;
 
-	signal dout:      std_ulogic_vector(7 downto 0) := (others => '0');
-	signal dout_stb:  std_ulogic := '0';
-	signal dout_ack:  std_ulogic := '0';
-	signal dout_busy: std_ulogic := '0';
+	process (clk, rst) 
+	begin
+		if rst = '1' and asynchronous_reset then
+			do_c <= (others => '0');
+			nd_c <= '0';
+		elsif rising_edge(clk) then
+			if rst = '1' and not asynchronous_reset then
+				do_c <= (others => '0');
+				nd_c <= '0';
+			else
+				do_c <= do_n;
+				nd_c <= nd_n;
+			end if;
+		end if;
+	end process;
 
-	signal tx_fifo_re:             std_ulogic := '0';
-	signal tx_fifo_empty_internal: std_ulogic := '1';
-	signal tx_fifo_full_internal:  std_ulogic := '0';
+	process (do_c, do, nd_c, rx_we, rx_re) 
+	begin
+		do_n <= do_c;
+		nd_n <= nd_c;
+		if rx_we = '1' then
+			do_n <= do;
+			nd_n <= '1';
+		elsif rx_re = '1' then
+			nd_n <= '0';
+		end if;
+	end process;
 
-	signal wrote_c, wrote_n: std_ulogic := '0';
-
-	signal rx_data_re_n: std_ulogic := '0';
-	signal rx_data_n: std_ulogic_vector(rx_data'range) := (others => '0');
-begin
-	uart_rx_data_reg_we_0: work.util.reg
-		generic map(N      => 1)
+	baud_tx: work.uart_pkg.uart_baud
+		generic map(clock_frequency => clock_frequency, asynchronous_reset => true, init => tx_init, N => 16, D => 3)
 		port map(
 			clk    => clk,
 			rst    => rst,
-			we     => '1',
-			di(0)  => rx_data_re,
-			do(0)  => rx_data_re_n);
+			we     => clock_reg_tx_we,
+			cnt    => clock_reg,  -- 0x32/50 is 152000 @ 100MHz clk
+			cr     => '0',
+			sample => tx_sample,
+			baud   => tx_baud);
 
-	uart_rx_data_reg_0: work.util.reg
-		generic map(N => rx_data_n'high + 1)
+	baud_rx: work.uart_pkg.uart_baud
+		generic map(clock_frequency => clock_frequency, asynchronous_reset => true, init => rx_init, N => 16, D => 3)
 		port map(
-			clk => clk,
-			rst => rst,
-			we  => rx_data_re_n,
-			di  => rx_data_n,
-			do  => rx_data);
+			clk    => clk,
+			rst    => rst,
+			we     => clock_reg_rx_we,
+			cnt    => clock_reg,
+			cr     => rx_cr,
+			sample => rx_sample,
+			baud   => rx_baud);
 
-	uart_deglitch: process (clk, rst)
-	begin
-		if rst = '1' then
-			wrote_c <= '0';
-		elsif rising_edge(clk) then
-			rx_sync <= rx;
-			rx_uart <= rx_sync;
-			tx      <= tx_uart;
-			wrote_c <= wrote_n;
-		end if;
-	end process;
-
-	process(dout_stb, tx_fifo_empty_internal, tx_fifo_full_internal, din_ack, wrote_c, din_busy)
-	begin
-			dout_ack    <= '0';
-			din_stb     <= '0';
-			tx_fifo_re  <= '0';
-			wrote_n     <= wrote_c;
-
-			if dout_stb = '1' then
-				dout_ack <= '1';
-			end if;
-
-			if tx_fifo_empty_internal = '0' and tx_fifo_full_internal = '0' and din_busy = '0' then
-				tx_fifo_re <= '1';
-				wrote_n    <= '1';
-			elsif din_ack = '0' and wrote_c = '1' then
-			--elsif wrote_c = '1' then
-				-- assert din_ack = '1' on the next cycle?
-				din_stb    <= '1';
-				wrote_n    <= '0';
-			end if;
-	end process;
-
-	rx_fifo: work.util.fifo
-		generic map (
-			data_width => 8,
-			fifo_depth => fifo_depth)
+	tx_0: work.uart_pkg.uart_tx
+		generic map(N => N, stops => 3, use_parity => false)
 		port map(
-			clk   => clk,
-			rst   => rst,
-			di    => dout,
-			we    => dout_stb,
-			re    => rx_data_re,
-			do    => rx_data_n,
-			full  => rx_fifo_full,
-			empty => rx_fifo_empty);
+			clk     => clk,
+			rst     => rst, 
 
-	tx_fifo: work.util.fifo
-		generic map (
-			data_width => 8,
-			fifo_depth => fifo_depth)
+			baud    => tx_baud,
+			ok      => tx_ok,
+			we      => tx_we,
+			di      => tx_di,
+			tx      => tx);
+
+	rx_0: work.uart_pkg.uart_rx
+		generic map(N => N, D => 3, stops => 1, use_parity => false)
 		port map(
-			clk   => clk,
-			rst   => rst,
-			di    => tx_data,
-			we    => tx_data_we,
-			re    => tx_fifo_re,
-			do    => din,
-			full  => tx_fifo_full_internal,
-			empty => tx_fifo_empty_internal);
+			clk     => clk,
+			rst     => rst, 
 
-	tx_fifo_empty <= tx_fifo_empty_internal;
-	-- @bug This is a hack, it should be just 'tx_fifo_full_internal', but
-	-- it does not work correctly, so as a temporary hack the busy signal
-	-- is or'd in so the data source can block until the FIFO is 'not full'
-	-- and not lose any data thinking it has been transmitted.
-	tx_fifo_full  <= '1' when tx_fifo_full_internal = '1' or din_busy = '1' else '0';
+			baud    => rx_baud,
+			sample  => rx_sample,
+			cr      => rx_cr,
+			failed  => rx_fail,
+			we      => rx_we,
+			do      => do,
+			rx      => rx);
+end architecture;
 
-	uart: work.uart_pkg.uart_core
-		generic map(
-			baud_rate => baud_rate,
-			clock_frequency => clock_frequency)
-		port map(
-			clk      => clk,
-			rst      => rst,
-			din      => din,
-			din_stb  => din_stb,
-			din_ack  => din_ack,
-			din_busy => din_busy,
-			dout     => dout,
-			dout_stb => dout_stb,
-			dout_ack => dout_ack,
-			dout_busy=> dout_busy,
-			rx       => rx_uart,
-			tx       => tx_uart);
-
-end;
-
----- UART Top ------------------------------------------------------------------
-
----- UART Core -----------------------------------------------------------------
-
-library ieee;
+-- This module generates a sample pulse and a baud pulse. The sample rate
+-- can be controlled by setting 'cnt'. This sample rate is then divided by 
+-- 2^(D+1) to get the baud.
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.uart_pkg.all;
 
-entity uart_core is
-	generic(baud_rate: positive; clock_frequency: positive);
-	port(
-		clk:       in      std_ulogic;
-		rst:       in      std_ulogic;
-		din:       in      std_ulogic_vector(7 downto 0);
-		din_stb:   in      std_ulogic;
-		din_ack:   out     std_ulogic := '0';
-		din_busy:  out     std_ulogic;
+entity uart_baud is
+	generic (clock_frequency: positive; asynchronous_reset: boolean; init: integer; N: positive := 16; D: positive := 3);
+	port (
+		clk:     in std_ulogic; 
+		rst:     in std_ulogic; 
+		
+		we:      in std_ulogic;
+		cnt:     in std_ulogic_vector(N - 1 downto 0);
+		cr:      in std_ulogic := '0';
 
-		dout:      out     std_ulogic_vector(7 downto 0);
-		dout_stb:  out     std_ulogic;
-		dout_ack:  in      std_ulogic;
-		dout_busy: out     std_ulogic;
-
-		tx:        out     std_ulogic;
-		rx:        in      std_ulogic);
+		sample: out std_ulogic;  -- sample pulse
+		baud:   out std_ulogic); -- baud (sample rate / 2^(D+1))
 end entity;
 
-architecture behav of uart_core is
-
-	constant uart_tx_count_max: positive := 7;
-	constant uart_rx_count_max: positive := 7;
-	----------------------------------------------------------------------------
-	-- baud generation
-	----------------------------------------------------------------------------
-	constant c_tx_divider_val: integer := clock_frequency / baud_rate;
-	constant c_rx_divider_val: integer := clock_frequency / (baud_rate * 16);
-
-	signal baud_counter:            integer range 0 to c_tx_divider_val;
-	signal baud_tick:               std_ulogic := '0';
-	signal oversample_baud_counter: integer range 0 to c_rx_divider_val := 0;
-	signal oversample_baud_tick:    std_ulogic := '0';
-
-	----------------------------------------------------------------------------
-	-- transmitter signals
-	----------------------------------------------------------------------------
-	type    uart_tx_states is (idle,
-				wait_for_tick,
-				send_start_bit,
-				transmit_data,
-				send_stop_bit);
-
-	signal  uart_tx_state: uart_tx_states := idle;
-
-	signal  uart_tx_data_block:  std_ulogic_vector(7 downto 0) := (others => '0');
-	signal  uart_tx_data:        std_ulogic := '1';
-	signal  uart_tx_count:       integer range 0 to uart_tx_count_max := 0;
-	signal  uart_rx_data_in_ack: std_ulogic := '0';
-	----------------------------------------------------------------------------
-	-- receiver signals
-	----------------------------------------------------------------------------
-	type    uart_rx_states is (rx_wait_start_synchronise,
-	                            rx_get_start_bit,
-	                            rx_get_data,
-	                            rx_get_stop_bit,
-	                            rx_send_block);
-
-	signal  uart_rx_state:        uart_rx_states := rx_get_start_bit;
-	signal  uart_rx_bit:          std_ulogic := '1'; -- @note should the be 0 or 1?
-	signal  uart_rx_data_block:   std_ulogic_vector(7 downto 0) := (others => '0');
-	signal  uart_rx_data_vec:     std_ulogic_vector(1 downto 0) := (others => '0');
-	signal  uart_rx_filter:       unsigned(1 downto 0)  := (others => '1');
-	signal  uart_rx_count:        integer range 0 to uart_rx_count_max  := 0;
-	signal  uart_rx_data_out_stb: std_ulogic := '0';
-	signal  uart_rx_bit_spacing:  unsigned (3 downto 0) := (others => '0');
-	signal  uart_rx_bit_tick:     std_ulogic := '0';
+architecture behaviour of uart_baud is
+	constant cmp_init: std_ulogic_vector := std_ulogic_vector(to_unsigned(init, cnt'length));
+	signal cmp_c, cmp_n: std_ulogic_vector(cnt'range)  :=  cmp_init;
+	signal cnt_c, cnt_n: std_ulogic_vector(cnt'range)  := (others => '0');
+	signal div_c, div_n: std_ulogic_vector(D downto 0) := (others => '0');
+	signal pul_c, pul_n: std_ulogic := '0';
+	signal pulse: std_ulogic := '0';
 begin
+	pulse  <= (not cr) and pul_n and (pul_c xor pul_n); -- rising edge detector
+	baud   <= (not cr) and div_n(div_n'high) and (div_c(div_c'high) xor div_n(div_n'high));
+	sample <= pulse;
 
-	din_ack  <= uart_rx_data_in_ack;
-	dout     <= uart_rx_data_block;
-	dout_stb <= uart_rx_data_out_stb;
-	tx       <= uart_tx_data;
-
-	din_busy  <= '0' when uart_tx_state = idle else '1';
-	dout_busy <= '0' when uart_rx_state = rx_get_start_bit or uart_rx_state = rx_send_block else '1';
-
-	-- the input clk is 100MHz, this needs to be divided down to the
-	-- rate dictated by the baud_rate. for example, if 115200 baud is selected
-	-- (115200 baud = 115200 bps - 115.2kbps) a tick must be generated once
-	-- every 1/115200
-	tx_clk_divider: process (clk, rst)
+	process (clk, rst)
 	begin
-		if rst = '1' then
-			baud_counter <= 0;
-			baud_tick    <= '0';
-		elsif rising_edge (clk) then
-			if baud_counter = c_tx_divider_val then
-				baud_counter <= 0;
-				baud_tick    <= '1';
+		if rst = '1' and asynchronous_reset then
+			cmp_c <= cmp_init;
+			cnt_c <= (others => '0');
+			div_c <= (others => '0');
+			pul_c <= '0';
+		elsif rising_edge(clk) then
+			if rst = '1' and not asynchronous_reset then
+				cmp_c <= cmp_init;
+				cnt_c <= (others => '0');
+				div_c <= (others => '0');
+				pul_c <= '0';
 			else
-				baud_counter <= baud_counter + 1;
-				baud_tick    <= '0';
+				cmp_c <= cmp_n;
+				cnt_c <= cnt_n;
+				div_c <= div_n;
+				pul_c <= pul_n;
 			end if;
 		end if;
 	end process;
 
-	-- get data from din and send it one bit at a time
-	-- upon each baud tick. lsb first.
-	-- wait 1 tick, send start bit (0), send data 0-7, send stop bit (1)
-	uart_send_data:	process(clk, rst)
+	process (pulse, div_c, cr, we)
 	begin
-		if rst = '1' then
-			uart_tx_data        <= '1';
-			uart_tx_data_block  <= (others => '0');
-			uart_tx_count       <= 0;
-			uart_tx_state       <= idle;
-			uart_rx_data_in_ack <= '0';
-		elsif rising_edge(clk) then
-			uart_rx_data_in_ack <= '0';
-			case uart_tx_state is
-			when idle =>
-				if din_stb = '1' then
-					uart_tx_data_block  <= din;
-					uart_rx_data_in_ack <= '1';
-					uart_tx_state       <= wait_for_tick;
-				end if;
-			when wait_for_tick =>
-				if baud_tick = '1' then
-					uart_tx_state	 <= send_start_bit;
-				end if;
-			when send_start_bit =>
-				if baud_tick = '1' then
-					uart_tx_data  <= '0';
-					uart_tx_state <= transmit_data;
-					uart_tx_count <= 0;
-				end if;
-			when transmit_data =>
-				if baud_tick = '1' then
-					if uart_tx_count < uart_tx_count_max then
-						uart_tx_data  <= uart_tx_data_block(uart_tx_count);
-						uart_tx_count <= uart_tx_count + 1;
-					else
-						uart_tx_data  <= uart_tx_data_block(7);
-						uart_tx_count <= 0;
-						uart_tx_state <= send_stop_bit;
-					end if;
-				end if;
-			when send_stop_bit =>
-				if baud_tick = '1' then
-					uart_tx_data <= '1';
-					uart_tx_state <= idle;
-				end if;
-			when others =>
-				uart_tx_data  <= '1';
-				uart_tx_state <= idle;
-			end case;
+		div_n <= div_c;
+		if cr = '1' or we = '1' then
+			div_n <= (others => '0');
+			div_n(div_n'high) <= '1';
+		elsif pulse = '1' then
+			div_n <= std_ulogic_vector(unsigned(div_c) + 1);
 		end if;
 	end process;
 
-	-- generate an oversampled tick (baud * 16)
-	oversample_clk_divider: process (clk, rst)
+	process (cmp_c, cnt_c, we, cnt, cr)
 	begin
-		if rst = '1' then
-			oversample_baud_counter <= 0;
-			oversample_baud_tick    <= '0';
-		elsif rising_edge (clk) then
-			if oversample_baud_counter = c_rx_divider_val then
-				oversample_baud_counter <= 0;
-				oversample_baud_tick    <= '1';
+		cmp_n <= cmp_c;
+		cnt_n <= cnt_c;
+
+		if we = '1' then
+			cmp_n <= cnt;
+			cnt_n <= (others => '0');
+			pul_n <= '0';
+		elsif cr = '1' then
+			cnt_n <= (others => '0');
+			pul_n <= '0';
+		elsif cnt_c = cmp_c then
+			cnt_n <= (others => '0');
+			pul_n <= '1';
+		else
+			cnt_n <= std_ulogic_vector(unsigned(cnt_c) + 1);
+			pul_n <= '0';
+		end if;
+	end process;
+end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+use work.uart_pkg.all;
+
+entity uart_rx is
+	generic (
+		N:                  positive; 
+		D:                  positive; 
+		stops:              positive; 
+		use_parity:         boolean; 
+		asynchronous_reset: boolean := true; 
+		even_parity:        boolean := true
+	);
+	port (
+		clk:   in std_ulogic;
+		rst:   in std_ulogic;
+		cr:   out std_ulogic;        -- reset sample/baud clock when start bit detected
+		baud, sample: in std_ulogic; -- pulses at baud and sample rate
+		failed: out std_ulogic_vector(1 downto 0);
+		rx:    in std_ulogic;        -- physical RX signal
+		we:   out std_ulogic;        -- write 'do' to output register
+		do:   out std_ulogic_vector(N - 1 downto 0));
+end entity;
+
+architecture behaviour of uart_rx is
+	type state is (reset, idle, start, data, parity, stop, done);
+	signal state_c, state_n: state;
+	signal do_c, do_n: std_ulogic_vector(do'range);
+	signal rx_c, rx_n: std_ulogic_vector(do'range);
+	signal sr_c, sr_n: std_ulogic_vector(D - 1 downto 0);
+	signal rx_sync: std_ulogic;
+	signal parity_c, parity_n: std_ulogic;
+	signal count_c, count_n: integer range 0 to N - 1;
+	signal majority: std_ulogic;
+	signal fail_c, fail_n: std_ulogic_vector(1 downto 0);
+
+	function parity(slv: std_ulogic_vector; even: boolean) return std_ulogic is
+		variable z: std_ulogic := '0';
+	begin
+		if not even then
+			z := '1';
+		end if;
+		for i in slv'range loop
+			z := z xor slv(i);
+		end loop;
+		return z;
+	end;
+begin
+	do     <= do_c;
+	failed <= fail_c;
+
+	-- majority <= sr_c(0);
+	-- majority <= sr_c(0) and sr_c(1); -- even wins is 'sr_c(0) or sr_c(1)'
+	-- NB. Majority forms in later half of cycle, as first bit is shifted off end, if
+	-- majority function has one fewer inputs than shift register
+	majority <= (sr_c(0) and sr_c(1)) or (sr_c(1) and sr_c(2)) or (sr_c(0) and sr_c(2));
+
+	process (clk, rst)
+		procedure reset is
+		begin
+			do_c     <= (others => '0');
+			rx_c     <= (others => '0');
+			sr_c     <= (others => '0');
+			fail_c   <= (others => '0');
+			state_c  <= reset;
+			parity_c <= '0';
+			count_c  <= 0;
+			rx_sync  <= '0';
+		end procedure;
+	begin
+		if rst = '1' and asynchronous_reset then
+			reset;
+		elsif rising_edge(clk) then
+			if rst = '1' and not asynchronous_reset then
+				reset;
 			else
-				oversample_baud_counter <= oversample_baud_counter + 1;
-				oversample_baud_tick    <= '0';
+				do_c     <= do_n;
+				rx_c     <= rx_n;
+				sr_c     <= sr_n;
+				state_c  <= state_n;
+				parity_c <= parity_n;
+				count_c  <= count_n;
+				fail_c   <= fail_n;
+				rx_sync  <= rx;
 			end if;
 		end if;
 	end process;
 
-	-- synchronise rxd to the oversampled baud
-	rxd_synchronise: process(clk, rst)
+	process (do_c, rx_c, sr_c, state_c, rx_sync, baud, sample, parity_c, count_c, fail_c, majority)
 	begin
-		if rst = '1' then
-			uart_rx_data_vec <= (others => '0');
-		elsif rising_edge(clk) then
-			if oversample_baud_tick = '1' then
-				uart_rx_data_vec(0) <= rx;
-				uart_rx_data_vec(1) <= uart_rx_data_vec(0);
-			end if;
-		end if;
-	end process;
+		fail_n  <= fail_c;
+		do_n    <= do_c;
+		rx_n    <= rx_c;
+		sr_n    <= sr_c;
+		state_n <= state_c;
+		we      <= '0';
+		cr      <= '0';
+		count_n <= count_c;
 
-	-- filter rxd with a 2 bit counter.
-	rxd_filter: process(clk, rst)
-	begin
-		if rst = '1' then
-			uart_rx_filter <= (others => '1');
-			uart_rx_bit    <= '1';
-		elsif rising_edge(clk) then
-			if oversample_baud_tick = '1' then
-				-- filter rxd.
-				if uart_rx_data_vec(1) = '1' and uart_rx_filter < 3 then
-					uart_rx_filter <= uart_rx_filter + 1;
-				elsif uart_rx_data_vec(1) = '0' and uart_rx_filter > 0 then
-					uart_rx_filter <= uart_rx_filter - 1;
-				end if;
-				-- set the rx bit.
-				if uart_rx_filter = 3 then
-					uart_rx_bit <= '1';
-				elsif uart_rx_filter = 0 then
-					uart_rx_bit <= '0';
-				end if;
-			end if;
+		if sample = '1' then
+			sr_n <= sr_c(sr_c'high - 1 downto sr_c'low) & rx_sync;
 		end if;
-	end process;
 
-	rx_bit_spacing: process (clk, rst)
-	begin
-		if rising_edge(clk) then
-			uart_rx_bit_tick <= '0';
-			if oversample_baud_tick = '1' then
-				if uart_rx_bit_spacing = 15 then
-					uart_rx_bit_tick <= '1';
-					uart_rx_bit_spacing <= (others => '0');
+		case state_c is
+		when reset  =>
+			do_n     <= (others => '0');
+			rx_n     <= (others => '0');
+			sr_n     <= (others => '0');
+			fail_n   <= (others => '0');
+			parity_n <= '0';
+			state_n  <= idle;
+		when idle   =>
+			count_n <= 0;
+			if rx_sync = '0' then
+				state_n <= start;
+				cr      <= '1';
+				sr_n    <= (others => '0');
+				fail_n  <= (others => '0');
+			end if;
+		when start  =>
+			if baud = '1' then
+				if majority /= '0' then
+					state_n   <= done; -- frame error
+					fail_n(0) <= '1';
 				else
-					uart_rx_bit_spacing <= uart_rx_bit_spacing + 1;
+					state_n <= data;
 				end if;
-				if uart_rx_state = rx_get_start_bit then
-					uart_rx_bit_spacing <= (others => '0');
-				end if;
+				sr_n <= (others => '0');
 			end if;
-		end if;
-	end process;
-
-	uart_receive_data: process(clk, rst)
-	begin
-		if rst = '1' then
-			uart_rx_state        <= rx_get_start_bit;
-			uart_rx_data_block   <= (others => '0');
-			uart_rx_count        <= 0;
-			uart_rx_data_out_stb <= '0';
-		elsif rising_edge(clk) then
-			case uart_rx_state is
-			when rx_get_start_bit =>
-				if oversample_baud_tick = '1' and uart_rx_bit = '0' then
-					uart_rx_state <= rx_get_data;
-				end if;
-			when rx_get_data =>
-				if uart_rx_bit_tick = '1' then
-					if uart_rx_count < uart_rx_count_max then
-						uart_rx_data_block(uart_rx_count) <= uart_rx_bit;
-						uart_rx_count <= uart_rx_count + 1;
+		when data   =>
+			rx_n(count_c) <= majority;
+			if baud = '1' then
+				if count_c = (N - 1) then
+					count_n <= 0;
+					if use_parity then
+						state_n <= parity;
 					else
-						uart_rx_data_block(7) <= uart_rx_bit;
-						uart_rx_count <= 0;
-						uart_rx_state <= rx_get_stop_bit;
+						state_n <= stop;
 					end if;
-				end if;
-			when rx_get_stop_bit =>
-				if uart_rx_bit_tick = '1' then
-					if uart_rx_bit = '1' then
-						uart_rx_state        <= rx_send_block;
-						uart_rx_data_out_stb <= '1';
-					end if;
-				end if;
-			when rx_send_block =>
-				if dout_ack = '1' then
-					uart_rx_data_out_stb  <= '0';
-					uart_rx_data_block    <= (others => '0');
-					uart_rx_state         <= rx_get_start_bit;
 				else
-					uart_rx_data_out_stb  <= '1';
+					count_n <= count_c + 1;
 				end if;
-			when others =>
-				uart_rx_state <= rx_get_start_bit;
-			end case;
+				sr_n <= (others => '0');
+			end if;
+		when parity =>
+			parity_n <= majority;
+			assert use_parity severity failure;
+			if baud = '1' then
+				if use_parity and (parity_c /= parity(rx_c, even_parity)) then
+					fail_n(1) <= '1'; -- parity error, still process stop bits
+				end if;
+				state_n <= stop;
+				sr_n <= (others => '0');
+			end if;
+		when stop   =>
+			if baud = '1' then
+				if majority /= '1' then
+					state_n <= done; -- frame error
+					fail_n(0) <= '1';
+				elsif count_c = stops then
+					count_n <= 0;
+					state_n <= done;
+				else
+					count_n <= count_c + 1;
+				end if;
+			end if;
+		when done   =>
+			-- The consuming module needs to store fail_c as well.
+			do_n <= rx_c;
+			we <= '1';
+			state_n <= idle;
+		end case;
+	end process;
+end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+use work.uart_pkg.all;
+
+entity uart_tx is
+	generic (
+		N: positive; 
+		stops: positive; 
+		use_parity: boolean; 
+		asynchronous_reset: boolean := true; 
+		even_parity: boolean := true
+	);
+	port (
+		clk:   in std_ulogic;
+		rst:   in std_ulogic;
+		baud:  in std_ulogic; -- Pulse at baud
+		tx:   out std_ulogic;
+		ok:   out std_ulogic;
+		we:    in std_ulogic; -- di write enable
+		di:    in std_ulogic_vector(N - 1 downto 0));
+end entity;
+
+architecture behaviour of uart_tx is
+	type state is (reset, idle, sync, start, data, parity, stop);
+	signal state_c, state_n: state;
+	signal di_c, di_n: std_ulogic_vector(di'range);
+	signal busy: std_ulogic;
+	signal parity_c, parity_n: std_ulogic;
+	signal count_c, count_n: integer range 0 to N - 1;
+	function parity(slv: std_ulogic_vector; even: boolean) return std_ulogic is
+		variable z: std_ulogic := '0';
+	begin
+		if not even then
+			z := '1';
+		end if;
+		for i in slv'range loop
+			z := z xor slv(i);
+		end loop;
+		return z;
+	end;
+begin
+	busy <= '0' when state_c = idle else '1';
+	ok <= not busy;
+
+	process (clk, rst)
+		procedure reset is
+		begin
+			di_c     <= (others => '0');
+			state_c  <= reset;
+			parity_c <= '0';
+			count_c  <= 0;
+		end procedure;
+	begin
+		if rst = '1' and asynchronous_reset then
+			reset;
+		elsif rising_edge(clk) then
+			if rst = '1' and not asynchronous_reset then
+				reset;
+			else
+				di_c     <= di_n;
+				state_c  <= state_n;
+				parity_c <= parity_n;
+				count_c  <= count_n;
+			end if;
 		end if;
 	end process;
-end;
 
----- UART Core -----------------------------------------------------------------
+	process (di_c, di, state_c, we, baud, parity_c, count_c)
+	begin
+		count_n <= count_c;
+		state_n <= state_c;
+		di_n    <= di_c;
+		tx <= '1';
+
+		if use_parity then
+			parity_n <= parity(di_c, even_parity);
+		else
+			parity_n <= '0';
+		end if;
+
+		case state_c is
+		when reset  =>
+			state_n  <= idle;
+			count_n  <= 0;
+			parity_n <= '0';
+			di_n     <= (others => '0');
+		when idle   =>
+			count_n  <= 0;
+			if we = '1' then
+				di_n    <= di;
+				state_n <= sync;
+			end if;
+		when sync   => -- wait until synced with baud clock
+			if baud = '1' then
+				state_n <= start;
+			end if;
+		when start  =>
+			tx <= '0';
+			if baud = '1' then
+				state_n <= data;
+			end if;
+		when data   =>
+			tx <= di_c(count_c);
+			if baud = '1' then
+				if count_c = (N - 1) then
+					count_n <= 0;
+					if use_parity then
+						state_n <= parity;
+					else
+						state_n <= stop;
+					end if;
+				else
+					count_n <= count_c + 1;
+				end if;
+			end if;
+		when parity =>
+			assert use_parity severity failure;
+			tx <= parity_c;
+			if baud = '1' then
+				state_n <= stop;
+			end if;
+		when stop   =>
+			tx <= '1';
+			if baud = '1' then
+				if count_c = stops then
+					count_n <= 0;
+					state_n <= idle;
+				else
+					count_n <= count_c + 1;
+				end if;
+			end if;
+		end case;
+	end process;
+end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.uart_pkg.all;
+
+entity uart_tb is
+	generic(clock_frequency: positive := 1_000_000; delay: time := 0 ns);
+end entity;
+
+architecture testing of uart_tb is
+	constant clock_period:  time       := 1000 ms / clock_frequency;
+	constant N:             positive   := 8;
+	constant rx_init:       integer    := 50;
+	constant tx_init:       integer    := 54;
+	signal rst, clk:        std_ulogic := '1';
+	signal stop:            boolean    := false;
+
+	signal tx, rx:   std_ulogic;
+	signal tx_ok, rx_ok:   std_ulogic;
+	signal tx_we, rx_re:   std_ulogic := '0';
+	signal rx_nd: std_ulogic;
+	signal di, do:   std_ulogic_vector(N - 1 downto 0);
+begin
+	-- duration: process begin wait for 20000 us; stop <= true; wait; end process;
+	clk_process: process
+	begin
+		rst <= '1';
+		wait for clock_period * 5;
+		rst <= '0';
+		while not stop loop
+			clk <= '1';
+			wait for clock_period / 2;
+			clk <= '0';
+			wait for clock_period / 2;
+		end loop;
+		wait;
+	end process;
+
+	-- TODO: Assert what we receive is what we sent, also, introduce
+	-- framing and parity errors and make sure we catch them.
+	stimulus: process 
+		procedure write(data: std_ulogic_vector(di'range)) is
+		begin
+			wait for clock_period;
+			while tx_ok = '0' loop
+				wait for clock_period;
+			end loop;
+			di <= data;
+			tx_we <= '1';
+			wait for clock_period;
+			tx_we <= '0';
+		end procedure;
+	begin
+		di <= x"00";
+		wait until rst = '0';
+		wait for clock_period;
+
+		write(x"AA");
+		write(x"BB");
+		write(x"B2");
+		write(x"00");
+		write(x"10");
+		wait for clock_period;
+		while tx_ok = '0' loop
+			wait for clock_period;
+		end loop;
+
+		stop <= true;
+		wait;
+	end process;
+
+	ack: process
+	begin
+		while not stop loop
+			if rx_nd = '1' then
+				rx_re <= '1';
+			else
+				rx_re <= '0';
+			end if;
+			wait for clock_period;
+		end loop;
+		wait;
+	end process;
+
+	rx <= tx; -- loop back test
+
+	uut: work.uart_pkg.uart_top
+		generic map(clock_frequency => clock_frequency, asynchronous_reset => true, tx_init => tx_init, rx_init => rx_init, N => N)
+		port map(
+			clk           =>  clk,
+			rst           =>  rst,
+			tx            =>  tx,
+			tx_ok         =>  tx_ok,
+			tx_we         =>  tx_we,
+			tx_di         =>  di,
+			rx            =>  rx,
+			rx_ok         =>  rx_ok,
+			rx_nd         =>  rx_nd,
+			rx_re         =>  rx_re,
+			rx_do         =>  do,
+			clock_reg     =>  (others => '0'),
+			clock_reg_tx_we =>  '0',
+			clock_reg_rx_we =>  '0'
+		);
+end architecture;
+
+

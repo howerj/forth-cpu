@@ -24,9 +24,11 @@
 library ieee,work,std;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.util.common_generics;
 
 entity timer is
 	generic(
+		g: common_generics;
 		timer_length: positive := 16);
 	port(
 		clk:          in  std_ulogic;
@@ -65,47 +67,43 @@ begin
 
 	counter_o   <= std_ulogic_vector(count);
 
-	clockRegisters: process(clk, rst)
-	begin
-		if rst = '1' then
-			control_c <= (others => '0');
-		elsif rising_edge(clk) then
-			control_c <= control_n;
-		end if;
-	end process;
-
 	counter: process (clk, rst)
 	begin
-		if rst = '1' then
-			count <= (others => '0');
+		if rst = '1' and g.asynchronous_reset then
+			count     <= (others => '0') after g.delay;
+			control_c <= (others => '0') after g.delay;
 		elsif rising_edge(clk) then
-			if reset_timer = '1' or timer_reset = '1' then
-				count <= (others => '0');
-			elsif enabled = '1' then
-				count <= count + 1;
+			if rst = '1' and not g.asynchronous_reset then
+				count     <= (others => '0') after g.delay;
+				control_c <= (others => '0') after g.delay;
 			else
-				count <= count;
+				control_c <= control_n;
+				if reset_timer = '1' or timer_reset = '1' then
+					count <= (others => '0') after g.delay;
+				elsif enabled = '1' then
+					count <= count + 1 after g.delay;
+				else
+					count <= count after g.delay;
+				end if;
 			end if;
 		end if;
 	end process;
 
 	output: process(count, we, control_i, control_c, compare, irq_en, enabled)
 	begin
-		irq         <= '0';
-		control_n   <= control_c;
-		timer_reset <= '0';
-
-		control_n(timer_reset_bit)  <= '0'; -- reset
-
 		if we = '1' then
-			control_n <= control_i;
+			control_n <= control_i after g.delay;
+		else
+			control_n                   <= control_c after g.delay;
+			control_n(timer_reset_bit)  <= '0' after g.delay; -- reset
 		end if;
 
 		if count = unsigned(compare) and enabled = '1' then
-			if irq_en = '1' then
-				irq <= '1';
-			end if;
-			timer_reset <= '1';
+			irq         <= irq_en after g.delay;
+			timer_reset <= '1' after g.delay;
+		else
+			irq         <= '0' after g.delay;
+			timer_reset <= '0' after g.delay;
 		end if;
 	end process;
 end architecture;

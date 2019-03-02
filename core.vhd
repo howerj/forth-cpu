@@ -11,9 +11,10 @@
 --| code, in succession, and testing the response.
 --------------------------------------------------------------------------------
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use work.util.n_bits;
+use work.util.common_generics;
 use work.h2_pkg.all;
 
 package core_pkg is
@@ -28,7 +29,7 @@ package core_pkg is
 	end record;
 
 	component core is
-	generic(number_of_interrupts: positive := 8);
+	generic(g: common_generics; number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
 		debug:           out cpu_debug_interface;
@@ -46,7 +47,6 @@ package core_pkg is
 		io_daddr:        out  word:= (others => 'X');
 
 		-- Interrupts
-		cpu_irq:         in std_ulogic;
 		cpu_irc:         in std_ulogic_vector(number_of_interrupts - 1 downto 0);
 		cpu_irc_mask:    in std_ulogic_vector(number_of_interrupts - 1 downto 0);
 		cpu_irc_mask_we: in std_ulogic);
@@ -54,6 +54,7 @@ package core_pkg is
 
 	component interrupt_request_handler is
 	generic(
+		g: common_generics;
 		number_of_interrupts:   positive := 8;
 		lowest_interrupt_first: boolean  := true);
 	port(
@@ -72,17 +73,18 @@ package core_pkg is
 end package;
 
 ----- CPU ----------------------------------------------------------------------
-
 library ieee,work;
 use ieee.std_logic_1164.all;
-use work.util.n_bits;
 use work.core_pkg.all;
 use work.h2_pkg.all;
+use work.util.n_bits;
+use work.util.common_generics;
 use work.util.file_format;
-use work.util.FILE_HEX;
+use work.util.file_hex;
+use work.util.or_reduce;
 
 entity core is
-	generic(number_of_interrupts: positive := 8);
+	generic(g: common_generics; number_of_interrupts: positive := 8);
 	port(
 		-- synthesis translate_off
 		debug:           out cpu_debug_interface;
@@ -100,7 +102,6 @@ entity core is
 		io_daddr:        out  word := (others => 'X');
 
 		-- Interrupts
-		cpu_irq:         in std_ulogic;
 		cpu_irc:         in std_ulogic_vector(number_of_interrupts - 1 downto 0);
 		cpu_irc_mask:    in std_ulogic_vector(number_of_interrupts - 1 downto 0);
 		cpu_irc_mask_we: in std_ulogic);
@@ -109,16 +110,16 @@ end;
 architecture structural of core is
 	constant interrupt_address_length: natural     := n_bits(number_of_interrupts);
 	constant file_name:                string      := "h2.hex";
-	constant file_type:                file_format := FILE_HEX;
-
-	signal pc:    address   := (others => '0'); -- Program counter
-	signal insn:  word      := (others => '0'); -- Instruction issued by program counter
+	constant file_type:                file_format := file_hex;
+	signal pc:    address    := (others => '0'); -- Program counter
+	signal insn:  word       := (others => '0'); -- Instruction issued by program counter
 	signal dwe:   std_ulogic := '0'; -- Write enable
 	signal dre:   std_ulogic := '0'; -- Read enable
-	signal din:   word      := (others => '0');
-	signal dout:  word      := (others => '0');
-	signal daddr: address   := (others => '0');
-
+	signal din:   word       := (others => '0');
+	signal dout:  word       := (others => '0');
+	signal daddr: address    := (others => '0');
+	signal irc_edges:    std_ulogic_vector(cpu_irc'range) := (others => '0');
+	signal irq_edges:    std_ulogic := '0';
 	signal h2_irq:       std_ulogic := '0';
 	signal h2_irq_addr:  std_ulogic_vector(interrupt_address_length - 1 downto 0) := (others=>'0');
 begin
@@ -132,14 +133,25 @@ begin
 	debug.daddr <= daddr;
 	-- synthesis translate_on
 
+	-- Ensure all interrupts occur are rising edge triggered
+	edges: work.util.rising_edge_detectors
+	generic map(g => g, N => cpu_irc'length)
+	port map(
+		clk   => clk,
+		rst   => rst,
+		di    => cpu_irc,
+		do    => irc_edges);
+		
+	irq_edges <= or_reduce(irc_edges);
+
 	irqh_0: work.core_pkg.interrupt_request_handler
-	generic map(number_of_interrupts => number_of_interrupts)
+	generic map(g => g, number_of_interrupts => number_of_interrupts)
 	port map(
 		clk    => clk,
 		rst    => rst,
 
-		irq_i  => cpu_irq,
-		irc_i  => cpu_irc,
+		irq_i  => irq_edges,
+		irc_i  => irc_edges,
 
 		irq_o  => h2_irq,
 		addr_o => h2_irq_addr,
@@ -148,7 +160,7 @@ begin
 		mask_we => cpu_irc_mask_we);
 
 	h2_0: work.h2_pkg.h2 -- The actual CPU instance (H2)
-	generic map(interrupt_address_length => interrupt_address_length)
+	generic map(asynchronous_reset => g.asynchronous_reset, delay => g.delay, interrupt_address_length => interrupt_address_length)
 	port map(
 		clk       =>    clk,
 		rst       =>    rst,
@@ -176,6 +188,7 @@ begin
 
 	mem_h2_0: entity work.dual_port_block_ram
 	generic map(
+		g             => g,
 		addr_length   => address'length,
 		data_length   => word'length,
 		file_name     => file_name,
@@ -223,9 +236,11 @@ use work.util.reg;
 use work.util.n_bits;
 use work.util.select_bit;
 use work.util.priority;
+use work.util.common_generics;
 
 entity interrupt_request_handler is
 	generic(
+		g: common_generics;
 		number_of_interrupts:   positive := 8;
 		lowest_interrupt_first: boolean  := true);
 	port(
@@ -253,8 +268,7 @@ architecture rtl of interrupt_request_handler is
 	signal mask_n: std_ulogic_vector(mask'range) := (others => '0');
 begin
 	irq_in: entity work.reg
-		generic map(
-			N      => 1)
+		generic map(g => g, N  => 1)
 		port map(
 			clk    =>  clk,
 			rst    =>  rst,
@@ -263,8 +277,7 @@ begin
 			do(0)  =>  irq_n);
 
 	irc_in: entity work.reg
-		generic map(
-			N    => number_of_interrupts)
+		generic map(g => g, N  => number_of_interrupts)
 		port map(
 			clk  =>  clk,
 			rst  =>  rst,
@@ -272,8 +285,7 @@ begin
 			di   =>  irc_i,
 			do   =>  irc_n);
 
-	irc_mask: entity work.reg generic map(
-			N    => number_of_interrupts)
+	irc_mask: entity work.reg generic map(g => g, N  => number_of_interrupts)
 		port map(
 			clk  =>  clk,
 			rst  =>  rst,
@@ -285,11 +297,11 @@ begin
 		variable addr_n: std_ulogic_vector(addr'range) := (others => '0');
 	begin
 		addr_n := priority(irc_n, not lowest_interrupt_first);
-		addr_o <= addr_n;
+		addr_o <= addr_n after g.delay;
 		if select_bit(mask_n, addr_n) = '1' then
-			irq_o <= irq_n;
+			irq_o <= irq_n after g.delay;
 		else
-			irq_o <= '0';
+			irq_o <= '0' after g.delay;
 		end if;
 	end process;
 

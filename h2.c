@@ -144,7 +144,7 @@ typedef enum {
 	X(OR,     "or",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_OR_N)                 | MK_DSTACK(DELTA_N1)))\
 	X(DEPTH,  "sp@",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_DEPTH)   | T_TO_N       | MK_DSTACK(DELTA_1)))\
 	X(T_N1,   "1-",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_DECREMENT)))\
-	X(IEN,    "ien",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_ENABLE_INTERRUPTS)     /* | MK_DSTACK(DELTA_N1) */))\
+	X(IEN,    "ien!",   true,  (OP_ALU_OP | MK_CODE(ALU_OP_ENABLE_INTERRUPTS)      | MK_DSTACK(DELTA_N1)))\
 	X(ISIEN,  "ien?",   true,  (OP_ALU_OP | MK_CODE(ALU_OP_INTERRUPTS_ENABLED) | T_TO_N  | MK_DSTACK(DELTA_1)))\
 	X(RDEPTH, "rp@",    true,  (OP_ALU_OP | MK_CODE(ALU_OP_RDEPTH)  | T_TO_N       | MK_DSTACK(DELTA_1)))\
 	X(TE0,    "0=",     true,  (OP_ALU_OP | MK_CODE(ALU_OP_T_EQUAL_0)))\
@@ -918,6 +918,8 @@ void soc_print(FILE *out, const h2_soc_state_t * const soc) {
 	fprintf(out, "Flash Control:    %04"PRIx16"\n", soc->mem_control);
 	fprintf(out, "Flash Address Lo: %04"PRIx16"\n", soc->mem_addr_low);
 	fprintf(out, "Flash Data Out:   %04"PRIx16"\n", soc->mem_dout);
+	fprintf(out, "UART TX Baud:     %04"PRIx16"\n", soc->uart_tx_baud);
+	fprintf(out, "UART RX Baud:     %04"PRIx16"\n", soc->uart_rx_baud);
 }
 
 static void terminal_default_command_sequence(vt100_t * const t) {
@@ -1588,6 +1590,8 @@ static void h2_io_set_default(h2_soc_state_t *soc, const uint16_t addr, const ui
 	}
 	case oMemAddrLow: soc->mem_addr_low   = value; break;
 	case oMemDout:    soc->mem_dout       = value; break;
+	case oUartTxBaud: soc->uart_tx_baud   = value; break;
+	case oUartRxBaud: soc->uart_rx_baud   = value; break;
 	default:
 		warning("invalid write to %04"PRIx16 ":%04"PRIx16, addr, value);
 	}
@@ -2239,8 +2243,8 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, const unsigned steps, symbol_tabl
 			case ALU_OP_N_LSHIFT_T: tos = nos << tos;           break;
 			case ALU_OP_DEPTH:      tos = h->sp;                break;
 			case ALU_OP_N_ULESS_T:  tos = -(nos < tos);         break;
-			case ALU_OP_ENABLE_INTERRUPTS: h->ie = tos & 1; /*tos = nos;*/ break;
-			case ALU_OP_INTERRUPTS_ENABLED: tos = -h->ie;       break;
+			case ALU_OP_ENABLE_INTERRUPTS: h->ie = tos & 1; tos = nos; break;
+			case ALU_OP_INTERRUPTS_ENABLED: tos = ((1 & h->ie) << 0); break;
 			case ALU_OP_RDEPTH:     tos = h->rp;                break;
 			case ALU_OP_T_EQUAL_0:  tos = -(tos == 0);          break;
 			case ALU_OP_CPU_ID:     tos = H2_CPU_ID_SIMULATION; break;

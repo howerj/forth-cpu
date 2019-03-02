@@ -89,13 +89,13 @@ constant iMemDin       $4008 hidden ( Memory input for reads )
 
 ( Execution vectors for changing the behaviour of the program,
 they are set at the end of this file )
-location <key>      0  ( -- c -1 | 0 : new character available? )
-location <emit>     0  ( c -- : emit character )
+variable <key>      0  ( -- c -1 | 0 : new character available? )
+variable <emit>     0  ( c -- : emit character )
 location <expect>   0  ( "accept" vector )
 location <tap>      0  ( "tap" vector, for terminal handling )
 location <echo>     0  ( c -- : emit character )
-location <prompt>   0  ( -- : display prompt )
-location <boot>     0  ( -- : execute program at startup )
+variable <ok>       0  ( -- : display prompt )
+\ location <boot>     0  ( -- : execute program at startup )
 location <block>    0  ( a u k -- f : load block )
 location <save>     0  ( a u k -- f : save block )
 location <invalid>  0  ( k -- k : throws error if k invalid )
@@ -113,7 +113,6 @@ variable hld        0  ( Pointer into hold area for numeric output )
 variable base      $10 ( Current output radix )
 variable span       0  ( Hold character count received by expect   )
 variable loaded     0  ( Used by boot block to indicate it has been loaded  )
-variable border    -1  ( Put border around block begin displayed with 'list' )
 constant #vocs            8 hidden ( number of vocabularies in allowed )
 variable forth-wordlist   0 ( set at the end near the end of the file )
 location context          0 ( holds current context for vocabulary search order )
@@ -128,9 +127,6 @@ constant b/buf 1024 ( size of a block )
 variable blk             -1 ( current blk loaded )
 location block-dirty      0 ( -1 if loaded block buffer is modified )
 constant block-buffer $3C00 hidden
-\ location block-buffer     0 ( block buffer starts here )
-\ .allocate b/buf
-
 location _blockop         0             ( used in 'mblock' )
 location .s-string        " <sp"        ( used by .s )
 location OK               "ok"          ( used by "prompt" )
@@ -173,6 +169,7 @@ location failed           "failed"      ( used in start up routine )
 : 1+!   1 swap +! ;         ( a -- : increment value at address by 1 )
 : 1-! [-1] swap +! ; hidden ( a -- : decrement value at address by 1 )
 : execute >r ;             ( cfa -- : execute a function )
+\ : goto rdrop >r ;        ( cfg -- : goto an address )
 : c@ dup ( -2 and ) @ swap 1 and if 8 rshift exit then $ff and ; ( b -- c )
 : c!                       ( c b -- )
 	swap $ff and dup 8 lshift or swap
@@ -184,13 +181,17 @@ location failed           "failed"      ( used in start up routine )
 : doNext r> r> ?dup if 1- >r @ >r exit then cell+ >r ; hidden
 
 : uart? ( uart-register -- c -1 | 0 : generic UART input functions )
-      dup @ $0100 and if drop 0x0000 exit then dup $0400 swap ! @ $ff and [-1] ; hidden
+	dup @ $0100 and if drop 0x0000 exit then
+\	dup @ $ff and swap $0400 swap ! [-1] ; hidden \ read val first, then ack data
+	dup   $0400 swap ! @ $ff and [-1] ; hidden \ ack data, then read val
 
 : rx?  iUart uart? ; hidden ( -- c -1 | 0 : read in a character of input from UART )
 : ps2? iVT100 uart? ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
 
+\ : not-busy @ $0800 and ; hidden
 : uart! ( c uart-register -- )
-	begin dup @ $1000 and 0= until swap $2000 or swap ! ; hidden
+\	begin dup @ $1000 and 0= until swap $2000 or swap ! ; hidden  \ check full
+	begin dup @ $0800 and until swap $2000 or swap ! ; hidden     \ check empty
 
 : tx!  iUart uart! ; hidden
 : vga! iVT100 uart! ; hidden ( n a -- : output character to VT100 display )
@@ -239,8 +240,8 @@ they can implemented in terms of instructions )
 : count  dup 1+ swap c@ ;                 ( cs -- b u )
 : rot >r swap r> swap ;                   ( n1 n2 n3 -- n2 n3 n1 )
 : -rot swap >r swap r> ;                  ( n1 n2 n3 -- n3 n1 n2 )
-: min over over < if drop exit then nip ; ( n n -- n )
-: max over over > if drop exit then nip ; ( n n -- n )
+: min 2dup < if drop exit then nip ;      ( n n -- n )
+: max 2dup > if drop exit then nip ;      ( n n -- n )
 : >char $7f and dup 127 =bl within if drop [char] _ then ; ( c -- c )
 : tib #tib cell+ @ ; hidden               ( -- a )
 : echo <echo> @execute ; hidden           ( c -- )
@@ -408,7 +409,9 @@ choice words that need depth checking to get quite a large coverage )
 : immediate? @ $4000 and logical ; hidden ( pwd -- f : is immediate? )
 : inline?    @ 0x8000 and logical ; hidden ( pwd -- f : is inline? )
 
+location search-previous 0
 : search ( a a -- pwd 1 | pwd -1 | a 0 : find a word in the dictionary )
+	0 search-previous !
 	swap >r
 	begin
 		dup
@@ -418,7 +421,7 @@ choice words that need depth checking to get quite a large coverage )
 			dup immediate? if 1 else [-1] then
 			rdrop exit
 		then
-		@ address
+		dup search-previous ! @ address
 	repeat
 	drop r> 0x0000 ; hidden
 
@@ -430,7 +433,7 @@ choice words that need depth checking to get quite a large coverage )
 	begin
 		dup @
 	while
-		dup @ @ r@ swap search ?dup if rdrop rot drop exit else drop then
+		dup @ @ r@ swap search ?dup if rdrop rot drop exit then drop
 		cell+
 	repeat drop r> 0x0000 ;
 
@@ -513,11 +516,8 @@ choice words that need depth checking to get quite a large coverage )
 
 : .error ( n -- )
 	abs dup 60 < loaded @ and
-	if
-		dup l/b / + 32 + <message> @execute
-	else
-		negate . cr
-	then ; hidden
+	if dup l/b / + 32 + <message> @execute exit then
+	negate . cr ; hidden
 
 : ?error ( n -- : perform actions on error )
 	?dup if
@@ -553,28 +553,24 @@ choice words that need depth checking to get quite a large coverage )
 		if
 			0> if \ immediate
 				cfa execute exit
-			else
-				$compile exit
 			then
-		else
-			drop cfa execute exit
+			$compile exit
 		then
-	else \ not a word
-		dup count number? if
-			nip
-			state @ if literal exit then
-		else
-			drop space print 13 -throw exit
-		then
-	then ;
+		drop cfa execute exit
+	then \ not a word
+	dup count number? if
+		nip
+		state @ if literal exit then exit
+	then
+	drop space print 13 -throw ;
 
 : "immediate" last address $4000 toggle ;
 : .ok state @ 0= if space OK print space then cr ;
-: eval begin token dup count nip while interpret repeat drop <prompt> @execute ; hidden
+: eval begin token dup count nip while interpret repeat drop <ok> @execute ; hidden
 : quit quitLoop: preset [ begin query ' eval catch ?error again ;
 
 : evaluate ( a u -- )
-	<prompt> @ >r  0 <prompt> !
+	<ok>    @ >r  0 <ok> !
 	_id     @ >r [-1] _id !
 	>in     @ >r  0 >in !
 	source >r >r
@@ -583,7 +579,7 @@ choice words that need depth checking to get quite a large coverage )
 	r> r> #tib 2!
 	r> >in !
 	r> _id !
-	r> <prompt> !
+	r> <ok> !
 	throw ;
 
 : ccitt ( crc c -- crc : calculate polynomial $1021 AKA "x16 + x12 + x5 + 1" )
@@ -603,27 +599,44 @@ choice words that need depth checking to get quite a large coverage )
 
 : random seed @ dup 15 lshift ccitt dup iTimerDin @ + seed ! ; ( -- u )
 
-: 5u.r 5 u.r space ; hidden
-: dm+ 2/ for aft dup @ 5u.r cell+ then next ; ( a u -- a )
-: colon 58 emit ; hidden ( -- )
-
-: dump ( a u -- )
-	dump-width /
-	for
-		aft
-			cr dump-width 2dup
-			over 5u.r colon 
-			dm+ -rot
-			2 spaces $type
-		then
-	next drop ;
-
 : CSI $1b emit [char] [ emit ; hidden
 : 10u. base @ >r decimal <# #s #> type r> base ! ; hidden ( u -- )
 : ansi swap CSI 10u. emit ; ( n c -- )
 : at-xy CSI 10u. $3b emit 10u. [char] H emit ; ( x y -- )
 : page 2 [char] J ansi 1 1 at-xy ; ( -- )
 : sgr [char] m ansi ; ( -- )
+: up    [char] A ansi ;
+: down  [char] B ansi ;
+: right [char] C ansi ;
+: left  [char] D ansi ;
+
+
+: 5u.r 5 u.r space ; hidden
+: dm+ 2/ for aft dup @ 5u.r cell+ then next ; ( a u -- a )
+: colon 58 emit ; hidden ( -- )
+
+\ It would be nice to colorize the dump output.
+: dump ( a u -- )
+	dump-width /
+	for
+		aft
+			cr dump-width 2dup
+			over  5u.r colon 
+			dm+ -rot
+			2 spaces $type
+		then
+	next drop ;
+
+: rainbow $7 for $7 r@ - $1E + dup sgr u. next cr ; hidden
+: tableu
+	$7 for
+		$a right $7 r@ - $28 + dup sgr u. colon 
+		rainbow
+	next ; hidden
+
+: table page 0 sgr $2 down  tableu 1 sgr $2 down tableu 0 sgr ;
+
+\ : nuf? key? if drop [-1] exit then 0x0000 ; ( -- f )
 
 ( ==================== Advanced I/O Control ========================== )
 
@@ -632,25 +645,36 @@ choice words that need depth checking to get quite a large coverage )
 : switches  iSwitches  @ ; ( -- u : get the state of the switches)
 : timer!    oTimerCtrl ! ; ( u -- )
 : timer     iTimerDin  @ ; ( -- u )
-: input rx? if [-1] else ps2? then ; hidden ( -- c -1 | 0 : UART and PS/2 Input )
+: input rx? if [-1] exit then ps2? ; hidden ( -- c -1 | 0 : UART and PS/2 Input )
 : output dup tx! vga! ; hidden ( c -- : write to UART and VGA display )
 : printable? 32 127 within ; hidden ( c -- f )
 : pace 11 emit ; hidden
-: xio  ' accept <expect> ! <tap> ! <echo> ! <prompt> ! ; hidden
+: xio  ' accept <expect> ! <tap> ! <echo> ! <ok> ! ; hidden
 : file ' pace ' "drop" ' ktap xio ;
 : star $2A emit ; hidden
-: [conceal] dup 33 127 within if drop star else output then ; hidden
+: [conceal] dup 33 127 within if drop star exit then output ; hidden
 : conceal ' .ok ' [conceal] ' ktap xio ;
 : hand ' .ok  '  emit  ' ktap xio ; hidden
 : console ' rx? <key> ! ' tx! <emit> ! hand ;
+: vt100 ' ps2? <key> ! ' vga! <emit> ! hand ;
 : interactive ' input <key> ! ' output <emit> ! hand ;
-: ien! ien drop ; hidden
 : io! 0 timer! 0 led! 0 segments!
 	interactive 0 ien! 0 oIrcMask ! interactive ; ( -- : initialize I/O )
 : ver $666 ;
 : hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr [ ;
 : cold io! branch entry ;
 : bye cold ;
+
+: pipe [char] | emit ; hidden
+( 
+: u.b base @ >r $2  base ! u.r r> base ! ; hidden
+: u.d base @ >r decimal    u.r r> base ! ; hidden
+: u.h base @ >r hex        u.r r> base ! ; hidden
+: .at 
+   dup $6 u.d pipe dup $5 u.h pipe dup $9 u.b pipe space
+   dup printable? if emit exit then drop [char] . emit ; hidden
+: ascii-table cr $FF for $FF r@ - .at cr next ; )
+
 
 ( ==================== Advanced I/O Control ========================== )
 
@@ -775,7 +799,7 @@ in which the problem could be solved. )
 
 ( ==================== Block Word Set ================================ )
 \ @todo 'blk' being set to zero should indicate an invalid block number, not -1
-\ The usuage of 'blk' is incorrect, it should be set to the block number
+\ The usage of 'blk' is incorrect, it should be set to the block number
 \ most recently LOAD'ed, not the one most recently BLOCK'ed
 \ 
 : updated? block-dirty @ ; hidden      ( -- f )
@@ -801,24 +825,23 @@ in which the problem could be solved. )
 : line swap block swap c/l * + c/l ; hidden ( k u -- a u )
 : loadline line evaluate ; hidden ( k u -- )
 : load 0 l/b 1- for 2dup >r >r loadline r> r> 1+ next 2drop ;
-: pipe [char] | emit ; hidden
 : .line line -trailing $type ; hidden
-: .border border @ if 3 spaces c/l 45 banner cr exit then ; hidden
-: #line border @ if dup 2 u.r exit then ; hidden ( u -- u : print line number )
-: ?pipe border @ if pipe exit then ; hidden
-: ?page border @ if page exit then ; hidden
+: .border 3 spaces c/l 45 banner cr ; hidden
+: #line dup 2 u.r ; hidden ( u -- u : print line number )
 : thru over-m for dup load 1+ next drop ; ( k1 k2 -- )
 : blank =bl fill ;
 : message l/b extract .line cr ; ( u -- )
 : list
-	?page
+	page
 	cr
 	.border
 	0 begin
 		dup l/b <
 	while
-		2dup #line ?pipe line $type ?pipe cr 1+
+		2dup #line pipe line $type pipe cr 1+
 	repeat .border 2drop ;
+
+\ : list  block l/b for dup l/b 1- r@ - c/l * + c/l type cr next ;
 
 : index ( k1 k2 -- : show titles for block k1 to k2 )
 	over-m cr
@@ -836,12 +859,12 @@ in which the problem could be solved. )
 ( @warning This disassembler is experimental, and liable not 
 to work / break everything it touches )
 
-: validate ( cfa pwd -- nfa | 0 )
-	tuck cfa <> if drop 0 else nfa then ; hidden
+: validate ( cfa pwd -- nfa | 0 : validate possible CFA is a CFA )
+	tuck cfa <> if drop 0x0000 exit then nfa ; hidden
 
-: name ( cfa -- nfa )
-	$1fff and ( get address bits )
-	2*        ( convert to user address )
+: name ( cfa? -- nfa | 0 : attempt to get name from a possible CFA )
+	2*      ( convert to user address )
+	address ( get address bits )
 	>r
 	last address
 	begin
@@ -852,16 +875,37 @@ to work / break everything it touches )
 		address @
 	repeat rdrop ; hidden
 
-: .name name ?dup if print exit then ; hidden
+: .name name ?dup if space print exit then ; hidden
 
+\ Lookup table 0 = B[Ranch], 1 = Z[ero Branch], 2 = C[all], 3 = A[LU] 
+location tbl-1 $5A42 
+location tbl-2 $4143
 
-\ @todo print out L for literal, B for branch, Z for 0-branch, C for call, A for ALU
+: instruction? ( instruction -- instruction type : determine instruction type )
+   dup 0x8000 and if [char] L exit then
+   dup $6000 and 13 rshift tbl-1 + c@ ; hidden
+
+: .instruction ( instruction type -- : print out an instruction )
+   over 5u.r
+   dup emit
+   dup [char] C = if drop .name exit then
+   dup [char] B = if drop .name exit then
+       [char] L = if $7fff and . exit then
+   drop ; hidden
+
+\ @todo print out immediate status, prettify output, ...
 : see
  	token find 0= if 13 -throw exit then
- 	begin dup here u< while ( @todo print until next word in dictionary, requires change to 'search' )
- 		dup dup 5u.r @ colon dup dup 5u.r $4000 and $4000
- 		= if space .name else drop then cr cell+
- 	repeat drop ;
+	cr
+	search-previous @ ?dup if here min else here then >r
+	cfa
+ 	begin dup r@ u< while
+ 		dup 
+		dup 5 u.r colon @         ( ADDR: )
+		instruction? .instruction ( INST B/Z/C/A/L NUMBER/NAME? )
+		cr
+		cell+
+ 	repeat rdrop drop ;
 
 .set forth-wordlist $pwd
 ( ==================== See =========================================== )
@@ -874,11 +918,11 @@ to work / break everything it touches )
 location #irq 0
 
 irqTask:
-	0 ien!
+	ien? 0 ien!
 	switches led!
 	#irq 1+!
 	#irq @ segments!
-        1 ien! exit
+        ien! exit
 
 \ .set 2 irqTask
 \ .set 4 irqTask
@@ -909,7 +953,7 @@ irqTask:
 	context swap for aft tuck ! cell+ then next 0 swap ! ;
 
 \ : root  -1 set-order ; \ should contain set-order, forth-wordlist, forth, and words
-: forth -1 set-order ;
+: forth [-1] set-order ;
 : flash get-order flash-voc swap 1+ set-order ;
 
 : .words space begin dup while dup .id space @ address repeat drop cr ; hidden
@@ -965,10 +1009,10 @@ location memory-select      0    ( SRAM/Flash select SRAM = $400, Flash = 0 )
 
 : mcontrol! ( u -- : write to memory control register )
 	$f3ff and
-	memory-select @ $400 + or  ( select correct memory device )
-	memory-upper-mask invert    and            ( mask off control bits )
-	memory-upper @ memory-upper-mask and or         ( or in higher address bits )
-	oMemControl ! ; hidden            ( and finally write in control )
+	memory-select @ $400 + or               ( select correct memory device )
+	memory-upper-mask invert and            ( mask off control bits )
+	memory-upper @ memory-upper-mask and or ( or in higher address bits )
+	oMemControl ! ; hidden                  ( and finally write in control )
 
 : m! ( n a -- : write to non-volatile memory )
 	oMemAddrLow !
@@ -1056,12 +1100,13 @@ location memory-select      0    ( SRAM/Flash select SRAM = $400, Flash = 0 )
 : boot-block ( -- )
 	0 0 0x8000 transfer
 	0 block c@ printable? if
-		0 dup load exit
+		0 0 load exit
 	then [-1] ; hidden
 
 start:
 .set entry start
-	<boot> @execute  ( <boot> contains zero by default, does nothing )
+	\ <boot> @execute  ( <boot> contains zero by default, does nothing )
+	\ $2A sgr
 	hi
 	cpu-id segments!
 	loading-string print
@@ -1077,8 +1122,8 @@ start:
 .set <expect>  accept      ( execution vector of expect, default to 'accept'. )
 .set <tap>     ktap        ( execution vector of tap,    default the ktap. )
 .set <echo>    output      ( execution vector of echo,   default to output. )
-.set <prompt>  .ok         ( execution vector of prompt, default to '.ok'. )
-.set <boot>    0           ( @execute does nothing if zero )
+.set <ok>      .ok         ( execution vector of prompt, default to '.ok'. )
+\ .set <boot>    0           ( @execute does nothing if zero )
 .set <block>   memory-load ( execution vector of block, used in block )
 .set <save>    memory-save ( execution vector of save-buffers, used in block )
 .set <invalid> minvalid    ( execution vector of _invalid, used in block )

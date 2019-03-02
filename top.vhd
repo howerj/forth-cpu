@@ -16,21 +16,21 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.core_pkg.all;
 use work.vga_pkg.all;
-use work.led_pkg.all;
 use work.kbd_pkg.ps2_kbd_top;
-use work.uart_pkg.uart_core;
-use work.util.state_block_changed;
+use work.util.all;
+use work.uart_pkg.all;
 
 entity top is
 	generic(
-		clock_frequency:      positive := 100_000_000;
-		uart_baud_rate:       positive := 115200;
-		uart_fifo_depth:      positive := 8);
+		g: common_generics         := default_settings;
+		reset_period_us:  natural  := 1;
+		uart_baud_rate:   positive := 115200;
+		uart_fifo_depth:  positive := 8);
 	port
 	(
--- synthesis translate_off
+		-- synthesis translate_off
 		debug:    out cpu_debug_interface;
--- synthesis translate_on
+		-- synthesis translate_on
 
 		clk:      in  std_ulogic                    := 'X';  -- clock
 		-- Buttons
@@ -59,15 +59,15 @@ entity top is
 		ps2_keyboard_clk:   in std_ulogic           := '0';
 
 		-- Memory Interface
-		RamCS:    out   std_ulogic := '1';
-		MemOE:    out   std_ulogic := '0'; -- negative logic
-		MemWR:    out   std_ulogic := '0'; -- negative logic
-		MemAdv:   out   std_ulogic := '0'; -- negative logic
-		MemWait:  out   std_ulogic := '0'; -- positive logic!
-		FlashCS:  out   std_ulogic := '0';
-		FlashRp:  out   std_ulogic := '1';
-		MemAdr:   out   std_ulogic_vector(26 downto 1) := (others => '0');
-		MemDB:    inout std_logic_vector(15 downto 0)  := (others => 'Z'));
+		ram_cs:    out   std_ulogic := '1';
+		mem_oe:    out   std_ulogic := '0'; -- negative logic
+		mem_wr:    out   std_ulogic := '0'; -- negative logic
+		mem_adv:   out   std_ulogic := '0'; -- negative logic
+		mem_wait:  out   std_ulogic := '0'; -- positive logic!
+		flash_cs:  out   std_ulogic := '0';
+		flash_rp:  out   std_ulogic := '1';
+		mem_addr:   out   std_ulogic_vector(26 downto 1) := (others => '0');
+		mem_data:    inout std_logic_vector(15 downto 0)  := (others => 'Z'));
 end;
 
 architecture behav of top is
@@ -87,7 +87,6 @@ architecture behav of top is
 	signal io_daddr: std_ulogic_vector(15 downto 0) := (others => '0');
 
 	-- CPU H2 Interrupts
-	signal cpu_irq:         std_ulogic := '0';
 	signal cpu_irc:         std_ulogic_vector(number_of_interrupts - 1 downto 0) := (others => '0');
 	signal cpu_irc_mask_we: std_ulogic := '0';
 
@@ -119,6 +118,8 @@ architecture behav of top is
 	signal tx_fifo_empty:     std_ulogic := '0';
 	signal tx_data_we:        std_ulogic := '0';
 
+	signal uart_clock_tx_we:  std_ulogic := '0';
+	signal uart_clock_rx_we:  std_ulogic := '0';
 	---- Timer
 	signal timer_control_we:  std_ulogic := '0';
 	signal timer_counter_o:   std_ulogic_vector(timer_length - 4 downto 0) := (others =>'0');
@@ -130,7 +131,6 @@ architecture behav of top is
 	signal kbd_char_re:       std_ulogic := '0';
 
 	---- 8 Segment Display
-
 	signal leds_reg_we:       std_ulogic := '0';
 
 	---- Buttons
@@ -150,73 +150,30 @@ architecture behav of top is
 	signal mem_data_i_we:     std_ulogic := '0';
 	signal mem_data_o:        std_ulogic_vector(15 downto 0) := (others => '0');
 	signal mem_control_we:    std_ulogic := '0';
-	signal mem_we:            std_ulogic := '0';
-	signal mem_oe:            std_ulogic := '0';
 begin
 -------------------------------------------------------------------------------
 -- The Main components
 -------------------------------------------------------------------------------
 
-------- Output assignments (Not in a process) ---------------------------------
+	cpu_wait   <= btnc_d; -- temporary testing measure only!
 
-	-- @warning These are both temporary measures for testing only!
-	-- rst        <= btnu_d;
-	cpu_wait   <= btnc_d;
+	system_reset: work.util.reset_generator
+	generic map(g => g, reset_period_us => reset_period_us)
+	port map(
+		clk        => clk,
+		rst        => rst);
 
-	irq_block: block
-		signal rx_fifo_not_empty: std_ulogic := '0';
-		signal tx_fifo_not_empty: std_ulogic := '0';
-
-		signal rx_fifo_not_empty_edge: std_ulogic := '0';
-		signal rx_fifo_full_edge:      std_ulogic := '0';
-		signal tx_fifo_not_empty_edge: std_ulogic := '0';
-		signal tx_fifo_full_edge:      std_ulogic := '0';
-		signal kbd_char_buf_new_edge:  std_ulogic := '0';
-	begin
-		rx_fifo_not_empty <= not rx_fifo_empty;
-		tx_fifo_not_empty <= not rx_fifo_empty;
-
-		-- @note It might be best to move this into the IRQ handler,
-		-- to ensure all inputs are edge triggered.
-		irq_edges: work.util.rising_edge_detectors
-		generic map(N => 5)
-		port map(
-			clk   => clk,
-			rst   => rst,
-			di(0) => rx_fifo_not_empty,
-			di(1) => rx_fifo_full,
-			di(2) => tx_fifo_not_empty,
-			di(3) => tx_fifo_full,
-			di(4) => kbd_char_buf_new,
-
-			do(0) => rx_fifo_not_empty_edge,
-			do(1) => rx_fifo_full_edge,
-			do(2) => tx_fifo_not_empty_edge,
-			do(3) => tx_fifo_full_edge,
-			do(4) => kbd_char_buf_new_edge);
-
-		cpu_irc(0) <= '0';
-		cpu_irc(1) <= rx_fifo_not_empty_edge;
-		cpu_irc(2) <= rx_fifo_full_edge;
-		cpu_irc(3) <= tx_fifo_not_empty_edge;
-		cpu_irc(4) <= tx_fifo_full_edge;
-		cpu_irc(5) <= kbd_char_buf_new_edge;
-		cpu_irc(6) <= timer_irq;
-		cpu_irc(7) <= button_changed;
-
-		cpu_irq    <= '1' when
-				timer_irq              = '1' or
-				rx_fifo_not_empty_edge = '1' or
-				rx_fifo_full_edge      = '1' or
-				tx_fifo_not_empty_edge = '1' or
-				tx_fifo_full_edge      = '1' or
-				kbd_char_buf_new_edge  = '1' or
-				button_changed         = '1'
-				else '0';
-	end block;
+	cpu_irc(0) <= btnu_d; -- configurable CPU reset (can mask this)
+	cpu_irc(1) <= not rx_fifo_empty;
+	cpu_irc(2) <= rx_fifo_full;
+	cpu_irc(3) <= not tx_fifo_empty;
+	cpu_irc(4) <= tx_fifo_full;
+	cpu_irc(5) <= kbd_char_buf_new;
+	cpu_irc(6) <= timer_irq;
+	cpu_irc(7) <= button_changed;
 
 	core_0: entity work.core
-	generic map(number_of_interrupts => number_of_interrupts)
+	generic map(g => g, number_of_interrupts => number_of_interrupts)
 	port map(
 -- synthesis translate_off
 		debug            => debug,
@@ -229,7 +186,6 @@ begin
 		io_din           => io_din,
 		io_dout          => io_dout,
 		io_daddr         => io_daddr,
-		cpu_irq          => cpu_irq,
 		cpu_irc          => cpu_irc,
 		cpu_irc_mask     => io_dout(number_of_interrupts - 1 downto 0),
 		cpu_irc_mask_we  => cpu_irc_mask_we);
@@ -247,11 +203,14 @@ begin
 	---- Clock divider /2. Pixel clock is 25MHz
 	clk25MHz <= '0' when rst = '1' else not clk25MHz when rising_edge(clk50MHz);
 
+	-- It possible for CPU to issue both signals at the same time, but it should
+	-- not happen with a standard instruction.
 	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
 
-	vga_data          <= io_dout(vga_data'range);
-	tx_data           <= io_dout(tx_data'range);
+	vga_data <= io_dout(vga_data'range);
+	tx_data  <= io_dout(tx_data'range);
 
+	-- TODO: Raise trap (interrupt with bus error) on invalid memory access.
 	io_write: block
 		signal selector: std_ulogic_vector(3 downto 0) := (others => '0');
 		signal is_write: boolean := false;
@@ -276,6 +235,9 @@ begin
 
 		leds_reg_we       <= '1'         when is_write and selector = x"7" else '0';
 		cpu_irc_mask_we   <= '1'         when is_write and selector = x"8" else '0';
+
+		uart_clock_tx_we  <= '1'         when is_write and selector = x"9" else '0';
+		uart_clock_rx_we  <= '1'         when is_write and selector = x"A" else '0';
 	end block;
 
 	io_read: process(
@@ -300,6 +262,7 @@ begin
 
 		-- The signal io_re is not needed as none of the reads have
 		-- any side effects
+
 		case io_daddr(3 downto 1) is
 		when "000" => -- buttons, plus direct access to UART bit.
 			io_din(7 downto 0) <= rx_data;
@@ -324,29 +287,44 @@ begin
 	end process;
 
 	--- UART ----------------------------------------------------------
-	uart_0: work.uart_pkg.uart_top
-		generic map(
-			baud_rate       => uart_baud_rate,
-			clock_frequency => clock_frequency,
-			fifo_depth      => uart_fifo_depth)
-		port map(
-			clk             =>  clk,
-			rst             =>  rst,
-			rx_data         =>  rx_data,
-			rx_fifo_empty   =>  rx_fifo_empty,
-			rx_fifo_full    =>  rx_fifo_full,
-			rx_data_re      =>  rx_data_re,
-			tx_data         =>  tx_data,
-			tx_fifo_full    =>  tx_fifo_full,
-			tx_fifo_empty   =>  tx_fifo_empty,
-			tx_data_we      =>  tx_data_we,
-			tx              =>  tx,
-			rx              =>  rx);
+	uart_0_blk: block
+		signal tx_ok, rx_nd: std_ulogic;
+	begin
+		tx_fifo_full  <= not tx_ok;
+		tx_fifo_empty <= tx_ok;
+
+		rx_fifo_full  <= rx_nd;
+		rx_fifo_empty <= not rx_nd;
+		uart_0: work.uart_pkg.uart_top
+			generic map(clock_frequency => g.clock_frequency, 
+				    asynchronous_reset => g.asynchronous_reset, 
+				    tx_init => 54, -- 115200 @ 100 MHz
+				    rx_init => 50, -- 115200 @ 100 MHz + Fudge Factor
+				    N => 8)
+			port map(
+				clk   => clk,
+				rst   => rst,
+				tx_di => tx_data,
+				tx_we => tx_data_we,
+				tx_ok => tx_ok,
+				tx    => tx,
+			
+				rx    => rx,
+				rx_ok => open,
+				rx_nd => rx_nd,
+				rx_do => rx_data,
+				rx_re => rx_data_re,
+			
+				clock_reg    => io_dout,
+				clock_reg_tx_we => uart_clock_tx_we,
+				clock_reg_rx_we => uart_clock_rx_we
+			);
+	end block;
 	--- UART ----------------------------------------------------------
 
 	--- LED Output ----------------------------------------------------
 	led_output_reg_0: entity work.reg
-		generic map(N => ld'high + 1)
+		generic map(g => g, N => ld'length)
 		port map(
 			clk => clk,
 			rst => rst,
@@ -357,7 +335,7 @@ begin
 
 	--- Timer ---------------------------------------------------------
 	timer_0: entity work.timer
-	generic map(timer_length => timer_length)
+	generic map(g => g, timer_length => timer_length)
 	port map(
 		clk       => clk,
 		rst       => rst,
@@ -369,6 +347,7 @@ begin
 
 	--- VGA -----------------------------------------------------------
 	vt100_0: work.vga_pkg.vt100
+	generic map(g => g)
 	port map(
 		clk         =>  clk,
 		clk25MHz    =>  clk25MHz,
@@ -376,14 +355,40 @@ begin
 		we          =>  vga_data_we,
 		char        =>  vga_data,
 		busy        =>  vga_data_busy,
-		o_vga       =>  o_vga);
+		o_vga       =>  o_vga
+	);
+	
+	-- Test code
+	-- NOTE: Timing is not the best, VGA monitor loses synchronization
+	-- every so often with this module.	
+--	vga_c1: block
+--		signal row, column: integer := 0;
+--		signal h_blank, v_blank, draw: std_ulogic := '0';
+--	begin
+--		draw <= not h_blank and not v_blank;
+--		vga_c: work.util.vga_controller
+--		generic map(
+--			g => g,
+--			pixel_clock_frequency => 25_000_000,
+--			cfg => work.util.vga_640x480)
+--		port map(
+--			clk    => clk25MHz,
+--			rst    => rst,
+--			row    => row,
+--			column => column,
+--			h_blank => h_blank,
+--			v_blank => v_blank,
+--			h_sync => o_vga.hsync,
+--			v_sync => o_vga.vsync);
+--		o_vga.red <= "111" when draw = '1' else "000";
+--		o_vga.green <= "111" when (draw = '1' and row < 100 and column < 100) else "000";
+--		o_vga.blue <= "11";
+--	end block;
 	--- VGA -----------------------------------------------------------
 
 	--- Keyboard ------------------------------------------------------
 	keyboard_0: work.kbd_pkg.keyboard
-	generic map(
-		clock_frequency           => clock_frequency,
-		ps2_debounce_counter_size => 8)
+	generic map(g => g, ps2_debounce_counter_size => 8)
 	port map(
 		clk              => clk,
 		rst              => rst,
@@ -397,10 +402,10 @@ begin
 	--- Keyboard ------------------------------------------------------
 
 	--- LED 8 Segment display -----------------------------------------
-	ledseg_0: entity work.led_8_segment_display
+	ledseg_0: entity work.led_7_segment_display
 	generic map(
+		g                      => g,
 		number_of_led_displays => number_of_led_displays,
-		clock_frequency        => clock_frequency,
 		use_bcd_not_hex        => false)
 	port map(
 		clk        => clk,
@@ -415,10 +420,7 @@ begin
 
 	--- Buttons -------------------------------------------------------
 	button_debouncer: work.util.debounce_block_us
-	generic map(
-		N               => 5,
-		clock_frequency => clock_frequency,
-		timer_period_us => timer_period_us)
+	generic map(g => g, N => 5, timer_period_us    => timer_period_us)
 	port map(
 		clk   => clk,
 		di(0) => btnu,
@@ -437,7 +439,7 @@ begin
 		signal any_changed_signals: std_ulogic := '0';
 	begin
 		state_changed: work.util.state_block_changed
-		generic map(N => changed_signals'length)
+		generic map(g => g, N => changed_signals'length)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -451,7 +453,7 @@ begin
 		any_changed_signals <= '1' when changed_signals /= "00000" else '0';
 
 		state_changed_reg: work.util.reg
-		generic map(N => 1)
+		generic map(g => g, N => 1)
 		port map(
 			clk   => clk,
 			rst   => rst,
@@ -464,36 +466,34 @@ begin
 
 	--- Switches ------------------------------------------------------
 	sw_debouncer: work.util.debounce_block_us
-		generic map(
-			N               => sw'high+1,
-			clock_frequency => clock_frequency,
-			timer_period_us => timer_period_us)
+		generic map(g => g, N => sw'length, timer_period_us => timer_period_us)
 		port map(clk => clk, di => sw, do => sw_d);
 	--- Switches ------------------------------------------------------
 
 	--- Memory Interface ----------------------------------------------
 	ram_interface_0: entity work.ram_interface
+	generic map(g => g)
 	port map(
-		clk                =>  clk,
-		rst                =>  rst,
-		mem_addr_16_1      =>  io_dout,
-		mem_addr_16_1_we   =>  mem_addr_16_1_we,
-		mem_addr_26_17     =>  io_dout(9 downto 0),
-		mem_addr_26_17_we  =>  mem_addr_26_17_we,
-		mem_control_i      =>  io_dout(15 downto 10),
-		mem_control_we     =>  mem_control_we,
-		mem_data_i         =>  io_dout,
-		mem_data_i_we      =>  mem_data_i_we,
-		mem_data_o         =>  mem_data_o,
-		RamCS              =>  RamCS,
-		MemOE              =>  MemOE,
-		MemWR              =>  MemWR,
-		MemAdv             =>  MemAdv,
-		MemWait            =>  MemWait,
-		FlashCS            =>  FlashCS,
-		FlashRp            =>  FlashRp,
-		MemAdr             =>  MemAdr,
-		MemDB              =>  MemDB);
+		clk               =>  clk,
+		rst               =>  rst,
+		mem_addr_16_1     =>  io_dout,
+		mem_addr_16_1_we  =>  mem_addr_16_1_we,
+		mem_addr_26_17    =>  io_dout(9 downto 0),
+		mem_addr_26_17_we =>  mem_addr_26_17_we,
+		mem_control_i     =>  io_dout(15 downto 10),
+		mem_control_we    =>  mem_control_we,
+		mem_data_i        =>  io_dout,
+		mem_data_i_we     =>  mem_data_i_we,
+		mem_data_o        =>  mem_data_o,
+		ram_cs            =>  ram_cs,
+		mem_oe            =>  mem_oe,
+		mem_wr            =>  mem_wr,
+		mem_adv           =>  mem_adv,
+		mem_wait          =>  mem_wait,
+		flash_cs          =>  flash_cs,
+		flash_rp          =>  flash_rp,
+		mem_addr          =>  mem_addr,
+		mem_data          =>  mem_data);
 	--- Memory Interface ----------------------------------------------
 
 -------------------------------------------------------------------------------

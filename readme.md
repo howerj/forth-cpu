@@ -3,7 +3,7 @@
 | Project   | Forth SoC written in VHDL |
 | --------- | ------------------------- |
 | Author    | Richard James Howe        |
-| Copyright | 2013-2018 Richard Howe    |
+| Copyright | 2013-2019 Richard Howe    |
 | License   | MIT/LGPL                  |
 | Email     | howe.r.j.89@gmail.com     |
 
@@ -21,6 +21,8 @@ The goals of the project are as follows:
 * Make a working toolchain for the processor.
 * Create a [FORTH][] for the processor which can take its input either from a
   [UART][] or a USB keyboard and a [VGA][] adapter.
+
+All three of which have been completed.
 
 The H2 processor, like the [J1][], is a stack based processor that executes an
 instruction set especially suited for [FORTH][].
@@ -51,8 +53,8 @@ The System Architecture is as follows:
 
 The licenses used by the project are mixed and are on a per file basis. For my
 code I use the [MIT][] license - so feel free to use it as you wish. The other
-licenses used are the [LGPL][], they are confined to single modules so could be
-removed if you have some aversion to [LGPL][] code.
+licenses used are the [LGPL][] and the [Apache 2.0][] license, they are confined 
+to single modules so could be removed if you have some aversion to [LGPL][] code.
 
 # Target Board
 
@@ -231,11 +233,12 @@ All ALU operations replace T:
 |  13   |     N << T     |  Logical Left Shift   |
 |  14   |     depth      |  Depth of stack       |
 |  15   |     N u< T     |  Unsigned comparison  |
-|  16   | set interrupts |  Enable interrupts    |
-|  17   | interrupts on? |  Are interrupts on?   |
+|  16   | Set CPU State  |  Enable interrupts    |
+|  17   | Get CPU State  |  Are interrupts on?   |
 |  18   |     rdepth     |  Depth of return stk  |
 |  19   |      0=        |  T == 0?              |
 |  20   |     CPU ID     |  CPU Identifier       |
+|  21   |     LITERAL    |  Internal Instruction |
 
 
 ### Peripherals and registers
@@ -243,9 +246,7 @@ All ALU operations replace T:
 Registers marked prefixed with an 'o' are output registers, those with an 'i'
 prefix are input registers. Registers are divided into an input and output
 section of registers and the addresses of the input and output registers do not
-correspond to each other in all cases. Unlike for RAM reads, the I/O registers
-are indexed by word aligned addresses, without the lowest bit being discarded
-(this should be fixed at a later date).
+correspond to each other in all cases. 
 
 The following peripherals have been implemented in the [VHDL][] SoC to
 interface with devices on the [Nexys3][] board:
@@ -253,12 +254,11 @@ interface with devices on the [Nexys3][] board:
 * [VGA][] output device, text mode only, 80 by 40 characters from
   <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>
 * Timer
-* [UART][] (Rx/Tx) with a [FIFO][]
-from <https://github.com/pabennett/uart>
+* [UART][] (Rx/Tx) in [uart.vhd][].
 * [PS/2][] Keyboard
 from <https://eewiki.net/pages/viewpage.action?pageId=28279002>
 * [LED][] next to a bank of switches
-* An [8 Segment LED Display][] driver (a 7 segment display with a decimal point)
+* An [7 Segment LED Display][] driver (a 7 segment display with a decimal point)
 
 The SoC also features a limited set of interrupts that can be enabled or
 disabled.
@@ -274,8 +274,10 @@ The output register map:
 | oMemDout    | 0x4008  | Memory Data Output              |
 | oMemControl | 0x400A  | Memory Control / Hi Address     |
 | oMemAddrLow | 0x400C  | Memory Lo Address               |
-| o7SegLED    | 0x400E  | 4 x LED 8 Segment display       |
+| o7SegLED    | 0x400E  | 4 x LED 7 Segment display       |
 | oIrcMask    | 0x4010  | CPU Interrupt Mask              |
+| oUartBaudTx | 0x4012  | UART Tx Baud Clock Setting      |
+| oUartBaudRx | 0x4014  | UART Rx Baud Clock Setting      |
 
 
 The input registers:
@@ -392,6 +394,33 @@ enabled within it.
 
 	IMSK: Interrupt Mask
 
+#### oUartBaudTx
+
+This register is used to set the baud and sample clock frequency for
+transmission only.
+
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|                                    BTXC                                       |
+	+-------------------------------------------------------------------------------+
+
+	BTXC: Baud Clock Settings
+
+#### oUartBaudRx
+
+This register is used to set the baud and sample clock frequency for
+reception only.
+
+	+-------------------------------------------------------------------------------+
+	| 15 | 14 | 13 | 12 | 11 | 10 |  9 |  8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0 |
+	+-------------------------------------------------------------------------------+
+	|                                    BRXC                                       |
+	+-------------------------------------------------------------------------------+
+
+	BRXC: Baud Clock Settings
+
+
 #### oMemDout
 
 Data to be output to selected address when write enable (WE) issued in
@@ -442,8 +471,8 @@ This is the lower address bits of the RAM.
 
 #### o7SegLED
 
-On the [Nexys3][] board there is a bank of 7 segment displays, with a dot
-(8-segment really), which can be used for numeric output. The LED segments
+On the [Nexys3][] board there is a bank of 7 segment displays, with a decimal 
+point (8-segment really), which can be used for numeric output. The LED segments
 cannot be directly addressed. Instead the value stored in L8SD is mapped
 to a hexadecimal display value (or a BCD value, but this requires regeneration
 of the SoC and modification of a generic in the VHDL).
@@ -729,8 +758,8 @@ The built in words, with their instruction encodings:
 | or     | 0 | 1 | 1 |       T or N      |   |   |   |   |       |  -1   |
 | depth  | 0 | 1 | 1 |       depth       |   |   |   |   |       |  +1   |
 | 1-     | 0 | 1 | 1 |       T - 1       |   |   |   |   |       |       |
-| seti   | 0 | 1 | 1 |   set interrupts  |   |   |   |   |       |  -1   |
-| iset?  | 0 | 1 | 1 |   interrupts on?  |   |   |   |   |       |  +1   |
+| ien!   | 0 | 1 | 1 | N, Set CPU Status |   |   |   |   |       |  -1   |
+| ien?   | 0 | 1 | 1 | Get CPU Status    |   |   |   |   |       |  +1   |
 | rdepth | 0 | 1 | 1 |      rdepth       |   |   |   |   |       |  +1   |
 | 0=     | 0 | 1 | 1 |        0=         |   |   |   |   |       |       |
 | up1    | 0 | 1 | 1 |        T          |   |   |   |   |       |  +1   |
@@ -992,10 +1021,10 @@ VHDL-2008 standard.
 | -------- | ---------- | --------------- | ----------------------------------- |
 | util.vhd | MIT        | Richard J Howe  | A collection of generic components  |
 | h2.vhd   | MIT        | Richard J Howe  | H2 Forth CPU Core                   |
+| uart.vhd | MIT        | Richard J Howe  | UART TX/RX (Run time customizable)  |
 | vga.vhd  | LGPL 3.0   | Javier V García | Text Mode VGA 80x40 Display         |
-| uart.vhd | Apache 2.0 | Peter A Bennett | UART, modified from original        |
+|          |            | Richard J Howe  | (and VT100 terminal emulator)       |
 | kbd.vhd  | ???        | Scott Larson    | PS/2 Keyboard                       |
-| led.vhd  | MIT        | Richard J Howe  | LED 7-Segment + Dot Display Driver  |
 
 
 # eForth on the H2
@@ -1007,62 +1036,6 @@ it is contained within [h2.fth][].
 
 TODO:
 * Describe the Forth environment running on the H2 CPU.
-
-# Using Forth as a bootloader
-
-A running Forth environment can be quite easily used as a bootloader with no
-further modification, a simple protocol for sending data and verification of it
-can be built using only Forth primitives - although it is not the most
-efficient use of bandwidth.
-
-The sender can interrogate the running Forth environment over the serial link
-to determine the amount of space left in memory, and then populate it with an
-assembled binary.
-
-The Forth words needed are:
-
-
-| Word    | Description           |
-| ------- | --------------------- |
-| .free   | show free space       |
-| cp      | compile pointer       |
-| pwd     | previous word pointer |
-| @       | load                  |
-| !       | store                 |
-| cr      | print new line        |
-| execute | execute               |
-| decimal | set decimal output    |
-| cells   | size of cell          |
-| .       | print number          |
-
-
-And of course numeric input, all of which are provided by this interpreter. The
-protocol is line oriented, the host with the program to transfer to the H2
-(called PC) sends a line of text and expects a reply from the H2 board (called
-H2),
-
-	PC: decimal           ( set the H2 core to a known numeric output )
-	PC: .free cp @ . cr   ( query how much space is left, and where to put it )
-	H2: ADDR ADDR         ( H2 replies with both addresses )
-	PC: 1 cells . cr      ( PC queries size of cells )
-	H2: 2                 ( H2 responds, PC now knows to increment ADDR )
-	PC: NUM  ADDR !       ( PC write NUM to ADDR )
-	PC: ADDR @ . cr       ( optionally PC checks value )
-	H2: NUM               ( H2 responds with value stored at ADDR )
-	...                   ( PC and H2 do this as often as necessary )
-	PC: ADDR pwd !        ( PC optionally updates previous word register )
-	PC  ADDR cp  !        ( PC optionally updated compile poiinter )
-	PC: ADDR execute      ( Begin execution of word )
-
-The advantage of this "protocol" is that is human readable, and includes a
-debugger for the microcontroller it is operating on.
-
-# A simple Forth block editor
-
-TODO:
-- Talk about implementing a simple block editor in a few words of Forth.
-
-<http://retroforth.org/pages/?PortsOfRetroEditor>
 
 # Coding standards
 
@@ -1153,14 +1126,14 @@ width register:
 	-- Lots of comments about what the unit does should go
 	-- here. Describe the waveforms, states and use ASCII
 	-- art where possible.
-	library ieee;
+	library ieee, work;
 	use ieee.std_logic_1164.all;
 	use ieee.numeric_std.all;    -- numeric_std not std_logic_arith
 
 	entity reg is -- generic and port indented one tab, their parameters two
-		generic(
+		generic (
 			N: positive); -- Generic parameters make for a generic component
-		port(
+		port (
 			clk: in  std_logic; -- standard signal names
 			rst: in  std_logic; --
 			we:  in  std_logic;
@@ -1223,11 +1196,10 @@ example:
 
 <!-- -->
 
-	static const char *alu_op_to_string(uint16_t instruction)
-	{
+	static const char *alu_op_to_string(uint16_t instruction) {
 		/* notice also that the 'case' clauses are inline with the
 		 * switch selector */
-		switch(ALU_OP(instruction)) {
+		switch (ALU_OP(instruction)) {
 		case ALU_OP_T:                  return "T";
 		case ALU_OP_N:                  return "N";
 		case ALU_OP_T_PLUS_N:           return "T+N";
@@ -1257,7 +1229,7 @@ example:
 
 <!-- -->
 
-	if(foo)
+	if (foo)
 		bar();
 	else
 		baz();
@@ -1342,19 +1314,13 @@ are.
 
 # To Do
 
-* Interrupts are currently buggy. This should be fixed, but it is quite
-difficult to track down, interrupts work fine in the C simulation, and have not
-really been tested much in the VHDL simulation. Interrupts seem to work
-partially, but then cause something to be corrupted.
-* There is a bug with the VT100 component, the color attributes are not
-correctly placed in the right location, but in the previous one.
 * The [embed][] project, which was derived from the simulator and Forth for this
 project, has an improved version of Forth which could be reintegrated with
 this project. The [embed][] project features a metacompiler suitable for 16-bit
 systems like this one, it could be used in lieu of the Pseudo-Forth compiler.
 A massively cut down and minimal simulator and toolchain could be made, which
 would make the project much easier to understand, there is no reason to include
-everything in a single binary (made from [h2.c][]).
+everything in a single binary (made from [h2.c][]). (Partially complete!)
 * Even better than using the [embed][] project directly, would be to port the
 [embed][] project so the meta-compiler runs directly on the hardware. The
 simulator could then be used to assemble new images, making the system (much
@@ -1373,10 +1339,9 @@ simplified as well.
 proper textures for the buttons and displays, instead of the current simulator
 which looks like an early 90s test application for OpenGL.
 * Prepare more documentation
-* Fix SVG system architecture diagram
-* Implement assembler directive in the debugger
-* Add an options to the toolchain to allow separate compilation of units, and
-  other things expected of a toolchain.
+* Implement assembler directive in the debugger. This would allow code to
+be modified more easily when debugging, and make it even more similar to
+the DEBUG.COM command.
 * A much more minimal system could be created, consisting of only the H2 CPU
 core, a minimal (perhaps interactive) testbench, RAM blocks, UARTs and simulator. 
 The [j1eforth][] project could be used as an example of simplicity. The project
@@ -1385,6 +1350,26 @@ interpreter that runs on the J1 core (~1100 lines of Forth), the source for the
 target (the original J1 core, and UART at ~800 lines of Verilog and VHDL), and
 a simple simulator written in C (at only 186 lines of C code!). This system is
 incredibly minimal compared to this one.
+* A separate project of interest would be to use the H2 core, possibly in a
+modified form, to form the basis of a VGA graphics processor. It would be more
+complex than the current VT100 simulator, but potentially much more flexible,
+allowing for greater graphics capabilities using a little more memory and
+roughly the same amount of layout space. The idea would be to compute a VGA
+line (either 640x480, or 800x600) during the sync period and whilst the line is
+currently being drawn; commands could be given to the H2 core, such as 'draw a
+circle of radius R at position X,Y', or 'draw a line of text at X,Y'. Collision
+detection could be used to determine which pixel to color, rotation could
+perhaps be handled by manipulating the pixel value to be currently drawn.
+* Make a colorized version of 'dump' that allows that would colorize certain
+types of data (0 = red, address = blue, printable = yellow, etcetera). This
+could be turned off by setting the appropriate execution tokens for
+colorization off (an execution token for 'page' and 'at-xy' should also be
+made).
+* Find the licenses for the fonts used and include them.
+* Add 'marker' as a word to the eForth image. Also, the ANSI word set should be
+in by default in the image generated by the new toolchain.
+* An IDE for resetting/uploading the image to the target board and then sending
+a text buffer to it would help in developing code for the platform.
 * Add notes about picocom, and setting up the hardware:
 
 <!-- -->
@@ -1442,7 +1427,7 @@ incredibly minimal compared to this one.
 [VGA]: https://en.wikipedia.org/wiki/Video_Graphics_Array
 [PS/2]: https://en.wikipedia.org/wiki/PS/2_port
 [LED]: https://en.wikipedia.org/wiki/Light-emitting_diode
-[8 Segment LED Display]: https://en.wikipedia.org/wiki/Seven-segment_display
+[7 Segment LED Display]: https://en.wikipedia.org/wiki/Seven-segment_display
 [ISO 8859-1 (Latin-1)]: https://cs.stanford.edu/people/miles/iso8859.html
 [Spartan 6]: https://www.xilinx.com/products/silicon-devices/fpga/spartan-6.html
 [FPGA]: https://en.wikipedia.org/wiki/Field-programmable_gate_array
@@ -1462,6 +1447,8 @@ incredibly minimal compared to this one.
 [VT100]: https://en.wikipedia.org/wiki/VT100
 [embed]: https://github.com/howerj/embed
 [SDL]: https://www.libsdl.org/
+[Apache 2.0]: https://www.apache.org/licenses/LICENSE-2.0.html
+[uart.vhd]: uart.vhd
 
 <!--
 

@@ -1,6 +1,7 @@
 *~
 *.a
 *.bgn
+*.bin
 *.bit
 *_bitgen.xwbt
 *.bld
@@ -28,9 +29,8 @@ fth/doc/doxygen/*
 *.gise
 gui
 h2
-h2.bin
-h2.hex
 h2_tb
+*.hex
 *.htm
 *.html
 iseconfig/
@@ -67,6 +67,13 @@ par_usage_statistics.html
 *.pdf
 post/
 post/*
+post_map.nlf
+post_map.sdf
+post_map.vhd
+post_synthesis.nlf
+post_synthesis.vhd
+post_translate.nlf
+post_translate.vhd
 *.prj
 *.ps
 *.ptwx

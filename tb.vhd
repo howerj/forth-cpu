@@ -3,13 +3,15 @@
 --| @brief Main test bench.
 --|
 --| @author         Richard James Howe.
---| @copyright      Copyright 2013,2017 Richard James Howe.
+--| @copyright      Copyright 2013-2019 Richard James Howe.
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
 --| This test bench does quite a lot. It is not like normal VHDL test benches
---| in the fact that it uses configurable variables that it read in from a
---| file, which it does in an awkward but usable fashion.
+--| in the fact that it uses configurable variables that it reads in from a
+--| file, which it does in an awkward but usable fashion. It also has a
+--| partially working way of connecting a simulated UART to STDIN/STDOUT, which
+--| is a work in progress.
 --|
 --| It also tests multiple modules.
 --|
@@ -25,19 +27,26 @@ use std.textio.all;
 use work.util.all;
 use work.core_pkg.all;
 use work.vga_pkg.all;
-use work.uart_pkg.uart_core;
 
 entity tb is
 end tb;
 
 architecture testing of tb is
-	constant clock_frequency:         positive := 100_000_000;
+	constant g: common_generics := (
+		clock_frequency    => 100_000_000,
+		asynchronous_reset => true,
+		delay              => 0 ns
+	);
+
 	constant number_of_interrupts:    positive := 8;
 	constant uart_baud_rate:          positive := 115200;
 	constant configuration_file_name: string   := "tb.cfg";
-	constant clk_period:              time     := 1000 ms / clock_frequency;
 	constant uart_tx_time:            time     := (10*1000 ms) / 115200;
 	constant uart_default_input:      std_ulogic_vector(7 downto 0) := x"AA";
+	constant reset_period_us:         natural  := 1;
+	constant jitter_on:               boolean  := false;
+
+	constant clock_period:              time     := 1000 ms / g.clock_frequency;
 
 	-- Test bench configurable options --
 
@@ -69,13 +78,11 @@ architecture testing of tb is
 
 	-- Test bench configurable options --
 
-	signal stop:  std_ulogic :=  '0';
+	signal stop:  boolean := false;
 	signal dbgi:  cpu_debug_interface;
 
-	signal clk:   std_ulogic := '0';
-	signal rst:   std_ulogic := '0';
-
---	signal  cpu_wait: std_ulogic := '0'; -- CPU wait flag
+	signal clk:          std_ulogic := '0';
+	signal rst:          std_ulogic := '0';
 
 	-- Basic I/O
 	signal btnu:  std_ulogic := '0';  -- button up
@@ -112,25 +119,26 @@ architecture testing of tb is
 
 	signal configured: boolean := false;
 
-	signal RamCS:     std_ulogic := 'X';
-	signal MemOE:     std_ulogic := 'X'; -- negative logic
-	signal MemWR:     std_ulogic := 'X'; -- negative logic
-	signal MemAdv:    std_ulogic := 'X'; -- negative logic
-	signal MemWait:   std_ulogic := 'X'; -- positive!
-	signal FlashCS:   std_ulogic := 'X';
-	signal FlashRp:   std_ulogic := 'X';
-	signal MemAdr:    std_ulogic_vector(26 downto 1) := (others => 'X');
-	signal MemDB:     std_logic_vector(15 downto 0) := (others => 'X');
+	signal ram_cs:     std_ulogic := 'X';
+	signal mem_oe:     std_ulogic := 'X'; -- negative logic
+	signal mem_wr:     std_ulogic := 'X'; -- negative logic
+	signal mem_adv:    std_ulogic := 'X'; -- negative logic
+	signal mem_wait:   std_ulogic := 'X'; -- positive!
+	signal flash_cs:   std_ulogic := 'X';
+	signal flash_rp:   std_ulogic := 'X';
+	signal mem_addr:   std_ulogic_vector(26 downto 1) := (others => 'X');
+	signal mem_data:   std_logic_vector(15 downto 0)  := (others => 'X');
 
 begin
 ---- Units under test ----------------------------------------------------------
 
-	MemDB <= (others => '0') when MemOE = '1' else (others => 'Z');
+	mem_data <= (others => '0') when mem_oe = '1' else (others => 'Z');
 
 	uut: entity work.top
 	generic map(
-		clock_frequency      => clock_frequency,
-		uart_baud_rate       => uart_baud_rate)
+		g               => g,
+		reset_period_us => reset_period_us,
+		uart_baud_rate  => uart_baud_rate)
 	port map(
 		debug       => dbgi,
 		clk         => clk,
@@ -151,51 +159,65 @@ begin
 		ps2_keyboard_data => ps2_keyboard_data,
 		ps2_keyboard_clk  => ps2_keyboard_clk,
 
-		RamCS    =>  RamCS,
-		MemOE    =>  MemOE,
-		MemWR    =>  MemWR,
-		MemAdv   =>  MemAdv,
-		MemWait  =>  MemWait,
-		FlashCS  =>  FlashCS,
-		FlashRp  =>  FlashRp,
-		MemAdr   =>  MemAdr,
-		MemDB    =>  MemDB);
+		ram_cs    =>  ram_cs,
+		mem_oe    =>  mem_oe,
+		mem_wr    =>  mem_wr,
+		mem_adv   =>  mem_adv,
+		mem_wait  =>  mem_wait,
+		flash_cs  =>  flash_cs,
+		flash_rp  =>  flash_rp,
+		mem_addr  =>  mem_addr,
+		mem_data  =>  mem_data);
 
-	uut_util: work.util.util_tb generic map(clock_frequency => clock_frequency);
-	uut_vga:  work.vga_pkg.vt100_tb generic map(clock_frequency => clock_frequency);
+	uut_util: work.util.util_tb generic map(g => g);
+	uut_vga:  work.vga_pkg.vt100_tb generic map(g => g);
 
-	-- The "io_pins_tb" works correctly, however GHDL 0.29, compiled under
-	-- Windows, cannot, and it fails to simulate this component correctly, resulting
+	-- The "io_pins_tb" works correctly, however in GHDL 0.29, compiled under
+	-- Windows, fails to simulate this component correctly, resulting
 	-- in a crash. This does not affect the Linux build of GHDL. It has
-	-- something to do with 'Z' values for std_ulogic types.
-	--
+	-- something to do with 'Z' values for std_logic types.
 
-	uut_io_pins: work.util.io_pins_tb      generic map(clock_frequency => clock_frequency);
+	uut_io_pins: work.util.io_pins_tb  generic map(g => g);
 
-	uut_uart: work.uart_pkg.uart_core
-		generic map(
-			baud_rate            =>  uart_baud_rate,
-			clock_frequency      =>  clock_frequency)
-		port map(
-			clk       =>  clk,
-			rst       =>  rst,
-			din       =>  din,
-			din_stb   =>  din_stb,
-			din_ack   =>  din_ack,
-			tx        =>  rx,
-			rx        =>  tx,
-			dout_ack  =>  dout_ack,
-			dout_stb  =>  dout_stb,
-			dout      =>  dout);
+--	-- TODO: Use new UART core
+--	uut_uart: work.uart_pkg.uart_core
+--		generic map(g => g, baud_rate =>  uart_baud_rate)
+--		port map(
+--			clk       =>  clk,
+--			rst       =>  rst,
+--			din       =>  din,
+--			din_stb   =>  din_stb,
+--			din_ack   =>  din_ack,
+--			tx        =>  rx,
+--			rx        =>  tx,
+--			dout_ack  =>  dout_ack,
+--			dout_stb  =>  dout_stb,
+--			dout      =>  dout);
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process
+		variable seed1, seed2 : positive;
+		variable r : real;
+		variable jit_high, jit_low: time  := 0 ns;
 	begin
-		while stop = '0' loop
+		while not stop loop
+			if jitter_on then
+				uniform(seed1, seed2, r);
+				jit_high := r * g.delay;
+				uniform(seed1, seed2, r);
+				jit_low := r * g.delay;
+				uniform(seed1, seed2, r);
+				if r < 0.5 then jit_high := -jit_high; end if;
+				uniform(seed1, seed2, r);
+				if r < 0.5 then jit_low := -jit_low; end if;
+			else
+				jit_high := 0 ns;
+				jit_low  := 0 ns;
+			end if;
 			clk <= '1';
-			wait for clk_period / 2;
+			wait for (clock_period / 2) + jit_high;
 			clk <= '0';
-			wait for clk_period / 2;
+			wait for (clock_period / 2) + jit_low;
 		end loop;
 		report "clk_process end";
 		wait;
@@ -215,9 +237,9 @@ begin
 		end if;
 
 		report "Writing to STDOUT";
-		while stop = '0' loop
-			wait until (dout_stb = '1' or stop = '1');
-			if stop = '0' then
+		while not stop loop
+			wait until (dout_stb = '1' or stop);
+			if not stop then
 				c := character'val(to_integer(unsigned(dout)));
 				write(oline, c);
 				have_char := true;
@@ -225,9 +247,9 @@ begin
 					writeline(output, oline);
 					have_char := false;
 				end if;
-				wait for clk_period;
+				wait for clock_period;
 				dout_ack <= '1';
-				wait for clk_period;
+				wait for clock_period;
 				dout_ack <= '0';
 			end if;
 		end loop;
@@ -239,7 +261,7 @@ begin
 	end process;
 
 
-	-- @note The Input and Output mechanism that allows the tester to
+	-- The Input and Output mechanism that allows the tester to
 	-- interact with the running simulation needs more work, it is buggy
 	-- and experimental, but demonstrates the principle - that a VHDL
 	-- test bench can be interacted with at run time.
@@ -264,11 +286,11 @@ begin
 		report "Waiting for " & time'image(cfg.input_wait_for) & " (before reading from STDIN)";
 		wait for cfg.input_wait_for;
 		report "Reading from STDIN (Hit EOF/CTRL-D/CTRL-Z After entering a line)";
-		while (not endfile(input)) and stop = '0' and eoi = false loop
+		while (not endfile(input)) and not stop and eoi = false loop
 			report "readline...";
 			readline(input, iline);
 			good := true;
-			while good and stop = '0' loop
+			while good and not stop loop
 				read(iline, c, good);
 				if good then
 					report "" & c;
@@ -279,14 +301,11 @@ begin
 				end if;
 				din <= std_ulogic_vector(to_unsigned(character'pos(c), din'length));
 				din_stb <= '1';
-				wait for clk_period;
+				wait for clock_period;
 				din_stb <= '0';
-				-- assert din_ack = '1' severity warning;
 				wait for 100 us;
-				-- wait for 10 ms;
 			end loop;
 		end loop;
-		-- stop <= '1';
 		report "input_process end";
 		wait;
 	end process;
@@ -335,7 +354,7 @@ begin
 		configured <= true;
 
 		rst  <= '1';
-		wait for clk_period * 2;
+		wait for clock_period * 2;
 		rst  <= '0';
 
 		if cfg.number_of_iterations = 0 then
@@ -355,7 +374,7 @@ begin
 					count := count + 1;
 				end if;
 			end if;
-			wait for clk_period * 1;
+			wait for clock_period * 1;
 		end loop;
 
 		-- It would be nice to test the other peripherals as
@@ -366,7 +385,7 @@ begin
 		assert hsync_gone_high report "HSYNC not active - H2 failed to initialize VGA module";
 		assert vsync_gone_high report "VSYNC not active - H2 failed to initialize VGA module";
 
-		stop   <=  '1';
+		stop   <=  true;
 		report "stimulus_process end";
 		wait;
 	end process;
