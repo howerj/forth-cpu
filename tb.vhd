@@ -39,7 +39,7 @@ architecture testing of tb is
 	);
 
 	constant number_of_interrupts:    positive := 8;
-	constant uart_baud_rate:          positive := 115200;
+	constant uart_baud:          positive := 115200;
 	constant configuration_file_name: string   := "tb.cfg";
 	constant uart_tx_time:            time     := (10*1000 ms) / 115200;
 	constant uart_default_input:      std_ulogic_vector(7 downto 0) := x"AA";
@@ -138,7 +138,7 @@ begin
 	generic map(
 		g               => g,
 		reset_period_us => reset_period_us,
-		uart_baud_rate  => uart_baud_rate)
+		uart_baud  => uart_baud)
 	port map(
 		debug       => dbgi,
 		clk         => clk,
@@ -183,8 +183,8 @@ begin
 		signal uart_clock_rx_we, uart_clock_tx_we, uart_control_we: std_ulogic := '0';
 		signal uart_reg: std_ulogic_vector(15 downto 0);	
 	begin
-		uart_0: work.uart_pkg.uart_top
-			generic map (g => g)
+		uart_0: work.uart_pkg.uart_core
+			generic map (g => g, baud => uart_baud)
 			port map (
 				clk   => clk,
 				rst   => rst,
@@ -206,7 +206,7 @@ begin
 	end block;
 
 --	uut_uart: work.uart_pkg.uart_core
---		generic map(g => g, baud_rate =>  uart_baud_rate)
+--		generic map(g => g, baud_rate => uart_baud)
 --		port map(
 --			clk       =>  clk,
 --			rst       =>  rst,

@@ -24,7 +24,7 @@ entity top is
 	generic(
 		g: common_generics         := default_settings;
 		reset_period_us:  natural  := 1;
-		uart_baud_rate:   positive := 115200;
+		uart_baud:        positive := 115200;
 		uart_fifo_depth:  positive := 8);
 	port
 	(
@@ -113,7 +113,6 @@ architecture behav of top is
 	signal rx_fifo_full:      std_ulogic := '0';
 	signal rx_data_re:        std_ulogic := '0';
 
-	signal tx_data:           std_ulogic_vector(7 downto 0) := (others => '0');
 	signal tx_fifo_full:      std_ulogic := '0';
 	signal tx_fifo_empty:     std_ulogic := '0';
 	signal tx_data_we:        std_ulogic := '0';
@@ -216,7 +215,6 @@ begin
 	assert not(io_wr = '1' and io_re = '1') report "IO Read/Write issued at same time" severity error;
 
 	vga_data <= io_dout(vga_data'range);
-	tx_data  <= io_dout(tx_data'range);
 
 	-- TODO: Raise trap (interrupt with bus error) on invalid memory access.
 	io_write: block
@@ -298,33 +296,66 @@ begin
 	--- UART ----------------------------------------------------------
 	uart_0_blk: block
 		signal tx_ok, rx_nd: std_ulogic;
+		signal tx_data:      std_ulogic_vector(7 downto 0) := (others => '0');
+		constant use_fifo_uart: boolean := false;
 	begin
-		tx_fifo_full  <= not tx_ok;
-		tx_fifo_empty <= tx_ok;
+		tx_data  <= io_dout(tx_data'range);
 
-		rx_fifo_full  <= rx_nd;
-		rx_fifo_empty <= not rx_nd;
-		uart_0: work.uart_pkg.uart_top
-			generic map (g => g)
-			port map (
-				clk   => clk,
-				rst   => rst,
-				tx_di => tx_data,
-				tx_we => tx_data_we,
-				tx_ok => tx_ok,
-				tx    => tx,
-			
-				rx    => rx,
-				rx_ok => open,
-				rx_nd => rx_nd,
-				rx_do => rx_data,
-				rx_re => rx_data_re,
-			
-				reg             => io_dout,
-				clock_reg_tx_we => uart_clock_tx_we,
-				clock_reg_rx_we => uart_clock_rx_we,
-				control_reg_we  => uart_control_we
-			);
+		ugen0: if not use_fifo_uart generate
+			tx_fifo_full  <= not tx_ok;
+			tx_fifo_empty <= tx_ok;
+
+			rx_fifo_full  <= rx_nd;
+			rx_fifo_empty <= not rx_nd;
+
+			uart_0: work.uart_pkg.uart_core
+				generic map (g => g, baud => uart_baud)
+				port map (
+					clk   => clk,
+					rst   => rst,
+					tx_di => tx_data,
+					tx_we => tx_data_we,
+					tx_ok => tx_ok,
+					tx    => tx,
+				
+					rx    => rx,
+					rx_ok => open,
+					rx_nd => rx_nd,
+					rx_do => rx_data,
+					rx_re => rx_data_re,
+				
+					reg             => io_dout,
+					clock_reg_tx_we => uart_clock_tx_we,
+					clock_reg_rx_we => uart_clock_rx_we,
+					control_reg_we  => uart_control_we);
+		end generate;
+
+		-- TEST CODE, TX is not quite working. This generate should
+		-- be moved into the core module.
+		ugen1: if use_fifo_uart generate
+			uart_fifo_0: work.uart_pkg.uart_top
+				generic map (g => g, baud => uart_baud)
+				port map (
+					clk => clk, 
+					rst => rst,
+
+					tx            => tx,
+					tx_fifo_full  => tx_fifo_full,
+					tx_fifo_empty => tx_fifo_empty,
+					tx_fifo_we    => tx_data_we,
+					tx_fifo_data  => tx_data,
+
+					rx            => rx,
+					rx_fifo_re    => rx_data_re,
+					rx_fifo_data  => rx_data,
+					rx_fifo_full  => rx_fifo_full,
+					rx_fifo_empty => rx_fifo_empty,
+
+					reg             => io_dout,
+					clock_reg_tx_we => uart_clock_tx_we,
+					clock_reg_rx_we => uart_clock_rx_we,
+					control_reg_we  => uart_control_we);
+		end generate;
 	end block;
 	--- UART ----------------------------------------------------------
 
@@ -352,44 +383,51 @@ begin
 	--- Timer ---------------------------------------------------------
 
 	--- VGA -----------------------------------------------------------
-	vt100_0: work.vga_pkg.vt100
-	generic map (g => g)
-	port map (
-		clk         =>  clk,
-		clk25MHz    =>  clk25MHz,
-		rst         =>  rst,
-		we          =>  vga_data_we,
-		char        =>  vga_data,
-		busy        =>  vga_data_busy,
-		o_vga       =>  o_vga
-	);
+	vga_selector: block
+		constant use_vt100: boolean := true;
+	begin
+		gen_vt100_0: if use_vt100 generate
+		vt100_0: work.vga_pkg.vt100
+			generic map (g => g)
+			port map (
+				clk         =>  clk,
+				clk25MHz    =>  clk25MHz,
+				rst         =>  rst,
+				we          =>  vga_data_we,
+				char        =>  vga_data,
+				busy        =>  vga_data_busy,
+				o_vga       =>  o_vga);
+		end generate;
 	
-	-- Test code
-	-- NOTE: Timing is not the best, VGA monitor loses synchronization
-	-- every so often with this module.	
---	vga_c1: block
---		signal row, column: integer := 0;
---		signal h_blank, v_blank, draw: std_ulogic := '0';
---	begin
---		draw <= not h_blank and not v_blank;
---		vga_c: work.util.vga_controller
---		generic map (
---			g => g,
---			pixel_clock_frequency => 25_000_000,
---			cfg => work.util.vga_640x480)
---		port map (
---			clk    => clk25MHz,
---			rst    => rst,
---			row    => row,
---			column => column,
---			h_blank => h_blank,
---			v_blank => v_blank,
---			h_sync => o_vga.hsync,
---			v_sync => o_vga.vsync);
---		o_vga.red <= "111" when draw = '1' else "000";
---		o_vga.green <= "111" when (draw = '1' and row < 100 and column < 100) else "000";
---		o_vga.blue <= "11";
---	end block;
+		-- Test code
+		-- NOTE: Timing is not the best, VGA monitor loses synchronization
+		-- every so often with this module.
+		vga_gen_c1: if not use_vt100 generate
+		vga_c1: block 
+			signal row, column: integer := 0;
+			signal h_blank, v_blank, draw: std_ulogic := '0';
+		begin
+			draw <= not h_blank and not v_blank;
+			vga_c: work.util.vga_controller
+			generic map (
+				g => g,
+				pixel_clock_frequency => 25_000_000,
+				cfg => work.util.vga_640x480)
+			port map (
+				clk    => clk25MHz,
+				rst    => rst,
+				row    => row,
+				column => column,
+				h_blank => h_blank,
+				v_blank => v_blank,
+				h_sync => o_vga.hsync,
+				v_sync => o_vga.vsync);
+			o_vga.red <= "111" when draw = '1' else "000";
+			o_vga.green <= "111" when (draw = '1' and row < 100 and column < 100) else "000";
+			o_vga.blue <= "11";
+		end block;
+		end generate;
+	end block;
 	--- VGA -----------------------------------------------------------
 
 	--- Keyboard ------------------------------------------------------

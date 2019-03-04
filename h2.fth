@@ -615,7 +615,7 @@ location search-previous 0
 
 
 : 5u.r 5 u.r space ; hidden
-: dm+ 2/ for aft dup @ 5u.r cell+ then next ; ( a u -- a )
+: dm+ 2/ for aft dup @ 5u.r cell+ then next ; hidden ( a u -- a )
 : colon 58 emit ; hidden ( -- )
 
 \ It would be nice to colorize the dump output.
@@ -662,13 +662,14 @@ location search-previous 0
 : vt100 ' ps2? <key> ! ' vga! <emit> ! hand ;
 : interactive ' input <key> ! ' output <emit> ! hand ;
 : io! 
-	$36 oUartTxBaud  ! ( set TX baud rate )
-	$32 oUartRxBaud  ! ( set TX baud rate )
+	( 115200 9600 )
+	$36    ( $28B ) oUartTxBaud  ! ( set TX baud rate )
+	$35    ( $28A ) oUartRxBaud  ! ( set TX baud rate )
 	$8484 oUartControl ! ( set UART control register; 8 bits, 1 stop, no parity )
 	0 timer! 0 led! 0 segments!
 	0 ien! 0 oIrcMask ! interactive ; ( -- : initialize I/O )
-: ver $666 ;
-: hi io! ( save ) hex cr hi-string print ver <# # # 46 hold # #> type cr here . .free cr [ ;
+\ : ver $666 ;
+: hi io! ( save ) hex cr hi-string print cpu-id <# # # 46 hold # #> type cr here . .free cr [ ;
 : cold io! branch entry ;
 : bye cold ;
 

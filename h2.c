@@ -935,7 +935,7 @@ static void terminal_at_xy(vt100_t * const t, unsigned x, unsigned y, const bool
 	if (limit_not_wrap) {
 		x = MAX(x, 0);
 		y = MAX(y, 0);
-		x = MIN(x, t->width - 1);
+		x = MIN(x, t->width  - 1);
 		y = MIN(y, t->height - 1);
 	} else {
 		x %= t->width;
@@ -998,11 +998,15 @@ static int terminal_escape_sequences(vt100_t * const t, const uint8_t c) {
 	assert(t);
 	assert(t->state != TERMINAL_NORMAL_MODE);
 	switch (t->state) {
-	case TERMINAL_CSI:
-		if (c == '[')
-			t->state = TERMINAL_COMMAND;
-		else
-			goto fail;
+	case TERMINAL_CSI: /* process CSI and some non-CSI Escape Only commands */
+		switch (c) {
+		case '[': t->state = TERMINAL_COMMAND; break;
+		case 'c': goto eraser; /*reset display*/ break;
+		case '7': t->cursor_saved = t->cursor; t->attribute_saved = t->attribute; break;
+		case '8': t->cursor = t->cursor_saved; t->attribute = t->attribute_saved; break;
+		default: goto fail;
+		}
+
 		break;
 	case TERMINAL_COMMAND:
 		switch (c) {
@@ -1064,7 +1068,11 @@ static int terminal_escape_sequences(vt100_t * const t, const uint8_t c) {
 			if (t->n1 == 6)
 				goto success;
 			goto fail;
+eraser: /* HAHA: This is clearly the best way of doing things. */
+			t->command_index = 1;
+			t->n1 = 3; /* fall-through */
 		case 'J': /* reset */
+
 			switch (t->n1) {
 			case 3: /* fall-through */
 			case 2: t->cursor = 0; /* with cursor */ /* fall-through */

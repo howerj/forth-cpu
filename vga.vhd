@@ -2,17 +2,17 @@
 --| @file vga.vhd
 --| @brief      Text Mode Video Controller VHDL Module and VT100
 --|             Terminal Emulator
---| @author     Javier Valcarce García
---| @author     Richard James Howe
---| @copyright  Copyright 2007 Javier Valcarce García, 2017, 2019 Richard James Howe
+--| @author     Javier Valcarce GarcÃ­a
+--| @author     Richard James Howe (vt100, vt100_tb, atoi, color attributes)
+--| @copyright  Copyright 2007 Javier Valcarce GarcÃ­a, 2017, 2019 Richard James Howe
 --| @license    LGPL version 3
 --| @email      javier.valcarce@gmail.com
 --| @note       (Modifications and repackaging by Richard James Howe)
 --|
 --| This is a modified version of the text terminal available at
 --| <https://opencores.org/project,interface_vga80x40>. Additions include per
---| character attribute information (color, bold, reverse video) and a VT100 
---| terminal interface.
+--| character attribute information (color, bold, reverse video, blink text) 
+--| and a VT100 terminal interface.
 --|
 --| See also <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>.
 --|
@@ -23,8 +23,7 @@
 --| @todo Rewrite so the code is cleaner, and FSM are used.
 --| @todo ANSI.SYS supports some more codes which might be useful, such
 --| as 'ESC[+' (turn output on) and 'ESC[-' (turn output off).
---| @todo SGR 11-19 could be used to select from multiple fonts in font
---| memory. We have enough space to store 5 fonts in an 16KiB block RAM.
+--| @todo Separate out VT100 code from VGA code?
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------
@@ -84,7 +83,6 @@ package vga_pkg is
 		o_vga:    out vga_physical_interface);
 	end component;
 
-	-- VGA test bench, not-synthesizeable
 	component vga_core is
 	generic(g: common_generics);
 	port (
@@ -138,6 +136,7 @@ package vga_pkg is
 		o_vga:      out vga_physical_interface);
 	end component;
 
+	-- VGA test bench, not-synthesizeable
 	component vt100_tb is
 		generic(g: common_generics);
 	end component;
@@ -419,7 +418,9 @@ architecture rtl of vt100 is
 	constant backspace:    unsigned(char'range) := x"08";
 	constant blank:        unsigned(char'range) := x"20";
 	constant asterisk:     unsigned(char'range) := x"2A";
-	constant ascii_c:      unsigned(char'range) := x"63"; -- c
+	constant ascii_7:      unsigned(char'range) := x"37"; -- '7'
+	constant ascii_8:      unsigned(char'range) := x"38"; -- '8'
+	constant ascii_c:      unsigned(char'range) := x"63"; -- 'c'
 	constant attr_default: unsigned(7 downto 0) := "00111000";
 	constant ctl_default:  unsigned(4 downto 0) := "01111";
 
@@ -457,15 +458,20 @@ architecture rtl of vt100 is
 
 	signal count_c, count_n:    unsigned(addr'range) := (others => '0');
 	signal limit_c, limit_n:    unsigned(addr'high - 3 downto 0) := (others => '0');
-	-- signal base_c, base_n:      std_ulogic_vector(addr'range) := (others => '0');
 
 	signal akk_done_o:  std_ulogic := '0';
 	signal akk_ready_o: std_ulogic := '0';
 	signal akk_init:    std_ulogic := '0';
 	signal n_o:         unsigned(number - 1 downto 0) := (others => '0');
-	signal akk_char_o:  std_ulogic_vector(char'range)  := (others => '0');
+	signal akk_char_o:  std_ulogic_vector(char'range) := (others => '0');
 
-	signal font_sel_c, font_sel_n: std_ulogic := '0';
+	signal font_sel_c, font_sel_n: std_ulogic_vector(0 downto 0) := (others => '0');
+
+	signal saved_x_n, saved_x_c:       unsigned(x'range)    := (others => '0');
+	signal saved_y_n, saved_y_c:       unsigned(y'range)    := (others => '0');
+	signal saved_attr_n, saved_attr_c: unsigned(attr_default'range) := (others => '0');
+
+	signal reverse_video_c, reverse_video_n: boolean := false;
 begin
 	accumulator_0: work.vga_pkg.atoi
 		generic map(g => g, N => number)
@@ -536,7 +542,7 @@ begin
 			vga_we_ram        =>  data_we,
 			vga_din           =>  vga_din,
 			vga_addr          =>  addr,
-			i_font_sel(0)     =>  font_sel_c,
+			i_font_sel        =>  font_sel_c,
 			i_vga_control_we  =>  vga_ctr_we,
 			i_vga_control     =>  vga_ctr,
 			o_vga             =>  o_vga);
@@ -553,6 +559,22 @@ begin
 		variable limit_value: unsigned(addr'range) := (others => '0');
 		variable repeat:      boolean    := false;
 		variable exit_repeat: state_type := RESET;
+		procedure reverse_video(a: unsigned(2 downto 0); foreground: boolean) is
+		begin
+			if foreground then
+				if reverse_video_c then
+					attr_n(2 downto 0) <= a;
+				else 
+					attr_n(5 downto 3) <= a;
+				end if;
+			else
+				if reverse_video_c then
+					attr_n(5 downto 3) <= a;
+				else 
+					attr_n(2 downto 0) <= a;
+				end if;
+			end if;
+		end procedure;
 	begin
 		if rst = '1' and g.asynchronous_reset then
 			state_c <= RESET;
@@ -575,22 +597,28 @@ begin
 				ctl_c     <= ctl_n;
 				conceal_c <= conceal_n;
 				font_sel_c<= font_sel_n;
-				-- base_c    <= base_n;
+				saved_x_c <= saved_x_n;
+				saved_y_c <= saved_y_n;
+				saved_attr_c <= saved_attr_n;
+				reverse_video_c <= reverse_video_n;
 
 				if state_c = RESET then
-					n1_n      <= (others => '0');
-					n2_n      <= (others => '0');
-					x_n       <= (others => '0');
-					y_n       <= (others => '0');
-					c_n       <= (others => '0');
-					count_n   <= (others => '0');
-					limit_n   <= (others => '0');
-					state_n   <= ACCEPT;
-					attr_n    <= attr_default;
-					ctl_n     <= ctl_default;
-					conceal_n <= false;
-					font_sel_n<= '0';
-					-- base_n    <= (others => '0');
+					n1_n         <= (others => '0');
+					n2_n         <= (others => '0');
+					x_n          <= (others => '0');
+					y_n          <= (others => '0');
+					c_n          <= (others => '0');
+					count_n      <= (others => '0');
+					limit_n      <= (others => '0');
+					saved_x_n    <= (others => '0');
+					saved_y_n    <= (others => '0');
+					saved_attr_n <= (others => '0');
+					font_sel_n   <= (others => '0');
+					state_n      <= ACCEPT;
+					attr_n       <= attr_default;
+					ctl_n        <= ctl_default;
+					conceal_n    <= false;
+					reverse_video_n <= false;
 				elsif state_c = ACCEPT then
 					if we = '1' then
 						c_n   <= unsigned(char);
@@ -630,11 +658,27 @@ begin
 					end if;
 				elsif state_c = COMMAND then
 					case c_c is
-					when ascii_c => -- @todo Erase screen as well
-						state_n <= RESET;
+					when ascii_c =>
+						x_n     <= (others => '0');
+						y_n     <= (others => '0');
+						c_n     <= blank;
+						count_n <= (others => '0');
+						limit_n <= "1000000000";
+						state_n <= ERASING;
 					when lsqb =>
 						state_n  <= NUMBER1;
 						akk_init <= '1';
+
+					when ascii_7 => -- 'ESC 7'; Save Cursor and Attributes
+						saved_x_n    <= x_c;
+						saved_y_n    <= y_c;
+						saved_attr_n <= attr_c;
+						state_n      <= ACCEPT;
+					when ascii_8 => -- 'ESC 8'; Restore Cursor and Attributes
+						x_n          <= saved_x_c;
+						y_n          <= saved_y_c;
+						attr_n       <= saved_attr_c;
+						state_n      <= ACCEPT;
 					when others => -- Error
 						state_n <= ACCEPT;
 					end case;
@@ -694,6 +738,14 @@ begin
 					when x"54" => -- CSI n 'T' : scroll down
 						ctl_n(4) <= '1';
 						state_n  <= WRITE;
+					when x"73" => -- CSI 's': SCP (Secure, Contain, Protect the Cursor Position)
+						saved_x_n    <= x_c;
+						saved_y_n    <= y_c;
+						state_n      <= ACCEPT; -- go-to cursor update state?
+					when x"75" => -- CSI 'u': RCP Restore Cursor Position
+						x_n          <= saved_x_c;
+						y_n          <= saved_y_c;
+						state_n      <= ACCEPT; -- go-to cursor update state?
 
 					-- CSI ? NUMBER ('h' or 'l')
 					-- when x"3f" => -- ESC ? 25 (l,h)
@@ -710,7 +762,7 @@ begin
 					end case;
 
 					if repeat then
-						if n1_c = 0 then
+						if n1_c <= 1 then
 							state_n <= exit_repeat;
 						else
 							n1_n <= n1_c - 1;
@@ -749,7 +801,6 @@ begin
 						c_n     <= blank;
 						count_n <= (others => '0');
 						limit_n <= "1000000000";
-						-- base_n  <= std_ulogic_vector(unsigned(base_c) + 80);
 					else
 						state_n <= WRITE;
 					end if;
@@ -774,10 +825,24 @@ begin
 				elsif state_c = ATTRIB then
 					case n1_c is
 					when x"00"  =>
-						attr_n    <= attr_default;
-						conceal_n <= false;
+						attr_n          <= attr_default;
+						conceal_n       <= false;
+						reverse_video_n <= false;
 					when x"01"  => attr_n(6) <= '1'; -- bold
-					when x"07"  => attr_n(7) <= '1'; -- reverse video
+					-- when x"02"  => -- faint
+					when x"16"  => attr_n(6) <= '0'; -- normal brightness
+					when x"05"  => attr_n(7) <= '1'; -- slow blink
+					when x"19"  => attr_n(7) <= '0'; -- blink off
+					when x"07"  => 
+						if not reverse_video_c then
+							attr_n    <= attr_c(7 downto 6) & attr_c(2 downto 0) & attr_c(5 downto 3);
+						end if;
+						reverse_video_n <= true;
+					when x"27" =>
+						if reverse_video_c then
+							attr_n    <= attr_c(7 downto 6) & attr_c(2 downto 0) & attr_c(5 downto 3);
+						end if;
+						reverse_video_n <= false;
 					when x"08"  => conceal_n <= true;
 					when x"1C"  => conceal_n <= false;
 
@@ -785,30 +850,26 @@ begin
 					-- when x"6c" => if n2_c = x"19" then ctl_n(2) <= '0'; end if; -- l, hide cursor
 					-- when x"68" => if n2_c = x"19" then ctl_n(2) <= '1'; end if; -- h, show cursor
 
-					-- NOTE: This should make the _text_ blink, not the cursor!
-					when x"05"  => ctl_n(1) <= '1'; -- blink slow
-					when x"19"  => ctl_n(1) <= '0'; -- blink off
+					when x"0A"  => font_sel_n    <= (others => '0');
+					when x"0B"  => font_sel_n(0) <= '1';
 
-					when x"0A"  => font_sel_n <= '0';
-					when x"0B"  => font_sel_n <= '1';
+					when x"1E"  => reverse_video("000", true); -- 30
+					when x"1F"  => reverse_video("001", true); 
+					when x"20"  => reverse_video("010", true); 
+					when x"21"  => reverse_video("011", true); 
+					when x"22"  => reverse_video("100", true); 
+					when x"23"  => reverse_video("101", true); 
+					when x"24"  => reverse_video("110", true); 
+					when x"25"  => reverse_video("111", true); 
 
-					when x"1E"  => attr_n(5 downto 3) <= "000"; -- 30
-					when x"1F"  => attr_n(5 downto 3) <= "001";
-					when x"20"  => attr_n(5 downto 3) <= "010";
-					when x"21"  => attr_n(5 downto 3) <= "011";
-					when x"22"  => attr_n(5 downto 3) <= "100";
-					when x"23"  => attr_n(5 downto 3) <= "101";
-					when x"24"  => attr_n(5 downto 3) <= "110";
-					when x"25"  => attr_n(5 downto 3) <= "111";
-
-					when x"28"  => attr_n(2 downto 0) <= "000"; -- 40
-					when x"29"  => attr_n(2 downto 0) <= "001";
-					when x"2A"  => attr_n(2 downto 0) <= "010";
-					when x"2B"  => attr_n(2 downto 0) <= "011";
-					when x"2C"  => attr_n(2 downto 0) <= "100";
-					when x"2D"  => attr_n(2 downto 0) <= "101";
-					when x"2E"  => attr_n(2 downto 0) <= "110";
-					when x"2F"  => attr_n(2 downto 0) <= "111";
+					when x"28"  => reverse_video("000", false); -- 40
+					when x"29"  => reverse_video("001", false); 
+					when x"2A"  => reverse_video("010", false); 
+					when x"2B"  => reverse_video("011", false); 
+					when x"2C"  => reverse_video("100", false); 
+					when x"2D"  => reverse_video("101", false); 
+					when x"2E"  => reverse_video("110", false); 
+					when x"2F"  => reverse_video("111", false); 
 					when others =>
 					end case;
 					state_n <= ACCEPT;
@@ -853,7 +914,6 @@ entity vga_top is
 end;
 
 architecture behav of vga_top is
-
 	-- Setup for text buffer memory
 	constant text_addr_length: positive    := 13;
 	constant text_data_length: positive    := 16;
@@ -990,7 +1050,7 @@ entity vga_core is
 		font_a:   out std_ulogic_vector(12 downto 0); -- font buffer
 		font_d:   in  std_ulogic_vector( 7 downto 0);
 		font_sel: in  std_ulogic_vector(0 downto 0);
-		 --
+		--
 		ocrx:     in  std_ulogic_vector(6 downto 0);
 		ocry:     in  std_ulogic_vector(5 downto 0);
 		octl:     in  std_ulogic_vector(3 downto 0);
@@ -999,7 +1059,6 @@ entity vga_core is
 end entity;
 
 architecture rtl of vga_core is
-
 	signal foreground_draw_int, background_draw_int: std_ulogic := '0';
 	signal hsync_int: std_ulogic := '1';
 	signal vsync_int: std_ulogic := '1';
@@ -1027,8 +1086,9 @@ architecture rtl of vga_core is
 	signal cur_blink: std_ulogic := '0';
 
 	signal background_draw, foreground_draw: std_ulogic := '0';
-	signal attr:      std_ulogic_vector(7 downto 0) := (others =>'0');
+	signal attr:          std_ulogic_vector(7 downto 0) := (others =>'0');
 	signal attr_we_delay: std_ulogic := '0';
+	signal slowclk:       std_ulogic := '0';
 begin
 
 	-- hsync generator, initialized with '1'
@@ -1096,7 +1156,6 @@ begin
 
 	-- counters, hctr, vctr, srcx, srcy, chrx, chry
 	counters: block
-
 		signal hctr_ce: std_ulogic := '0';
 		signal hctr_rs: std_ulogic := '0';
 		signal vctr_ce: std_ulogic := '0';
@@ -1122,8 +1181,6 @@ begin
 		signal rom_tmp: unsigned(11 downto 0) := (others => '0'); -- range 3071 downto 0;
 
 		signal text_d_tmp: std_ulogic_vector(7 downto 0) := (others => '0');
-
-		-- @todo Rename these signals to something more sensible
 	begin
 		u_hctr: work.vga_pkg.ctrm generic map (g => g, M => 794) 
 					port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
@@ -1176,20 +1233,23 @@ begin
 		signal blue_on:  std_ulogic := '0';
 		signal bold:     std_ulogic := '0';
 		signal reverse:  std_ulogic := '0';
-		signal set:      std_ulogic_vector(2 downto 0) := "110";
 		signal final:    std_ulogic_vector(2 downto 0) := "111";
 	begin
+		reverse     <= '0' when attr(7) = '0' else slowclk;
 		bold        <= attr(6);
-		reverse     <= attr(7);
-		set         <= "100" when bold = '0' else "111";
-		final       <= set   when reverse = '0' else not set;
+		final       <= "100" when bold = '0' else "111";
 
-		red_on      <= attr(3) when foreground_draw = '1' else
-			       attr(0) when background_draw = '1' else '0';
-		green_on    <= attr(4) when foreground_draw = '1' else
-			       attr(1) when background_draw = '1' else '0';
-		blue_on     <= attr(5) when foreground_draw = '1' else
-			       attr(2) when background_draw = '1' else '0';
+		-- Blinking is implemented by inverting the attributes, but
+		-- instead it could be implemented by swapping foreground and
+		-- background attributes. Either is valid. A less intrusive
+		-- display would perhaps only affect the foreground color in
+		-- either case.
+		red_on      <= (reverse xor attr(3)) when foreground_draw = '1' else
+			       (reverse xor attr(0)) when background_draw = '1' else '0';
+		green_on    <= (reverse xor attr(4)) when foreground_draw = '1' else
+			       (reverse xor attr(1)) when background_draw = '1' else '0';
+		blue_on     <= (reverse xor attr(5)) when foreground_draw = '1' else
+			       (reverse xor attr(2)) when background_draw = '1' else '0';
 
 		o_vga.red   <= final             when red_on    = '1' else "000";
 		o_vga.green <= final             when green_on  = '1' else "000";
@@ -1219,18 +1279,18 @@ begin
 	hw_cursor: block
 		signal small:   std_ulogic := '0';
 		signal curen2:  std_ulogic := '0';
-		signal slowclk: std_ulogic := '0';
 		signal curpos:  std_ulogic := '0';
 		signal yint:    std_ulogic := '0';
 		-- signal crx:     integer range 79 downto 0;
 		-- signal cry:     integer range 39 downto 0;
 		signal crx:     integer range 127 downto 0;
 		signal cry:     integer range 64 downto 0;
-		signal counter: unsigned(22 downto 0) := (others => '0');
+		signal counter: unsigned(24 downto 0) := (others => '0');
+		signal cursorclk: std_ulogic := '0';
 	begin
-		-- slowclk for blink hardware cursor
 		counter <= counter + 1 when rising_edge(clk25MHz) else counter;
-		slowclk <= counter(22); --2.98Hz
+		cursorclk <= counter(22); -- 2.98Hz
+		slowclk   <= counter(24); -- 0.745Hz
 
 		crx <= to_integer(unsigned(ocrx(6 downto 0)));
 		cry <= to_integer(unsigned(ocry(5 downto 0)));
@@ -1238,7 +1298,7 @@ begin
 		--
 		curpos <= '1' when scry = cry and scrx = crx else '0';
 		small  <= '1' when (chry > 8)                else '0';
-		curen2 <= (slowclk or (not cur_blink)) and cur_en;
+		curen2 <= (cursorclk or (not cur_blink)) and cur_en;
 		yint   <= '1' when cur_mode = '0'            else small;
 		y      <= (yint and curpos and curen2) xor losr_do;
 	end block;

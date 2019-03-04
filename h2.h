@@ -200,7 +200,7 @@ typedef struct {
 	terminal_state_t state;
 	bool blinks;
 	bool cursor_on;
-	vt100_attribute_t attribute;
+	vt100_attribute_t attribute, attribute_saved;
 	vt100_attribute_t attributes[VT100_MAX_SIZE];
 	uint8_t m[VT100_MAX_SIZE];
 	uint8_t command_index;

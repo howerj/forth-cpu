@@ -176,9 +176,11 @@ viewer: simulation
 endif
 
 USB?=/dev/ttyUSB0
+BAUD?=115200
+#BAUD?=9600
 
 talk:
-	picocom --omap delbs -e b -b 115200 ${USB}
+	picocom --omap delbs -e b -b ${BAUD} ${USB}
 
 bitfile: design.bit
 

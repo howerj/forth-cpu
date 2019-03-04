@@ -28,7 +28,6 @@ use ieee.numeric_std.all;
 use std.textio.all;
 
 package util is
-
 	-- Not all modules will need every generic specified here, even so it
 	-- is easier to group the common generics in one structure.
 	type common_generics is record
@@ -207,7 +206,7 @@ package util is
 			din:         in    std_ulogic_vector(N - 1 downto 0);
 			din_we:      in    std_ulogic;
 			dout:        out   std_ulogic_vector(N - 1 downto 0);
-			pins:        inout std_logic_vector(N - 1 downto 0));
+			pins:        inout std_logic_vector(N - 1 downto 0)); -- NB!
 	end component;
 
 	component io_pins_tb is
@@ -481,11 +480,11 @@ package util is
 		v_pulse => 3,   v_back_porch => 38,  v_pixels => 1200, v_front_porch =>   1, v_polarity => '1');
 
 	component vga_controller is
-	generic(
+	generic (
 		g: common_generics;
 		pixel_clock_frequency:  positive := 25_000_000;
 		constant cfg: vga_configuration  := vga_640x480); 
-	port(
+	port (
 		clk, rst:          in std_ulogic;  -- pixel clock, must run at configured frequency
 		h_sync, v_sync:   out std_ulogic;  -- sync pulses
 		h_blank, v_blank: out std_ulogic;
@@ -493,7 +492,7 @@ package util is
 	end component;
 
 	component vga_tb is
-		generic(g: common_generics; pixel_clock_frequency: positive := 25_000_000; simulation_us: time := 20000 us);
+		generic (g: common_generics; pixel_clock_frequency: positive := 25_000_000; simulation_us: time := 20000 us);
 	end component;
 
 	constant led_7_segment_character_length: positive := 4;
@@ -872,24 +871,24 @@ end entity;
 
 architecture behav of util_tb is
 begin
-	uut_timer_us: work.util.timer_us_tb             generic map(g => g);
-	uut_full_add: work.util.full_adder_tb           generic map(g => g);
-	uut_fifo:     work.util.fifo_tb                 generic map(g => g);
-	uut_counter:  work.util.counter_tb              generic map(g => g);
-	uut_ucpu:     work.util.ucpu_tb                 generic map(g => g);
-	uut_rdivider: work.util.restoring_divider_tb    generic map(g => g);
-	uut_debounce: work.util.debounce_us_tb          generic map(g => g);
-	uut_rst_gen:  work.util.reset_generator_tb      generic map(g => g);
-	uut_bit_cnt:  work.util.bit_count_tb            generic map(g => g);
-	uut_majority: work.util.majority_tb             generic map(g => g);
-	uut_delay_ln: work.util.delay_line_tb           generic map(g => g);
-	uut_rising:   work.util.rising_edge_detector_tb generic map(g => g);
-	uut_shiftReg: work.util.shift_register_tb       generic map(g => g);
-	uut_lfsr:     work.util.lfsr_tb                 generic map(g => g);
-	uut_gray:     work.util.gray_tb                 generic map(g => g);
-	uut_ham:      work.util.hamming_7_4_tb          generic map(g => g); -- Oink!
-	uut_vga:      work.util.vga_tb                  generic map(g => g, simulation_us => 1 us);
-	uut_7_seg:   work.util.led_7_segment_display_tb generic map(g => g);
+	uut_timer_us: work.util.timer_us_tb             generic map (g => g);
+	uut_full_add: work.util.full_adder_tb           generic map (g => g);
+	uut_fifo:     work.util.fifo_tb                 generic map (g => g);
+	uut_counter:  work.util.counter_tb              generic map (g => g);
+	uut_ucpu:     work.util.ucpu_tb                 generic map (g => g);
+	uut_rdivider: work.util.restoring_divider_tb    generic map (g => g);
+	uut_debounce: work.util.debounce_us_tb          generic map (g => g);
+	uut_rst_gen:  work.util.reset_generator_tb      generic map (g => g);
+	uut_bit_cnt:  work.util.bit_count_tb            generic map (g => g);
+	uut_majority: work.util.majority_tb             generic map (g => g);
+	uut_delay_ln: work.util.delay_line_tb           generic map (g => g);
+	uut_rising:   work.util.rising_edge_detector_tb generic map (g => g);
+	uut_shiftReg: work.util.shift_register_tb       generic map (g => g);
+	uut_lfsr:     work.util.lfsr_tb                 generic map (g => g);
+	uut_gray:     work.util.gray_tb                 generic map (g => g);
+	uut_ham:      work.util.hamming_7_4_tb          generic map (g => g); -- Oink!
+	uut_vga:      work.util.vga_tb                  generic map (g => g, simulation_us => 1 us);
+	uut_7_seg:   work.util.led_7_segment_display_tb generic map (g => g);
 
 	stimulus_process: process
 	begin
@@ -1127,11 +1126,11 @@ architecture behav of shift_register_tb is
 	signal stop: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.shift_register
-	generic map(g => g, N => N) port map(clk => clk, rst => rst, we => we, di => di, do => do);
+	generic map (g => g, N => N) port map (clk => clk, rst => rst, we => we, di => di, do => do);
 
 	stimulus_process: process
 	begin
@@ -1218,12 +1217,12 @@ architecture behav of timer_us_tb is
 	signal stop: std_ulogic      := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.timer_us
-		generic map(g => g, timer_period_us => 1)
-		port map(clk => clk, rst => rst, co => co);
+		generic map (g => g, timer_period_us => 1)
+		port map (clk => clk, rst => rst, co => co);
 
 	stimulus_process: process
 	begin
@@ -1291,12 +1290,12 @@ architecture behav of rising_edge_detector_tb is
 	signal stop: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.rising_edge_detector
-		generic map(g => g)
-		port map(clk => clk, rst => rst, di => di, do => do);
+		generic map (g => g)
+		port map (clk => clk, rst => rst, di => di, do => do);
 
 	stimulus_process: process
 	begin
@@ -1335,8 +1334,8 @@ architecture structural of rising_edge_detectors is
 begin
 	changes: for i in N - 1 downto 0 generate
 		d_instance: work.util.rising_edge_detector
-			generic map(g => g)
-			port map(clk => clk, rst => rst, di => di(i), do => do(i));
+			generic map (g => g)
+			port map (clk => clk, rst => rst, di => di(i), do => do(i));
 	end generate;
 end architecture;
 
@@ -1383,8 +1382,8 @@ end entity;
 architecture rtl of full_adder is
 	signal carry1, carry2, sum1: std_ulogic;
 begin
-	ha1: entity work.half_adder generic map(g => g) port map(a => x,    b => y, sum => sum1, carry => carry1);
-	ha2: entity work.half_adder generic map(g => g) port map(a => sum1, b => z, sum => sum,  carry => carry2);
+	ha1: entity work.half_adder generic map (g => g) port map (a => x,    b => y, sum => sum1, carry => carry1);
+	ha2: entity work.half_adder generic map (g => g) port map (a => sum1, b => z, sum => sum,  carry => carry2);
 	carry <= carry1 or carry2 after g.delay;
 end architecture;
 
@@ -1420,12 +1419,12 @@ architecture behav of full_adder_tb is
 	signal stop: std_ulogic     := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.full_adder 
-		generic map(g => g)
-		port map(x => x, y => y, z => z, sum => sum, carry => carry);
+		generic map (g => g)
+		port map (x => x, y => y, z => z, sum => sum, carry => carry);
 
 	stimulus_process: process
 	begin
@@ -1564,13 +1563,13 @@ architecture behavior of fifo_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	stop <= '1' when stop_w = '1' and stop_r = '1' else '0';
 
 	uut: entity work.fifo
-		generic map(g => g, data_width => data_width, fifo_depth => fifo_depth)
+		generic map (g => g, data_width => data_width, fifo_depth => fifo_depth)
 		port map (
 			clk   => clk,
 			rst   => rst,
@@ -1732,12 +1731,12 @@ architecture behavior of counter_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.counter
-		generic map(g => g, N => length)
-		port map(
+		generic map (g => g, N => length)
+		port map (
 			clk   => clk,
 			rst   => rst,
 			ce    => ce,
@@ -1861,12 +1860,12 @@ architecture behavior of lfsr_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.lfsr
-		generic map(g => g, tap => "0111001")
-		port map(clk => clk,
+		generic map (g => g, tap => "0111001")
+		port map (clk => clk,
 			 rst => rst,
 			 we => we,
 			 di => di,
@@ -1917,10 +1916,10 @@ architecture rtl of io_pins is
 	signal din_o:     std_ulogic_vector(din'range)     := (others => '0');
 begin
 
-	control_r: entity work.reg generic map(g => g, N => N) 
-				port map(clk => clk, rst => rst, di => control, we => control_we, do => control_o);
-	din_r:     entity work.reg generic map(g => g, N => N)
-				port map(clk => clk, rst => rst, di => din,     we => din_we,     do => din_o);
+	control_r: entity work.reg generic map (g => g, N => N) 
+				port map (clk => clk, rst => rst, di => control, we => control_we, do => control_o);
+	din_r:     entity work.reg generic map (g => g, N => N)
+				port map (clk => clk, rst => rst, di => din,     we => din_we,     do => din_o);
 
 	pins_i: for i in control_o'range generate
 		dout(i) <= pins(i)  when control_o(i) = '0' else '0' after g.delay;
@@ -1954,12 +1953,12 @@ architecture behavior of io_pins_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.io_pins
-		generic map(g => g, N => N)
-		port map(
+		generic map (g => g, N => N)
+		port map (
 			clk         =>  clk,
 			rst         =>  rst,
 			control     =>  control,
@@ -2241,8 +2240,8 @@ architecture structural of data_source is
 	signal addr: std_ulogic_vector(addr_length - 1 downto 0);
 begin
 	count: work.util.counter
-		generic map(g => g, N => addr_length)
-		port map(
+		generic map (g => g, N => addr_length)
+		port map (
 			clk      =>  clk,
 			rst      =>  rst,
 			ce       =>  ce,
@@ -2252,13 +2251,13 @@ begin
 			load_we  =>  load_we);
 
 	ram: work.util.single_port_block_ram
-		generic map(
+		generic map (
 			g           => g,
 			addr_length => addr_length,
 			data_length => data_length,
 			file_name   => file_name,
 			file_type   => file_type)
-		port map(
+		port map (
 			clk  => clk,
 			addr => addr,
 			dwe  => '0',
@@ -2398,16 +2397,16 @@ architecture testing of ucpu_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	bram_0: entity work.dual_port_block_ram
-	generic map(g => g,
+	generic map (g => g,
 		addr_length => addr_length,
 		data_length => data_length,
 		file_name   => file_name,
 		file_type   => FILE_BINARY)
-	port map(
+	port map (
 		a_clk   =>  clk,
 		a_dwe   =>  '0',
 		a_dre   =>  '1',
@@ -2423,8 +2422,8 @@ begin
 		b_dout  =>  b_dout);
 
 	ucpu_0: entity work.ucpu
-	generic map(delay => g.delay, width => data_length)
-	port map(
+	generic map (delay => g.delay, width => data_length)
+	port map (
 		clk => clk,
 		rst => rst,
 		pc  => a_addr,
@@ -2577,12 +2576,12 @@ architecture testing of restoring_divider_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.restoring_divider
-		generic map(g => g, N => N)
-		port map(
+		generic map (g => g, N => N)
+		port map (
 			clk   => clk,
 			rst   => rst,
 			a     => a,
@@ -2638,8 +2637,8 @@ architecture rtl of debounce_us is
 	signal rst, done: std_ulogic             := '0';
 begin
 	timer: work.util.timer_us
-		generic map(g => g, timer_period_us => timer_period_us)
-		port map(
+		generic map (g => g, timer_period_us => timer_period_us)
+		port map (
 			clk => clk,
 			rst => rst,
 			co  => done);
@@ -2677,12 +2676,12 @@ architecture testing of debounce_us_tb is
 	signal stop:     std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut: work.util.debounce_us
-		generic map(g => g, timer_period_us => 1)
-		port map(clk => clk, di => di, do => do);
+		generic map (g => g, timer_period_us => 1)
+		port map (clk => clk, di => di, do => do);
 
 	stimulus_process: process
 	begin
@@ -2716,8 +2715,8 @@ architecture structural of debounce_block_us is
 begin
 	debouncer: for i in (N - 1) downto 0 generate
 		d_instance: work.util.debounce_us
-			generic map(g => g, timer_period_us => timer_period_us)
-			port map(clk => clk, di => di(i), do => do(i));
+			generic map (g => g, timer_period_us => timer_period_us)
+			port map (clk => clk, di => di(i), do => do(i));
 	end generate;
 end architecture;
 
@@ -2784,8 +2783,8 @@ architecture structural of state_block_changed is
 begin
 	changes: for i in (N - 1) downto 0 generate
 		d_instance: work.util.state_changed
-			generic map(g => g)
-			port map(clk => clk, rst => rst, di => di(i), do => do(i));
+			generic map (g => g)
+			port map (clk => clk, rst => rst, di => di(i), do => do(i));
 	end generate;
 end architecture;
 
@@ -2842,12 +2841,12 @@ architecture testing of reset_generator_tb is
 	signal stop, clk, rst: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => open);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => open);
 
 	uut: entity work.reset_generator
-		generic map(g => g, reset_period_us => 1)
-		port map(clk => clk, rst => rst);
+		generic map (g => g, reset_period_us => 1)
+		port map (clk => clk, rst => rst);
 
 	stimulus_process: process
 	begin
@@ -2888,7 +2887,6 @@ begin
 		end loop;
 		count <= std_ulogic_vector(t) after g.delay;
 	end process;
-
 end architecture;
 
 library ieee, work;
@@ -2901,14 +2899,14 @@ entity bit_count_tb is
 end entity;
 
 architecture testing of bit_count_tb is
-	constant clock_period:  time     := 1000 ms / g.clock_frequency;
-	constant N:           positive := 3;
+	constant clock_period: time     := 1000 ms / g.clock_frequency;
+	constant N:            positive := 3;
 	signal bits:  std_ulogic_vector(N - 1 downto 0)     := (others => '0');
 	signal count: std_ulogic_vector(n_bits(N) downto 0) := (others => '0');
 begin
 	uut: entity work.bit_count
-		generic map(g => g, N => N)
-		port map(bits => bits, count => count);
+		generic map (g => g, N => N)
+		port map (bits => bits, count => count);
 
 	stimulus_process: process
 		procedure test(b: std_ulogic_vector; c: std_ulogic_vector)  is
@@ -2918,7 +2916,6 @@ begin
 			assert count = c severity failure;
 		end procedure;
 	begin
-		-- @todo make 'count' bit length optimal for non-power of 2 numbers
 		test("000", "000");
 		test("001", "001");
 		test("010", "001");
@@ -2950,30 +2947,49 @@ end entity;
 
 architecture behaviour of majority is
 	signal count: std_ulogic_vector(n_bits(N) downto 0) := (others => '0');
+	-- It might be worth handling up to five or so bits in combinatorial
+	-- logic, or it might not. 
 begin
-	-- TODO: Handle N = 1, 2, 3, 4, and 5 as special cases
-	bit_counter: entity work.bit_count
-		generic map(g => g, N => N)
-		port map(bits => bits, count => count);
+	majority_1: if N = 1 generate
+		vote <= bits(0) after g.delay;
+		tie  <= '0' after g.delay;
+	end generate;
 
-	tie <= '1' when (unsigned(count) = N/2) and (N mod 2) = 0 else '0' after g.delay;
+	majority_2: if N = 2 generate
+		ew_2:  if     even_wins generate vote <= bits(0)  or bits(1) after g.delay; end generate;
+		enw_2: if not even_wins generate vote <= bits(0) and bits(1) after g.delay; end generate;
+		tie  <= bits(0) or bits(1);
+	end generate;
 
-	process (count)
-	begin
-		if even_wins and (N mod 2) = 0 then
-			if unsigned(count) >= (N/2) then
-				vote <= '1' after g.delay;
+	majority_3: if N = 3 generate
+		vote <= (bits(0) and bits(1)) or (bits(1) and bits(2)) or (bits(0) and bits(2)) after g.delay;
+		tie  <= '0' after g.delay;
+	end generate;
+
+	majority_n: if N > 3 generate
+		bit_counter: entity work.bit_count
+			generic map (g => g, N => N)
+			port map (bits => bits, count => count);
+
+		tie <= '1' when (unsigned(count) = N/2) and (N mod 2) = 0 else '0' after g.delay;
+
+		process (count)
+		begin
+			if even_wins and (N mod 2) = 0 then
+				if unsigned(count) >= (N/2) then
+					vote <= '1' after g.delay;
+				else
+					vote <= '0' after g.delay;
+				end if;
 			else
-				vote <= '0' after g.delay;
+				if unsigned(count) > (N/2) then
+					vote <= '1' after g.delay;
+				else
+					vote <= '0' after g.delay;
+				end if;
 			end if;
-		else
-			if unsigned(count) > (N/2) then
-				vote <= '1' after g.delay;
-			else
-				vote <= '0' after g.delay;
-			end if;
-		end if;
-	end process;
+		end process;
+	end generate;
 end architecture;
 
 library ieee, work;
@@ -3001,16 +3017,16 @@ architecture testing of majority_tb is
 	signal vote_4_m, tie_4_m: std_ulogic := '0';
 begin
 	uut_3: entity work.majority
-		generic map(g => g, N => N_3)
-		port map(bits => bits_3, vote => vote_3, tie => tie_3);
+		generic map (g => g, N => N_3)
+		port map (bits => bits_3, vote => vote_3, tie => tie_3);
 
 	uut_4_t: entity work.majority
-		generic map(g => g, N => N_4_t, even_wins => true)
-		port map(bits => bits_4_t, vote => vote_4_t, tie => tie_4_t);
+		generic map (g => g, N => N_4_t, even_wins => true)
+		port map (bits => bits_4_t, vote => vote_4_t, tie => tie_4_t);
 
 	uut_4_m: entity work.majority
-		generic map(g => g, N => N_4_m)
-		port map(bits => bits_4_m, vote => vote_4_m, tie => tie_4_m);
+		generic map (g => g, N => N_4_m)
+		port map (bits => bits_4_m, vote => vote_4_m, tie => tie_4_m);
 
 	stimulus_process: process
 		procedure test_3(b: std_ulogic_vector; vote, tie: std_ulogic)  is
@@ -3113,8 +3129,8 @@ begin
 	delay_line_generate: for i in 0 to depth generate
 		rest: if i > 0 generate
 			ux: work.util.reg
-				generic map(g => g, N => width)
-				port map(clk => clk, rst => rst, we => ce, di => sigs(i - 1), do => sigs(i));
+				generic map (g => g, N => width)
+				port map (clk => clk, rst => rst, we => ce, di => sigs(i - 1), do => sigs(i));
 		end generate;
 	end generate;
 	do <= sigs(depth);
@@ -3138,11 +3154,11 @@ architecture testing of delay_line_tb is
 	signal di, do: std_ulogic_vector(width - 1 downto 0) := (others => '0');
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut: entity work.delay_line
-	generic map(g => g, depth => depth, width => width) port map(clk => clk, rst => rst, di => di, do => do, ce => '1');
+	generic map (g => g, depth => depth, width => width) port map (clk => clk, rst => rst, di => di, do => do, ce => '1');
 
 	stimulus_process: process
 	begin
@@ -3236,14 +3252,14 @@ architecture testing of gray_tb is
 	signal di, gray, do: std_ulogic_vector(n - 1 downto 0) := (others => '0');
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut_encode: entity work.gray_encoder
-	generic map(g => g, n => n) port map(di => di, do => gray);
+	generic map (g => g, n => n) port map (di => di, do => gray);
 
 	uut_decode: entity work.gray_decoder
-	generic map(g => g, n => n) port map(di => gray, do => do);
+	generic map (g => g, n => n) port map (di => gray, do => do);
 
 	stimulus_process: process
 		procedure test(slv: std_ulogic_vector) is
@@ -3413,11 +3429,11 @@ architecture testing of hamming_7_4_tb is
 	signal parity_s, single_s, double_s: std_ulogic := '0';
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	uut_encode: entity work.hamming_7_4_encoder
-	generic map(g => g) port map(di => di, do => encoded_tx, parity => parity);
+	generic map (g => g) port map (di => di, do => encoded_tx, parity => parity);
 
 	lossy_channel: process(encoded_tx)
 		variable seed1, seed2: positive;
@@ -3442,10 +3458,10 @@ begin
 	ebit <= encoded_tx xor encoded_rx;
 
 	uut_decode_secdec: entity work.hamming_7_4_decoder
-	generic map(g => g) port map(di => encoded_rx, do => do, parity => parity, single => single, double => double);
+	generic map (g => g) port map (di => encoded_rx, do => do, parity => parity, single => single, double => double);
 
 	uut_decode_single: entity work.hamming_7_4_decoder
-	generic map(g => g, secdec => false) port map(di => encoded_rx, do => do_s, parity => parity_s, single => single_s, double => double_s);
+	generic map (g => g, secdec => false) port map (di => encoded_rx, do => do_s, parity => parity_s, single => single_s, double => double_s);
 
 	stimulus_process: process
 		procedure test(slv: std_ulogic_vector) is
@@ -3537,11 +3553,11 @@ use ieee.std_logic_1164.all;
 use work.util.all;
 
 entity vga_controller is
-	generic(
+	generic (
 		g: common_generics;
 		pixel_clock_frequency:  positive := 25_000_000;
 		constant cfg: vga_configuration  := vga_640x480); 
-	port(
+	port (
 		clk, rst:          in std_ulogic;
 		h_sync, v_sync:   out std_ulogic;
 		h_blank, v_blank: out std_ulogic;
@@ -3613,7 +3629,7 @@ use ieee.numeric_std.all;
 use work.util.all;
 
 entity vga_tb is
-	generic(g: common_generics; pixel_clock_frequency: positive := 25_000_000; simulation_us: time := 20000 us);
+	generic (g: common_generics; pixel_clock_frequency: positive := 25_000_000; simulation_us: time := 20000 us);
 end entity;
 
 architecture testing of vga_tb is
@@ -3640,8 +3656,8 @@ begin
 	end process;
 
 	uut: work.util.vga_controller
-		generic map(g => g, pixel_clock_frequency => pixel_clock_frequency)
-		port map(
+		generic map (g => g, pixel_clock_frequency => pixel_clock_frequency)
+		port map (
 			rst     => rst, 
 			clk     => clk,
 			h_sync  => h_sync, 
@@ -3674,12 +3690,12 @@ use ieee.numeric_std.all;
 use work.util.all;
 
 entity led_7_segment_display is
-	generic(
+	generic (
 		g:                      common_generics;
 		use_bcd_not_hex:        boolean  := true;
 		refresh_rate_us:        natural  := 1500;
 		number_of_led_displays: positive := 4);
-	port(
+	port (
 		clk:      in   std_ulogic;
 		rst:      in   std_ulogic;
 
@@ -3738,32 +3754,34 @@ architecture rtl of led_7_segment_display is
 	--
 
 	function hex_to_7_segment(a: led_7_segment_character) return led_7_segment is
-		variable r: std_ulogic_vector(7 downto 0);
+		variable r: std_ulogic_vector(7 downto 0) := x"00";
 	begin
-		case a is
-			when "0000" => r := x"3F"; -- 0
-			when "0001" => r := x"06"; -- 1
-			when "0010" => r := x"5B"; -- 2
-			when "0011" => r := x"4F"; -- 3
-			when "0100" => r := x"66"; -- 4
-			when "0101" => r := x"6D"; -- 5
-			when "0110" => r := x"7D"; -- 6
-			when "0111" => r := x"07"; -- 7
-			when "1000" => r := x"7F"; -- 8
-			when "1001" => r := x"6F"; -- 9
-			when "1010" => r := x"77"; -- A
-			when "1011" => r := x"7C"; -- b
-			when "1100" => r := x"39"; -- C
-			when "1101" => r := x"5E"; -- d
-			when "1110" => r := x"79"; -- E
-			when "1111" => r := x"71"; -- F
-			when others => r := x"00"; -- Unused
-		end case;
+		-- NB. You may have thought a case statement would be the best
+		-- way of doing this, and you would be right. However, Xilinx ISE
+		-- issues annoying 'INFO' statements when you do - thanks Xilinx!
+		-- The generated hardware is the same however.
+		   if a = "0000" then r := x"3F"; -- 0
+		elsif a = "0001" then r := x"06"; -- 1
+		elsif a = "0010" then r := x"5B"; -- 2
+		elsif a = "0011" then r := x"4F"; -- 3
+		elsif a = "0100" then r := x"66"; -- 4
+		elsif a = "0101" then r := x"6D"; -- 5
+		elsif a = "0110" then r := x"7D"; -- 6
+		elsif a = "0111" then r := x"07"; -- 7
+		elsif a = "1000" then r := x"7F"; -- 8
+		elsif a = "1001" then r := x"6F"; -- 9
+		elsif a = "1010" then r := x"77"; -- A
+		elsif a = "1011" then r := x"7C"; -- b
+		elsif a = "1100" then r := x"39"; -- C
+		elsif a = "1101" then r := x"5E"; -- d
+		elsif a = "1110" then r := x"79"; -- E
+		elsif a = "1111" then r := x"71"; -- F
+		end if;
 		return r;
 	end function;
 
 	function bcd_to_7_segment(a: led_7_segment_character) return led_7_segment is
-		variable r: std_ulogic_vector(7 downto 0);
+		variable r: std_ulogic_vector(7 downto 0) := x"00";
 	begin
 		case a is
 			when "0000" => r := x"3F"; -- 0
@@ -3807,8 +3825,8 @@ begin
 	an <= invert(shift_reg) after g.delay;
 
 	segment_reg: entity work.reg
-		generic map(g => g, N => number_of_led_displays * led_7_segment_character_length)
-		port map(
+		generic map (g => g, N => number_of_led_displays * led_7_segment_character_length)
+		port map (
 			clk => clk,
 			rst => rst,
 			we  => leds_we,
@@ -3816,8 +3834,8 @@ begin
 			do  => leds_reg_o);
 
 	segment_reg_re: entity work.reg
-		generic map(g => g, N => 1)
-		port map(
+		generic map (g => g, N => 1)
+		port map (
 			clk   => clk,
 			rst   => rst,
 			we    => '1',
@@ -3826,8 +3844,8 @@ begin
 
 	led_gen: for i in number_of_led_displays - 1 downto 0 generate
 		led_i: entity work.reg
-			generic map(g => g, N => led_7_segment_character_length)
-			port map(
+			generic map (g => g, N => led_7_segment_character_length)
+			port map (
 				clk => clk,
 				rst => rst,
 				we  => leds_reg_we_o,
@@ -3836,8 +3854,8 @@ begin
 	end generate;
 
 	timer: entity work.timer_us
-		generic map(g => g, timer_period_us => refresh_rate_us)
-		port map(
+		generic map (g => g, timer_period_us => refresh_rate_us)
+		port map (
 			clk             => clk,
 			rst             => rst,
 			co              => do_shift);
@@ -3893,13 +3911,13 @@ architecture testing of led_7_segment_display_tb is
 	signal leds:    std_ulogic_vector((number_of_led_displays * led_7_segment_character_length) - 1 downto 0);
 begin
 	cs: entity work.clock_source_tb
-		generic map(g => g, hold_rst => 2)
-		port map(stop => stop, clk => clk, rst => rst);
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
 
 	-- We have a very fast refresh rate here, just for testing purposes.
 	uut: entity work.led_7_segment_display
-		generic map(g => g, refresh_rate_us => 1)
-		port map(clk => clk, rst => rst, leds_we => leds_we, leds => leds, an => an, ka => ka);
+		generic map (g => g, refresh_rate_us => 1)
+		port map (clk => clk, rst => rst, leds_we => leds_we, leds => leds, an => an, ka => ka);
 
 	stimulus_process: process
 	begin

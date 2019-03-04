@@ -252,7 +252,9 @@ The following peripherals have been implemented in the [VHDL][] SoC to
 interface with devices on the [Nexys3][] board:
 
 * [VGA][] output device, text mode only, 80 by 40 characters from
-  <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>
+  <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>. This has
+been heavily modified from the original, which now implements most of a VT100
+terminal emulator.
 * Timer
 * [UART][] (Rx/Tx) in [uart.vhd][].
 * [PS/2][] Keyboard

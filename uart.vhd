@@ -32,15 +32,17 @@
 -- See: 
 -- * <https://en.wikipedia.org/wiki/Universal_asynchronous_receiver-transmitter>
 --
+--
 -- TODO: Fold this into 'util.vhd'.
--- TODO: The generics need cleaning up and renaming (N, D, tx_init and
--- rx_init should be set by baud rate and not clock value).
--- TODO: Add an optional FIFO which to be instantiated, and make the
--- top module have a FIFO interface regardless.
+-- TODO: Allow initial settings (baud rate, 8N1, to be set with a generic option)
 -- NOTE: We could replace this entire package with an entirely software driven
 -- solution. The only hardware we would need two timers driven at the sample
 -- rate (one for RX, one for TX) and a deglitched RX signal. An interrupt
 -- would be generated on the timers expiry.
+-- TODO: Instead of having a separate module for if we are using a FIFO or
+-- not we could instead enable this with generics and generate statements.
+-- The interface would need to be kept the same, however this would simplify
+-- things for the user of the module.
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -91,8 +93,8 @@ package uart_pkg is
 			baud:    out std_ulogic);
 	end component;
 
-	component uart_top is
-		generic (g: common_generics);
+	component uart_core is
+		generic (g: common_generics; baud: positive := 115200);
 		port (
 			clk:    in std_ulogic;
 			rst:    in std_ulogic;
@@ -107,6 +109,30 @@ package uart_pkg is
 			rx_nd: out std_ulogic;
 			rx_re:  in std_ulogic;
 			rx_do: out std_ulogic_vector(7 downto 0);
+		
+			reg:             in std_ulogic_vector(15 downto 0);
+			clock_reg_tx_we: in std_ulogic;
+			clock_reg_rx_we: in std_ulogic;
+			control_reg_we:  in std_ulogic);
+	end component;
+
+	component uart_top is
+		generic (g: common_generics; baud: positive := 115200);
+		port (
+			clk:    in std_ulogic;
+			rst:    in std_ulogic;
+
+			tx:            out std_ulogic;
+			tx_fifo_full:  out std_ulogic;
+			tx_fifo_empty: out std_ulogic;
+			tx_fifo_we:     in std_ulogic;
+			tx_fifo_data:   in std_ulogic_vector(7 downto 0);
+	
+			rx:             in std_ulogic;
+			rx_fifo_full:  out std_ulogic;
+			rx_fifo_empty: out std_ulogic;
+			rx_fifo_re:     in std_ulogic;
+			rx_fifo_data:  out std_ulogic_vector(7 downto 0);
 		
 			reg:             in std_ulogic_vector(15 downto 0);
 			clock_reg_tx_we: in std_ulogic;
@@ -147,7 +173,95 @@ use work.uart_pkg.all;
 use work.util.common_generics;
 
 entity uart_top is
-	generic (g: common_generics);
+	generic (g: common_generics; baud: positive := 115200);
+	port (
+		clk:    in std_ulogic;
+		rst:    in std_ulogic;
+
+		tx:            out std_ulogic;
+		tx_fifo_full:  out std_ulogic;
+		tx_fifo_empty: out std_ulogic;
+		tx_fifo_we:     in std_ulogic;
+		tx_fifo_data:   in std_ulogic_vector(7 downto 0);
+
+		rx:             in std_ulogic;
+		rx_fifo_full:  out std_ulogic;
+		rx_fifo_empty: out std_ulogic;
+		rx_fifo_re:     in std_ulogic;
+		rx_fifo_data:  out std_ulogic_vector(7 downto 0);
+	
+		reg:             in std_ulogic_vector(15 downto 0);
+		clock_reg_tx_we: in std_ulogic;
+		clock_reg_rx_we: in std_ulogic;
+		control_reg_we:  in std_ulogic);
+end entity;
+
+architecture structural of uart_top is
+	constant fifo_depth: positive := 8;
+	signal rx_ok, rx_nd, rx_push, rx_re: std_ulogic;
+	signal rx_pushed: std_ulogic_vector(rx_fifo_data'range);
+	signal tx_pop, tx_ok: std_ulogic;
+	signal tx_popped: std_ulogic_vector(tx_fifo_data'range);
+	signal tx_fifo_empty_b, rx_fifo_full_b: std_ulogic;
+begin
+	uart_core_0: work.uart_pkg.uart_core
+		generic map(g => g, baud => baud)
+		port map(
+			clk => clk,
+			rst => rst,
+
+
+			tx    => tx,
+			tx_we => tx_pop,
+			tx_di => tx_popped,
+			tx_ok => tx_ok,
+
+			rx   => rx,
+			rx_nd => rx_nd,
+			rx_ok => rx_ok,
+			rx_do => rx_pushed,
+			rx_re => rx_push,
+
+			reg => reg,
+			clock_reg_rx_we => clock_reg_rx_we,
+			clock_reg_tx_we => clock_reg_tx_we,
+			control_reg_we  => control_reg_we);
+
+	tx_fifo_empty <= tx_fifo_empty_b;
+	tx_pop <= tx_ok and not tx_fifo_empty_b;
+	uart_fifo_tx_0: work.util.fifo
+		generic map(g => g,
+			   data_width => tx_fifo_data'length,
+			   fifo_depth => fifo_depth)
+		port map (clk  => clk, rst => rst, 
+			  di   => tx_fifo_data,
+			  we   => tx_fifo_we,
+			  re   => tx_pop,
+			  do   => tx_popped,
+			  full => tx_fifo_full, empty => tx_fifo_empty_b);
+
+	rx_fifo_full <= rx_fifo_full_b;
+	rx_push <= rx_nd and rx_ok and not rx_fifo_full_b;
+	uart_fifo_rx_0: work.util.fifo
+		generic map(g => g,
+			   data_width => rx_fifo_data'length,
+			   fifo_depth => fifo_depth)
+		port map (clk => clk, rst => rst, 
+			  di  => rx_pushed,
+			  we  => rx_push,
+			  re  => rx_fifo_re,
+			  do  => rx_fifo_data,
+			  full => rx_fifo_full_b, empty => rx_fifo_empty);
+end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.uart_pkg.all;
+use work.util.common_generics;
+
+entity uart_core is
+	generic (g: common_generics; baud: positive := 115200);
 	port (
 		clk:    in std_ulogic;
 		rst:    in std_ulogic;
@@ -169,9 +283,9 @@ entity uart_top is
 		control_reg_we:  in std_ulogic);
 end entity;
 
-architecture structural of uart_top is
-	constant tx_init: integer := 54; -- 54 = 115200 @ 100 MHz
-	constant rx_init: integer := 50; -- 50 = 115200 @ 100 MHz + Fudge Factor
+architecture structural of uart_core is
+	constant tx_init: integer  := g.clock_frequency / (baud * 16); -- 54 = 115200 @ 100 MHz
+	constant rx_init: positive := tx_init - 1; -- 50 = 115200 @ 100 MHz + Fudge Factor
 	constant N: positive := 8;
 	signal tx_sample, tx_baud: std_ulogic;
 	signal rx_sample, rx_baud, rx_cr, rx_we: std_ulogic;
@@ -390,16 +504,26 @@ architecture behaviour of uart_rx is
 	signal count_c, count_n: integer range 0 to N - 1;
 	signal majority: std_ulogic;
 	signal fail_c, fail_n: std_ulogic_vector(1 downto 0);
-
 begin
 	do     <= rx_c after g.delay;
 	failed <= fail_c after g.delay;
 
-	-- majority <= sr_c(0);
-	-- majority <= sr_c(0) and sr_c(1); -- even wins is 'sr_c(0) or sr_c(1)'
 	-- NB. Majority forms in later half of cycle, as first bit is shifted off end, if
 	-- majority function has one fewer inputs than shift register
-	majority <= (sr_c(0) and sr_c(1)) or (sr_c(1) and sr_c(2)) or (sr_c(0) and sr_c(2));
+
+	assert D < 4 severity failure;
+
+	majority_1: if D = 1 generate
+		majority <= sr_c(0) after g.delay;
+	end generate;
+
+	majority_2: if D = 2 generate
+		majority <= sr_c(0) and sr_c(1) after g.delay; -- even wins is 'sr_c(0) or sr_c(1)'
+	end generate;
+
+	majority_3: if D = 3 generate
+		majority <= (sr_c(0) and sr_c(1)) or (sr_c(1) and sr_c(2)) or (sr_c(0) and sr_c(2)) after g.delay;
+	end generate;
 
 	process (clk, rst)
 		procedure reset is
@@ -735,7 +859,7 @@ begin
 
 	rx <= tx; -- loop back test
 
-	uut: work.uart_pkg.uart_top
+	uut: work.uart_pkg.uart_core
 		generic map(g => g)
 		port map(
 			clk             =>  clk,
