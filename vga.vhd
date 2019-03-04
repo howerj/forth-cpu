@@ -74,6 +74,7 @@ package vga_pkg is
 		vga_we_ram:  in  std_ulogic; -- Write enable RAM
 		vga_din:     in  std_ulogic_vector(15 downto 0);
 		vga_addr:    in  std_ulogic_vector(12 downto 0);
+		base:        in  std_ulogic_vector(12 downto 0);
 
 		-- VGA control registers
 		i_font_sel:       in std_ulogic_vector(0 downto 0);
@@ -472,6 +473,8 @@ architecture rtl of vt100 is
 	signal saved_attr_n, saved_attr_c: unsigned(attr_default'range) := (others => '0');
 
 	signal reverse_video_c, reverse_video_n: boolean := false;
+	signal base_n, base_c: unsigned(addr'range) := (others => '0');
+	signal addr_sel:       unsigned(addr'range) := (others => '0');
 begin
 	accumulator_0: work.vga_pkg.atoi
 		generic map(g => g, N => number)
@@ -487,25 +490,25 @@ begin
 			n_o    => n_o);
 
 	address: block
-		signal addr_int: unsigned(addr'range) := (others => '0');
 		signal mul: unsigned(15 downto 0)     := (others => '0');
+		signal addr_int: unsigned(addr'range) := (others => '0');
 	begin
 		mul      <= to_unsigned(to_integer(y_c) * width, mul'length);
 		addr_int <= mul(addr_int'range) + ("000000" & x_c);
-		-- addr_int <= mul(addr_int'range) + ("000000" & x_c) + unsigned(base_c);
-		addr     <= std_ulogic_vector(addr_int) when state_c /= ERASING else std_ulogic_vector(count_c);
+		addr_sel <= addr_int when state_c /= ERASING else count_c;
+		addr     <= std_ulogic_vector(addr_sel + base_c);
 	end block;
 
 	x_minus_one         <= x_c - 1;
 	x_plus_one          <= x_c + 1;
-	x_underflow         <= x_minus_one >= (width  - 1);
 	x_overflow          <= x_c         >  (width  - 1);
+	x_underflow         <= x_minus_one >= (width  - 1);
 	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
 	x_plus_one_limited  <= to_unsigned(width - 1, x_c'length) when x_overflow else x_plus_one;
 
 	y_plus_one          <= y_c + 1;
 	y_minus_one         <= y_c - 1;
-	y_overflow          <= y_c         >= (height - 1);
+	y_overflow          <= y_c         >= (height - 1); -- NB. > for 1 more row, slightly off edge of screen
 	y_underflow         <= y_minus_one >  (height - 1);
 	y_minus_one_limited <= (others => '0') when y_underflow else y_minus_one;
 	y_plus_one_limited  <= to_unsigned(height - 1, y_c'length) when y_overflow else y_plus_one;
@@ -542,6 +545,7 @@ begin
 			vga_we_ram        =>  data_we,
 			vga_din           =>  vga_din,
 			vga_addr          =>  addr,
+			base              =>  std_ulogic_vector(base_c),
 			i_font_sel        =>  font_sel_c,
 			i_vga_control_we  =>  vga_ctr_we,
 			i_vga_control     =>  vga_ctr,
@@ -601,6 +605,7 @@ begin
 				saved_y_c <= saved_y_n;
 				saved_attr_c <= saved_attr_n;
 				reverse_video_c <= reverse_video_n;
+				base_c    <= base_n;
 
 				if state_c = RESET then
 					n1_n         <= (others => '0');
@@ -619,6 +624,7 @@ begin
 					ctl_n        <= ctl_default;
 					conceal_n    <= false;
 					reverse_video_n <= false;
+					base_n       <= (others => '0');
 				elsif state_c = ACCEPT then
 					if we = '1' then
 						c_n   <= unsigned(char);
@@ -665,6 +671,7 @@ begin
 						count_n <= (others => '0');
 						limit_n <= "1000000000";
 						state_n <= ERASING;
+						base_n  <= (others => '0');
 					when lsqb =>
 						state_n  <= NUMBER1;
 						akk_init <= '1';
@@ -722,6 +729,7 @@ begin
 					when x"4a" => -- CSI n 'J'
 						x_n       <= (others => '0');
 						y_n       <= (others => '0');
+						base_n    <= (others => '0');
 						cursor_we <= '1';
 						state_n   <= ERASING;
 						c_n       <= blank;
@@ -732,6 +740,8 @@ begin
 						akk_init <= '1';
 					when x"6d" => -- CSI n 'm' : SGR
 						state_n <= ATTRIB;
+
+					-- TODO: Fixing scrolling, or remove
 					when x"53" => -- CSI n 'S' : scroll up
 						ctl_n(4) <= '0';
 						state_n  <= WRITE;
@@ -796,11 +806,13 @@ begin
 						y_n <= y_plus_one;
 					elsif y_overflow then
 						x_n     <= (others => '0');
-						y_n     <= (others => '0');
+						y_n     <= y_minus_one;
 						state_n <= ERASING;
 						c_n     <= blank;
-						count_n <= (others => '0');
-						limit_n <= "1000000000";
+						count_n <= unsigned(addr_sel);
+						limit_value := unsigned(addr_sel) + width;
+						limit_n <= limit_value(limit_n'high + 3 downto limit_n'low + 3);
+						base_n  <= base_c + width;
 					else
 						state_n <= WRITE;
 					end if;
@@ -904,6 +916,7 @@ entity vga_top is
 		vga_we_ram:       in  std_ulogic; -- Write enable RAM
 		vga_din:          in  std_ulogic_vector(15 downto 0);
 		vga_addr:         in  std_ulogic_vector(12 downto 0);
+		base:             in  std_ulogic_vector(12 downto 0);
 
 		-- VGA control registers
 		i_font_sel:       in std_ulogic_vector(0 downto 0);
@@ -990,7 +1003,7 @@ begin
 
 		o_vga     => o_vga);
 
-	text_addr_full <= control_c.ctl(4) & text_addr;
+	text_addr_full <= std_ulogic_vector(unsigned(base) + unsigned(text_addr));
 
 	u_text_memory: entity work.dual_port_block_ram -- holds at least 80x40 characters
 	generic map(g => g,

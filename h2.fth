@@ -945,7 +945,7 @@ irqTask:
 .set 12 irqTask
 \ .set 14 irqTask
 
-: irq $0040 oIrcMask ! [-1] oTimerCtrl ! 1 ien! ;
+: irq $0040 oIrcMask ! [-1] timer! 1 ien! ;
 
 ( ==================== Miscellaneous ================================= )
 

@@ -422,9 +422,9 @@ begin
 				v_blank => v_blank,
 				h_sync => o_vga.hsync,
 				v_sync => o_vga.vsync);
-			o_vga.red <= "111" when draw = '1' else "000";
+			o_vga.red   <= "111" when draw = '1' else "000";
 			o_vga.green <= "111" when (draw = '1' and row < 100 and column < 100) else "000";
-			o_vga.blue <= "11";
+			o_vga.blue  <= "11";
 		end block;
 		end generate;
 	end block;
