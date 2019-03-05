@@ -385,18 +385,18 @@ red green blue + + constant white
 \ ==== Screen Saver ============================================
 \ An incredibly simple screen saver using ANSI Escape codes
 \ for placement and coloring of random characters
-
+base @ decimal
 : screen-saver ( -- )
   page
   begin
-    random 80 mod
-    random 40 mod at-xy
+    random 79 mod
+    random 38 mod at-xy
     random >char emit
     random 8  mod
-    ( random 1 and if background then )
-    color
+    random 1 and if background then
+    random 256 and ms color
   again ;
-
+base !
 
 ; ==== Game: YOU ARE DEAD (HELP) ===============================
 This is a clone of the one dimensional rogue like game

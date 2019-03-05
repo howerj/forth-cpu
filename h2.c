@@ -969,11 +969,15 @@ static void terminal_parse_attribute(vt100_attribute_t * const a, const unsigned
 		a->foreground_color = WHITE;
 		a->background_color = BLACK;
 		return;
-	case 1: a->bold          = true; return;
-	case 4: a->under_score   = true; return;
-	case 5: a->blink         = true; return;
-	case 7: a->reverse_video = true; return;
-	case 8: a->conceal       = true; return;
+	case  1: a->bold          = true;  return;
+	case 22: a->bold          = false; return;
+	case  4: a->under_score   = true;  return;
+	case  5: a->blink         = true;  return;
+	case 25: a->blink         = false; return;
+	case  7: a->reverse_video = true;  return;
+	case 39: a->reverse_video = false; return;
+	case  8: a->conceal       = true;  return;
+	case 28: a->conceal       = false; return;
 	default:
 		if (v >= 30 && v <= 37)
 			a->foreground_color = v - 30;
@@ -1185,8 +1189,14 @@ void vt100_update(vt100_t *t, const uint8_t c) {
 			t->cursor++;
 		}
 		if (t->cursor >= t->size) {
-			terminal_attribute_block_set(t, t->size, &vt100_default_attribute);
-			memset(t->m, ' ', t->size);
+			const vt100_attribute_t *a = &vt100_default_attribute;
+			t->cursor -= t->width;
+			memmove(t->m, t->m + t->width, t->size - t->width);
+			memset((t->m + t->size) - t->width, ' ', t->width);
+			for (size_t i = 0; i < (t->size - t->width); i++)
+				t->attributes[i] = t->attributes[i + t->width];
+			for (size_t i = t->size - t->width; i < t->size; i++)
+				memcpy(&t->attributes[i], a, sizeof(*a));
 		}
 		t->cursor %= t->size;
 	}

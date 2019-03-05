@@ -191,10 +191,12 @@ location failed           "failed"      ( used in start up routine )
 : rx?  iUart uart? ; hidden ( -- c -1 | 0 : read in a character of input from UART )
 : ps2? iVT100 uart? ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
 
-\ : not-busy @ $0800 and ; hidden
+\ TODO: 'rx?' should be called here, and any results queued, otherwise without
+\ a hardware FIFO we will block for potentially quite a long time if we are
+\ sending a lot of characters, never having a chance to read.
 : uart! ( c uart-register -- )
-\	begin dup @ $1000 and 0= until swap $2000 or swap ! ; hidden  \ check full
-	begin dup @ $0800 and until swap $2000 or swap ! ; hidden     \ check empty
+	begin dup @ $1000 and 0= until swap $2000 or swap ! ; hidden  \ check full
+\	begin dup @ $0800 and until swap $2000 or swap ! ; hidden     \ check empty
 
 : tx!  iUart uart! ; hidden
 : vga! iVT100 uart! ; hidden ( n a -- : output character to VT100 display )
@@ -536,7 +538,7 @@ location search-previous 0
 : , here dup cell+ ?dictionary cp! ! ; ( u -- )
 : doLit 0x8000 or , ; hidden
 : ?compile state @ 0= if 14 -throw exit then ; hidden ( fail if not compiling )
-\ @todo vector literal, amongst other words
+\ TODO vector literal, amongst other words
 : literal ( n -- : write a literal into the dictionary )
 	?compile
 	dup 0x8000 and ( n > $7fff ? )
@@ -811,7 +813,7 @@ in which the problem could be solved. )
 ( ==================== Strings ======================================= )
 
 ( ==================== Block Word Set ================================ )
-\ @todo 'blk' being set to zero should indicate an invalid block number, not -1
+\ TODO 'blk' being set to zero should indicate an invalid block number, not -1
 \ The usage of 'blk' is incorrect, it should be set to the block number
 \ most recently LOAD'ed, not the one most recently BLOCK'ed
 \ 
@@ -906,7 +908,7 @@ location tbl-2 $4143
        [char] L = if $7fff and . exit then
    drop ; hidden
 
-\ @todo print out immediate status, prettify output, ...
+\ TODO print out immediate status, prettify output, ...
 : see
  	token find 0= if 13 -throw exit then
 	cr

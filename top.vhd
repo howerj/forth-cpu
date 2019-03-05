@@ -520,7 +520,7 @@ begin
 	port map (
 		clk               =>  clk,
 		rst               =>  rst,
-		mem_addr_16_1     =>  io_dout,
+		mem_addr_16_1     =>  io_dout(io_dout'high downto 1),
 		mem_addr_16_1_we  =>  mem_addr_16_1_we,
 		mem_addr_26_17    =>  io_dout(9 downto 0),
 		mem_addr_26_17_we =>  mem_addr_26_17_we,

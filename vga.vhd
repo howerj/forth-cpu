@@ -16,11 +16,6 @@
 --|
 --| See also <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>.
 --|
---| @todo Add scrolling by changing the base address "text_a", adding
---| a line.
---| @todo Add a single pixel boarder (an optional one) around the display
---| so it is easier to see if picture timing is correct.
---| @todo Rewrite so the code is cleaner, and FSM are used.
 --| @todo ANSI.SYS supports some more codes which might be useful, such
 --| as 'ESC[+' (turn output on) and 'ESC[-' (turn output off).
 --| @todo Separate out VT100 code from VGA code?
@@ -50,7 +45,7 @@ package vga_pkg is
 	type vga_control_registers_interface is record
 		crx:    std_ulogic_vector(6 downto 0); -- Cursor position X
 		cry:    std_ulogic_vector(5 downto 0); -- Cursor position Y
-		ctl:    std_ulogic_vector(4 downto 0); -- Control register
+		ctl:    std_ulogic_vector(3 downto 0); -- Control register
 	end record;
 
 	constant vga_control_registers_initialize: vga_control_registers_interface := (
@@ -423,7 +418,7 @@ architecture rtl of vt100 is
 	constant ascii_8:      unsigned(char'range) := x"38"; -- '8'
 	constant ascii_c:      unsigned(char'range) := x"63"; -- 'c'
 	constant attr_default: unsigned(7 downto 0) := "00111000";
-	constant ctl_default:  unsigned(4 downto 0) := "01111";
+	constant ctl_default:  unsigned(3 downto 0) := "1111";
 
 	signal addr:           std_ulogic_vector(12 downto 0) := (others => '0');
 	signal data_we:        std_ulogic                     := '0';
@@ -473,7 +468,7 @@ architecture rtl of vt100 is
 	signal saved_attr_n, saved_attr_c: unsigned(attr_default'range) := (others => '0');
 
 	signal reverse_video_c, reverse_video_n: boolean := false;
-	signal base_n, base_c: unsigned(addr'range) := (others => '0');
+	signal base_n, base_c: unsigned(addr'high downto 4) := (others => '0');
 	signal addr_sel:       unsigned(addr'range) := (others => '0');
 begin
 	accumulator_0: work.vga_pkg.atoi
@@ -496,7 +491,7 @@ begin
 		mul      <= to_unsigned(to_integer(y_c) * width, mul'length);
 		addr_int <= mul(addr_int'range) + ("000000" & x_c);
 		addr_sel <= addr_int when state_c /= ERASING else count_c;
-		addr     <= std_ulogic_vector(addr_sel + base_c);
+		addr     <= std_ulogic_vector(addr_sel + (base_c & "0000"));
 	end block;
 
 	x_minus_one         <= x_c - 1;
@@ -545,7 +540,8 @@ begin
 			vga_we_ram        =>  data_we,
 			vga_din           =>  vga_din,
 			vga_addr          =>  addr,
-			base              =>  std_ulogic_vector(base_c),
+			base(base_c'range)=>  std_ulogic_vector(base_c),
+			base(3 downto 0)  =>  "0000",
 			i_font_sel        =>  font_sel_c,
 			i_vga_control_we  =>  vga_ctr_we,
 			i_vga_control     =>  vga_ctr,
@@ -743,10 +739,10 @@ begin
 
 					-- TODO: Fixing scrolling, or remove
 					when x"53" => -- CSI n 'S' : scroll up
-						ctl_n(4) <= '0';
+					--	ctl_n(4) <= '0';
 						state_n  <= WRITE;
 					when x"54" => -- CSI n 'T' : scroll down
-						ctl_n(4) <= '1';
+					--	ctl_n(4) <= '1';
 						state_n  <= WRITE;
 					when x"73" => -- CSI 's': SCP (Secure, Contain, Protect the Cursor Position)
 						saved_x_n    <= x_c;
@@ -810,9 +806,9 @@ begin
 						state_n <= ERASING;
 						c_n     <= blank;
 						count_n <= unsigned(addr_sel);
-						limit_value := unsigned(addr_sel) + width;
+						limit_value := unsigned(addr_sel) + (3*width);
 						limit_n <= limit_value(limit_n'high + 3 downto limit_n'low + 3);
-						base_n  <= base_c + width;
+						base_n  <= base_c + (width / 16);
 					else
 						state_n <= WRITE;
 					end if;
@@ -850,7 +846,7 @@ begin
 							attr_n    <= attr_c(7 downto 6) & attr_c(2 downto 0) & attr_c(5 downto 3);
 						end if;
 						reverse_video_n <= true;
-					when x"27" =>
+					when x"1B" =>
 						if reverse_video_c then
 							attr_n    <= attr_c(7 downto 6) & attr_c(2 downto 0) & attr_c(5 downto 3);
 						end if;
