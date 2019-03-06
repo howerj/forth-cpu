@@ -134,7 +134,7 @@ location _blockop         0             ( used in 'mblock' )
 location .s-string        " <sp"        ( used by .s )
 location OK               "ok"          ( used by "prompt" )
 location redefined        " redefined"  ( used by ":" when a word has been redefined )
-location hi-string        "eFORTH V"    ( used by "hi" )
+location hi-string        "eFORTH v"    ( used by "hi" )
 location loading-string   "loading..."  ( used in start up routine )
 location failed           "failed"      ( used in start up routine )
 
@@ -615,7 +615,6 @@ location search-previous 0
 : right [char] C ansi ;
 : left  [char] D ansi ;
 
-
 : 5u.r 5 u.r space ; hidden
 : dm+ 2/ for aft dup @ 5u.r cell+ then next ; hidden ( a u -- a )
 : colon 58 emit ; hidden ( -- )
@@ -632,6 +631,7 @@ location search-previous 0
 		then
 	next drop ;
 
+\ TODO: Transfer to test code
 : rainbow $7 for $7 r@ - $1E + dup sgr u. next cr ; hidden
 : tableu
 	$7 for
@@ -640,7 +640,7 @@ location search-previous 0
 	next ; hidden
 
 : table page 0 sgr $2 down  tableu 1 sgr $2 down tableu 0 sgr ;
-: nuf? key? if drop [-1] exit then 0x0000 ; ( -- f )
+\ : nuf? key? if drop [-1] exit then 0x0000 ; ( -- f )
 \ : ttt begin table nuf? until ; \ fast redraw causes tearing on VGA display
 
 ( ==================== Advanced I/O Control ========================== )
@@ -670,8 +670,7 @@ location search-previous 0
 	$8484 oUartControl ! ( set UART control register; 8 bits, 1 stop, no parity )
 	0 timer! 0 led! 0 segments!
 	0 ien! 0 oIrcMask ! interactive ; ( -- : initialize I/O )
-\ : ver $666 ;
-: hi io! ( save ) hex cr hi-string print cpu-id <# # # 46 hold # #> type cr here . .free cr [ ;
+: hi io! hex cr hi-string print cpu-id 0 u.r cr here . .free cr [ ;
 : cold io! branch entry ;
 : bye cold ;
 

@@ -18,6 +18,11 @@
 --|
 --| @todo ANSI.SYS supports some more codes which might be useful, such
 --| as 'ESC[+' (turn output on) and 'ESC[-' (turn output off).
+--| @todo Allow for a raw mode, allowing the module to display monochrome
+--| images in 320x240 resolution. This is similar to graphics mode 5 as
+--| supported by ANSI.SYS. A similar escape sequence could be used to put
+--| the VT100 system into that graphics mode. We have the memory (16kiB) to
+--| support 640x200 monochrome, 320x200 monochrome, and 320x200 4-bit color).
 --| @todo Separate out VT100 code from VGA code?
 -------------------------------------------------------------------------------
 
@@ -45,7 +50,7 @@ package vga_pkg is
 	type vga_control_registers_interface is record
 		crx:    std_ulogic_vector(6 downto 0); -- Cursor position X
 		cry:    std_ulogic_vector(5 downto 0); -- Cursor position Y
-		ctl:    std_ulogic_vector(3 downto 0); -- Control register
+		ctl:    std_ulogic_vector(4 downto 0); -- Control register
 	end record;
 
 	constant vga_control_registers_initialize: vga_control_registers_interface := (
@@ -92,7 +97,7 @@ package vga_pkg is
 		 --
 		ocrx:      in  std_ulogic_vector(6 downto 0);
 		ocry:      in  std_ulogic_vector(5 downto 0);
-		octl:      in  std_ulogic_vector(3 downto 0);
+		octl:      in  std_ulogic_vector(4 downto 0);
 		--
 		o_vga: out vga_physical_interface);
 	end component;
@@ -406,19 +411,20 @@ architecture rtl of vt100 is
 	NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING, ATTRIB, ADVANCE);
 	signal state_c, state_n: state_type := RESET;
 
-	constant esc:          unsigned(char'range) := x"1b";
-	constant lsqb:         unsigned(char'range) := x"5b"; -- '['
 	constant tab:          unsigned(char'range) := x"09";
-	constant cr:           unsigned(char'range) := x"0d";
-	constant lf:           unsigned(char'range) := x"0a";
 	constant backspace:    unsigned(char'range) := x"08";
+	constant ascii_bell:   unsigned(char'range) := x"07";
+	constant lf:           unsigned(char'range) := x"0a";
+	constant cr:           unsigned(char'range) := x"0d";
+	constant esc:          unsigned(char'range) := x"1b";
 	constant blank:        unsigned(char'range) := x"20";
 	constant asterisk:     unsigned(char'range) := x"2A";
 	constant ascii_7:      unsigned(char'range) := x"37"; -- '7'
 	constant ascii_8:      unsigned(char'range) := x"38"; -- '8'
+	constant lsqb:         unsigned(char'range) := x"5b"; -- '['
 	constant ascii_c:      unsigned(char'range) := x"63"; -- 'c'
 	constant attr_default: unsigned(7 downto 0) := "00111000";
-	constant ctl_default:  unsigned(3 downto 0) := "1111";
+	constant ctl_default:  unsigned(4 downto 0) := "01111";
 
 	signal addr:           std_ulogic_vector(12 downto 0) := (others => '0');
 	signal data_we:        std_ulogic                     := '0';
@@ -470,6 +476,9 @@ architecture rtl of vt100 is
 	signal reverse_video_c, reverse_video_n: boolean := false;
 	signal base_n, base_c: unsigned(addr'high downto 4) := (others => '0');
 	signal addr_sel:       unsigned(addr'range) := (others => '0');
+
+	signal saved_base_n, saved_base_c: unsigned(base_c'range) := (others => '0');
+	signal is_base_saved_n, is_base_saved_c: boolean := false;
 begin
 	accumulator_0: work.vga_pkg.atoi
 		generic map(g => g, N => number)
@@ -508,11 +517,13 @@ begin
 	y_minus_one_limited <= (others => '0') when y_underflow else y_minus_one;
 	y_plus_one_limited  <= to_unsigned(height - 1, y_c'length) when y_overflow else y_plus_one;
 
-	busy                <= '0' when akk_ready_o = '0'
-				or state_c = ACCEPT
-				or state_c = CSI
-				or state_c = NUMBER1
-				or state_c = NUMBER2 else '1';
+	busy <= '1' when state_c = ERASING 
+			or state_c = WRITE 
+			or state_c = RESET
+			or state_c = WRAP
+			or state_c = ATTRIB
+			or state_c = ADVANCE
+			else '0';
 
 	vga_blk: block
 		signal vga_din:    std_ulogic_vector(15 downto 0)     := (others => '0');
@@ -602,6 +613,8 @@ begin
 				saved_attr_c <= saved_attr_n;
 				reverse_video_c <= reverse_video_n;
 				base_c    <= base_n;
+				saved_base_c <= saved_base_n;
+				is_base_saved_c <= is_base_saved_n;
 
 				if state_c = RESET then
 					n1_n         <= (others => '0');
@@ -621,11 +634,20 @@ begin
 					conceal_n    <= false;
 					reverse_video_n <= false;
 					base_n       <= (others => '0');
+					is_base_saved_n <= false;
+					saved_base_n <= (others => '0');
 				elsif state_c = ACCEPT then
 					if we = '1' then
 						c_n   <= unsigned(char);
 						state_n <= NORMAL;
 					end if;
+					-- This behavior does not really mix well
+					-- with the eForth interpreter. 
+					--
+					-- if is_base_saved_c then
+					--	is_base_saved_n <= false;
+					--	base_n          <= saved_base_c;
+					-- end if;
 				elsif state_c = NORMAL then
 					case c_c is
 					when tab =>
@@ -635,6 +657,9 @@ begin
 						limit_value := unsigned(addr and "1111111111000") + 8;
 						limit_n <= limit_value(limit_n'high + 3 downto limit_n'low + 3);
 						count_n <= unsigned(addr);
+					when ascii_bell =>
+						ctl_n(4) <= not ctl_c(4); -- ctr_n(4) goes to edge triggered logic
+						state_n  <= ACCEPT;
 					when cr =>
 						y_n     <= y_plus_one;
 						state_n <= WRAP;
@@ -737,13 +762,18 @@ begin
 					when x"6d" => -- CSI n 'm' : SGR
 						state_n <= ATTRIB;
 
-					-- TODO: Fixing scrolling, or remove
+					-- NB. Number parameter does nothing.
 					when x"53" => -- CSI n 'S' : scroll up
-					--	ctl_n(4) <= '0';
+						saved_base_n <= base_c;
+						is_base_saved_n <= true;
+						base_n   <= (others => '0');
 						state_n  <= WRITE;
 					when x"54" => -- CSI n 'T' : scroll down
-					--	ctl_n(4) <= '1';
 						state_n  <= WRITE;
+						if is_base_saved_c then
+							base_n <= saved_base_c;
+							is_base_saved_n <= false;
+						end if;
 					when x"73" => -- CSI 's': SCP (Secure, Contain, Protect the Cursor Position)
 						saved_x_n    <= x_c;
 						saved_y_n    <= y_c;
@@ -995,7 +1025,7 @@ begin
 
 		ocrx      => control_c.crx,
 		ocry      => control_c.cry,
-		octl      => control_c.ctl(3 downto 0),
+		octl      => control_c.ctl,
 
 		o_vga     => o_vga);
 
@@ -1062,7 +1092,7 @@ entity vga_core is
 		--
 		ocrx:     in  std_ulogic_vector(6 downto 0);
 		ocry:     in  std_ulogic_vector(5 downto 0);
-		octl:     in  std_ulogic_vector(3 downto 0);
+		octl:     in  std_ulogic_vector(4 downto 0);
 		--
 		o_vga:    out vga_physical_interface);
 end entity;
@@ -1088,7 +1118,7 @@ architecture rtl of vga_core is
 	signal y:       std_ulogic := '0';  -- character luminance pixel value (0 or 1)
 
 	-- control io register
-	signal ctl:       std_ulogic_vector(7 downto 0):= (others =>'0');
+	signal bell:      std_ulogic := '0';
 	signal vga_en:    std_ulogic := '0';
 	signal cur_en:    std_ulogic := '0';
 	signal cur_mode:  std_ulogic := '0';
@@ -1097,8 +1127,47 @@ architecture rtl of vga_core is
 	signal background_draw, foreground_draw: std_ulogic := '0';
 	signal attr:          std_ulogic_vector(7 downto 0) := (others =>'0');
 	signal attr_we_delay: std_ulogic := '0';
-	signal slowclk:       std_ulogic := '0';
+	signal slowclk, slowclk_cr: std_ulogic := '0';
+
+	signal bell_c, bell_n: std_ulogic := '0';
+	signal bell_on_c, bell_on_n: std_ulogic := '0';
 begin
+	-- Control register. Individual control signal
+	bell_n    <= octl(4);
+	bell      <= bell_c xor bell_n;
+	vga_en    <= octl(3);
+	cur_en    <= octl(2);
+	cur_blink <= octl(1);
+	cur_mode  <= octl(0);
+
+	-- bell register
+	process (rst, clk25MHz)
+	begin
+		if rst = '1' and g.asynchronous_reset then
+			bell_c    <= '0';
+			bell_on_c <= '0';
+		elsif rising_edge(clk25MHz) then
+			if rst = '1' and not g.asynchronous_reset then
+				bell_c    <= '0';
+				bell_on_c <= '0';
+			else
+				bell_c    <= bell_n;
+				bell_on_c <= bell_on_n;
+			end if;
+		end if;
+	end process;
+
+	process (bell_on_c, slowclk, bell)
+	begin
+		bell_on_n <= bell_on_c;
+		slowclk_cr <= '0';
+		if bell = '1' then
+			bell_on_n  <= '1';
+			slowclk_cr <= '1';
+		elsif slowclk = '1' then
+			bell_on_n <= '0';
+		end if;
+	end process;
 
 	-- hsync generator, initialized with '1'
 	process (rst, clk25MHz)
@@ -1155,13 +1224,6 @@ begin
 			end if;
 		end if;
 	end process;
-
-	-- Control register. Individual control signal
-
-	vga_en    <= octl(3);
-	cur_en    <= octl(2);
-	cur_blink <= octl(1);
-	cur_mode  <= octl(0);
 
 	-- counters, hctr, vctr, srcx, srcy, chrx, chry
 	counters: block
@@ -1244,21 +1306,16 @@ begin
 		signal reverse:  std_ulogic := '0';
 		signal final:    std_ulogic_vector(2 downto 0) := "111";
 	begin
-		reverse     <= '0' when attr(7) = '0' else slowclk;
+		reverse     <= bell_on_c when attr(7) = '0' else slowclk;
 		bold        <= attr(6);
 		final       <= "100" when bold = '0' else "111";
 
-		-- Blinking is implemented by inverting the attributes, but
-		-- instead it could be implemented by swapping foreground and
-		-- background attributes. Either is valid. A less intrusive
-		-- display would perhaps only affect the foreground color in
-		-- either case.
-		red_on      <= (reverse xor attr(3)) when foreground_draw = '1' else
-			       (reverse xor attr(0)) when background_draw = '1' else '0';
-		green_on    <= (reverse xor attr(4)) when foreground_draw = '1' else
-			       (reverse xor attr(1)) when background_draw = '1' else '0';
-		blue_on     <= (reverse xor attr(5)) when foreground_draw = '1' else
-			       (reverse xor attr(2)) when background_draw = '1' else '0';
+		red_on      <= (reverse   xor attr(3)) when foreground_draw = '1' else
+			       (bell_on_c xor attr(0)) when background_draw = '1' else '0';
+		green_on    <= (reverse   xor attr(4)) when foreground_draw = '1' else
+			       (bell_on_c xor attr(1)) when background_draw = '1' else '0';
+		blue_on     <= (reverse   xor attr(5)) when foreground_draw = '1' else
+			       (bell_on_c xor attr(2)) when background_draw = '1' else '0';
 
 		o_vga.red   <= final             when red_on    = '1' else "000";
 		o_vga.green <= final             when green_on  = '1' else "000";
@@ -1297,7 +1354,18 @@ begin
 		signal counter: unsigned(24 downto 0) := (others => '0');
 		signal cursorclk: std_ulogic := '0';
 	begin
-		counter <= counter + 1 when rising_edge(clk25MHz) else counter;
+		process (counter, slowclk_cr, clk25MHz)
+		begin
+			counter <= counter;
+			if rising_edge(clk25MHz) then
+				if slowclk_cr = '1' then
+					counter <= (others => '0');
+				else
+					counter <= counter + 1;
+				end if;
+			end if;
+		end process;
+
 		cursorclk <= counter(22); -- 2.98Hz
 		slowclk   <= counter(24); -- 0.745Hz
 

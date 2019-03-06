@@ -17,6 +17,10 @@
 --| Cosine Transform, Pulse Width/Code/Position Modulation modules, so long as
 --| they are fairly generic and synthesizable.
 --|
+--| An alternative to CORDIC, is this sin-cosine implementation written in
+--| Verilog <https://github.com/jamesbowman/sincos>. It requires a multiplier
+--| however.
+--|
 --| @author         Richard James Howe
 --| @copyright      Copyright 2017, 2019 Richard James Howe
 --| @license        MIT
