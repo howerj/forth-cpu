@@ -15,7 +15,6 @@ problems when using the block word set from within blocks. The main reason for
 this is due to the limited space on the device.
 
 Forth To Do:
-* Add do...loop, case statements, put them in block storage
 * Implement many of the lessons learned whilst making the 
 'embed' Forth interpreter <https://github.com/howerj/embed>, which
 cuts down on the interpreter size, and adds more functionality. The
@@ -188,8 +187,8 @@ location failed           "failed"      ( used in start up routine )
 \	dup @ $ff and swap $0400 swap ! [-1] ; hidden \ read val first, then ack data
 	dup   $0400 swap ! @ $ff and [-1] ; hidden \ ack data, then read val
 
-: rx?  iUart uart? ; hidden ( -- c -1 | 0 : read in a character of input from UART )
-: ps2? iVT100 uart? ; hidden ( -- c -1 | 0 : PS/2 version of rx? )
+: rx?  iUart uart? ; ( -- c -1 | 0 : read in a character of input from UART )
+: ps2? iVT100 uart? ; ( -- c -1 | 0 : PS/2 version of rx? )
 
 \ TODO: 'rx?' should be called here, and any results queued, otherwise without
 \ a hardware FIFO we will block for potentially quite a long time if we are
@@ -198,8 +197,8 @@ location failed           "failed"      ( used in start up routine )
 	begin dup @ $1000 and 0= until swap $2000 or swap ! ; hidden  \ check full
 \	begin dup @ $0800 and until swap $2000 or swap ! ; hidden     \ check empty
 
-: tx!  iUart uart! ; hidden
-: vga! iVT100 uart! ; hidden ( n a -- : output character to VT100 display )
+: tx!  iUart uart! ; 
+: vga! iVT100 uart! ; ( n a -- : output character to VT100 display )
 
 \ NB. A real Add-With-Carry would speed everything up
 : um+ ( w w -- w carry )
@@ -655,22 +654,21 @@ location search-previous 0
 : printable? 32 127 within ; hidden ( c -- f )
 : pace 11 emit ; hidden
 : xio  ' accept <expect> ! <tap> ! <echo> ! <ok> ! ; hidden
-: file ' pace ' "drop" ' ktap xio ;
-: star $2A emit ; hidden
-: [conceal] dup 33 127 within if drop star exit then output ; hidden
-: conceal ' .ok ' [conceal] ' ktap xio ;
+\ : file ' pace ' "drop" ' ktap xio ;
+\ : [conceal] dup 33 127 within if drop [char] * emit exit then output ; hidden
+\ : conceal ' .ok ' [conceal] ' ktap xio ;
 : hand ' .ok  '  emit  ' ktap xio ; hidden
-: console ' rx? <key> ! ' tx! <emit> ! hand ;
-: vt100 ' ps2? <key> ! ' vga! <emit> ! hand ;
-: interactive ' input <key> ! ' output <emit> ! hand ;
+\ : console ' rx? <key> ! ' tx! <emit> ! hand ;
+\ : vt100 ' ps2? <key> ! ' vga! <emit> ! hand ;
+: interactive ' input <key> ! ' output <emit> ! hand ; hidden
 : io! 
-	( 115200 9600 )
+	( 115200 / 9600 )
 	$36    ( $28B ) oUartTxBaud  ! ( set TX baud rate )
 	$35    ( $28A ) oUartRxBaud  ! ( set TX baud rate )
 	$8484 oUartControl ! ( set UART control register; 8 bits, 1 stop, no parity )
 	0 timer! 0 led! 0 segments!
 	0 ien! 0 oIrcMask ! interactive ; ( -- : initialize I/O )
-: hi io! hex cr hi-string print cpu-id 0 u.r cr here . .free cr [ ;
+: hi io! hex cr hi-string print cpu-id 0 u.r cr here . .free cr [ ; hidden
 : cold io! branch entry ;
 : bye cold ;
 

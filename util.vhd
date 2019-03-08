@@ -1504,8 +1504,6 @@ begin
 				rindex <= 0 after g.delay;
 				count  <= 0 after g.delay;
 			else
-				-- @todo Allow more control over behavior with options specified by a generic
-				-- @todo Add report/warnings
 				if we = '1' and re = '0' then
 					if is_full = '0' then
 						count <= count + 1 after g.delay;
@@ -1525,7 +1523,6 @@ begin
 				end if;
 
 				if we = '1' and is_full = '0' then
-					-- @todo make configurable; write to current or next
 					if windex = (fifo_depth - 1) then
 						data(0) <= di after g.delay;
 						windex <= 0 after g.delay;

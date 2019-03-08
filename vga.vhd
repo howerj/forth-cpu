@@ -152,7 +152,7 @@ package vga_pkg is
 			char:   in  std_ulogic_vector(7 downto 0);
 			char_o: out std_ulogic_vector(7 downto 0);
 			done_o: out std_ulogic;
-			ready:  out std_ulogic;
+			-- ready:  out std_ulogic;
 			n_o:    out unsigned(N - 1 downto 0));
 	end component;
 end package;
@@ -281,7 +281,7 @@ entity atoi is
 		char:   in  std_ulogic_vector(7 downto 0);
 		char_o: out std_ulogic_vector(7 downto 0);
 		done_o: out std_ulogic;
-		ready:  out std_ulogic;
+		-- ready:  out std_ulogic;
 		n_o:    out unsigned(N - 1 downto 0));
 end entity;
 
@@ -294,7 +294,7 @@ architecture rlt of atoi is
 begin
 	char_o <= std_ulogic_vector(c_c);
 	n_o    <= n_c;
-	ready  <= '1' when state_c = WAITING else '0';
+	-- ready  <= '1' when state_c = WAITING else '0';
 
 	process(clk, rst)
 		variable akk: unsigned((2 * N) - 1 downto 0) := (others => '0');
@@ -462,7 +462,7 @@ architecture rtl of vt100 is
 	signal limit_c, limit_n:    unsigned(addr'high - 3 downto 0) := (others => '0');
 
 	signal akk_done_o:  std_ulogic := '0';
-	signal akk_ready_o: std_ulogic := '0';
+	-- signal akk_ready_o: std_ulogic := '0';
 	signal akk_init:    std_ulogic := '0';
 	signal n_o:         unsigned(number - 1 downto 0) := (others => '0');
 	signal akk_char_o:  std_ulogic_vector(char'range) := (others => '0');
@@ -490,7 +490,7 @@ begin
 			char   => char,
 			char_o => akk_char_o,
 			done_o => akk_done_o,
-			ready  => akk_ready_o,
+			-- ready  => akk_ready_o,
 			n_o    => n_o);
 
 	address: block
@@ -593,27 +593,27 @@ begin
 			if rst = '1' and not g.asynchronous_reset then
 				state_c <= RESET;
 			else
-				x_c       <= x_n;
-				y_c       <= y_n;
-				c_c       <= c_n;
-				count_c   <= count_n;
-				limit_c   <= limit_n;
-				state_c   <= state_n;
-				n1_c      <= n1_n;
-				n2_c      <= n2_n;
-				data_we   <= '0';
-				cursor_we <= '0';
-				akk_init  <= '0';
-				attr_c    <= attr_n;
-				ctl_c     <= ctl_n;
-				conceal_c <= conceal_n;
-				font_sel_c<= font_sel_n;
-				saved_x_c <= saved_x_n;
-				saved_y_c <= saved_y_n;
-				saved_attr_c <= saved_attr_n;
+				x_c             <= x_n;
+				y_c             <= y_n;
+				c_c             <= c_n;
+				count_c         <= count_n;
+				limit_c         <= limit_n;
+				state_c         <= state_n;
+				n1_c            <= n1_n;
+				n2_c            <= n2_n;
+				data_we         <= '0';
+				cursor_we       <= '0';
+				akk_init        <= '0';
+				attr_c          <= attr_n;
+				ctl_c           <= ctl_n;
+				conceal_c       <= conceal_n;
+				font_sel_c      <= font_sel_n;
+				saved_x_c       <= saved_x_n;
+				saved_y_c       <= saved_y_n;
+				saved_attr_c    <= saved_attr_n;
 				reverse_video_c <= reverse_video_n;
-				base_c    <= base_n;
-				saved_base_c <= saved_base_n;
+				base_c          <= base_n;
+				saved_base_c    <= saved_base_n;
 				is_base_saved_c <= is_base_saved_n;
 
 				if state_c = RESET then
@@ -638,7 +638,7 @@ begin
 					saved_base_n <= (others => '0');
 				elsif state_c = ACCEPT then
 					if we = '1' then
-						c_n   <= unsigned(char);
+						c_n     <= unsigned(char);
 						state_n <= NORMAL;
 					end if;
 					-- This behavior does not really mix well
@@ -680,7 +680,7 @@ begin
 					state_n <= WRAP;
 				elsif state_c = CSI then
 					if we = '1' then
-						c_n <= unsigned(char);
+						c_n     <= unsigned(char);
 						state_n <= COMMAND;
 					end if;
 				elsif state_c = COMMAND then
@@ -777,18 +777,13 @@ begin
 					when x"73" => -- CSI 's': SCP (Secure, Contain, Protect the Cursor Position)
 						saved_x_n    <= x_c;
 						saved_y_n    <= y_c;
-						state_n      <= ACCEPT; -- go-to cursor update state?
+						state_n      <= ACCEPT;
 					when x"75" => -- CSI 'u': RCP Restore Cursor Position
 						x_n          <= saved_x_c;
 						y_n          <= saved_y_c;
-						state_n      <= ACCEPT; -- go-to cursor update state?
+						state_n      <= ACCEPT;
 
-					-- CSI ? NUMBER ('h' or 'l')
-					-- when x"3f" => -- ESC ? 25 (l,h)
-					--	state_n  <= NUMBER2;
-					--	akk_init <= '1';
-
-					-- @warning This is an extension! It is for setting the
+					-- This is an extension, it is for setting the
 					-- control lines of the VGA module directly.
 					when x"78" => -- ESC n 'x' : Set VGA control registers directly
 						ctl_n    <= n1_c(ctl_n'range);
@@ -888,8 +883,8 @@ begin
 					-- when x"6c" => if n2_c = x"19" then ctl_n(2) <= '0'; end if; -- l, hide cursor
 					-- when x"68" => if n2_c = x"19" then ctl_n(2) <= '1'; end if; -- h, show cursor
 
-					when x"0A"  => font_sel_n    <= (others => '0');
-					when x"0B"  => font_sel_n(0) <= '1';
+					when x"0A"  => font_sel_n <= (others => '0');
+					when x"0B"  => font_sel_n <= "1";
 
 					when x"1E"  => reverse_video("000", true); -- 30
 					when x"1F"  => reverse_video("001", true); 

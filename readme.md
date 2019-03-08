@@ -253,14 +253,14 @@ interface with devices on the [Nexys3][] board:
 
 * [VGA][] output device, text mode only, 80 by 40 characters from
   <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>. This has
-been heavily modified from the original, which now implements most of a VT100
-terminal emulator.
-* Timer
+been heavily modified from the original, which now implements most of a
+[VT100][] terminal emulator.
+* [Timer][] in [timer.vhd][].
 * [UART][] (Rx/Tx) in [uart.vhd][].
 * [PS/2][] Keyboard
 from <https://eewiki.net/pages/viewpage.action?pageId=28279002>
 * [LED][] next to a bank of switches
-* An [7 Segment LED Display][] driver (a 7 segment display with a decimal point)
+* A [7 Segment LED Display][] driver (a 7 segment display with a decimal point)
 
 The SoC also features a limited set of interrupts that can be enabled or
 disabled.

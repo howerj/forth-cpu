@@ -41,7 +41,6 @@
 -- See: 
 -- * <https://en.wikipedia.org/wiki/Universal_asynchronous_receiver-transmitter>
 --
---
 -- TODO: Fold this into 'util.vhd'.
 -- NOTE: We could replace this entire package with an entirely software driven
 -- solution. The only hardware we would need two timers driven at the sample
@@ -125,7 +124,11 @@ package uart_pkg is
 	end component;
 
 	component uart_top is
-		generic (g: common_generics; baud: positive := 115200; format: std_ulogic_vector(7 downto 0) := uart_8N1);
+		generic (
+			g:        common_generics; 
+			baud:     positive := 115200; 
+			format:   std_ulogic_vector(7 downto 0) := uart_8N1;
+			use_fifo: boolean := false);
 		port (
 			clk:    in std_ulogic;
 			rst:    in std_ulogic;
@@ -184,7 +187,8 @@ entity uart_top is
 	generic (
 		g: common_generics; 
 		baud: positive := 115200; 
-		format: std_ulogic_vector(7 downto 0) := uart_8N1);
+		format: std_ulogic_vector(7 downto 0) := uart_8N1;
+		use_fifo: boolean := false);
 	port (
 		clk:    in std_ulogic;
 		rst:    in std_ulogic;
@@ -221,13 +225,12 @@ begin
 			clk => clk,
 			rst => rst,
 
-
 			tx    => tx,
 			tx_we => tx_pop,
 			tx_di => tx_popped,
 			tx_ok => tx_ok,
 
-			rx   => rx,
+			rx    => rx,
 			rx_nd => rx_nd,
 			rx_ok => rx_ok,
 			rx_do => rx_pushed,
@@ -238,31 +241,45 @@ begin
 			clock_reg_tx_we => clock_reg_tx_we,
 			control_reg_we  => control_reg_we);
 
-	tx_fifo_empty <= tx_fifo_empty_b;
-	tx_pop <= tx_ok and not tx_fifo_empty_b;
-	uart_fifo_tx_0: work.util.fifo
-		generic map(g => g,
-			   data_width => tx_fifo_data'length,
-			   fifo_depth => fifo_depth)
-		port map (clk  => clk, rst => rst, 
-			  di   => tx_fifo_data,
-			  we   => tx_fifo_we,
-			  re   => tx_pop,
-			  do   => tx_popped,
-			  full => tx_fifo_full, empty => tx_fifo_empty_b);
+	ugen0: if not use_fifo generate
+			tx_pop        <= tx_fifo_we;
+			tx_popped     <= tx_fifo_data;
+			tx_fifo_full  <= not tx_ok;
+			tx_fifo_empty <= tx_ok;
 
-	rx_fifo_full <= rx_fifo_full_b;
-	rx_push <= rx_nd and rx_ok and not rx_fifo_full_b;
-	uart_fifo_rx_0: work.util.fifo
-		generic map(g => g,
-			   data_width => rx_fifo_data'length,
-			   fifo_depth => fifo_depth)
-		port map (clk => clk, rst => rst, 
-			  di  => rx_pushed,
-			  we  => rx_push,
-			  re  => rx_fifo_re,
-			  do  => rx_fifo_data,
-			  full => rx_fifo_full_b, empty => rx_fifo_empty);
+			rx_push       <= rx_fifo_re;
+			rx_fifo_data  <= rx_pushed;
+			rx_fifo_full  <= rx_nd;
+			rx_fifo_empty <= not rx_nd;
+	end generate;
+
+	ugen1: if use_fifo generate
+		tx_fifo_empty <=               tx_fifo_empty_b;
+		tx_pop        <= tx_ok and not tx_fifo_empty_b;
+		uart_fifo_tx_0: work.util.fifo
+			generic map(g => g,
+				   data_width => tx_fifo_data'length,
+				   fifo_depth => fifo_depth)
+			port map (clk  => clk, rst => rst, 
+				  di   => tx_fifo_data,
+				  we   => tx_fifo_we,
+				  re   => tx_pop,
+				  do   => tx_popped,
+				  full => tx_fifo_full, empty => tx_fifo_empty_b);
+
+		rx_fifo_full <=                         rx_fifo_full_b;
+		rx_push      <= rx_nd and rx_ok and not rx_fifo_full_b;
+		uart_fifo_rx_0: work.util.fifo
+			generic map(g => g,
+				   data_width => rx_fifo_data'length,
+				   fifo_depth => fifo_depth)
+			port map (clk  => clk, rst => rst, 
+				  di   => rx_pushed,
+				  we   => rx_push,
+				  re   => rx_fifo_re,
+				  do   => rx_fifo_data,
+				  full => rx_fifo_full_b, empty => rx_fifo_empty);
+	end generate;
 end architecture;
 
 library ieee, work;
@@ -681,7 +698,7 @@ entity uart_tx is
 end entity;
 
 architecture behaviour of uart_tx is
-	type state is (reset, idle, sync, start, data, parity, stop);
+	type state is (reset, idle, start, data, parity, stop);
 	signal state_c, state_n: state;
 	signal di_c, di_n: std_ulogic_vector(di'range);
 	signal ctr_c, ctr_n: std_ulogic_vector(ctr'range);
@@ -746,12 +763,6 @@ begin
 			elsif we = '1' then
 				di_n    <= di after g.delay;
 				cr      <= '1';
-				state_n <= sync after g.delay;
-			end if;
-		when sync   => -- wait until synced with baud clock
-			-- NB. We could reset the baud clock immediately,
-			-- which would be slightly faster.
-			if baud = '1' then
 				state_n <= start after g.delay;
 			end if;
 		when start  => 
