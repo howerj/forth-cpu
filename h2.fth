@@ -747,7 +747,7 @@ displaying block files as they are read in )
 \ : marker ( "name", -- : create an eraser )
 \  here >r current @ dup @ r> 
 \  create , 2, 
-\  does> dup cell+ 2@ swap ! @ here - allot ;
+\  doDoes dup cell+ 2@ swap ! @ here - allot ;
 
 : "constant" create ' doConst make-callable here cell- ! , ;
 

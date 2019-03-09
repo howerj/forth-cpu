@@ -242,7 +242,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 : 2+ 2 + ;                       ( n -- n )
 : 2- 2 - ;                       ( n -- n )
 : >= < invert ;                  ( n n -- f )
-: simulation? cpu-id $cafe <> ; ( -- f : are we in the matrix? )
+: simulation? cpu-id $0666 <> ; ( -- f : are we in the matrix? )
 : 0<= 0> 0= ;                    ( n n -- f )
 : 0>= 0< 0= ;                    ( n n -- f )
 : not -1 xor ;                   ( n -- n )
@@ -299,7 +299,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 : 2, , , ; ( n n -- )
 : tab 9 emit ; ( -- )
 : drup drop dup ; ( n1 n2 -- n1 n1 )
-: lsb $ff and ; ( u -- u )
+: lsb $FF and ; ( u -- u )
 : --> 1 +block load ;
 : scr blk ;
 \ ==== Extra Code 5/7 ==========================================
@@ -338,7 +338,7 @@ mk.user lana  sterling  mk.user cyril  figgis
 : screens ( k1 k2 -- : list blocks k1 to k2 )
   over -
   for
-    dup . dup list 1+ key $d = if rdrop drop exit then
+    dup . dup list 1+ key $D = if rdrop drop exit then
   next drop ;
 
 
@@ -372,8 +372,8 @@ red green        + constant yellow
     green blue   + constant cyan
 red       blue   + constant magenta
 red green blue + + constant white
-: background $a + ;
-: color $1e + sgr ;
+: background $A + ;
+: color $1E + sgr ;
 \ : hide-cursor CSI [char] ? emit $19 10u. [char] l emit ;
 \ : show-cursor CSI [char] ? emit $19 10u. [char] h emit ;
 : up    [char] A ansi ; ( n -- )
@@ -517,9 +517,9 @@ boulders (*) onto the pads (.) with the player character (@/~),
 until all the bolders are on the pads. Sokoban levels are 
 stored one per block. To play:
 
-  $2a sokoban
+  $2A sokoban
 
-Would load a game stored in block '$2a' and begin playing.
+Would load a game stored in block '$2A' and begin playing.
 The WASD keys move the player around, 'h' is for help, and
 'q' quits.
 
@@ -592,7 +592,7 @@ create rule 3 c, 0 c, 0 c, 0 c,
 
 \ ==== Sokoban 5/9 =============================================
 : 2* 1 lshift ; ( u -- )
-: relative swap c/b * + + ( $3ff and ) ; ( +x +y pos -- pos )
+: relative swap c/b * + + ( $3FF and ) ; ( +x +y pos -- pos )
 : +position position @ relative ; ( +x +y -- pos )
 : double 2* swap 2* swap ;  ( u u -- u u )
 : arena blk @ block b/buf ; ( -- b u )
@@ -1090,8 +1090,8 @@ prints a memory dump of a region of memory.
 Hexadecimal numbers can be entered if the base input and output
 base is 16, or by prefixing the number with '$'.
 
-  decimal  $aaa . ( Displays 2730 )
-          -$aaa . ( Displays -2730 )
+  decimal  $AAA . ( Displays 2730 )
+          -$AAA . ( Displays -2730 )
 
 eForth starts up in base 16, valid bases range anywhere from
 2 to 36. The base can be changed by either setting a variable
@@ -1100,7 +1100,7 @@ the base back into hexadecimal, or 'decimal' to change the base
 to '10'. Variables in Forth are words that leave an address on
 the stack when they are called. They can be read or set with
 '@' and '!'. For example, "$10 base !" and "hex" are
-equivalent, as are "$a base !" and "decimal".
+equivalent, as are "$A base !" and "decimal".
 
 ; ==== Help: Word Definitions 1/2 ==============================
 For the moment we have not covered how words are defined and
@@ -1122,7 +1122,7 @@ We can then use square like any other word:
 'hex' and 'decimal' are defined as:
 
   : hex $10 base ! ;
-  : decimal $a base ! ;
+  : decimal $A base ! ;
 
 And simple Forth words likewise defined:
 
