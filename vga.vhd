@@ -16,13 +16,13 @@
 --|
 --| See also <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>.
 --|
---| @todo Add scrolling by changing the base address "text_a", adding
---| a line.
---| @todo Add a single pixel boarder (an optional one) around the display
---| so it is easier to see if picture timing is correct.
---| @todo Rewrite so the code is cleaner, and FSM are used.
 --| @todo ANSI.SYS supports some more codes which might be useful, such
 --| as 'ESC[+' (turn output on) and 'ESC[-' (turn output off).
+--| @todo Allow for a raw mode, allowing the module to display monochrome
+--| images in 320x240 resolution. This is similar to graphics mode 5 as
+--| supported by ANSI.SYS. A similar escape sequence could be used to put
+--| the VT100 system into that graphics mode. We have the memory (16kiB) to
+--| support 640x200 monochrome, 320x200 monochrome, and 320x200 4-bit color).
 --| @todo Separate out VT100 code from VGA code?
 -------------------------------------------------------------------------------
 
@@ -74,6 +74,7 @@ package vga_pkg is
 		vga_we_ram:  in  std_ulogic; -- Write enable RAM
 		vga_din:     in  std_ulogic_vector(15 downto 0);
 		vga_addr:    in  std_ulogic_vector(12 downto 0);
+		base:        in  std_ulogic_vector(12 downto 0);
 
 		-- VGA control registers
 		i_font_sel:       in std_ulogic_vector(0 downto 0);
@@ -96,7 +97,7 @@ package vga_pkg is
 		 --
 		ocrx:      in  std_ulogic_vector(6 downto 0);
 		ocry:      in  std_ulogic_vector(5 downto 0);
-		octl:      in  std_ulogic_vector(3 downto 0);
+		octl:      in  std_ulogic_vector(4 downto 0);
 		--
 		o_vga: out vga_physical_interface);
 	end component;
@@ -151,7 +152,7 @@ package vga_pkg is
 			char:   in  std_ulogic_vector(7 downto 0);
 			char_o: out std_ulogic_vector(7 downto 0);
 			done_o: out std_ulogic;
-			ready:  out std_ulogic;
+			-- ready:  out std_ulogic;
 			n_o:    out unsigned(N - 1 downto 0));
 	end component;
 end package;
@@ -280,7 +281,7 @@ entity atoi is
 		char:   in  std_ulogic_vector(7 downto 0);
 		char_o: out std_ulogic_vector(7 downto 0);
 		done_o: out std_ulogic;
-		ready:  out std_ulogic;
+		-- ready:  out std_ulogic;
 		n_o:    out unsigned(N - 1 downto 0));
 end entity;
 
@@ -293,7 +294,7 @@ architecture rlt of atoi is
 begin
 	char_o <= std_ulogic_vector(c_c);
 	n_o    <= n_c;
-	ready  <= '1' when state_c = WAITING else '0';
+	-- ready  <= '1' when state_c = WAITING else '0';
 
 	process(clk, rst)
 		variable akk: unsigned((2 * N) - 1 downto 0) := (others => '0');
@@ -410,16 +411,17 @@ architecture rtl of vt100 is
 	NUMBER1, NUMBER2, COMMAND1, COMMAND2, WRITE, ERASING, ATTRIB, ADVANCE);
 	signal state_c, state_n: state_type := RESET;
 
-	constant esc:          unsigned(char'range) := x"1b";
-	constant lsqb:         unsigned(char'range) := x"5b"; -- '['
 	constant tab:          unsigned(char'range) := x"09";
-	constant cr:           unsigned(char'range) := x"0d";
-	constant lf:           unsigned(char'range) := x"0a";
 	constant backspace:    unsigned(char'range) := x"08";
+	constant ascii_bell:   unsigned(char'range) := x"07";
+	constant lf:           unsigned(char'range) := x"0a";
+	constant cr:           unsigned(char'range) := x"0d";
+	constant esc:          unsigned(char'range) := x"1b";
 	constant blank:        unsigned(char'range) := x"20";
 	constant asterisk:     unsigned(char'range) := x"2A";
 	constant ascii_7:      unsigned(char'range) := x"37"; -- '7'
 	constant ascii_8:      unsigned(char'range) := x"38"; -- '8'
+	constant lsqb:         unsigned(char'range) := x"5b"; -- '['
 	constant ascii_c:      unsigned(char'range) := x"63"; -- 'c'
 	constant attr_default: unsigned(7 downto 0) := "00111000";
 	constant ctl_default:  unsigned(4 downto 0) := "01111";
@@ -460,7 +462,7 @@ architecture rtl of vt100 is
 	signal limit_c, limit_n:    unsigned(addr'high - 3 downto 0) := (others => '0');
 
 	signal akk_done_o:  std_ulogic := '0';
-	signal akk_ready_o: std_ulogic := '0';
+	-- signal akk_ready_o: std_ulogic := '0';
 	signal akk_init:    std_ulogic := '0';
 	signal n_o:         unsigned(number - 1 downto 0) := (others => '0');
 	signal akk_char_o:  std_ulogic_vector(char'range) := (others => '0');
@@ -472,6 +474,11 @@ architecture rtl of vt100 is
 	signal saved_attr_n, saved_attr_c: unsigned(attr_default'range) := (others => '0');
 
 	signal reverse_video_c, reverse_video_n: boolean := false;
+	signal base_n, base_c: unsigned(addr'high downto 4) := (others => '0');
+	signal addr_sel:       unsigned(addr'range) := (others => '0');
+
+	signal saved_base_n, saved_base_c: unsigned(base_c'range) := (others => '0');
+	signal is_base_saved_n, is_base_saved_c: boolean := false;
 begin
 	accumulator_0: work.vga_pkg.atoi
 		generic map(g => g, N => number)
@@ -483,38 +490,40 @@ begin
 			char   => char,
 			char_o => akk_char_o,
 			done_o => akk_done_o,
-			ready  => akk_ready_o,
+			-- ready  => akk_ready_o,
 			n_o    => n_o);
 
 	address: block
-		signal addr_int: unsigned(addr'range) := (others => '0');
 		signal mul: unsigned(15 downto 0)     := (others => '0');
+		signal addr_int: unsigned(addr'range) := (others => '0');
 	begin
 		mul      <= to_unsigned(to_integer(y_c) * width, mul'length);
 		addr_int <= mul(addr_int'range) + ("000000" & x_c);
-		-- addr_int <= mul(addr_int'range) + ("000000" & x_c) + unsigned(base_c);
-		addr     <= std_ulogic_vector(addr_int) when state_c /= ERASING else std_ulogic_vector(count_c);
+		addr_sel <= addr_int when state_c /= ERASING else count_c;
+		addr     <= std_ulogic_vector(addr_sel + (base_c & "0000"));
 	end block;
 
 	x_minus_one         <= x_c - 1;
 	x_plus_one          <= x_c + 1;
-	x_underflow         <= x_minus_one >= (width  - 1);
 	x_overflow          <= x_c         >  (width  - 1);
+	x_underflow         <= x_minus_one >= (width  - 1);
 	x_minus_one_limited <= (others => '0') when x_underflow else x_minus_one;
 	x_plus_one_limited  <= to_unsigned(width - 1, x_c'length) when x_overflow else x_plus_one;
 
 	y_plus_one          <= y_c + 1;
 	y_minus_one         <= y_c - 1;
-	y_overflow          <= y_c         >= (height - 1);
+	y_overflow          <= y_c         >= (height - 1); -- NB. > for 1 more row, slightly off edge of screen
 	y_underflow         <= y_minus_one >  (height - 1);
 	y_minus_one_limited <= (others => '0') when y_underflow else y_minus_one;
 	y_plus_one_limited  <= to_unsigned(height - 1, y_c'length) when y_overflow else y_plus_one;
 
-	busy                <= '0' when akk_ready_o = '0'
-				or state_c = ACCEPT
-				or state_c = CSI
-				or state_c = NUMBER1
-				or state_c = NUMBER2 else '1';
+	busy <= '1' when state_c = ERASING 
+			or state_c = WRITE 
+			or state_c = RESET
+			or state_c = WRAP
+			or state_c = ATTRIB
+			or state_c = ADVANCE
+			else '0';
 
 	vga_blk: block
 		signal vga_din:    std_ulogic_vector(15 downto 0)     := (others => '0');
@@ -542,6 +551,8 @@ begin
 			vga_we_ram        =>  data_we,
 			vga_din           =>  vga_din,
 			vga_addr          =>  addr,
+			base(base_c'range)=>  std_ulogic_vector(base_c),
+			base(3 downto 0)  =>  "0000",
 			i_font_sel        =>  font_sel_c,
 			i_vga_control_we  =>  vga_ctr_we,
 			i_vga_control     =>  vga_ctr,
@@ -582,25 +593,28 @@ begin
 			if rst = '1' and not g.asynchronous_reset then
 				state_c <= RESET;
 			else
-				x_c       <= x_n;
-				y_c       <= y_n;
-				c_c       <= c_n;
-				count_c   <= count_n;
-				limit_c   <= limit_n;
-				state_c   <= state_n;
-				n1_c      <= n1_n;
-				n2_c      <= n2_n;
-				data_we   <= '0';
-				cursor_we <= '0';
-				akk_init  <= '0';
-				attr_c    <= attr_n;
-				ctl_c     <= ctl_n;
-				conceal_c <= conceal_n;
-				font_sel_c<= font_sel_n;
-				saved_x_c <= saved_x_n;
-				saved_y_c <= saved_y_n;
-				saved_attr_c <= saved_attr_n;
+				x_c             <= x_n;
+				y_c             <= y_n;
+				c_c             <= c_n;
+				count_c         <= count_n;
+				limit_c         <= limit_n;
+				state_c         <= state_n;
+				n1_c            <= n1_n;
+				n2_c            <= n2_n;
+				data_we         <= '0';
+				cursor_we       <= '0';
+				akk_init        <= '0';
+				attr_c          <= attr_n;
+				ctl_c           <= ctl_n;
+				conceal_c       <= conceal_n;
+				font_sel_c      <= font_sel_n;
+				saved_x_c       <= saved_x_n;
+				saved_y_c       <= saved_y_n;
+				saved_attr_c    <= saved_attr_n;
 				reverse_video_c <= reverse_video_n;
+				base_c          <= base_n;
+				saved_base_c    <= saved_base_n;
+				is_base_saved_c <= is_base_saved_n;
 
 				if state_c = RESET then
 					n1_n         <= (others => '0');
@@ -619,11 +633,21 @@ begin
 					ctl_n        <= ctl_default;
 					conceal_n    <= false;
 					reverse_video_n <= false;
+					base_n       <= (others => '0');
+					is_base_saved_n <= false;
+					saved_base_n <= (others => '0');
 				elsif state_c = ACCEPT then
 					if we = '1' then
-						c_n   <= unsigned(char);
+						c_n     <= unsigned(char);
 						state_n <= NORMAL;
 					end if;
+					-- This behavior does not really mix well
+					-- with the eForth interpreter. 
+					--
+					-- if is_base_saved_c then
+					--	is_base_saved_n <= false;
+					--	base_n          <= saved_base_c;
+					-- end if;
 				elsif state_c = NORMAL then
 					case c_c is
 					when tab =>
@@ -633,6 +657,9 @@ begin
 						limit_value := unsigned(addr and "1111111111000") + 8;
 						limit_n <= limit_value(limit_n'high + 3 downto limit_n'low + 3);
 						count_n <= unsigned(addr);
+					when ascii_bell =>
+						ctl_n(4) <= not ctl_c(4); -- ctr_n(4) goes to edge triggered logic
+						state_n  <= ACCEPT;
 					when cr =>
 						y_n     <= y_plus_one;
 						state_n <= WRAP;
@@ -653,7 +680,7 @@ begin
 					state_n <= WRAP;
 				elsif state_c = CSI then
 					if we = '1' then
-						c_n <= unsigned(char);
+						c_n     <= unsigned(char);
 						state_n <= COMMAND;
 					end if;
 				elsif state_c = COMMAND then
@@ -665,6 +692,7 @@ begin
 						count_n <= (others => '0');
 						limit_n <= "1000000000";
 						state_n <= ERASING;
+						base_n  <= (others => '0');
 					when lsqb =>
 						state_n  <= NUMBER1;
 						akk_init <= '1';
@@ -722,6 +750,7 @@ begin
 					when x"4a" => -- CSI n 'J'
 						x_n       <= (others => '0');
 						y_n       <= (others => '0');
+						base_n    <= (others => '0');
 						cursor_we <= '1';
 						state_n   <= ERASING;
 						c_n       <= blank;
@@ -732,27 +761,29 @@ begin
 						akk_init <= '1';
 					when x"6d" => -- CSI n 'm' : SGR
 						state_n <= ATTRIB;
+
+					-- NB. Number parameter does nothing.
 					when x"53" => -- CSI n 'S' : scroll up
-						ctl_n(4) <= '0';
+						saved_base_n <= base_c;
+						is_base_saved_n <= true;
+						base_n   <= (others => '0');
 						state_n  <= WRITE;
 					when x"54" => -- CSI n 'T' : scroll down
-						ctl_n(4) <= '1';
 						state_n  <= WRITE;
+						if is_base_saved_c then
+							base_n <= saved_base_c;
+							is_base_saved_n <= false;
+						end if;
 					when x"73" => -- CSI 's': SCP (Secure, Contain, Protect the Cursor Position)
 						saved_x_n    <= x_c;
 						saved_y_n    <= y_c;
-						state_n      <= ACCEPT; -- go-to cursor update state?
+						state_n      <= ACCEPT;
 					when x"75" => -- CSI 'u': RCP Restore Cursor Position
 						x_n          <= saved_x_c;
 						y_n          <= saved_y_c;
-						state_n      <= ACCEPT; -- go-to cursor update state?
+						state_n      <= ACCEPT;
 
-					-- CSI ? NUMBER ('h' or 'l')
-					-- when x"3f" => -- ESC ? 25 (l,h)
-					--	state_n  <= NUMBER2;
-					--	akk_init <= '1';
-
-					-- @warning This is an extension! It is for setting the
+					-- This is an extension, it is for setting the
 					-- control lines of the VGA module directly.
 					when x"78" => -- ESC n 'x' : Set VGA control registers directly
 						ctl_n    <= n1_c(ctl_n'range);
@@ -796,11 +827,13 @@ begin
 						y_n <= y_plus_one;
 					elsif y_overflow then
 						x_n     <= (others => '0');
-						y_n     <= (others => '0');
+						y_n     <= y_minus_one;
 						state_n <= ERASING;
 						c_n     <= blank;
-						count_n <= (others => '0');
-						limit_n <= "1000000000";
+						count_n <= unsigned(addr_sel);
+						limit_value := unsigned(addr_sel) + (3*width);
+						limit_n <= limit_value(limit_n'high + 3 downto limit_n'low + 3);
+						base_n  <= base_c + (width / 16);
 					else
 						state_n <= WRITE;
 					end if;
@@ -838,7 +871,7 @@ begin
 							attr_n    <= attr_c(7 downto 6) & attr_c(2 downto 0) & attr_c(5 downto 3);
 						end if;
 						reverse_video_n <= true;
-					when x"27" =>
+					when x"1B" =>
 						if reverse_video_c then
 							attr_n    <= attr_c(7 downto 6) & attr_c(2 downto 0) & attr_c(5 downto 3);
 						end if;
@@ -850,8 +883,8 @@ begin
 					-- when x"6c" => if n2_c = x"19" then ctl_n(2) <= '0'; end if; -- l, hide cursor
 					-- when x"68" => if n2_c = x"19" then ctl_n(2) <= '1'; end if; -- h, show cursor
 
-					when x"0A"  => font_sel_n    <= (others => '0');
-					when x"0B"  => font_sel_n(0) <= '1';
+					when x"0A"  => font_sel_n <= (others => '0');
+					when x"0B"  => font_sel_n <= "1";
 
 					when x"1E"  => reverse_video("000", true); -- 30
 					when x"1F"  => reverse_video("001", true); 
@@ -904,6 +937,7 @@ entity vga_top is
 		vga_we_ram:       in  std_ulogic; -- Write enable RAM
 		vga_din:          in  std_ulogic_vector(15 downto 0);
 		vga_addr:         in  std_ulogic_vector(12 downto 0);
+		base:             in  std_ulogic_vector(12 downto 0);
 
 		-- VGA control registers
 		i_font_sel:       in std_ulogic_vector(0 downto 0);
@@ -986,11 +1020,11 @@ begin
 
 		ocrx      => control_c.crx,
 		ocry      => control_c.cry,
-		octl      => control_c.ctl(3 downto 0),
+		octl      => control_c.ctl,
 
 		o_vga     => o_vga);
 
-	text_addr_full <= control_c.ctl(4) & text_addr;
+	text_addr_full <= std_ulogic_vector(unsigned(base) + unsigned(text_addr));
 
 	u_text_memory: entity work.dual_port_block_ram -- holds at least 80x40 characters
 	generic map(g => g,
@@ -1053,7 +1087,7 @@ entity vga_core is
 		--
 		ocrx:     in  std_ulogic_vector(6 downto 0);
 		ocry:     in  std_ulogic_vector(5 downto 0);
-		octl:     in  std_ulogic_vector(3 downto 0);
+		octl:     in  std_ulogic_vector(4 downto 0);
 		--
 		o_vga:    out vga_physical_interface);
 end entity;
@@ -1079,7 +1113,7 @@ architecture rtl of vga_core is
 	signal y:       std_ulogic := '0';  -- character luminance pixel value (0 or 1)
 
 	-- control io register
-	signal ctl:       std_ulogic_vector(7 downto 0):= (others =>'0');
+	signal bell:      std_ulogic := '0';
 	signal vga_en:    std_ulogic := '0';
 	signal cur_en:    std_ulogic := '0';
 	signal cur_mode:  std_ulogic := '0';
@@ -1088,8 +1122,47 @@ architecture rtl of vga_core is
 	signal background_draw, foreground_draw: std_ulogic := '0';
 	signal attr:          std_ulogic_vector(7 downto 0) := (others =>'0');
 	signal attr_we_delay: std_ulogic := '0';
-	signal slowclk:       std_ulogic := '0';
+	signal slowclk, slowclk_cr: std_ulogic := '0';
+
+	signal bell_c, bell_n: std_ulogic := '0';
+	signal bell_on_c, bell_on_n: std_ulogic := '0';
 begin
+	-- Control register. Individual control signal
+	bell_n    <= octl(4);
+	bell      <= bell_c xor bell_n;
+	vga_en    <= octl(3);
+	cur_en    <= octl(2);
+	cur_blink <= octl(1);
+	cur_mode  <= octl(0);
+
+	-- bell register
+	process (rst, clk25MHz)
+	begin
+		if rst = '1' and g.asynchronous_reset then
+			bell_c    <= '0';
+			bell_on_c <= '0';
+		elsif rising_edge(clk25MHz) then
+			if rst = '1' and not g.asynchronous_reset then
+				bell_c    <= '0';
+				bell_on_c <= '0';
+			else
+				bell_c    <= bell_n;
+				bell_on_c <= bell_on_n;
+			end if;
+		end if;
+	end process;
+
+	process (bell_on_c, slowclk, bell)
+	begin
+		bell_on_n <= bell_on_c;
+		slowclk_cr <= '0';
+		if bell = '1' then
+			bell_on_n  <= '1';
+			slowclk_cr <= '1';
+		elsif slowclk = '1' then
+			bell_on_n <= '0';
+		end if;
+	end process;
 
 	-- hsync generator, initialized with '1'
 	process (rst, clk25MHz)
@@ -1146,13 +1219,6 @@ begin
 			end if;
 		end if;
 	end process;
-
-	-- Control register. Individual control signal
-
-	vga_en    <= octl(3);
-	cur_en    <= octl(2);
-	cur_blink <= octl(1);
-	cur_mode  <= octl(0);
 
 	-- counters, hctr, vctr, srcx, srcy, chrx, chry
 	counters: block
@@ -1235,21 +1301,16 @@ begin
 		signal reverse:  std_ulogic := '0';
 		signal final:    std_ulogic_vector(2 downto 0) := "111";
 	begin
-		reverse     <= '0' when attr(7) = '0' else slowclk;
+		reverse     <= bell_on_c when attr(7) = '0' else slowclk;
 		bold        <= attr(6);
 		final       <= "100" when bold = '0' else "111";
 
-		-- Blinking is implemented by inverting the attributes, but
-		-- instead it could be implemented by swapping foreground and
-		-- background attributes. Either is valid. A less intrusive
-		-- display would perhaps only affect the foreground color in
-		-- either case.
-		red_on      <= (reverse xor attr(3)) when foreground_draw = '1' else
-			       (reverse xor attr(0)) when background_draw = '1' else '0';
-		green_on    <= (reverse xor attr(4)) when foreground_draw = '1' else
-			       (reverse xor attr(1)) when background_draw = '1' else '0';
-		blue_on     <= (reverse xor attr(5)) when foreground_draw = '1' else
-			       (reverse xor attr(2)) when background_draw = '1' else '0';
+		red_on      <= (reverse   xor attr(3)) when foreground_draw = '1' else
+			       (bell_on_c xor attr(0)) when background_draw = '1' else '0';
+		green_on    <= (reverse   xor attr(4)) when foreground_draw = '1' else
+			       (bell_on_c xor attr(1)) when background_draw = '1' else '0';
+		blue_on     <= (reverse   xor attr(5)) when foreground_draw = '1' else
+			       (bell_on_c xor attr(2)) when background_draw = '1' else '0';
 
 		o_vga.red   <= final             when red_on    = '1' else "000";
 		o_vga.green <= final             when green_on  = '1' else "000";
@@ -1288,7 +1349,18 @@ begin
 		signal counter: unsigned(24 downto 0) := (others => '0');
 		signal cursorclk: std_ulogic := '0';
 	begin
-		counter <= counter + 1 when rising_edge(clk25MHz) else counter;
+		process (counter, slowclk_cr, clk25MHz)
+		begin
+			counter <= counter;
+			if rising_edge(clk25MHz) then
+				if slowclk_cr = '1' then
+					counter <= (others => '0');
+				else
+					counter <= counter + 1;
+				end if;
+			end if;
+		end process;
+
 		cursorclk <= counter(22); -- 2.98Hz
 		slowclk   <= counter(24); -- 0.745Hz
 

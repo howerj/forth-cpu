@@ -29,12 +29,19 @@
 -- For the receiver a clock that is a multiple of the baud is used so the
 -- bits can be sampled with a higher frequency than the bit rate.
 --
+-- Some notes:
+-- * We can transmit from an 8-bit UART to a less than 8-bit UART fine, so
+-- long as parity is not used, as 
+-- * Certain UARTs have the ability to transmit a BREAK signal by holding
+-- the line low for a period greater than the packet length. We can transmit
+-- that by lowering the baud rate and transmitting all zeroes. Receiving a
+-- break (correctly) would require changing the receiver.
+--
+--
 -- See: 
 -- * <https://en.wikipedia.org/wiki/Universal_asynchronous_receiver-transmitter>
 --
---
 -- TODO: Fold this into 'util.vhd'.
--- TODO: Allow initial settings (baud rate, 8N1, to be set with a generic option)
 -- NOTE: We could replace this entire package with an entirely software driven
 -- solution. The only hardware we would need two timers driven at the sample
 -- rate (one for RX, one for TX) and a deglitched RX signal. An interrupt
@@ -49,25 +56,25 @@ use ieee.numeric_std.all;
 use work.util.common_generics;
 
 package uart_pkg is
+	constant uart_8N1: std_ulogic_vector(7 downto 0) := "10000100";
+
 	component uart_tx is
-		generic (g: common_generics; N: positive);
+		generic (g: common_generics; N: positive; format: std_ulogic_vector(7 downto 0) := uart_8N1);
 		port (
 			clk:    in std_ulogic;
 			rst:    in std_ulogic;
-			baud:   in std_ulogic;
+			cr:    out std_ulogic;
+			baud:   in std_ulogic; -- Pulse at baud
 			tx:    out std_ulogic;
 			ok:    out std_ulogic;
-			ctr:    in std_ulogic_vector(7 downto 0);
+			ctr:    in std_ulogic_vector(format'range);
 			ctr_we: in std_ulogic;
-			we:     in std_ulogic;
+			we:     in std_ulogic; -- di write enable
 			di:     in std_ulogic_vector(N - 1 downto 0));
 	end component;
 
 	component uart_rx is
-		generic (
-			g: common_generics;
-			N:                  positive; 
-			D:                  positive);
+		generic (g: common_generics; N: positive; D: positive; format: std_ulogic_vector(7 downto 0) := uart_8N1);
 		port (
 			clk:     in std_ulogic;
 			rst:     in std_ulogic;
@@ -94,7 +101,7 @@ package uart_pkg is
 	end component;
 
 	component uart_core is
-		generic (g: common_generics; baud: positive := 115200);
+		generic (g: common_generics; baud: positive := 115200; format: std_ulogic_vector(7 downto 0) := uart_8N1);
 		port (
 			clk:    in std_ulogic;
 			rst:    in std_ulogic;
@@ -117,7 +124,11 @@ package uart_pkg is
 	end component;
 
 	component uart_top is
-		generic (g: common_generics; baud: positive := 115200);
+		generic (
+			g:        common_generics; 
+			baud:     positive := 115200; 
+			format:   std_ulogic_vector(7 downto 0) := uart_8N1;
+			use_fifo: boolean := false);
 		port (
 			clk:    in std_ulogic;
 			rst:    in std_ulogic;
@@ -173,7 +184,11 @@ use work.uart_pkg.all;
 use work.util.common_generics;
 
 entity uart_top is
-	generic (g: common_generics; baud: positive := 115200);
+	generic (
+		g: common_generics; 
+		baud: positive := 115200; 
+		format: std_ulogic_vector(7 downto 0) := uart_8N1;
+		use_fifo: boolean := false);
 	port (
 		clk:    in std_ulogic;
 		rst:    in std_ulogic;
@@ -205,18 +220,17 @@ architecture structural of uart_top is
 	signal tx_fifo_empty_b, rx_fifo_full_b: std_ulogic;
 begin
 	uart_core_0: work.uart_pkg.uart_core
-		generic map(g => g, baud => baud)
+		generic map(g => g, baud => baud, format => format)
 		port map(
 			clk => clk,
 			rst => rst,
-
 
 			tx    => tx,
 			tx_we => tx_pop,
 			tx_di => tx_popped,
 			tx_ok => tx_ok,
 
-			rx   => rx,
+			rx    => rx,
 			rx_nd => rx_nd,
 			rx_ok => rx_ok,
 			rx_do => rx_pushed,
@@ -227,31 +241,45 @@ begin
 			clock_reg_tx_we => clock_reg_tx_we,
 			control_reg_we  => control_reg_we);
 
-	tx_fifo_empty <= tx_fifo_empty_b;
-	tx_pop <= tx_ok and not tx_fifo_empty_b;
-	uart_fifo_tx_0: work.util.fifo
-		generic map(g => g,
-			   data_width => tx_fifo_data'length,
-			   fifo_depth => fifo_depth)
-		port map (clk  => clk, rst => rst, 
-			  di   => tx_fifo_data,
-			  we   => tx_fifo_we,
-			  re   => tx_pop,
-			  do   => tx_popped,
-			  full => tx_fifo_full, empty => tx_fifo_empty_b);
+	ugen0: if not use_fifo generate
+			tx_pop        <= tx_fifo_we;
+			tx_popped     <= tx_fifo_data;
+			tx_fifo_full  <= not tx_ok;
+			tx_fifo_empty <= tx_ok;
 
-	rx_fifo_full <= rx_fifo_full_b;
-	rx_push <= rx_nd and rx_ok and not rx_fifo_full_b;
-	uart_fifo_rx_0: work.util.fifo
-		generic map(g => g,
-			   data_width => rx_fifo_data'length,
-			   fifo_depth => fifo_depth)
-		port map (clk => clk, rst => rst, 
-			  di  => rx_pushed,
-			  we  => rx_push,
-			  re  => rx_fifo_re,
-			  do  => rx_fifo_data,
-			  full => rx_fifo_full_b, empty => rx_fifo_empty);
+			rx_push       <= rx_fifo_re;
+			rx_fifo_data  <= rx_pushed;
+			rx_fifo_full  <= rx_nd;
+			rx_fifo_empty <= not rx_nd;
+	end generate;
+
+	ugen1: if use_fifo generate
+		tx_fifo_empty <=               tx_fifo_empty_b;
+		tx_pop        <= tx_ok and not tx_fifo_empty_b;
+		uart_fifo_tx_0: work.util.fifo
+			generic map(g => g,
+				   data_width => tx_fifo_data'length,
+				   fifo_depth => fifo_depth)
+			port map (clk  => clk, rst => rst, 
+				  di   => tx_fifo_data,
+				  we   => tx_fifo_we,
+				  re   => tx_pop,
+				  do   => tx_popped,
+				  full => tx_fifo_full, empty => tx_fifo_empty_b);
+
+		rx_fifo_full <=                         rx_fifo_full_b;
+		rx_push      <= rx_nd and rx_ok and not rx_fifo_full_b;
+		uart_fifo_rx_0: work.util.fifo
+			generic map(g => g,
+				   data_width => rx_fifo_data'length,
+				   fifo_depth => fifo_depth)
+			port map (clk  => clk, rst => rst, 
+				  di   => rx_pushed,
+				  we   => rx_push,
+				  re   => rx_fifo_re,
+				  do   => rx_fifo_data,
+				  full => rx_fifo_full_b, empty => rx_fifo_empty);
+	end generate;
 end architecture;
 
 library ieee, work;
@@ -261,7 +289,10 @@ use work.uart_pkg.all;
 use work.util.common_generics;
 
 entity uart_core is
-	generic (g: common_generics; baud: positive := 115200);
+	generic (
+		g: common_generics; 
+		baud: positive := 115200; 
+		format: std_ulogic_vector(7 downto 0) := uart_8N1);
 	port (
 		clk:    in std_ulogic;
 		rst:    in std_ulogic;
@@ -287,7 +318,7 @@ architecture structural of uart_core is
 	constant tx_init: integer  := g.clock_frequency / (baud * 16); -- 54 = 115200 @ 100 MHz
 	constant rx_init: positive := tx_init - 1; -- 50 = 115200 @ 100 MHz + Fudge Factor
 	constant N: positive := 8;
-	signal tx_sample, tx_baud: std_ulogic;
+	signal tx_sample, tx_baud, tx_cr: std_ulogic;
 	signal rx_sample, rx_baud, rx_cr, rx_we: std_ulogic;
 	signal rx_fail: std_ulogic_vector(1 downto 0);
 	signal rx_ok_buf: std_ulogic;
@@ -334,7 +365,7 @@ begin
 			rst    => rst,
 			we     => clock_reg_tx_we,
 			cnt    => reg,  -- 0x32/50 is 152000 @ 100MHz clk
-			cr     => '0',
+			cr     => tx_cr,
 			sample => tx_sample,
 			baud   => tx_baud);
 
@@ -350,11 +381,12 @@ begin
 			baud   => rx_baud);
 
 	tx_0: work.uart_pkg.uart_tx
-		generic map(g => g, N => N)
+		generic map(g => g, N => N, format => format)
 		port map(
 			clk     => clk,
 			rst     => rst, 
 
+			cr      => tx_cr,
 			baud    => tx_baud,
 			ok      => tx_ok,
 			we      => tx_we,
@@ -364,7 +396,7 @@ begin
 			tx      => tx);
 
 	rx_0: work.uart_pkg.uart_rx
-		generic map(g => g, N => N, D => 3)
+		generic map(g => g, N => N, D => 3, format => format)
 		port map(
 			clk     => clk,
 			rst     => rst, 
@@ -478,9 +510,10 @@ use work.util.parity;
 
 entity uart_rx is
 	generic (
-		g: common_generics;
-		N:                  positive; 
-		D:                  positive);
+		g: common_generics; 
+		N: positive; 
+		D: positive; 
+		format: std_ulogic_vector(7 downto 0) := uart_8N1);
 	port (
 		clk:    in std_ulogic;
 		rst:    in std_ulogic;
@@ -507,9 +540,6 @@ architecture behaviour of uart_rx is
 begin
 	do     <= rx_c after g.delay;
 	failed <= fail_c after g.delay;
-
-	-- NB. Majority forms in later half of cycle, as first bit is shifted off end, if
-	-- majority function has one fewer inputs than shift register
 
 	assert D < 4 severity failure;
 
@@ -574,11 +604,11 @@ begin
 			rx_n     <= (others => '0') after g.delay;
 			sr_n     <= (others => '0') after g.delay;
 			fail_n   <= (others => '0') after g.delay;
-			ctr_n    <= "10000100" after g.delay; -- 8 bits, 1 stop bit, parity off
+			ctr_n    <= format after g.delay; -- 8 bits, 1 stop bit, parity off
 			state_n  <= idle after g.delay;
 		when idle =>
 			count_n <= 0 after g.delay;
-			if rx_sync = '0' then
+			if rx_sync = '0' and majority = '1' then
 				state_n <= start after g.delay;
 				cr      <= '1' after g.delay;
 				sr_n    <= (others => '0') after g.delay;
@@ -653,21 +683,22 @@ use work.util.common_generics;
 use work.util.parity;
 
 entity uart_tx is
-	generic (g: common_generics; N: positive);
+	generic (g: common_generics; N: positive; format: std_ulogic_vector(7 downto 0) := uart_8N1);
 	port (
 		clk:    in std_ulogic;
 		rst:    in std_ulogic;
+		cr:    out std_ulogic;
 		baud:   in std_ulogic; -- Pulse at baud
 		tx:    out std_ulogic;
 		ok:    out std_ulogic;
-		ctr:    in std_ulogic_vector(7 downto 0);
+		ctr:    in std_ulogic_vector(format'range);
 		ctr_we: in std_ulogic;
 		we:     in std_ulogic; -- di write enable
 		di:     in std_ulogic_vector(N - 1 downto 0));
 end entity;
 
 architecture behaviour of uart_tx is
-	type state is (reset, idle, sync, start, data, parity, stop);
+	type state is (reset, idle, start, data, parity, stop);
 	signal state_c, state_n: state;
 	signal di_c, di_n: std_ulogic_vector(di'range);
 	signal ctr_c, ctr_n: std_ulogic_vector(ctr'range);
@@ -710,6 +741,7 @@ begin
 		di_n    <= di_c after g.delay;
 		ctr_n   <= ctr_c after g.delay;
 		tx <= '1' after g.delay;
+		cr <= '0';
 
 		if ctr_c(ctr_use_parity) = '1' then
 			parity_n <= parity(di_c, ctr_c(ctr_even_parity)) after g.delay;
@@ -720,7 +752,7 @@ begin
 		case state_c is
 		when reset  =>
 			state_n  <= idle after g.delay;
-			ctr_n    <= "10000100" after g.delay; -- 8 bits, 1 stop bit, parity off
+			ctr_n    <= format after g.delay; -- 8 bits, 1 stop bit, parity off
 			count_n  <= 0 after g.delay;
 			parity_n <= '0' after g.delay;
 			di_n     <= (others => '0') after g.delay;
@@ -730,12 +762,7 @@ begin
 				ctr_n <= ctr after g.delay;
 			elsif we = '1' then
 				di_n    <= di after g.delay;
-				state_n <= sync after g.delay;
-			end if;
-		when sync   => -- wait until synced with baud clock
-			-- NB. We could reset the baud clock immediately,
-			-- which would be slightly faster.
-			if baud = '1' then
+				cr      <= '1';
 				state_n <= start after g.delay;
 			end if;
 		when start  => 

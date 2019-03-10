@@ -8,6 +8,8 @@
 --| @license        MIT
 --| @email          howe.r.j.89@gmail.com
 --|
+--| NB. It would be nice to be able to specify the CPU word length with a
+--| generic, so we could instantiate a 32-bit CPU if we wanted to.
 -------------------------------------------------------------------------------
 
 library ieee,work,std;
@@ -158,12 +160,8 @@ architecture rtl of h2 is
 	signal instruction:  word := (others => '0'); -- processed 'insn'
 begin
 	assert stack_size > 4 report "stack size too small: " & integer'image(stack_size) severity failure;
-	-- More assertions would be nice, such as:
-	-- assert is_instr.alu = '0' and io_wr = '0' and io_re = '0' severity failure; -- need to buffer outputs
-	-- assert only one instruction active at one time
 	assert dd /= "10" severity warning; -- valid, but odd
 	assert rd /= "10" severity warning; -- valid, but rare
-	assert use_interrupts or (not use_interrupts and stop_c = '0') severity failure;
 
 	is_instr.branch  <= '1' when instruction(15 downto 13) = "000" else '0' after delay;
 	is_instr.branch0 <= '1' when instruction(15 downto 13) = "001" else '0' after delay;
@@ -215,7 +213,6 @@ begin
 			if rst = '1' and not asynchronous_reset then
 				reset;
 			else
-				-- TODO: Try to make these asserts happen all the time, not just on rising_edge()s
 				assert stop_c = '0' or (stop_c = '1' and is_instr.branch = '1') severity failure;
 				assert (not rstk_we = '1') or (((is_instr.alu = '1' and instruction(6) = '1') or is_instr.call = '1')) severity failure;
 				assert (not dstk_we = '1') or (((is_instr.alu = '1' and instruction(7) = '1') or is_instr.lit = '1')) severity failure;

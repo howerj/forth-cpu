@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define USE_HEX_OUT (1) /* Implement USE_HEX_IN as well? */
+
 typedef uint16_t m_t;
 typedef  int16_t s_t;
 typedef uint32_t d_t;
@@ -49,9 +51,13 @@ static int save(forth_t *h, const char *name, const size_t start, const size_t l
 	if (!out)
 		return -69; /* open-file IOR */
 	int r = 0;
-	for (size_t i = start; i < length; i++)
-		if (fputc(h->m[i]&255, out) < 0 || fputc(h->m[i]>>8, out) < 0)
-			r = -76; /* write-file IOR */
+	for (size_t i = start; i < length; i++) {
+		if (USE_HEX_OUT)
+			fprintf(out, "%02x%02x\n", ((unsigned)(h->m[i] >> 8) & 255u), (unsigned)(h->m[i] >> 0) & 255u);
+		else
+			if (fputc(h->m[i]&255, out) < 0 || fputc(h->m[i]>>8, out) < 0)
+				r = -76; /* write-file IOR */
+	}
 	return fclose(out) < 0 ? -62 /* close-file IOR */ : r;
 }
 

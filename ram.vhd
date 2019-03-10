@@ -38,7 +38,7 @@ entity ram_interface is
 		clk:               in    std_ulogic;
 		rst:               in    std_ulogic;
 
-		mem_addr_16_1:     in    std_ulogic_vector(16 downto 1);
+		mem_addr_16_1:     in    std_ulogic_vector(16 downto 2);
 		mem_addr_16_1_we:  in    std_ulogic;
 		mem_addr_26_17:    in    std_ulogic_vector(26 downto 17);
 		mem_addr_26_17_we: in    std_ulogic;
@@ -70,7 +70,7 @@ architecture rtl of ram_interface is
 	signal mem_addr_low:    std_ulogic_vector(mem_addr_16_1'range)  := (others => '0');
 	signal mem_addr_high:   std_ulogic_vector(mem_addr_26_17'range) := (others => '0');
 begin
-	mem_addr <= '0' & mem_addr_high & mem_addr_low(mem_addr_low'high downto mem_addr_low'low + 1);
+	mem_addr <= '0' & mem_addr_high & mem_addr_low;
 
 	mem_addr_16_1_reg: entity work.reg
 		generic map(g => g, N => mem_addr_16_1'length)

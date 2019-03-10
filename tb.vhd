@@ -46,7 +46,7 @@ architecture testing of tb is
 	constant reset_period_us:         natural  := 1;
 	constant jitter_on:               boolean  := false;
 
-	constant clock_period:              time     := 1000 ms / g.clock_frequency;
+	constant clock_period:            time     := 1000 ms / g.clock_frequency;
 
 	-- Test bench configurable options --
 
@@ -204,20 +204,6 @@ begin
 				clock_reg_rx_we => uart_clock_rx_we,
 				control_reg_we  => uart_control_we);
 	end block;
-
---	uut_uart: work.uart_pkg.uart_core
---		generic map(g => g, baud_rate => uart_baud)
---		port map(
---			clk       =>  clk,
---			rst       =>  rst,
---			din       =>  din,
---			din_stb   =>  din_stb,
---			din_ack   =>  din_ack,
---			tx        =>  rx,
---			rx        =>  tx,
---			dout_ack  =>  dout_ack,
---			dout_stb  =>  dout_stb,
---			dout      =>  dout);
 
 ------ Simulation only processes ----------------------------------------------
 	clk_process: process

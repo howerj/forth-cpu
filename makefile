@@ -11,13 +11,10 @@
 #
 
 NETLIST=top
-#TIME=time -p 
-
-# @todo sort out pedantic warnings
-#CFLAGS=-Wall -Wextra -O2 -g -pedantic
 CFLAGS=-Wall -Wextra -O2 -g -pedantic
 CC=gcc
 TIME=
+#TIME=time -p 
 
 OS_FLAGS =
 # From: https://stackoverflow.com/questions/714100/os-detecting-makefile
@@ -64,7 +61,7 @@ all:
 	@echo "make h2${EXE}             - build C based CLI emulator for the VHDL SoC"
 	@echo "make gui${EXE}            - build C based GUI emulator for the Nexys3 board"
 	@echo "make run            - run the C CLI emulator on h2.fth"
-	@echo "make gui-run        - run the GUI emulator on h2.hex"
+	@echo "make gui-run        - run the GUI emulator on ${EFORTH}"
 	@echo ""
 	@echo "Synthesis:"
 	@echo ""
@@ -91,34 +88,26 @@ documentation: readme.pdf readme.htm
 %.htm: %.md
 	pandoc --toc --self-contained $^ -o $@
 
-## Assembler ===============================================================
+## Assembler, Virtual Machine and UART communications ======================
 
-%.hex: %.fth h2${EXE}
-	${DF}h2 -S h2.sym -a $< > $@
-
-## Virtual Machine and UART communications =================================
+EFORTH=h2.hex
 
 h2${EXE}: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 $< -o $@
 
-disassemble: h2${EXE} h2.fth
-	${DF}h2 -S h2.sym -a h2.fth > h2.hex
-	${DF}h2 -L h2.sym h2.hex | awk '{printf "%04x %s\n", NR-1, $$0;}' | less -
+embed${EXE}: embed.o
+
+${EFORTH}: embed${EXE} embed.blk embed.fth
+	${DF}embed${EXE} embed.blk $@ embed.fth
 
 block${EXE}: block.c
 	${CC} ${CFLAGS} -std=c99 $< -o $@
 
-h2.sym: h2.hex
-
-nvram.blk: nvram.txt h2.sym block${EXE} 
+nvram.blk: nvram.txt block${EXE} 
 	${DF}block${EXE} < nvram.txt >  $@
-	${DF}block${EXE} < h2.sym    >> $@
 
-# %.blk: %.txt block${EXE}
-#	${DF}block${EXE} < $< > $@
-
-run: h2${EXE} h2.fth nvram.blk
-	${DF}h2 -H -R h2.fth
+run: h2${EXE} ${EFORTH} text.hex nvram.blk
+	${DF}h2 -H -r ${EFORTH}
 
 h2nomain.o: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 -DNO_MAIN  $< -c -o $@
@@ -129,8 +118,8 @@ gui.o: gui.c h2.h
 gui${EXE}: h2nomain.o gui.o
 	${CC} ${CFLAGS} $^ ${GUI_LDFLAGS} -o $@
 
-gui-run: gui${EXE} h2.hex nvram.blk text.hex
-	${DF}$< h2.hex
+gui-run: gui${EXE} ${EFORTH} nvram.blk text.hex
+	${DF}$< ${EFORTH}
 
 text${EXE}: text.c
 	${CC} ${CFLAGS} -std=c99 $< -o $@
@@ -146,7 +135,7 @@ text.hex: text${EXE}
 ram.o: util.o
 kbd.o: util.o kbd.vhd
 vga.o: util.o vga.vhd text.hex font.bin
-core.o: util.o h2.o core.vhd h2.hex
+core.o: util.o h2.o core.vhd ${EFORTH}
 uart.o: util.o uart.vhd
 timer.o: util.o
 top.o: util.o timer.o core.o uart.o vga.o kbd.o ram.o top.vhd  
@@ -217,7 +206,7 @@ tmp/top.xst: tmp tmp/_xmsgs tmp/top.lso tmp/top.lso
 	    echo "-opt_level 2" \
 	) > tmp/top.xst
 
-synthesis: h2.hex text.hex reports tmp tmp/_xmsgs tmp/top.prj tmp/top.xst
+synthesis: ${EFORTH} text.hex reports tmp tmp/_xmsgs tmp/top.prj tmp/top.xst
 	@echo "Synthesis running..."
 	@${TIME} xst -intstyle silent -ifn tmp/top.xst -ofn reports/xst.log
 	@mv _xmsgs/* tmp/_xmsgs
@@ -289,7 +278,6 @@ postsyn:
 	@netgen -w -ofmt vhdl -sim ${NETLIST}.ngd post_translate.vhd
 	@netgen  -pcf ${NETLIST}.pcf -w -ofmt vhdl -sim ${NETLIST}.ncd post_map.vhd
 
-
 clean:
 	@echo "Deleting temporary files and cleaning up directory..."
 	@rm -vf *~ *.o trace.dat tb tb.ghw work-obj93.cf top.ngc top.ngd top_map.ngm \
@@ -300,10 +288,9 @@ clean:
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf h2${EXE} gui${EXE} block${EXE} text${EXE}
-	@rm -vrf text.bin h2.hex text.hex
+	@rm -vrf text.bin ${EFORTH} text.hex
 	@rm -vrf *.pdf *.htm
-	@rm -vrf *.blk *.sym
+	@rm -vrf *.sym
 	@rm -vrf xst/
 	@rm -vf usage_statistics_webtalk.html
-	@rm -vf mem_h2.binary mem_h2.hexadecimal
 

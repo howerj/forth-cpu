@@ -1,0 +1,21 @@
+PAGE
+CR
+CR
+
+RED COLOR
+>_> . 5 {{ H | E | L | L | O }}
+BLUE COLOR
+>_> | 5 {{ H | E | L | L | O }}
+\ >_> / 5 {{ H | E | L | L | O }}
+CR CR
+
+0 SGR
+
+BLINKY .(      BLINK  ) UNBLINK BOLD .( BOLD ) NORMAL REVERSE .( REVERSE ) ESREVER CR
+CR
+MAGENTA BACKGROUND COLOR .(  MAGENTA   ) 
+YELLOW  BACKGROUND COLOR .(  YELLOW    ) 
+BLUE    BACKGROUND COLOR .(  BLUE      ) 
+
+0 SGR
+CR BYE

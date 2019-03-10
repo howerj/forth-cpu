@@ -294,69 +294,28 @@ begin
 	end process;
 
 	--- UART ----------------------------------------------------------
-	uart_0_blk: block
-		signal tx_ok, rx_nd: std_ulogic;
-		signal tx_data:      std_ulogic_vector(7 downto 0) := (others => '0');
-		constant use_fifo_uart: boolean := false;
-	begin
-		tx_data  <= io_dout(tx_data'range);
+	uart_fifo_0: work.uart_pkg.uart_top
+		generic map (g => g, baud => uart_baud, use_fifo => false)
+		port map (
+			clk => clk, 
+			rst => rst,
 
-		ugen0: if not use_fifo_uart generate
-			tx_fifo_full  <= not tx_ok;
-			tx_fifo_empty <= tx_ok;
+			tx            => tx,
+			tx_fifo_full  => tx_fifo_full,
+			tx_fifo_empty => tx_fifo_empty,
+			tx_fifo_we    => tx_data_we,
+			tx_fifo_data  => io_dout(7 downto 0),
 
-			rx_fifo_full  <= rx_nd;
-			rx_fifo_empty <= not rx_nd;
+			rx            => rx,
+			rx_fifo_re    => rx_data_re,
+			rx_fifo_data  => rx_data,
+			rx_fifo_full  => rx_fifo_full,
+			rx_fifo_empty => rx_fifo_empty,
 
-			uart_0: work.uart_pkg.uart_core
-				generic map (g => g, baud => uart_baud)
-				port map (
-					clk   => clk,
-					rst   => rst,
-					tx_di => tx_data,
-					tx_we => tx_data_we,
-					tx_ok => tx_ok,
-					tx    => tx,
-				
-					rx    => rx,
-					rx_ok => open,
-					rx_nd => rx_nd,
-					rx_do => rx_data,
-					rx_re => rx_data_re,
-				
-					reg             => io_dout,
-					clock_reg_tx_we => uart_clock_tx_we,
-					clock_reg_rx_we => uart_clock_rx_we,
-					control_reg_we  => uart_control_we);
-		end generate;
-
-		-- TEST CODE, TX is not quite working. This generate should
-		-- be moved into the core module.
-		ugen1: if use_fifo_uart generate
-			uart_fifo_0: work.uart_pkg.uart_top
-				generic map (g => g, baud => uart_baud)
-				port map (
-					clk => clk, 
-					rst => rst,
-
-					tx            => tx,
-					tx_fifo_full  => tx_fifo_full,
-					tx_fifo_empty => tx_fifo_empty,
-					tx_fifo_we    => tx_data_we,
-					tx_fifo_data  => tx_data,
-
-					rx            => rx,
-					rx_fifo_re    => rx_data_re,
-					rx_fifo_data  => rx_data,
-					rx_fifo_full  => rx_fifo_full,
-					rx_fifo_empty => rx_fifo_empty,
-
-					reg             => io_dout,
-					clock_reg_tx_we => uart_clock_tx_we,
-					clock_reg_rx_we => uart_clock_rx_we,
-					control_reg_we  => uart_control_we);
-		end generate;
-	end block;
+			reg             => io_dout,
+			clock_reg_tx_we => uart_clock_tx_we,
+			clock_reg_rx_we => uart_clock_rx_we,
+			control_reg_we  => uart_control_we);
 	--- UART ----------------------------------------------------------
 
 	--- LED Output ----------------------------------------------------
@@ -422,9 +381,9 @@ begin
 				v_blank => v_blank,
 				h_sync => o_vga.hsync,
 				v_sync => o_vga.vsync);
-			o_vga.red <= "111" when draw = '1' else "000";
+			o_vga.red   <= "111" when draw = '1' else "000";
 			o_vga.green <= "111" when (draw = '1' and row < 100 and column < 100) else "000";
-			o_vga.blue <= "11";
+			o_vga.blue  <= "11";
 		end block;
 		end generate;
 	end block;
@@ -520,7 +479,7 @@ begin
 	port map (
 		clk               =>  clk,
 		rst               =>  rst,
-		mem_addr_16_1     =>  io_dout,
+		mem_addr_16_1     =>  io_dout(io_dout'high downto 1),
 		mem_addr_16_1_we  =>  mem_addr_16_1_we,
 		mem_addr_26_17    =>  io_dout(9 downto 0),
 		mem_addr_26_17_we =>  mem_addr_26_17_we,

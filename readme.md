@@ -84,10 +84,10 @@ You will require:
 
 Hardware:
 
-* VGA Monitor, and cable.
-* USB Keyboard (plugs into the Nexys3 USB to PS/2 bridge)
-* [Nexys3][] development board
-* Only the [Nexys3][] is need if you want to talk to the device via the UART
+* VGA Monitor, and cable (Optional)
+* USB Keyboard (Optional) (plugs into the Nexys3 USB to PS/2 bridge)
+* [Nexys3][] development board (if communication via UART only is
+desired, the VGA Monitor and USB and Keyboard are not needed).
 * USB Cables!
 
 [Xilinx ISE][] can (or could be) downloaded for free, but requires
@@ -100,7 +100,7 @@ registration. ISE needs to be on your path:
 
 To make the [C][] based toolchain:
 
-	make h2
+	make embed.hex
 
 To make a bit file that can be flashed to the target board:
 
@@ -118,7 +118,7 @@ The [C][] based CLI simulator can be invoked with:
 
 	make run
 
-Which will assemble the H2 Forth source file [h2.fth][], and run the assembled
+Which will assemble the H2 Forth source file [embed.fth][], and run the assembled
 object file under the H2 simulator with the debugger activated. A graphical
 simulator can be run with:
 
@@ -139,6 +139,10 @@ written in [C][].
 
 * <https://github.com/samawati/j1eforth>
 
+The eForth interpreter which the meta-compiler is built on can be found at: 
+
+* <https://github.com/howerj/embed>
+
 # Manual
 
 The H2 processor and associated peripherals are now quite stable, however the
@@ -151,7 +155,7 @@ There are a few modifications to the [J1][] CPU which include:
 * A CPU hold line which keeps the processor in the same state so long as it is
 high.
 * Interrupt Service Routines have been added.
-* Larger return and data stacks
+* Larger (adjustable at time of synthesis) return and data stacks
 
 ### H2 CPU
 
@@ -253,14 +257,14 @@ interface with devices on the [Nexys3][] board:
 
 * [VGA][] output device, text mode only, 80 by 40 characters from
   <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>. This has
-been heavily modified from the original, which now implements most of a VT100
-terminal emulator.
-* Timer
+been heavily modified from the original, which now implements most of a
+[VT100][] terminal emulator.
+* [Timer][] in [timer.vhd][].
 * [UART][] (Rx/Tx) in [uart.vhd][].
 * [PS/2][] Keyboard
 from <https://eewiki.net/pages/viewpage.action?pageId=28279002>
 * [LED][] next to a bank of switches
-* An [7 Segment LED Display][] driver (a 7 segment display with a decimal point)
+* A [7 Segment LED Display][] driver (a 7 segment display with a decimal point)
 
 The SoC also features a limited set of interrupts that can be enabled or
 disabled.
@@ -614,16 +618,24 @@ been processed.
 
 # The Toolchain
 
-The Assembler, Disassembler and [C][] based simulator for the H2 is in a single
+The Disassembler and [C][] based simulator for the H2 is in a single
 program (see [h2.c][]). This simulator complements the [VHDL][] test bench
-[tb.vhd][] and is not a replacement for it.
+[tb.vhd][] and is not a replacement for it. The meta-compiler runs on top of an
+eForth interpreter and it contained within the files [embed.c][] and
+[embed.blk][]. The meta-compiler (Forth parlance for a cross-compiler) is a
+Forth program which is used to create the eForth image that runs on the target.
 
-To build it a [C][] compiler is needed, the build target "h2" will build the
-executable:
+The toolchain is currently in flux, going forward there is liable to more
+integration between [h2.c][] and [embed.c][], along with changing the Embed
+Virtual Machine into one that more closely resembles the H2 CPU with the long
+term goal of creating a self hosting system.
 
-	make h2
+To build both, a [C][] compiler is needed, the build target "h2" will build the
+executable, h2, and "embed" will build the meta-compiler:
 
-And it can be run on the source file [h2.fth][] with the make target:
+	make h2 embed
+
+And it can be run on the source file [embed.fth][] with the make target:
 
 	make run
 
@@ -631,15 +643,19 @@ The make file is not needed:
 
 	Linux:
 
-	cc -std=c99 h2.c -o h2  # To build the h2 executable
-	./h2 -h                 # For a list of options
-	./h2 -T -R h2.fth       # Assemble h2.fth and run it
+	cc -std=c99 h2.c -o h2        # To build the h2 executable
+	cc -std=c99 embed.c -o embed  # To build the embed VM executable
+	./embed embed.blk embed.hex embed.fth # Create the target eForth image
+	./h2 -h                     # For a list of options
+	./h2 -r embed.hex           # Run the assembled file
 
 	Windows:
 
-	gcc -std=c99 h2.c -o h2.exe # Builds the h2.exe executable
+	gcc -std=c99 h2.c -o h2.exe       # Builds the h2.exe executable
+	gcc -std=c99 embed.c -o embed.exe # Builds the embed.exe executable
+	embed.exe embed.blk embed.hex embed.fth # Create the target eForth iamge
 	h2.exe -h                   # For a list of options
-	h2.exe -T -R h2.fth         # Assemble h2.fth and run it
+	h2.exe -r embed.hex         # Run the assembled file
 
 A list of command line options available:
 
@@ -649,11 +665,8 @@ A list of command line options available:
         -d      disassemble input files (default)
         -D      full disassembly of input files
         -T      Enter debug mode when running simulation
-        -a      assemble file
         -r      run hex file
-        -R      assemble file then run it
         -L #    load symbol file
-        -S #    save symbols to file
         -s #    number of steps to run simulation (0 = forever)
 	-n #    specify NVRAM block file (default is nvram.blk)
         file*   file to process
@@ -662,161 +675,24 @@ This program is released under the [MIT][] license, feel free to use it and
 modify it as you please. With minimal modification it should be able to
 assemble programs for the original [J1][] core.
 
-## Assembler
+## Meta-Compiler
 
-The assembler is actually a compiler for a pseudo Forth like language with a
-fixed grammar. It is a much more restricted language than Forth and cannot be
-extended within itself like Forth can.
+The meta-compiler runs on top of the [embed][] virtual machine, it is a 16-bit
+virtual machine that originally descended from the H2 CPU. The project includes
+a meta-compilation scheme that allows an eForth image to generate a new eForth
+image with modifications. That system has been adapted for use with the H2,
+which replaced the cross compiler written in C, which allowed the first image
+for the H2 to be created.
 
-The main program can be found in [h2.fth][], which contains a Forth interpreter
-that runs on the device.
+The meta-compiler is an ordinary Forth program, it is contained within
+[embed.fth][]. The meta-compiler Forth program is then used to build up an
+eForth image capable of running on the H2 target.
 
-The assembler/compiler reads in a text file containing a program and produces a
-hex file which can be read in by the simulator, disassembler, the VHDL test
-bench or read in by the [Xilinx ISE][] toolchain when it generates the bit file
-for the [Spartan 6][] on the [Nexys3][] board.
+For more information about meta-compilation in Forth, see:
 
-A rough [EBNF][] grammar for the language is as follows:
-
-	Program     := Statement* EOF
-	Statement   :=   Label | Branch | 0Branch | Call | Literal | Instruction
-		       | Identifier | Constant | Variable | Location | Definition | If
-		       | Begin | Char | Set | Pc | Pwd | Break | Mode | String | BuiltIn
-	Label       := Identifier ";"
-	Branch      := "branch"  ( Identifier | Literal )
-	0Branch     := "0branch" ( Identifier | Literal )
-	Call        := "call"    ( Identifier | Literal )
-	Set         := ".set"    ( Identifier | Literal | String ) ( Identifier | Literal | String )
-	Pc          := ".pc"     ( Identifier | Literal )
-	Pwd         := ".pwd"    ( Identifier | Literal )
-	Break       := ".break"
-	BuiltIn     := ".built-in"
-	Mode        := ".mode"      Literal
-	Allocate    := ".allocate" ( Identifier | Literal )
-	Constant    := "constant" Identifier Literal "hidden"?
-	Variable    := "variable" Identifier ( Literal | String ) "hidden"?
-	Location    := "Location" Identifier ( Literal | String )
-	Instruction := "@" | "store" | "exit" | ...
-	Definition  := ":" ( Identifier | String) Statement* ";" ( "hidden" | "immediate" | "inline")
-	If          := "if" Statement* [ "else" ] Statement* "then"
-	Begin       := "begin" Statement* ("until" | "again" | "while" Statement* "repeat")
-	For         := "for"   Statement* ("aft" Statement* "then" Statement* | "next")
-	Literal     := [ "-" ] Number
-	String      := '"' SChar* '"'
-	Char        := "[char]" ASCII ","
-	Number      := Hex | Decimal
-	Decimal     := "0" ... "9" ("0" ... "9")*
-	Hex         := "$" HexDigit HexDigit*
-	HexDigit    := ( "a" ... "f" | "A" ... "F" )
-	SChar       := Any character except quote
-
-Literals have higher priority than Identifiers, and comments are '\'
-until a new line is encountered, or '(' until a ')' is encountered.
-
-The grammar allows for nested word definitions, however state is held in the
-lexer to prevent this.
-
-The assembler the following directives:
-
-	.pc        Set the program counter
-	.pwd       Set the previous word pointer
-	.allocate  Increment the program counter
-	.set       Set location in memory
-	.mode      Change compiler mode
-	.built-in  Assemble built words here
-
-
-There are several optimizations that can be performed, the ".mode" directive
-controls whether they are active, along with controlling whether word
-definitions are compiled with their headers or not. Optimizations performed
-include merging a call to exit with the previous instruction if it is possible
-to do so and performing tail call optimization where possible.
-
-The built in words, with their instruction encodings:
-
-
-| Word   | 0 | 1 | 1 |   ALU OPERATION   |T2N|T2R|N2A|R2P| RSTACK| DSTACK|
-|--------|---|---|---|-------------------|---|---|---|---|-------|-------|
-| dup    | 0 | 1 | 1 |       T           | X |   |   |   |       |  +1   |
-| over   | 0 | 1 | 1 |       N           | X |   |   |   |       |  +1   |
-| invert | 0 | 1 | 1 |       ~ T         |   |   |   |   |       |       |
-| +      | 0 | 1 | 1 |       T + N       |   |   |   |   |       |  -1   |
-| swap   | 0 | 1 | 1 |       N           | X |   |   |   |       |       |
-| nip    | 0 | 1 | 1 |       T           |   |   |   |   |       |  -1   |
-| drop   | 0 | 1 | 1 |       N           |   |   |   |   |       |  -1   |
-| exit   | 0 | 1 | 1 |       T           |   |   |   | X |   -1  |       |
-| &gt;r  | 0 | 1 | 1 |       N           |   | X |   |   |   +1  |  -1   |
-| r&gt;  | 0 | 1 | 1 |       R           | X |   |   |   |   -1  |  +1   |
-| r@     | 0 | 1 | 1 |       R           | X |   |   |   |       |  +1   |
-| @      | 0 | 1 | 1 |       [T]         |   |   |   |   |       |       |
-| store  | 0 | 1 | 1 |       N           |   |   | X |   |       |  -1   |
-| rshift | 0 | 1 | 1 |       N >> T      |   |   |   |   |       |  -1   |
-| lshift | 0 | 1 | 1 |       N << T      |   |   |   |   |       |  -1   |
-| =      | 0 | 1 | 1 |       N = T       |   |   |   |   |       |  -1   |
-| u<     | 0 | 1 | 1 |       N u< T      |   |   |   |   |       |  -1   |
-| <      | 0 | 1 | 1 |       N < T       |   |   |   |   |       |  -1   |
-| and    | 0 | 1 | 1 |       T & N       |   |   |   |   |       |  -1   |
-| xor    | 0 | 1 | 1 |       T ^ N       |   |   |   |   |       |  -1   |
-| or     | 0 | 1 | 1 |       T or N      |   |   |   |   |       |  -1   |
-| depth  | 0 | 1 | 1 |       depth       |   |   |   |   |       |  +1   |
-| 1-     | 0 | 1 | 1 |       T - 1       |   |   |   |   |       |       |
-| ien!   | 0 | 1 | 1 | N, Set CPU Status |   |   |   |   |       |  -1   |
-| ien?   | 0 | 1 | 1 | Get CPU Status    |   |   |   |   |       |  +1   |
-| rdepth | 0 | 1 | 1 |      rdepth       |   |   |   |   |       |  +1   |
-| 0=     | 0 | 1 | 1 |        0=         |   |   |   |   |       |       |
-| up1    | 0 | 1 | 1 |        T          |   |   |   |   |       |  +1   |
-| nop    | 0 | 1 | 1 |        T          |   |   |   |   |       |       |
-| cpu-id | 0 | 1 | 1 |      CPU ID       |   |   |   |   |       |  +1   |
-| rdrop  | 0 | 1 | 1 |        T          |   |   |   |   |  -1   |       |
-
-
-The language used in the assembler is Forth like, the best example of how to
-use it is in the file "h2.fth", which contains a working Forth interpreter and
-many Forth definitions. New words can be defined in the usual manner:
-
-	: 2+ 2 + ;
-	: ?dup dup if dup then ;
-
-Control structure mismatches cause the parser to terminate with an error
-condition as they are handled with a parser, each ":" must have a corresponding
-";", an "if" must have either an "else" and then "then", or just "then",
-etcetera.
-
-Variables and constants can also be defined, but the grammar is slightly
-different to how it works in a normal Forth:
-
-	variable x 55
-	constant y 20
-
-Constants take up no space unless they are used, whereas variables are
-allocated a location and set to an initial value. The above example creates a
-variable 'x' and sets the variable to '55'. It also adds a constant 'y' to the
-current symbol table, which can be used in other function definitions.
-
-Code that does not appear within a word definition is assembled at that
-location.
-
-The following control structures are available:
-
-	T = value to consume off the top of the stack
-	A = First clause
-	B = Second clause
-	C = Third clause
-
-	T if     A    else    B then           If T != 0 execute A else execute B
-	T if     A    then                     If T != 0 execute A
-	  begin  A T  until                    Execute T until T != 0
-	  begin  A    again                    Inifinite loop, execute A
-	  begin  A T  while   B repeat         Execute A, if T = 0 exit loop, else execute B
-	T for    A    next                     Execute loop T times (stores
-	                                       loop parameter on the return stack)
-	T for    A    aft     B then C next    Execute loop T times, skip B on first loop
-	  label: A    branch  label            Branch to label
-	  label: A T  0branch label            Branch to label if T = 0
-
-Unlike in a normal Forth environment these control structures can be called
-from outside functions definitions. They must also matched up correctly,
-otherwise a syntax error will be raised.
+* <https://github.com/howerj/embed>
+* <https://github.com/howerj/embed/blob/master/embed.fth>
+* <http://www.ultratechnology.com/meta.html>
 
 ## Disassembler
 
@@ -853,7 +729,6 @@ To run the debugger either a hex file or a source file must be given:
 
 	# -T turns debugging mode on
 	./h2 -T -r file.hex  # Run simulator
-	./h2 -T -R file.fth  # Assemble and run some code
 
 Both modes of operation can be augmented with a symbols file, which lists where
 variables, labels and functions are located with the assembled core.
@@ -1034,7 +909,7 @@ VHDL-2008 standard.
 The pseudo Forth like language used as an assembler is described above, the
 application that actually runs on the Forth core is in itself a Forth
 interpreter. This section describes the Forth interpreter that runs on H2 Core,
-it is contained within [h2.fth][].
+it is contained within [embed.fth][].
 
 TODO:
 * Describe the Forth environment running on the H2 CPU.
@@ -1239,90 +1114,8 @@ example:
 * "goto" can be used - it can be misused, but using it does not instantly make
   code inscrutable contrary to popular belief.
 
-## FORTH
-
-The Forth in [h2.fth][] used to build an actual Forth system for the target
-core is not a proper Forth, but a compiler for a Forth like language, this
-idiosyncratic language has its own way of doing things. The workings of the
-language will not be described in this section, only the coding standards and
-style guide.
-
-Either type of comment can be used, although "( )" comments are preferred,
-single line words should be short at only a few words, multi line words
-should be indented properly
-
-	: 1+ 1 + ;
-	: negate invert 1+ ;
-	: dnegate not >r not 1 um+ r> + ; ( d -- d )
-
-Tabs should be used for indentation and a stack comment present for long or
-complex words.
-
-	: ?rx ( -- c -1 | 0 : read in a character of input from UART )
-		iUart @ 0x0100 and 0= ( the value to test goes on one line )
-		if                    ( the 'if' on another line )
-			0x0400 oUart ! iUart @ 0xff and -1
-		else
-			0
-		then ; ( ';' is part of the final statement )
-
-	\ This word is too long for the stack comment and to be on a
-	\ single line
-	: parse ( c -- b u ; <string> )
-		>r tib >in @ + #tib @ >in @ - r> parser >in +! ;
-
-Space is seriously limited on the target device at only 8192 cells (16KiB), so
-words kept as short as possible, and programs highly factored. Speed is not so
-much of an issue as the board and core runs at 100MHz.
-
-Stack comments describe what values and Forth word takes and returns, it is
-good practice to make words that accept and return a fixed number of parameters
-but in certain circumstances it is advantages to return a variable number of
-arguments. The comments also describe the type of the arguments word accepts,
-the Forth kernel will do no checking on the data it gets however.
-
-Stack comments should be added with the following scheme:
-
-| Comment        | Meaning                             |
-|----------------|-------------------------------------|
-| a              | cell address                        |
-| n              | signed number                       |
-| u              | unsigned number                     |
-| b              | string address                      |
-| c              | single character                    |
-| d              | double width number (2 Cells)       |
-| f              | boolean flag (-1 = true, 0 = false) |
-| k              | block number                        |
-| cfa            | code field address of a word        |
-| nfa            | name field address of a word        |
-| pwd            | previous word address of a word     |
-| &lt;string&gt; | a parsing word                      |
-
-Stack comments have the following format:
-
-	  Variable Stack Effects  Return stack Effects     Parsing    Description
-	( arguments -- returns;   R: arguments -- returns; <parses> : comment     )
-
-Examples of words and their stack comments:
-
-	dup   ( n -- n n : duplicate a number )
-	>r    ( n -- ; R: -- n : move a number to the return stack )
-	r>    ( -- n ; R: n -- : move a number from the return stack )
-	parse ( c -- b u; <string> : parse a word delimted by 'c' )
-	over  ( n1 n2 -- n1 n2 n1 : duplicate next on stack over top )
-
-Words can have their arguments numbered to make it clearer what the effects
-are.
-
 # To Do
 
-* The [embed][] project, which was derived from the simulator and Forth for this
-project, has an improved version of Forth which could be reintegrated with
-this project. The [embed][] project features a metacompiler suitable for 16-bit
-systems like this one, it could be used in lieu of the Pseudo-Forth compiler.
-A massively cut down and minimal simulator and toolchain could be made, which
-would make the project much easier to understand, there is no reason to include
-everything in a single binary (made from [h2.c][]). (Partially complete!)
 * Even better than using the [embed][] project directly, would be to port the
 [embed][] project so the meta-compiler runs directly on the hardware. The
 simulator could then be used to assemble new images, making the system (much
@@ -1331,45 +1124,13 @@ use one of the UARTs for reading the meta-compiler and meta-compiled eForth
 program, and writing status/error messages. A second UART could be used to
 dump the binary as a stream of hexadecimal numbers, the simulator could
 redirect the second UART output to a file.
-* The H2 core has deviated from the original J1 core, the new instructions
-could have been added in a backwards compatible way. These deviations should be
-corrected. Also, the stack sized should be reduced if possible.
 * Create a cut down version of the project; remove nearly everything apart from
-the H2 Core, UART and Block RAM components. The interrupt handler could be
-simplified as well.
+the H2 Core, Block RAM and timer components. The interrupt handler could be
+simplified as well. The UART could be handed in the H2 Core
 * The GUI simulator could be written to be built against [SDL][], and include
 proper textures for the buttons and displays, instead of the current simulator
 which looks like an early 90s test application for OpenGL.
 * Prepare more documentation
-* Implement assembler directive in the debugger. This would allow code to
-be modified more easily when debugging, and make it even more similar to
-the DEBUG.COM command.
-* A much more minimal system could be created, consisting of only the H2 CPU
-core, a minimal (perhaps interactive) testbench, RAM blocks, UARTs and simulator. 
-The [j1eforth][] project could be used as an example of simplicity. The project
-is tiny and includes a meta-compiler (written in Gforth) and an eForth
-interpreter that runs on the J1 core (~1100 lines of Forth), the source for the
-target (the original J1 core, and UART at ~800 lines of Verilog and VHDL), and
-a simple simulator written in C (at only 186 lines of C code!). This system is
-incredibly minimal compared to this one.
-* A separate project of interest would be to use the H2 core, possibly in a
-modified form, to form the basis of a VGA graphics processor. It would be more
-complex than the current VT100 simulator, but potentially much more flexible,
-allowing for greater graphics capabilities using a little more memory and
-roughly the same amount of layout space. The idea would be to compute a VGA
-line (either 640x480, or 800x600) during the sync period and whilst the line is
-currently being drawn; commands could be given to the H2 core, such as 'draw a
-circle of radius R at position X,Y', or 'draw a line of text at X,Y'. Collision
-detection could be used to determine which pixel to color, rotation could
-perhaps be handled by manipulating the pixel value to be currently drawn.
-* Make a colorized version of 'dump' that allows that would colorize certain
-types of data (0 = red, address = blue, printable = yellow, etcetera). This
-could be turned off by setting the appropriate execution tokens for
-colorization off (an execution token for 'page' and 'at-xy' should also be
-made).
-* Find the licenses for the fonts used and include them.
-* Add 'marker' as a word to the eForth image. Also, the ANSI word set should be
-in by default in the image generated by the new toolchain.
 * An IDE for resetting/uploading the image to the target board and then sending
 a text buffer to it would help in developing code for the platform.
 * Add notes about picocom, and setting up the hardware:
@@ -1395,7 +1156,9 @@ a text buffer to it would help in developing code for the platform.
 [DEBUG.COM]: https://en.wikipedia.org/wiki/Debug_%28command%29
 [DOS]: https://en.wikipedia.org/wiki/DOS
 [h2.c]: h2.c
-[h2.fth]: h2.fth
+[embed.fth]: embed.fth
+[embed.c]: embed.c
+[embed.blk]: embed.blk
 [tb.vhd]: tb.vhd
 [uart.vhd]: uart.vhd
 [top.ucf]: top.ucf
@@ -1450,7 +1213,6 @@ a text buffer to it would help in developing code for the platform.
 [embed]: https://github.com/howerj/embed
 [SDL]: https://www.libsdl.org/
 [Apache 2.0]: https://www.apache.org/licenses/LICENSE-2.0.html
-[uart.vhd]: uart.vhd
 
 <!--
 
