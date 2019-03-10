@@ -692,6 +692,7 @@ For more information about meta-compilation in Forth, see:
 
 * <https://github.com/howerj/embed>
 * <https://github.com/howerj/embed/blob/master/embed.fth>
+* <http://www.ultratechnology.com/meta.html>
 
 ## Disassembler
 

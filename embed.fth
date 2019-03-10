@@ -10,6 +10,13 @@ system +order 0 <ok> !
 \ mainly extra memory, so it will not be quite a self-hosting system, but
 \ close.
 \ - Add references back in, along with documentation.
+\ - Multi-tasking would be nice, www.ultratechnology.com/p21fchp7.html.
+\ - Implement bit-banging version of UART, reliant only from an interrupt
+\ from a timer, and the UART Pins. Debouncing and the FIFO for both TX and
+\ RX should be done in software. 
+\ - Add a 'random' keyword based on a 16-bit xorshift, see
+\ https://b2d-f9r.blogspot.com/2010/08/16-bit-xorshift-rng-now-with-more.html
+\ The timer could also be added into this.
 
 .( FORTH META COMPILATION START ) cr
 
