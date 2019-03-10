@@ -226,14 +226,6 @@ FILE *fopen_or_die(const char *file, const char *mode) {
 	return f;
 }
 
-static int indent(FILE *output, const char c, unsigned i) {
-	assert(output);
-	while (i--)
-		if (fputc(c, output) != c)
-			return -1;
-	return 0;
-}
-
 static int string_to_long(const int base, long *n, const char *s) {
 	char *end = NULL;
 	assert(base >= 0);
@@ -1365,7 +1357,7 @@ static unsigned block_size(const unsigned block) {
 static bool block_locked(const flash_t * const f, const unsigned block) {
 	assert(f);
 	assert(block < FLASH_BLOCK_MAX);
-	/**@todo The locks block would probably be best be represented as a bit
+	/* The locks block would probably be best be represented as a bit
 	 * vector, the functions to manipulate a bit vector can quite easily be
 	 * turned into a useful header only library */
 	return !!(f->locks[block]);
@@ -1818,8 +1810,56 @@ typedef struct {
 
 static const char *debug_prompt = "debug> ";
 
-static int number(const char *s, uint16_t *o, size_t length);
+static uint16_t map_char_to_number(int c) {
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	c = tolower(c);
+	if (c >= 'a' && c <= 'z')
+		return c + 10 - 'a';
+	fatal("invalid numeric character: %c", c);
+	return 0;
+}
 
+static bool numeric(const int c, const int base) {
+	assert(base == 10 || base == 16);
+	if (base == 10)
+		return isdigit(c);
+	return isxdigit(c);
+}
+
+static int number(const char * const s, uint16_t * const o, const size_t length) {
+	size_t i = 0, start = 0;
+	uint32_t out = 0;
+	int base = 10;
+	bool negate = false;
+	assert(o);
+	if (s[i] == '\0')
+		return 0;
+
+	if (s[i] == '-') {
+		if (s[i+1] == '\0')
+			return 0;
+		negate = true;
+		start = ++i;
+	}
+
+	if (s[i] == '$') {
+		base = 16;
+		if (s[i+1] == '\0')
+			return 0;
+		start = i + 1;
+	}
+
+	for (i = start; i < length; i++)
+		if (!numeric(s[i], base))
+			return 0;
+
+	for (i = start; i < length; i++)
+		out = out * base + map_char_to_number(s[i]);
+
+	*o = negate ? out * (uint16_t)-1 : out;
+	return 1;
+}
 static void h2_print(FILE *out, const h2_t *const h) {
 	assert(h);
 	fputs("Return Stack:\n", out);
@@ -1850,7 +1890,6 @@ typedef struct {
 } debug_command_t;
 
 static const debug_command_t debug_commands[] = {
-	{ .cmd = 'a', .argc = 1, .arg1 = DBG_CMD_NUMBER, .arg2 = DBG_CMD_NO_ARG, .description = "assemble               " },
 	{ .cmd = 'b', .argc = 1, .arg1 = DBG_CMD_EITHER, .arg2 = DBG_CMD_NO_ARG, .description = "set break point        " },
 	{ .cmd = 'c', .argc = 0, .arg1 = DBG_CMD_NO_ARG, .arg2 = DBG_CMD_NO_ARG, .description = "continue               " },
 	{ .cmd = 'd', .argc = 2, .arg1 = DBG_CMD_NUMBER, .arg2 = DBG_CMD_NUMBER, .description = "dump                   " },
@@ -1999,9 +2038,6 @@ again:
 		case '\t':
 		case '\r':
 		case '\n':
-			break;
-		case 'a':
-			fprintf(ds->output, "command '%c' not implemented yet!\n", op[0]);
 			break;
 		case 'f':
 		{
@@ -2332,1408 +2368,13 @@ int h2_run(h2_t *h, h2_io_t *io, FILE *output, const unsigned steps, symbol_tabl
 
 /* ========================== Simulation And Debugger ====================== */
 
-/* ========================== Assembler ==================================== */
-/* This section is the most complex, it implements a lexer, parser and code
- * compiler for a simple pseudo Forth like language, whilst it looks like
- * Forth it is not Forth. */
-
-#define MAX_ID_LENGTH (256u)
-
-/**@warning The ordering of the following enumerations matters a lot */
-typedef enum {
-	LEX_LITERAL,
-	LEX_IDENTIFIER,
-	LEX_LABEL,
-	LEX_STRING,
-
-	LEX_CONSTANT, /* start of named tokens */
-	LEX_CALL,
-	LEX_BRANCH,
-	LEX_0BRANCH,
-	LEX_BEGIN,
-	LEX_WHILE,
-	LEX_REPEAT,
-	LEX_AGAIN,
-	LEX_UNTIL,
-	LEX_FOR,
-	LEX_AFT,
-	LEX_NEXT,
-	LEX_IF,
-	LEX_ELSE,
-	LEX_THEN,
-	LEX_DEFINE,
-	LEX_ENDDEFINE,
-	LEX_CHAR,
-	LEX_VARIABLE,
-	LEX_LOCATION,
-	LEX_IMMEDIATE,
-	LEX_HIDDEN,
-	LEX_INLINE,
-	LEX_QUOTE,
-
-	LEX_PWD,
-	LEX_SET,
-	LEX_PC,
-	LEX_BREAK,
-	LEX_MODE,
-	LEX_ALLOCATE,
-	LEX_BUILT_IN,
-
-	/* start of instructions */
-#define X(NAME, STRING, DEFINE, INSTRUCTION) LEX_ ## NAME,
-	X_MACRO_INSTRUCTIONS
-#undef X
-	/* end of named tokens and instructions */
-
-	LEX_ERROR, /* error token: this needs to be after the named tokens */
-
-	LEX_EOI = EOF
-} token_e;
-
-static const char *keywords[] = {
-	[LEX_LITERAL]    = "literal",
-	[LEX_IDENTIFIER] = "identifier",
-	[LEX_LABEL]      = "label",
-	[LEX_STRING]     = "string",
-	[LEX_CONSTANT]   = "constant",
-	[LEX_CALL]       = "call",
-	[LEX_BRANCH]     = "branch",
-	[LEX_0BRANCH]    = "0branch",
-	[LEX_BEGIN]      = "begin",
-	[LEX_WHILE]      = "while",
-	[LEX_REPEAT]     = "repeat",
-	[LEX_AGAIN]      = "again",
-	[LEX_UNTIL]      = "until",
-	[LEX_FOR]        = "for",
-	[LEX_AFT]        = "aft",
-	[LEX_NEXT]       = "next",
-	[LEX_IF]         = "if",
-	[LEX_ELSE]       = "else",
-	[LEX_THEN]       = "then",
-	[LEX_DEFINE]     = ":",
-	[LEX_ENDDEFINE]  = ";",
-	[LEX_CHAR]       = "[char]",
-	[LEX_VARIABLE]   = "variable",
-	[LEX_LOCATION]   = "location",
-	[LEX_IMMEDIATE]  = "immediate",
-	[LEX_HIDDEN]     = "hidden",
-	[LEX_INLINE]     = "inline",
-	[LEX_QUOTE]      = "'",
-	[LEX_PWD]        = ".pwd",
-	[LEX_SET]        = ".set",
-	[LEX_PC]         = ".pc",
-	[LEX_BREAK]      = ".break",
-	[LEX_MODE]       = ".mode",
-	[LEX_ALLOCATE]   = ".allocate",
-	[LEX_BUILT_IN]   = ".built-in",
-
-	/* start of instructions */
-#define X(NAME, STRING, DEFINE, INSTRUCTION) [ LEX_ ## NAME ] = STRING,
-	X_MACRO_INSTRUCTIONS
-#undef X
-	/* end of named tokens and instructions */
-
-	[LEX_ERROR]      = NULL,
-	NULL
-};
-
-typedef struct {
-	union {
-		char *id;
-		uint16_t number;
-	} p;
-	unsigned location;
-	unsigned line;
-	token_e type;
-} token_t;
-
-typedef struct {
-	error_t error;
-	FILE *input;
-	unsigned line;
-	int c;
-	char id[MAX_ID_LENGTH];
-	token_t *token;
-	token_t *accepted;
-	bool in_definition;
-} lexer_t;
-
-/********* LEXER *********/
-
-/**@note it would be possible to add a very small amount of state to the
- * lexer, so when keywords like 'hex' and 'decimal' are encountered, the
- * base is changed. */
-
-static token_t *token_new(const token_e type, const unsigned line) {
-	token_t *r = allocate_or_die(sizeof(*r));
-	r->type = type;
-	r->line = line;
-	return r;
-}
-
-void token_free(token_t *t) {
-	if (!t)
-		return;
-	if (t->type == LEX_IDENTIFIER || t->type == LEX_STRING || t->type == LEX_LABEL)
-		free(t->p.id);
-	memset(t, 0, sizeof(*t));
-	free(t);
-}
-
-static int next_char(const lexer_t * const l) {
-	assert(l);
-	return fgetc(l->input);
-}
-
-static int unget_char(const lexer_t * const l, const int c) {
-	assert(l);
-	return ungetc(c, l->input);
-}
-
-static lexer_t* lexer_new(FILE *input) {
-	assert(input);
-	lexer_t * const l = allocate_or_die(sizeof(lexer_t));
-	l->input = input;
-	return l;
-}
-
-static void lexer_free(lexer_t *l) {
-	assert(l);
-	token_free(l->token);
-	memset(l, 0, sizeof(*l));
-	free(l);
-}
-
-static int token_print(token_t *t, FILE *output, const unsigned depth) {
-	if (!t)
-		return 0;
-	indent(output, ' ', depth);
-	token_e type = t->type;
-	int r = 0;
-	if (type == LEX_LITERAL) {
-		r = fprintf(output, "number: %"PRId16, t->p.number);
-	} else if (type == LEX_LABEL) {
-		r = fprintf(output, "label: %s", t->p.id);
-	} else if (type == LEX_IDENTIFIER) {
-		r = fprintf(output, "id: %s", t->p.id);
-	} else if (type == LEX_ERROR) {
-		r = fputs("error", output);
-	} else if (type == LEX_EOI) {
-		r = fputs("EOI", output);
-	} else {
-		r = fprintf(output, "keyword: %s", keywords[type]);
-	}
-	return r < 0 ? -1 : 0;
-}
-
-static int _syntax_error(lexer_t *l, const char *func, unsigned line, const char *fmt, ...) {
-	assert(l);
-	assert(func);
-	assert(fmt);
-	fprintf(stderr, "%s:%u\n", func, line);
-	fprintf(stderr, "  syntax error on line %u of input\n", l->line);
-	va_list ap;
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	fputc('\n', stderr);
-	token_print(l->token, stderr, 2);
-	fputc('\n', stderr);
-	ethrow(&l->error);
-	return 0;
-}
-
-#define syntax_error(LEXER, ...) _syntax_error(LEXER, __func__, __LINE__, __VA_ARGS__)
-
-static uint16_t map_char_to_number(int c) {
-	if (c >= '0' && c <= '9')
-		return c - '0';
-	c = tolower(c);
-	if (c >= 'a' && c <= 'z')
-		return c + 10 - 'a';
-	fatal("invalid numeric character: %c", c);
-	return 0;
-}
-
-static bool numeric(const int c, const int base) {
-	assert(base == 10 || base == 16);
-	if (base == 10)
-		return isdigit(c);
-	return isxdigit(c);
-}
-
-static int number(const char * const s, uint16_t * const o, const size_t length) {
-	size_t i = 0, start = 0;
-	uint32_t out = 0;
-	int base = 10;
-	bool negate = false;
-	assert(o);
-	if (s[i] == '\0')
-		return 0;
-
-	if (s[i] == '-') {
-		if (s[i+1] == '\0')
-			return 0;
-		negate = true;
-		start = ++i;
-	}
-
-	if (s[i] == '$') {
-		base = 16;
-		if (s[i+1] == '\0')
-			return 0;
-		start = i + 1;
-	}
-
-	for (i = start; i < length; i++)
-		if (!numeric(s[i], base))
-			return 0;
-
-	for (i = start; i < length; i++)
-		out = out * base + map_char_to_number(s[i]);
-
-	*o = negate ? out * (uint16_t)-1 : out;
-	return 1;
-}
-
-static void lexer(lexer_t * const l) {
-	assert(l);
-	size_t i     = 0;
-	token_e sym  = LEX_ERROR;
-	uint16_t lit = 0;
-	int ch       = next_char(l);
-	l->token     = token_new(LEX_ERROR, l->line);
-again:
-	switch (ch) {
-	case '\n':
-		l->line++; /* fall-through */
-	case ' ':
-	case '\t':
-	case '\r':
-	case '\v':
-		ch = next_char(l);
-		goto again;
-	case EOF:
-		l->token->type = LEX_EOI;
-		return;
-	case '\\':
-		for (; '\n' != (ch = next_char(l));)
-			if (ch == EOF)
-				syntax_error(l, "'\\' commented terminated by EOF");
-		ch = next_char(l);
-		l->line++;
-		goto again;
-	case '(':
-		ch = next_char(l);
-		if (!isspace(ch)) {
-			unget_char(l, ch);
-			ch = '(';
-			goto graph;
-		}
-		for (; ')' != (ch = next_char(l));)
-			if (ch == EOF)
-				syntax_error(l, "'(' comment terminated by EOF");
-			else if (ch == '\n')
-				l->line++;
-		ch = next_char(l);
-		goto again;
-	case '"':
-		for (i = 0; '"' != (ch = next_char(l));) {
-			if (ch == EOF)
-				syntax_error(l, "string terminated by EOF");
-			if (i >= MAX_ID_LENGTH - 1)
-				syntax_error(l, "identifier too large: %s", l->id);
-			l->id[i++] = ch;
-		}
-		l->id[i] = '\0';
-		l->token->type = LEX_STRING;
-		l->token->p.id = duplicate(l->id);
-		ch = next_char(l);
-		break;
-	default:
-		i = 0;
-	graph:
-		if (isgraph(ch)) {
-			while (isgraph(ch)) {
-				if (i >= MAX_ID_LENGTH - 1)
-					syntax_error(l, "identifier too large: %s", l->id);
-				l->id[i++] = ch;
-				ch = next_char(l);
-			}
-			l->id[i] = '\0';
-		} else {
-			syntax_error(l, "invalid character: %c", ch);
-		}
-
-		if (number(l->id, &lit, i)) {
-			l->token->type = LEX_LITERAL;
-			l->token->p.number = lit;
-			break;
-		}
-
-		for (sym = LEX_CONSTANT; sym != LEX_ERROR && keywords[sym] && strcmp(keywords[sym], l->id); sym++)
-			/*do nothing*/;
-		if (!keywords[sym]) {
-			if (i > 1 && l->id[i - 1] == ':') {
-				l->id[strlen(l->id) - 1] = '\0';
-				l->token->type = LEX_LABEL;
-			} else { /* IDENTIFIER */
-				l->token->type = LEX_IDENTIFIER;
-			}
-			l->token->p.id = duplicate(l->id);
-		} else {
-			l->token->type = sym;
-
-			if (sym == LEX_DEFINE) {
-				if (l->in_definition)
-					syntax_error(l, "Nested definitions are not allowed");
-				l->in_definition = true;
-			}
-			if (sym == LEX_ENDDEFINE) {
-				if (!(l->in_definition))
-					syntax_error(l, "Use of ';' not terminating word definition");
-				l->in_definition = false;
-			}
-		}
-		break;
-	}
-	unget_char(l, ch);
-}
-
-/********* PARSER *********/
-
-#define X_MACRO_PARSE\
-	X(SYM_PROGRAM,             "program")\
-	X(SYM_STATEMENTS,          "statements")\
-	X(SYM_LABEL,               "label")\
-	X(SYM_BRANCH,              "branch")\
-	X(SYM_0BRANCH,             "0branch")\
-	X(SYM_CALL,                "call")\
-	X(SYM_CONSTANT,            "constant")\
-	X(SYM_VARIABLE,            "variable")\
-	X(SYM_LOCATION,            "location")\
-	X(SYM_LITERAL,             "literal")\
-	X(SYM_STRING,              "string")\
-	X(SYM_INSTRUCTION,         "instruction")\
-	X(SYM_BEGIN_UNTIL,         "begin...until")\
-	X(SYM_BEGIN_AGAIN,         "begin...again")\
-	X(SYM_BEGIN_WHILE_REPEAT,  "begin...while...repeat")\
-	X(SYM_FOR_NEXT,            "for...next")\
-	X(SYM_FOR_AFT_THEN_NEXT,   "for...aft...then...next")\
-	X(SYM_IF1,                 "if1")\
-	X(SYM_DEFINITION,          "definition")\
-	X(SYM_CHAR,                "[char]")\
-	X(SYM_QUOTE,               "'")\
-	X(SYM_PWD,                 "pwd")\
-	X(SYM_SET,                 "set")\
-	X(SYM_PC,                  "pc")\
-	X(SYM_BREAK,               "break")\
-	X(SYM_BUILT_IN,            "built-in")\
-	X(SYM_MODE,                "mode")\
-	X(SYM_ALLOCATE,            "allocate")\
-	X(SYM_CALL_DEFINITION,     "call-definition")
-
-typedef enum {
-#define X(ENUM, NAME) ENUM,
-	X_MACRO_PARSE
-#undef X
-} parse_e;
-
-static const char *names[] = {
-#define X(ENUM, NAME) [ENUM] = NAME,
-	X_MACRO_PARSE
-#undef X
-	NULL
-};
-
-typedef struct node_t  {
-	parse_e type;
-	size_t length;
-	uint16_t bits; /*general use bits*/
-	token_t *token, *value;
-	struct node_t *o[];
-} node_t;
-
-static node_t *node_new(const parse_e type, const size_t size) {
-	node_t * const r = allocate_or_die(sizeof(*r) + sizeof(r->o[0]) * size);
-	if (log_level >= LOG_DEBUG)
-		fprintf(stderr, "node> %s\n", names[type]);
-	r->length = size;
-	r->type = type;
-	return r;
-}
-
-static node_t *node_grow(node_t *n) {
-	assert(n);
-	errno = 0;
-	node_t * const r = realloc(n, sizeof(*n) + (sizeof(n->o[0]) * (n->length + 1u)));
-	if (!r)
-		fatal("reallocate of size %u failed: %s", (unsigned)(n->length + 1u), reason());
-	r->o[r->length++] = 0;
-	return r;
-}
-
-static void node_free(node_t *n) {
-	if (!n)
-		return;
-	for (unsigned i = 0; i < n->length; i++)
-		node_free(n->o[i]);
-	token_free(n->token);
-	token_free(n->value);
-	free(n);
-}
-
-static int accept_token(lexer_t *l, const token_e sym) {
-	assert(l);
-	if (sym == l->token->type) {
-		token_free(l->accepted); /* free token owned by lexer */
-		l->accepted = l->token;
-		if (sym != LEX_EOI)
-			lexer(l);
-		return 1;
-	}
-	return 0;
-}
-
-static int accept_range(lexer_t * const l, const token_e low, const token_e high) {
-	assert(l);
-	assert(low <= high);
-	for (token_e i = low; i <= high; i++)
-		if (accept_token(l, i))
-			return 1;
-	return 0;
-}
-
-static void use(lexer_t * const l, node_t * const n) { /* move ownership of token from lexer to parse tree */
-	assert(l);
-	assert(n);
-	if (n->token)
-		n->value = l->accepted;
-	else
-		n->token = l->accepted;
-	l->accepted = NULL;
-}
-
-static int token_enum_print(const token_e sym, FILE *output) {
-	assert(output);
-	assert(sym < LEX_ERROR);
-	const char * const s = keywords[sym];
-	return fprintf(output, "%s(%u)", s ? s : "???", (unsigned)sym);
-}
-
-static void node_print(FILE *output, const node_t * const n, const bool shallow, const unsigned depth) {
-	if (!n)
-		return;
-	assert(output);
-	indent(output, ' ', depth);
-	fprintf(output, "node(%d): %s\n", n->type, names[n->type]);
-	token_print(n->token, output, depth);
-	if (n->token)
-		fputc('\n', output);
-	if (shallow)
-		return;
-	for (size_t i = 0; i < n->length; i++)
-		node_print(output, n->o[i], shallow, depth + 1);
-}
-
-static int _expect(lexer_t * const l, const token_e token, const char *file, const char *func, const unsigned line) {
-	assert(l);
-	assert(file);
-	assert(func);
-	if (accept_token(l, token))
-		return 1;
-	fprintf(stderr, "%s:%s:%u\n", file, func, line);
-	fprintf(stderr, "  Syntax error: unexpected token\n  Got:          ");
-	token_print(l->token, stderr, 0);
-	fputs("  Expected:     ", stderr);
-	token_enum_print(token, stderr);
-	fprintf(stderr, "\n  On line: %u\n", l->line);
-	ethrow(&l->error);
-	return 0;
-}
-
-#define expect(L, TOKEN) _expect((L), (TOKEN), __FILE__, __func__, __LINE__)
-
-/* for rules in the BNF tree defined entirely by their token */
-static node_t *defined_by_token(lexer_t * const l, const parse_e type) {
-	assert(l);
-	node_t *r = node_new(type, 0);
-	use(l, r);
-	return r;
-}
-
-typedef enum {
-	DEFINE_HIDDEN    = 1 << 0,
-	DEFINE_IMMEDIATE = 1 << 1,
-	DEFINE_INLINE    = 1 << 2,
-} define_type_e;
-
-/** @note LEX_LOCATION handled by modifying return node in statement() */
-static node_t *variable_or_constant(lexer_t * const l, const bool variable) {
-	assert(l);
-	node_t *r = node_new(variable ? SYM_VARIABLE : SYM_CONSTANT, 1);
-	expect(l, LEX_IDENTIFIER);
-	use(l, r);
-	if (accept_token(l, LEX_LITERAL)) {
-		r->o[0] = defined_by_token(l, SYM_LITERAL);
-	} else {
-		expect(l, LEX_STRING);
-		r->o[0] = defined_by_token(l, SYM_STRING);
-	}
-	if (accept_token(l, LEX_HIDDEN)) {
-		if (r->bits & DEFINE_HIDDEN)
-			syntax_error(l, "hidden bit already set on latest word definition");
-		r->bits |= DEFINE_HIDDEN;
-	}
-	return r;
-}
-
-static node_t *jump(lexer_t * const l, const parse_e type) {
-	assert(l);
-	node_t * const r = node_new(type, 0);
-	(void)(accept_token(l, LEX_LITERAL) || accept_token(l, LEX_STRING) || expect(l, LEX_IDENTIFIER));
-	use(l, r);
-	return r;
-}
-
-static node_t *statements(lexer_t * l);
-
-static node_t *for_next(lexer_t * const l) {
-	assert(l);
-	node_t *r = node_new(SYM_FOR_NEXT, 1);
-	r->o[0] = statements(l);
-	if (accept_token(l, LEX_AFT)) {
-		r->type = SYM_FOR_AFT_THEN_NEXT;
-		r = node_grow(r);
-		r->o[1] = statements(l);
-		r = node_grow(r);
-		expect(l, LEX_THEN);
-		r->o[2] = statements(l);
-	}
-	expect(l, LEX_NEXT);
-	return r;
-}
-
-static node_t *begin(lexer_t * const l) {
-	assert(l);
-	node_t *r = node_new(SYM_BEGIN_UNTIL, 1);
-	r->o[0] = statements(l);
-	if (accept_token(l, LEX_AGAIN)) {
-		r->type = SYM_BEGIN_AGAIN;
-	} else if (accept_token(l, LEX_WHILE)) {
-		r->type = SYM_BEGIN_WHILE_REPEAT;
-		r = node_grow(r);
-		r->o[1] = statements(l);
-		expect(l, LEX_REPEAT);
-	} else {
-		expect(l, LEX_UNTIL);
-	}
-	return r;
-}
-
-static node_t *if1(lexer_t * const l) {
-	assert(l);
-	node_t * const r = node_new(SYM_IF1, 2);
-	r->o[0] = statements(l);
-	if (accept_token(l, LEX_ELSE))
-		r->o[1] = statements(l);
-	expect(l, LEX_THEN);
-	return r;
-}
-
-static node_t *define(lexer_t * const l) {
-	assert(l);
-	node_t * const r = node_new(SYM_DEFINITION, 1);
-	if (accept_token(l, LEX_IDENTIFIER))
-		/*DO NOTHING*/;
-	else
-		expect(l, LEX_STRING);
-	use(l, r);
-	r->o[0] = statements(l);
-	expect(l, LEX_ENDDEFINE);
-again:
-	if (accept_token(l, LEX_IMMEDIATE)) {
-		if (r->bits & DEFINE_IMMEDIATE)
-			syntax_error(l, "immediate bit already set on latest word definition");
-		r->bits |= DEFINE_IMMEDIATE;
-		goto again;
-	}
-	if (accept_token(l, LEX_HIDDEN)) {
-		if (r->bits & DEFINE_HIDDEN)
-			syntax_error(l, "hidden bit already set on latest word definition");
-		r->bits |= DEFINE_HIDDEN;
-		goto again;
-	}
-	if (accept_token(l, LEX_INLINE)) {
-		if (r->bits & DEFINE_INLINE)
-			syntax_error(l, "inline bit already set on latest word definition");
-		r->bits |= DEFINE_INLINE;
-		goto again;
-	}
-	return r;
-}
-
-static node_t *char_compile(lexer_t * const l) {
-	assert(l);
-	node_t *r = node_new(SYM_CHAR, 0);
-	expect(l, LEX_IDENTIFIER);
-	use(l, r);
-	if (strlen(r->token->p.id) > 1)
-		syntax_error(l, "expected single character, got identifier: %s", r->token->p.id);
-	return r;
-}
-
-static node_t *mode(lexer_t * const l) {
-	assert(l);
-	node_t *r = node_new(SYM_MODE, 0);
-	expect(l, LEX_LITERAL);
-	use(l, r);
-	return r;
-}
-
-static node_t *pc(lexer_t * const l) {
-	assert(l);
-	node_t * const r = node_new(SYM_PC, 0);
-	if (!accept_token(l, LEX_LITERAL))
-		expect(l, LEX_IDENTIFIER);
-	use(l, r);
-	return r;
-}
-
-static node_t *pwd(lexer_t * const l) {
-	assert(l);
-	node_t * const r = node_new(SYM_PWD, 0);
-	if (!accept_token(l, LEX_LITERAL))
-		expect(l, LEX_IDENTIFIER);
-	use(l, r);
-	return r;
-}
-
-static node_t *set(lexer_t * const l) {
-	assert(l);
-	node_t * const r = node_new(SYM_SET, 0);
-	if (!accept_token(l, LEX_IDENTIFIER) && !accept_token(l, LEX_STRING))
-		expect(l, LEX_LITERAL);
-	use(l, r);
-	if (!accept_token(l, LEX_IDENTIFIER) && !accept_token(l, LEX_STRING))
-		expect(l, LEX_LITERAL);
-	use(l, r);
-	return r;
-}
-
-static node_t *allocate(lexer_t * const l) {
-	assert(l);
-	node_t * const r = node_new(SYM_ALLOCATE, 0);
-	if (!accept_token(l, LEX_IDENTIFIER))
-		expect(l, LEX_LITERAL);
-	use(l, r);
-	return r;
-}
-
-static node_t *quote(lexer_t * const l) {
-	assert(l);
-	node_t * const r = node_new(SYM_QUOTE, 0);
-	if (!accept_token(l, LEX_IDENTIFIER))
-		expect(l, LEX_STRING);
-	use(l, r);
-	return r;
-}
-
-static node_t *statements(lexer_t * const l) {
-	size_t i = 0;
-	assert(l);
-	node_t *r = node_new(SYM_STATEMENTS, 2);
-again:
-	r = node_grow(r);
-	if (accept_token(l, LEX_CALL)) {
-		r->o[i++] = jump(l, SYM_CALL);
-		goto again;
-	} else if (accept_token(l, LEX_BRANCH)) {
-		r->o[i++] = jump(l, SYM_BRANCH);
-		goto again;
-	} else if (accept_token(l, LEX_0BRANCH)) {
-		r->o[i++] = jump(l, SYM_0BRANCH);
-		goto again;
-	} else if (accept_token(l, LEX_LITERAL)) {
-		r->o[i++] = defined_by_token(l, SYM_LITERAL);
-		goto again;
-	} else if (accept_token(l, LEX_LABEL)) {
-		r->o[i++] = defined_by_token(l, SYM_LABEL);
-		goto again;
-	} else if (accept_token(l, LEX_CONSTANT)) {
-		r->o[i++] = variable_or_constant(l, false);
-		goto again;
-	} else if (accept_token(l, LEX_VARIABLE)) {
-		r->o[i++] = variable_or_constant(l, true);
-		goto again;
-	} else if (accept_token(l, LEX_LOCATION)) {
-		r->o[i]   = variable_or_constant(l, true);
-		r->o[i++]->type = SYM_LOCATION;
-		goto again;
-	} else if (accept_token(l, LEX_IF)) {
-		r->o[i++] = if1(l);
-		goto again;
-	} else if (accept_token(l, LEX_DEFINE)) {
-		r->o[i++] = define(l);
-		goto again;
-	} else if (accept_token(l, LEX_CHAR)) {
-		r->o[i++] = char_compile(l);
-		goto again;
-	} else if (accept_token(l, LEX_BEGIN)) {
-		r->o[i++] = begin(l);
-		goto again;
-	} else if (accept_token(l, LEX_FOR)) {
-		r->o[i++] = for_next(l);
-		goto again;
-	} else if (accept_token(l, LEX_QUOTE)) {
-		r->o[i++] = quote(l);
-		goto again;
-	} else if (accept_token(l, LEX_IDENTIFIER)) {
-		r->o[i++] = defined_by_token(l, SYM_CALL_DEFINITION);
-		goto again;
-	} else if (accept_token(l, LEX_PWD)) {
-		r->o[i++] = pwd(l);
-		goto again;
-	} else if (accept_token(l, LEX_SET)) {
-		r->o[i++] = set(l);
-		goto again;
-	} else if (accept_token(l, LEX_PC)) {
-		r->o[i++] = pc(l);
-		goto again;
-	} else if (accept_token(l, LEX_BREAK)) {
-		r->o[i++] = defined_by_token(l, SYM_BREAK);
-		goto again;
-	} else if (accept_token(l, LEX_MODE)) {
-		r->o[i++] = mode(l);
-		goto again;
-	} else if (accept_token(l, LEX_ALLOCATE)) {
-		r->o[i++] = allocate(l);
-		goto again;
-	} else if (accept_token(l, LEX_BUILT_IN)) {
-		r->o[i++] = defined_by_token(l, SYM_BUILT_IN);
-		goto again;
-	/**@warning This is a token range from the first instruction to the
-	 * last instruction */
-	} else if (accept_range(l, LEX_DUP, LEX_RDROP)) {
-		r->o[i++] = defined_by_token(l, SYM_INSTRUCTION);
-		goto again;
-	}
-	return r;
-}
-
-static node_t *program(lexer_t * const l) { /* block ( "." | EOF ) */
-	assert(l);
-	node_t *const r = node_new(SYM_PROGRAM, 1);
-	lexer(l);
-	r->o[0] = statements(l);
-	expect(l, LEX_EOI);
-	return r;
-}
-
-static node_t *parse(FILE *input) {
-	assert(input);
-	lexer_t * const l = lexer_new(input);
-	l->error.jmp_buf_valid = 1;
-	if (setjmp(l->error.j)) {
-		lexer_free(l);
-		return NULL;
-	}
-	node_t *n = program(l);
-	lexer_free(l);
-	return n;
-}
-
-/********* CODE ***********/
-
-typedef enum {
-	MODE_NORMAL              = 0 << 0,
-	MODE_COMPILE_WORD_HEADER = 1 << 0,
-	MODE_OPTIMIZATION_ON     = 1 << 1,
-} assembler_mode_e;
-
-typedef struct {
-	bool in_definition;
-	bool start_defined;
-	bool built_in_words_defined;
-	uint16_t start;
-	uint16_t mode;
-	uint16_t pwd; /* previous word register */
-	uint16_t fence; /* mark a boundary before which optimization cannot take place */
-	symbol_t *do_r_minus_one;
-	symbol_t *do_next;
-	symbol_t *do_var;
-	symbol_t *do_const;
-} assembler_t;
-
-static void update_fence(assembler_t * const a, const uint16_t pc) {
-	assert(a);
-	a->fence = MAX(a->fence, pc);
-}
-
-static void generate(h2_t * const h, assembler_t * const a, const uint16_t instruction) {
-	assert(h);
-	assert(a);
-	debug("%"PRIx16":\t%"PRIx16, h->pc, instruction);
-
-	if (IS_CALL(instruction) || IS_LITERAL(instruction) || IS_0BRANCH(instruction) || IS_BRANCH(instruction))
-		update_fence(a, h->pc);
-
-	/** @note This implements two ad-hoc optimizations, both related to
-	 * CODE_EXIT, they should be replaced by a generic peep hole optimizer */
-	if (a->mode & MODE_OPTIMIZATION_ON && h->pc) {
-		uint16_t previous = h->core[h->pc - 1];
-		if (((h->pc - 1) > a->fence) && IS_ALU_OP(previous) && (instruction == CODE_EXIT)) {
-			/* merge the CODE_EXIT instruction with the previous instruction if it is possible to do so */
-			if (!(previous & R_TO_PC) && !(previous & MK_RSTACK(DELTA_N1))) {
-				debug("optimization EXIT MERGE pc(%04"PRIx16 ") [%04"PRIx16 " -> %04"PRIx16"]", h->pc, previous, previous|instruction);
-				previous |= instruction;
-				h->core[h->pc - 1] = previous;
-				update_fence(a, h->pc - 1);
-				return;
-			}
-		} else if (h->pc > a->fence && IS_CALL(previous) && (instruction == CODE_EXIT)) {
-			/* do not emit CODE_EXIT if last instruction in a word
-			 * definition is a call, instead replace that call with
-			 * a jump */
-			debug("optimization TAIL CALL pc(%04"PRIx16 ") [%04"PRIx16 " -> %04"PRIx16"]", h->pc, previous, OP_BRANCH | (previous & 0x1FFF));
-			h->core[h->pc - 1] = (OP_BRANCH | (previous & 0x1FFF));
-			update_fence(a, h->pc - 1);
-			return;
-		}
-	}
-
-	h->core[h->pc++] = instruction;
-}
-
-static uint16_t here(h2_t * const h, assembler_t * const a) {
-	assert(h);
-	assert(h->pc < MAX_CORE);
-	update_fence(a, h->pc);
-	return h->pc;
-}
-
-static uint16_t hole(h2_t * const h, assembler_t * const a) {
-	assert(h);
-	assert(h->pc < MAX_CORE);
-	here(h, a);
-	return h->pc++;
-}
-
-static void fix(h2_t * const h, const uint16_t hole, const uint16_t patch) {
-	assert(h);
-	assert(hole < MAX_CORE);
-	h->core[hole] = patch;
-}
-
-#define assembly_error(ERROR, ...) do { error(__VA_ARGS__); ethrow(e); } while (0)
-
-static void generate_jump(h2_t * const h, assembler_t * const a, const symbol_table_t * const t, const token_t * const tok, const parse_e type, error_t * const e) {
-	uint16_t or = 0, addr = 0;
-	assert(h);
-	assert(t);
-	assert(a);
-
-	if (tok->type == LEX_IDENTIFIER || tok->type == LEX_STRING) {
-		const symbol_t * const s = symbol_table_lookup(t, tok->p.id);
-		if (!s)
-			assembly_error(e, "undefined symbol: %s", tok->p.id);
-		addr = s->value;
-
-		if (s->type == SYMBOL_TYPE_CALL && type != SYM_CALL)
-			assembly_error(e, "cannot branch/0branch to call: %s", tok->p.id);
-
-	} else if (tok->type == LEX_LITERAL) {
-		addr = tok->p.number;
-	} else {
-		fatal("invalid jump target token type");
-	}
-
-	if (addr > MAX_CORE)
-		assembly_error(e, "invalid jump address: %"PRId16, addr);
-
-	switch (type) {
-	case SYM_BRANCH:  or = OP_BRANCH ; break;
-	case SYM_0BRANCH: or = OP_0BRANCH; break;
-	case SYM_CALL:    or = OP_CALL;    break;
-	default:
-		fatal("invalid call type: %u", type);
-	}
-	generate(h, a, or | addr);
-}
-
-static void generate_literal(h2_t * const h, assembler_t * const a, uint16_t number) {
-	if (number & OP_LITERAL) {
-		number = ~number;
-		generate(h, a, OP_LITERAL | number);
-		generate(h, a, CODE_INVERT);
-	} else {
-		generate(h, a, OP_LITERAL | number);
-	}
-}
-
-static uint16_t lexer_to_alu_op(const token_e t) {
-	assert(t >= LEX_DUP && t <= LEX_RDROP);
-	switch (t) {
-#define X(NAME, STRING, DEFINE, INSTRUCTION) case LEX_ ## NAME : return CODE_ ## NAME ;
-	X_MACRO_INSTRUCTIONS
-#undef X
-	default: fatal("invalid ALU operation: %u", t);
-	}
-	return 0;
-}
-
-static uint16_t literal_or_symbol_lookup(const token_t * const token, const symbol_table_t * const t, error_t *e) {
-	assert(token);
-	assert(t);
-	if (token->type == LEX_LITERAL)
-		return token->p.number;
-
-	assert(token->type == LEX_IDENTIFIER);
-
-	symbol_t * const s = symbol_table_lookup(t, token->p.id);
-	if (!s)
-		assembly_error(e, "symbol not found: %s", token->p.id);
-	s->used = true;
-	return s->value;
-}
-
-static uint16_t pack_16(const char lb, const char hb) {
-	return (((uint16_t)hb) << 8) | (uint16_t)lb;
-}
-
-static uint16_t pack_string(h2_t * const h, assembler_t * const a, const char *s, error_t * const e) {
-	assert(h);
-	assert(s);
-	const size_t l = strlen(s);
-	size_t i = 0;
-	const uint16_t r = h->pc;
-	if (l > 255ul)
-		assembly_error(e, "string \"%s\" is too large (%u > 255)", s, (unsigned)l);
-	h->core[hole(h, a)] = pack_16(l, s[0]);
-	for (i = 1; i < l; i += 2)
-		h->core[hole(h, a)] = pack_16(s[i], s[i+1]);
-	if (i < l)
-		h->core[hole(h, a)] = pack_16(s[i], 0);
-	here(h, a);
-	return r;
-}
-
-static uint16_t symbol_special(h2_t *h, assembler_t *a, const char *id, error_t *e) {
-	assert(h);
-	assert(id);
-	assert(a);
-
-	static const char *special[] = { "$pc", "$pwd", NULL };
-	enum special_e { SPECIAL_VARIABLE_PC, SPECIAL_VARIABLE_PWD };
-
-	size_t i = 0;
-	for (i = 0; special[i]; i++)
-		if (!strcmp(id, special[i]))
-			break;
-	if (!special[i])
-		assembly_error(e, "'%s' is not a symbol", id);
-
-	switch (i) {
-	case SPECIAL_VARIABLE_PC:   return h->pc << 1;
-	case SPECIAL_VARIABLE_PWD:  return a->pwd; /**@note already as a character address */
-	default: fatal("reached the unreachable: %u", (unsigned)i);
-	}
-
-	return 0;
-}
-
-typedef struct {
-	char *name;
-	size_t len;
-	bool inline_bit;
-	bool hidden;
-	bool compile;
-	uint16_t code[32];
-} built_in_words_t;
-
-static built_in_words_t built_in_words[] = {
-#define X(NAME, STRING, DEFINE, INSTRUCTION) \
-	{\
-		.name = STRING,\
-		.compile = DEFINE,\
-		.len = 1,\
-		.inline_bit = true,\
-		.hidden = false,\
-		.code = { INSTRUCTION }\
-	},
-	X_MACRO_INSTRUCTIONS
-#undef X
-	/**@note We might want to compile these words, even if we are not
-	 * compiling the other in-line-able, so the compiler can use them for
-	 * variable declaration and for...next loops */
-	{ .name = "doVar",   .compile = true, .inline_bit = false, .hidden = true, .len = 1, .code = {CODE_FROMR} },
-	{ .name = "doConst", .compile = true, .inline_bit = false, .hidden = true, .len = 2, .code = {CODE_FROMR, CODE_LOAD} },
-	{ .name = "r1-",     .compile = true, .inline_bit = false, .hidden = true, .len = 5, .code = {CODE_FROMR, CODE_FROMR, CODE_T_N1, CODE_TOR, CODE_TOR} },
-	{ .name = NULL,      .compile = true, .inline_bit = false, .hidden = true, .len = 0, .code = {0} }
-};
-
-static void generate_loop_decrement(h2_t * const h, assembler_t * const a, const symbol_table_t *const t) {
-	assert(t);
-	assert(h);
-	assert(a);
-	a->do_r_minus_one = a->do_r_minus_one ? a->do_r_minus_one : symbol_table_lookup(t, "r1-");
-	if (a->do_r_minus_one && a->mode & MODE_OPTIMIZATION_ON) {
-		generate(h, a, OP_CALL | a->do_r_minus_one->value);
-	} else {
-		generate(h, a, CODE_FROMR);
-		generate(h, a, CODE_T_N1);
-		generate(h, a, CODE_TOR);
-	}
-}
-
-static void assemble(h2_t * const h, assembler_t * const a, node_t * const n, symbol_table_t * const t, error_t * const e) {
-	uint16_t hole1 = 0, hole2 = 0;
-	assert(h);
-	assert(t);
-	assert(e);
-
-	if (!n)
-		return;
-
-	if (h->pc > MAX_CORE)
-		assembly_error(e, "PC/Dictionary overflow: %"PRId16, h->pc);
-
-	switch (n->type) {
-	case SYM_PROGRAM:
-		assemble(h, a, n->o[0], t, e);
-		break;
-	case SYM_STATEMENTS:
-		for (size_t i = 0; i < n->length; i++)
-			assemble(h, a, n->o[i], t, e);
-		break;
-	case SYM_LABEL:
-		symbol_table_add(t, SYMBOL_TYPE_LABEL, n->token->p.id, here(h, a), e, false, false);
-		break;
-	case SYM_BRANCH:
-	case SYM_0BRANCH:
-	case SYM_CALL:
-		generate_jump(h, a, t, n->token, n->type, e);
-		break;
-	case SYM_CONSTANT:
-		if (a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined && (!(n->bits & DEFINE_HIDDEN))) {
-			a->do_const = a->do_const ? a->do_const : symbol_table_lookup(t, "doConst");
-			assert(a->do_const);
-			hole1 = hole(h, a);
-			fix(h, hole1, a->pwd);
-			a->pwd = hole1 << 1;
-			pack_string(h, a, n->token->p.id, e);
-			generate(h, a, OP_CALL | a->do_const->value);
-			hole1 = hole(h, a);
-			fix(h, hole1, n->o[0]->token->p.number);
-		}
-		symbol_table_add(t, SYMBOL_TYPE_CONSTANT, n->token->p.id, n->o[0]->token->p.number, e, false, false);
-		break;
-	case SYM_VARIABLE:
-		if (a->mode & MODE_COMPILE_WORD_HEADER && a->built_in_words_defined && (!(n->bits & DEFINE_HIDDEN))) {
-			a->do_var = a->do_var ? a->do_var : symbol_table_lookup(t, "doVar");
-			assert(a->do_var);
-			hole1 = hole(h, a);
-			fix(h, hole1, a->pwd);
-			a->pwd = hole1 << 1;
-			pack_string(h, a, n->token->p.id, e);
-			generate(h, a, OP_CALL | a->do_var->value);
-		} else if (!(n->bits & DEFINE_HIDDEN)) {
-			assembly_error(e, "variable used but doVar not defined, use location");
-		}
-		/* fall through */
-	case SYM_LOCATION:
-		here(h, a);
-
-		if (n->o[0]->token->type == LEX_LITERAL) {
-			hole1 = hole(h, a);
-			fix(h, hole1, n->o[0]->token->p.number);
-		} else {
-			assert(n->o[0]->token->type == LEX_STRING);
-			hole1 = pack_string(h, a, n->o[0]->token->p.id, e);
-		}
-
-		/**@note The lowest bit of the address for memory loads is
-		 * discarded. */
-		symbol_table_add(t, SYMBOL_TYPE_VARIABLE, n->token->p.id, hole1 << 1, e, n->type == SYM_LOCATION ? true : false, false);
-		break;
-	case SYM_QUOTE:
-	{
-		symbol_t *s = symbol_table_lookup(t, n->token->p.id);
-		if (!s || (s->type != SYMBOL_TYPE_CALL && s->type != SYMBOL_TYPE_LABEL))
-			assembly_error(e, "not a defined procedure: %s", n->token->p.id);
-		s->used = true;
-		generate_literal(h, a, s->value << 1);
-		break;
-	}
-	case SYM_LITERAL:
-		generate_literal(h, a, n->token->p.number);
-		break;
-	case SYM_INSTRUCTION:
-		generate(h, a, lexer_to_alu_op(n->token->type));
-		break;
-	case SYM_BEGIN_AGAIN: /* fall through */
-	case SYM_BEGIN_UNTIL:
-		hole1 = here(h, a);
-		assemble(h, a, n->o[0], t, e);
-		generate(h, a, (n->type == SYM_BEGIN_AGAIN ? OP_BRANCH : OP_0BRANCH) | hole1);
-		break;
-
-	case SYM_FOR_NEXT:
-	{
-		const symbol_t * const s = a->do_next ? a->do_next : symbol_table_lookup(t, "doNext");
-		if (s && a->mode & MODE_OPTIMIZATION_ON) {
-			generate(h, a, CODE_TOR);
-			hole1 = here(h, a);
-			assemble(h, a, n->o[0], t, e);
-			generate(h, a, OP_CALL | s->value);
-			generate(h, a, hole1 << 1);
-		} else {
-			generate(h, a, CODE_TOR);
-			hole1 = here(h, a);
-			assemble(h, a, n->o[0], t, e);
-			generate(h, a, CODE_RAT);
-			hole2 = hole(h, a);
-			generate_loop_decrement(h, a, t);
-			generate(h, a, OP_BRANCH | hole1);
-			fix(h, hole2, OP_0BRANCH | here(h, a));
-			generate(h, a, CODE_RDROP);
-		}
-		break;
-	}
-	case SYM_FOR_AFT_THEN_NEXT:
-	{
-		const symbol_t * const s = a->do_next ? a->do_next : symbol_table_lookup(t, "doNext");
-		if (s && a->mode & MODE_OPTIMIZATION_ON) {
-			generate(h, a, CODE_TOR);
-			assemble(h, a, n->o[0], t, e);
-			hole1 = hole(h, a);
-			hole2 = here(h, a);
-			assemble(h, a, n->o[1], t, e);
-			fix(h, hole1, OP_BRANCH | here(h, a));
-			assemble(h, a, n->o[2], t, e);
-			generate(h, a, OP_CALL | s->value);
-			generate(h, a, hole2 << 1);
-		} else {
-			generate(h, a, CODE_TOR);
-			assemble(h, a, n->o[0], t, e);
-			hole1 = hole(h, a);
-			generate(h, a, CODE_RAT);
-			generate_loop_decrement(h, a, t);
-			hole2 = hole(h, a);
-			assemble(h, a, n->o[1], t, e);
-			fix(h, hole1, OP_BRANCH | (here(h, a)));
-			assemble(h, a, n->o[2], t, e);
-			generate(h, a, OP_BRANCH | (hole1 + 1));
-			fix(h, hole2, OP_0BRANCH | (here(h, a)));
-			generate(h, a, CODE_RDROP);
-		}
-		break;
-	}
-	case SYM_BEGIN_WHILE_REPEAT:
-		hole1 = here(h, a);
-		assemble(h, a, n->o[0], t, e);
-		hole2 = hole(h, a);
-		assemble(h, a, n->o[1], t, e);
-		generate(h, a, OP_BRANCH  | hole1);
-		fix(h, hole2, OP_0BRANCH | here(h, a));
-		break;
-	case SYM_IF1:
-		hole1 = hole(h, a);
-		assemble(h, a, n->o[0], t, e);
-		if (n->o[1]) { /* if ... else .. then */
-			hole2 = hole(h, a);
-			fix(h, hole1, OP_0BRANCH | (hole2 + 1));
-			assemble(h, a, n->o[1], t, e);
-			fix(h, hole2, OP_BRANCH  | here(h, a));
-		} else { /* if ... then */
-			fix(h, hole1, OP_0BRANCH | here(h, a));
-		}
-		break;
-	case SYM_CALL_DEFINITION:
-	{
-		symbol_t * s = symbol_table_lookup(t, n->token->p.id);
-		if (!s)
-			assembly_error(e, "not a constant or a defined procedure: %s", n->token->p.id);
-		s->used = true;
-		if (s->type == SYMBOL_TYPE_CALL) {
-			generate(h, a, OP_CALL | s->value);
-		} else if (s->type == SYMBOL_TYPE_CONSTANT || s->type == SYMBOL_TYPE_VARIABLE) {
-			generate_literal(h, a, s->value);
-		} else {
-			error("can only call or push literal: %s", s->id);
-			ethrow(e);
-		}
-		break;
-	}
-	case SYM_DEFINITION:
-		if (n->bits && !(a->mode & MODE_COMPILE_WORD_HEADER))
-			assembly_error(e, "cannot modify word bits (immediate/hidden/inline) if not in compile mode");
-		if (a->mode & MODE_COMPILE_WORD_HEADER && !(n->bits & DEFINE_HIDDEN)) {
-			hole1 = hole(h, a);
-			n->bits &= (DEFINE_IMMEDIATE | DEFINE_INLINE); // @note the only reason 'n' is not const...
-			fix(h, hole1, a->pwd | (n->bits << 13)); /* shift in word bits into PWD field */
-			a->pwd = hole1 << 1;
-			pack_string(h, a, n->token->p.id, e);
-		}
-		symbol_table_add(t, SYMBOL_TYPE_CALL, n->token->p.id, here(h, a), e, n->bits & DEFINE_HIDDEN, false);
-		if (a->in_definition)
-			assembly_error(e, "nested word definition is not allowed");
-		a->in_definition = true;
-		assemble(h, a, n->o[0], t, e);
-		generate(h, a, CODE_EXIT);
-		a->in_definition = false;
-		break;
-	case SYM_CHAR: /* [char] A  */
-		generate(h, a, OP_LITERAL | n->token->p.id[0]);
-		break;
-	case SYM_SET:
-	{
-		uint16_t value = 0;
-		const uint16_t location = literal_or_symbol_lookup(n->token, t, e);
-
-		if (n->value->type == LEX_LITERAL) {
-			value = n->value->p.number;
-		} else {
-			symbol_t *l = symbol_table_lookup(t, n->value->p.id);
-			if (l) {
-				l->used = true;
-				value = l->value;
-				if (l->type == SYMBOL_TYPE_CALL) // || l->type == SYMBOL_TYPE_LABEL)
-					value <<= 1;
-			} else {
-				value = symbol_special(h, a, n->value->p.id, e);
-			}
-		}
-		fix(h, location >> 1, value);
-		break;
-	}
-	case SYM_PWD:
-		a->pwd = literal_or_symbol_lookup(n->token, t, e);
-		break;
-	case SYM_PC:
-		h->pc = literal_or_symbol_lookup(n->token, t, e);
-		update_fence(a, h->pc);
-		break;
-	case SYM_MODE:
-		a->mode = n->token->p.number;
-		break;
-	case SYM_ALLOCATE:
-		h->pc += literal_or_symbol_lookup(n->token, t, e) >> 1;
-		update_fence(a, h->pc);
-		break;
-	case SYM_BREAK:
-		break_point_add(&h->bp, h->pc);
-		update_fence(a, h->pc);
-		break;
-	case SYM_BUILT_IN:
-		if (!(a->mode & MODE_COMPILE_WORD_HEADER))
-			break;
-
-		if (a->built_in_words_defined)
-			assembly_error(e, "built in words already defined");
-		a->built_in_words_defined = true;
-
-		for (unsigned i = 0; built_in_words[i].name; i++) {
-			if (!(built_in_words[i].compile))
-				continue;
-
-			if (!built_in_words[i].hidden) {
-				uint16_t pwd = a->pwd;
-				hole1 = hole(h, a);
-				if (built_in_words[i].inline_bit)
-					pwd |= (DEFINE_INLINE << 13);
-				fix(h, hole1, pwd);
-				a->pwd = hole1 << 1;
-				pack_string(h, a, built_in_words[i].name, e);
-			}
-			symbol_table_add(t, SYMBOL_TYPE_CALL, built_in_words[i].name, here(h, a), e, built_in_words[i].hidden, true);
-			for (size_t j = 0; j < built_in_words[i].len; j++)
-				generate(h, a, built_in_words[i].code[j]);
-			generate(h, a, CODE_EXIT);
-		}
-		break;
-	default:
-		fatal("Invalid or unknown type: %u", n->type);
-	}
-}
-
-static bool assembler(h2_t * const h, assembler_t *a, node_t * const n, symbol_table_t * const t, error_t * const e) {
-	assert(h && a && n && t && e);
-	if (setjmp(e->j))
-		return false;
-	assemble(h, a, n, t, e);
-	return true;
-}
-
-static h2_t *code(node_t * const n, symbol_table_t * const symbols) {
-	assert(n);
-	error_t e = { 0 };
-	assembler_t a = { 0 };
-
-	symbol_table_t * const t = symbols ? symbols : symbol_table_new();
-	h2_t *h = h2_new(START_ADDR);
-	a.fence = h->pc;
-
-	e.jmp_buf_valid = 1;
-	if (!assembler(h, &a, n, t, &e)) {
-		h2_free(h);
-		if (!symbols)
-			symbol_table_free(t);
-		return NULL;
-	}
-
-	if (log_level >= LOG_DEBUG)
-		symbol_table_print(t, stderr);
-	if (!symbols)
-		symbol_table_free(t);
-	return h;
-}
-
-int h2_assemble_file(FILE *input, FILE *output, symbol_table_t *symbols) {
-	assert(input);
-	assert(output);
-	int r = 0;
-	node_t * const n = parse(input);
-
-	if (log_level >= LOG_DEBUG)
-		node_print(stderr, n, false, 0);
-	if (n) {
-		h2_t * const h = code(n, symbols);
-		if (h)
-			r = h2_save(h, output, false);
-		else
-			r = -1;
-		h2_free(h);
-	} else {
-		r = -1;
-	}
-	node_free(n);
-	return r;
-}
-
-h2_t *h2_assemble_core(FILE *input, symbol_table_t *symbols) {
-	assert(input);
-	node_t *const n = parse(input);
-	if (log_level >= LOG_DEBUG)
-		node_print(stderr, n, false, 0);
-	h2_t *h = NULL;
-	if (n)
-		h = code(n, symbols);
-	node_free(n);
-	return h;
-}
-
-/* ========================== Assembler ==================================== */
-
 /* ========================== Main ========================================= */
 
 #ifndef NO_MAIN
 typedef enum {
 	DEFAULT_COMMAND,
 	DISASSEMBLE_COMMAND,
-	ASSEMBLE_COMMAND,
 	RUN_COMMAND,
-	ASSEMBLE_RUN_COMMAND
 } command_e;
 
 typedef struct {
@@ -3760,10 +2401,8 @@ Options:\n\n\
 \t-d\tdisassemble input files (default)\n\
 \t-D\tfull disassembly of input files\n\
 \t-T\tEnter debug mode when running simulation\n\
-\t-a\tassemble file\n\
 \t-H\tenable hacks to make the simulation easier to use\n\
 \t-r\trun hex file\n\
-\t-R\tassemble file then run it\n\
 \t-L #\tload symbol file\n\
 \t-S #\tsave symbols to file\n\
 \t-s #\tnumber of steps to run simulation (0 = forever)\n\
@@ -3784,21 +2423,16 @@ static void debug_note(const command_args_t * const cmd) {
 		note("running for %u cycles (0 = forever)", (unsigned)cmd->steps);
 }
 
-static int assemble_run_command(const command_args_t * const cmd, FILE *input, FILE *output, symbol_table_t *symbols, const bool assemble, uint16_t *vga_initial_contents) {
+static int run_command(const command_args_t * const cmd, FILE *input, FILE *output, symbol_table_t *symbols, uint16_t *vga_initial_contents) {
 	assert(input);
 	assert(output);
 	assert(cmd);
 	assert(cmd->nvram);
-	h2_t *h = NULL;
 	int r = 0;
 
-	if (assemble) {
-		h = h2_assemble_core(input, symbols);
-	} else {
-		h = h2_new(START_ADDR);
-		if (h2_load(h, input) < 0)
-			return -1;
-	}
+	h2_t *h = h2_new(START_ADDR);
+	if (h2_load(h, input) < 0)
+		return -1;
 
 	if (!h)
 		return -1;
@@ -3833,9 +2467,7 @@ int command(const command_args_t * const cmd, FILE *input, FILE *output, symbol_
 	switch (cmd->cmd) {
 	case DEFAULT_COMMAND:      /* fall through */
 	case DISASSEMBLE_COMMAND:  return h2_disassemble(cmd->dcm, input, output, symbols);
-	case ASSEMBLE_COMMAND:     return h2_assemble_file(input, output, symbols);
-	case RUN_COMMAND:          return assemble_run_command(cmd, input, output, symbols, false, vga_initial_contents);
-	case ASSEMBLE_RUN_COMMAND: return assemble_run_command(cmd, input, output, symbols, true,  vga_initial_contents);
+	case RUN_COMMAND:          return run_command(cmd, input, output, symbols, vga_initial_contents);
 	default:                   fatal("invalid command: %d", cmd->cmd);
 	}
 	return -1;
@@ -3849,7 +2481,6 @@ int h2_main(int argc, char **argv) {
 	command_args_t cmd;
 	symbol_table_t *symbols = NULL;
 	FILE *symfile = NULL;
-	FILE *newsymfile = NULL;
 	FILE *input = NULL;
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.steps = DEFAULT_STEPS;
@@ -3897,11 +2528,6 @@ int h2_main(int argc, char **argv) {
 				goto fail;
 			cmd.cmd = DISASSEMBLE_COMMAND;
 			break;
-		case 'a':
-			if (cmd.cmd)
-				goto fail;
-			cmd.cmd = ASSEMBLE_COMMAND;
-			break;
 		case 'r':
 			if (cmd.cmd)
 				goto fail;
@@ -3910,11 +2536,6 @@ int h2_main(int argc, char **argv) {
 		case 'T':
 			cmd.debug_mode = true;
 			break;
-		case 'R':
-			if (cmd.cmd)
-				goto fail;
-			cmd.cmd = ASSEMBLE_RUN_COMMAND;
-			break;
 		case 'L':
 			if (i >= (argc - 1) || symfile)
 				goto fail;
@@ -3922,12 +2543,6 @@ int h2_main(int argc, char **argv) {
 			/* NB. Cannot merge symbol tables */
 			symfile = fopen_or_die(optarg, "rb");
 			symbols = symbol_table_load(symfile);
-			break;
-		case 'S':
-			if (i >= (argc - 1) || newsymfile)
-				goto fail;
-			optarg = argv[++i];
-			newsymfile = fopen_or_die(optarg, "wb");
 			break;
 		case 'c':
 		{
@@ -3981,14 +2596,7 @@ done:
 	input = fopen_or_die(argv[i], "rb");
 	if (command(&cmd, input, stdout, symbols, vga_initial_contents) < 0)
 		fatal("failed to process file: %s", argv[i]);
-	/**@note keeping "input" open until the command exits locks the
-	 * file for longer than is necessary under Windows */
 	fclose(input);
-
-	if (newsymfile) {
-		symbol_table_print(symbols, newsymfile);
-		fclose(newsymfile);
-	}
 	symbol_table_free(symbols);
 	if (symfile)
 		fclose(symfile);

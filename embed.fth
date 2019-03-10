@@ -9,6 +9,7 @@ system +order 0 <ok> !
 \ making the system self hosting. This will require extensions to the H2,
 \ mainly extra memory, so it will not be quite a self-hosting system, but
 \ close.
+\ - Add references back in, along with documentation.
 
 .( FORTH META COMPILATION START ) cr
 
@@ -29,7 +30,6 @@ variable fence               ( Do not peephole optimize before this point )
 5000 constant #target        ( Location where target image will be built )
 2000 constant #max           ( Max number of cells in generated image )
 2    constant =cell          ( Target cell size )
--1   constant optimize       ( Turn optimizations on [-1] or off [0] )
 $3A00 constant pad-area      ( area for pad storage )
 variable header -1 header !  ( if true target headers generated )
 ( 1   constant verbose ( verbosity level, higher is more verbose )
@@ -59,7 +59,6 @@ variable header -1 header !  ( if true target headers generated )
 : tcfa cfa ;                   ( PWD -- CFA )
 : tnfa nfa ;                   ( PWD -- NFA )
 : meta! ! ;                    ( u a --  )
-: dump-hex #target there $10 + dump ; ( -- )
 ( : locations ( -- : list all words and locations in target dictionary )
 (  target.1 @ )
 (  begin )
@@ -71,25 +70,16 @@ variable header -1 header !  ( if true target headers generated )
 (    $3FFF and @ )
 (  repeat ; )
 : display ( -- : display metacompilation and target information )
-(  verbose 0= if exit then )
   hex
   ." COMPLETE" cr
-(   verbose 1 u> if )
-(     dump-hex cr )
-(     ." TARGET DICTIONARY: " cr )
-(     locations )
-(   then )
   ." HOST:   " here        . cr
   ." TARGET: " there       . cr ;
-\ ." HEADER: " #target $30 dump cr ;
 $14 constant (header-options)
 : checksum #target there crc ; ( -- u : calculate CRC of target image )
-: save-hex ( -- : save target binary to file )
-   #target #target there + (save) throw ;
 : finished ( -- : save target image and display statistics )
    display
    only forth definitions hex
-   ." SAVING..." save-hex ." DONE" cr
+   ." SAVING..."  #target #target there + (save) throw ." DONE" cr
    ." STACK>" .s cr ;
 : [a] ( "name" -- : find word and compile an assembler word )
   bl word assembler.1 search-wordlist 0= abort" [a]? "
@@ -182,7 +172,7 @@ a: return ( -- : Compile a return into the target )
   lookahead thead h: ;
 : ?unstructured $F00D <> if source type cr 1 abort" unstructured! " then ;
 : fallthrough; [compile] ] ?unstructured ; ( u -- )
-: t; fallthrough; optimize if exit, else [a] return then ;
+: t; fallthrough; exit, ; \ "[a] return" <- unoptimized version
 : ;; t; ?unstructured ;
 : fetch-xt @ dup 0= abort" (null) " ; ( a -- xt )
 : tconstant ( "name", n --, Run Time: -- )
@@ -284,7 +274,6 @@ $40   constant word-length ( maximum length of a word )
 $40   constant c/l         ( characters per line in a block )
 $10   constant l/b         ( lines in a block )
 $2BAD constant magic       ( magic number for compiler security )
-$F    constant #highest    ( highest bit in cell )
 ( Volatile variables )
 $3B02 constant last-def    ( last, possibly unlinked, word definition )
 $3B06 constant id          ( used for source id )
@@ -375,24 +364,16 @@ xchange _system _forth-wordlist
 : or       or       ; ( u u -- u : bitwise or )
 : 1-       1-       ; ( u -- u : decrement top of stack )
 : 0=       0=       ; ( u -- t : if top of stack equal to zero )
+: sp@      sp@      ; ( -- u : stack position [equivalent to depth] )
 there constant inline-start
 ( : rp@ rp@   fallthrough; compile-only ( -- u )
-( : rp! rp!   fallthrough; compile-only ( u --, R: --- ??? )
 : exit  exit  fallthrough; compile-only ( -- )
 : >r    >r    fallthrough; compile-only ( u --, R: -- u )
 : r>    r>    fallthrough; compile-only ( -- u, R: u -- )
 : r@    r@    fallthrough; compile-only ( -- u )
 : rdrop rdrop fallthrough; compile-only ( --, R: u -- )
 there constant inline-end
-( 0        tvariable <error>      ( execution vector for interpreter error )
-( 0        tvariable <interpret>  ( execution vector for interpreter )
-( 0        tvariable <quit>       ( execution vector for quit )
-( 0        tvariable <eval>       ( execution vector for eval )
-( 0        tvariable <abort>      ( execution vector for abort handler )
-( 0        tvariable <at-xy>      ( execution vector for at-xy )
-( 0        tvariable <page>       ( execution vector for page )
-( 0        tvariable <number>     ( execution vector for >number )
-( 0        tvariable hidden       ( vocabulary for hidden words )
+( 0        tvariable hidden  ( vocabulary for hidden words )
 h: [-1] -1 ;                 ( -- -1 : space saving measure, push -1 )
 h: 0x8000 $8000 ;            ( -- $8000 : space saving measure, push $8000 )
 h: 2drop-0 drop fallthrough; ( n n -- 0 )
@@ -430,7 +411,6 @@ h: zero 0 swap! ;           ( a -- : zero value at address )
 : 2! ( d a -- ) tuck ! cell+ ! ;      ( n n a -- )
 : 2@ ( a -- d ) dup cell+ @ swap @ ;  ( a -- n n )
 h: get-current current @ ;            ( -- wid )
-h: set-current current ! ;            ( wid -- )
 : bl =bl ;                            ( -- c )
 : within over- >r - r> u< ;           ( u lo hi -- t )
 h: s>d dup 0< ;                       ( n -- d )
@@ -501,13 +481,13 @@ h: rp! ( n -- , R: ??? -- ??? : set the return stack pointer )
 h: +string 1 /string ;                 ( b u -- b u : )
 : count dup 1+ swap c@ ;               ( b -- b u )
 h: string@ over c@ ;                   ( b u -- b u c )
+xchange _forth-wordlist _system
 h: ccitt ( crc c -- crc : crc polynomial $1021 AKA "x16 + x12 + x5 + 1" )
   over $8 rshift xor   ( crc x )
   dup  $4 rshift xor   ( crc x )
   dup  $5 lshift xor   ( crc x )
   dup  $C lshift xor   ( crc x )
   swap $8 lshift xor ; ( crc )
-xchange _forth-wordlist _system
 : crc ( b u -- u : calculate ccitt-ffff CRC )
   [-1] ( -1 = 0xffff ) >r
   begin
@@ -525,8 +505,9 @@ h: spaces =bl fallthrough;             ( +n -- )
 h: nchars                              ( +n c -- : emit c n times )
    swap 0 max for aft dup emit then next drop ;
 h: colon-space [char] : emit space ;   ( -- )
-: depth sp@ 1- ;
-( @bug does not work for high stack depths - mashes the return stack )
+\ This version of pick mashes the return stack for large pick depths, an
+\ alternative would be to move non-destructively up and down the stack with
+\ special instructions.
 ( vn...v0 u -- vn...v0 vu )
 : pick ?dup if swap >r 1- pick r> swap exit then dup ; 
 h: ndrop for aft drop then next ;
@@ -618,11 +599,11 @@ h: 5u.r space 5 u.r ;            ( u -- )
 ( : >base swap base @ >r base ! execute r> base ! ; )
 ( : d. $a  '  . >base ; )
 ( : h. $10 ' u. >base ; )
-h: down cell negate and ; ( a -- a : align down )
+h: adown cell negate and ; ( a -- a : align down )
 xchange _forth-wordlist _system
 : pack$ ( b u a -- a ) \ null fill
   aligned dup>r over
-  dup down
+  dup adown
   - over+ zero 2dup c! 1+ swap ( 2dup 0 fill ) cmove r> ;
 xchange _system _forth-wordlist
 : compare ( a1 u1 a2 u2 -- n : string equality )
@@ -653,7 +634,7 @@ h: ktap? dup =bl - $5F u< swap =del <> and ; ( c -- t : possible ktap? )
   begin
     2dup xor
   while
-    key dup =bl - 95 u< if tap else <tap> @execute then
+    key dup =bl - $5F u< if tap else <tap> @execute then
   repeat drop over- ;
 : expect <expect> @execute span ! drop ;   ( b u -- )
 : query tib tib-length <expect> @execute #tib ! drop-0 fallthrough;
@@ -662,7 +643,7 @@ h: word.count count fallthrough; ( nfa -- u : get a words length )
 h: word.length $1F and ;
 xchange _forth-wordlist _system
 : nfa cell+ ; ( pwd -- nfa : move to name field address)
-: cfa nfa dup c@ word.length + cell+ down ; ( pwd -- cfa )
+: cfa nfa dup c@ word.length + cell+ adown ; ( pwd -- cfa )
 xchange _system _forth-wordlist
 h: .id nfa word.count type space ; ( pwd -- : print out a word )
 h: immediate? nfa $40 fallthrough; ( pwd -- t : is word immediate? )
@@ -821,11 +802,11 @@ h: (abort) do$ ?abort ;                                        ( -- )
 xchange _forth-wordlist _system
 h: 40ns begin dup while 1- repeat drop ; ( n -- : wait for 'n'*40ns + 30us )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
-: segments! $400E ! ;
-: led! $4006 ! ;
-: switches $4006 @ ;
-: timer! $4004 ! ;
-: timer $4004 @ ;
+: segments! $400E ! ; ( u -- : write to 4 7-segment hex displays )
+: led!      $4006 ! ; ( u -- : write to 8 LEDs )
+: switches  $4006 @ ; ( -- u : retrieve switch on/off for 8 switches )
+: timer!    $4004 ! ; ( u -- : set timer and timer control )
+: timer     $4004 @ ; ( -- u : get timer and timer control )
 h: (irq) 
   ien? 0 ien!
   switches led! 
@@ -959,7 +940,8 @@ h: not-hidden? nfa c@ $80 and 0= ; ( pwd -- )
 h: .words
     begin
       ?dup
-    while dup not-hidden? if dup .id then @ repeat cr ;
+    while dup 
+      not-hidden? if dup .id then @ repeat cr ;
 : words
   get-order begin ?dup while swap dup cr u. colon-space @ .words 1- repeat ;
 xchange root-voc _forth-wordlist
@@ -968,7 +950,7 @@ xchange root-voc _forth-wordlist
 : only [-1] set-order ;                         ( -- )
 ( : order get-order for aft . then next cr ;    ( -- )
 ( : anonymous get-order 1+ here 1 cells allot swap set-order ; ( -- )
-: definitions context @ set-current ;           ( -- )
+: definitions context @ current ! ( <- set current ) ; ( -- )
 h: (order)                                      ( w wid*n n -- wid*n w n )
   dup if
     1- swap >r (order) over r@ xor
@@ -987,19 +969,19 @@ h: blk-@   blk @ ;
 h: clean-buffers 0 block-dirty ! ;
 h: empty-buffers clean-buffers 0 blk ! ;  ( -- )
 h: save-buffers                         ( -- )
-	blk-@ 0= updated? 0= or if exit then
-	block-buffer b/buf blk-@ <save> @execute throw
-	clean-buffers ;
+  blk-@ 0= updated? 0= or if exit then
+  block-buffer b/buf blk-@ <save> @execute throw
+  clean-buffers ;
 : flush save-buffers empty-buffers ;
 h: ?block if $23 -throw exit then ;
 : block ( k -- a )
-	1depth
-        dup 0= ?block ( check validity of block number )
-	dup blk-@ = if drop block-buffer exit then ( block already loaded )
-	flush
-	dup>r block-buffer b/buf r> <block> @execute throw 
-	blk !
-	block-buffer ;
+  1depth
+  dup 0= ?block ( check validity of block number )
+  dup blk-@ = if drop block-buffer exit then ( block already loaded )
+  flush
+  dup>r block-buffer b/buf r> <block> @execute throw 
+  blk !
+  block-buffer ;
 
 xchange _forth-wordlist _system
 \ : (block) ( a u k -- f )
@@ -1124,43 +1106,42 @@ h: mblock ( a u k -- f )
 
 : (save)  ' c>m _blockop ! mblock ; 
 : (block) ' m>c _blockop ! mblock ; 
-xchange _system _forth-wordlist
 
 \ TODO Add to a VT100/ANSI Escape Sequence wordset
 
 h: CSI $1B emit [char] [ emit ;
 h: 10u. base@ >r decimal 0 <# #s #> type r> base! ; ( u -- )
 : ansi swap CSI 10u. emit ; ( n c -- )
-: at-xy CSI 10u. $3B emit 10u. [char] H emit ; ( x y -- )
-: page 2 [char] J ansi 1 1 at-xy ; ( -- )
+xchange _system _forth-wordlist
+: at-xy CSI 10u. $3B emit 10u. [char] H emit ; ( x y -- ) \ <at-xy> @execute
+: page 2 [char] J ansi 1 1 at-xy ; ( -- ) \ <page> @execute
+xchange _forth-wordlist _system
 : sgr [char] m ansi ; ( -- )
-\ : up    [char] A ansi ;
-\ : down  [char] B ansi ;
-\ : right [char] C ansi ;
-\ : left  [char] D ansi ;
+: up    [char] A ansi ;
+: down  [char] B ansi ;
+: right [char] C ansi ;
+: left  [char] D ansi ;
 
-\ h: rainbow $7 for $7 r@ - $1E + dup sgr u. next cr ;
-\ h: tableu
-\ 	$7 for
-\ 		$A right $7 r@ - $28 + dup sgr u. [char] : emit
-\ 		rainbow
-\ 	next ;
-\ 
-\ : table page 0 sgr $2 down  tableu 1 sgr $2 down tableu 0 sgr ;
+h: tableu
+   $7 for
+     $A right $7 r@ - $28 + dup sgr u. colon-space
+     $7 for $7 r@ - $1E + dup sgr u. next cr
+   next ;
+ 
+: table page 0 sgr $2 down  tableu 1 sgr $2 down tableu 0 sgr ;
 \ : nuf? key? if drop [-1] exit then 0x0000 ; ( -- f )
+xchange _system _forth-wordlist
 
 
 ( ==================== Memory Interface ============================== )
 
 h: c/l* ( c/l * ) 6 lshift ;            ( u -- u )
-h: c/l/ ( c/l / ) 6 rshift ;            ( u -- u )
 h: line c/l* swap block + c/l ;         ( k u -- a u )
-h: loadline line evaluate ;             ( k u -- )
-: load 0 $F for 2dup 2>r loadline 2r> 1+ next 2drop ; ( k -- )
+\ h: loadline line evaluate ;             ( k u -- )
+: load 0 $F for 2dup 2>r line evaluate 2r> 1+ next 2drop ; ( k -- )
 h: pipe [char] | emit ;                 ( -- )
 h: .line line -trailing $type ;       ( k u -- )
 h: .border 3 spaces c/l [char] - nchars cr ; ( -- )
-h: #line dup 2 u.r ;                    ( u -- u : print line number )
 : thru over- for dup load 1+ next drop ; ( k1 k2 -- )
 ( : message l/b extract .line cr ;      ( u -- )
 h: retrieve block drop ;                ( k -- )
@@ -1171,8 +1152,11 @@ h: retrieve block drop ;                ( k -- )
   0 begin
     dup l/b <
   while
-    2dup #line pipe line $type pipe cr 1+
+    2dup dup 2 u.r pipe line $type pipe cr 1+
   repeat .border 2drop ;
+
+\ : list  block l/b for dup l/b 1- r@ - c/l * + c/l type cr next ;
+
 : index ( k1 k2 -- : show titles for block k1 to k2 )
   over- cr
   for
@@ -1185,21 +1169,20 @@ h: retrieve block drop ;                ( k -- )
 \  header-crc @ header-crc zero            ( retrieve and zero CRC )
 \  0 here crc xor if 3 exit then           ( check CRC )
 \  1 header-options toggle 0x0000 ;        ( disable check, success )
+: bye fallthrough;
 h: cold ( -- : performs a cold boot  )
    \ bist ?dup if negate dup bye exit then
    cpu-id segments!
-   \ $F retrieve 
    io! forth
-   \ empty 0 rp!
+   empty 0 rp!
    <boot> @execute ;
-: bye cold ;
 h: hi 
   hex cr ." eFORTH v" cpu-id 0 u.r cr here .  $4000 here - u. cr 
   \ ." loading..."
-  \ 0 0 0x8000 transfer (ok)
-  \ 0 block c@ 32 127 within ( <- ASCII? ) if 
-  \  (ok) 0 load else ." failed" cr then
-  quit ;
+  0 0 0x8000 transfer (ok)
+  1 block c@ 32 127 within ( <- ASCII? ) if 
+    (ok) ( 1 load ) else ." failed" cr 
+  then quit ;
 h: validate over cfa <> if drop-0 exit then nfa ; ( pwd cfa -- nfa | 0 )
 h: search-for-cfa ( wid cfa -- nfa | 0 : search for CFA in a word list )
   cells $1FFF and >r
@@ -1253,7 +1236,6 @@ h: decompiler ( previous current -- : decompile starting at address )
   dup inline?       if ."  inline"       then
       immediate?    if ."  immediate"    then cr ;
 : .s ( -- ) cr sp@ for aft r@ pick . then next ."  <sp" cr ; ( -- )
-h: dm+ chars for aft dup @ 5u.r cell+ then next ;        ( a u -- a )
 : dump ( a u -- )
   $10 + \ align up by dump width
   4 rshift ( <-- equivalent to "dump-width /" )
@@ -1261,7 +1243,7 @@ h: dm+ chars for aft dup @ 5u.r cell+ then next ;        ( a u -- a )
     aft
       cr $10 2dup
       over 5u.r colon-space
-      dm+ 
+      chars for aft dup @ 5u.r cell+ then next ( <- dm+; [ a u -- ] )
       -rot
       2 spaces $type
     then
@@ -1270,7 +1252,7 @@ h: dm+ chars for aft dup @ 5u.r cell+ then next ;        ( a u -- a )
 [t] _forth-wordlist [v] current         t!
 0 tlast meta!
 h: [block] blk-@ block ;       ( k -- a : loaded block address )
-h: [check] dup b/buf c/l/ u< ?exit $18 -throw ;
+h: [check] dup b/buf 6 rshift u< ?exit $18 -throw ;
 h: [line] [check] c/l* [block] + ; ( u -- a )
 : b retrieve ;                 ( k -- : Load a block )
 : l blk-@ list ;               ( -- : list current block )
