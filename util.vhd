@@ -21,8 +21,8 @@
 --| - Optional registers on either input or output, selectable by a generic
 --| - Better timing models
 --| - More assertions
---| - Put a modules state in a record that represents that state, to make
---| assignment and handling of that state easier.
+--| - See 'A Structured VHDL design' by Jiri Gaisler, 
+--|   <http://gaisler.com/doc/vhdl2proc.pdf> and apply methodology.
 --|
 --| @author         Richard James Howe
 --| @copyright      Copyright 2017, 2019 Richard James Howe

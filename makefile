@@ -287,7 +287,7 @@ clean:
 	      top.unroutes top.xpi top_par.xrpt top.twx top.nlf design.bit top_map.mrp 
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
 	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf h2${EXE} gui${EXE} block${EXE} text${EXE}
+	@rm -vrf h2${EXE} gui${EXE} block${EXE} text${EXE} embed${EXE}
 	@rm -vrf text.bin ${EFORTH} text.hex
 	@rm -vrf *.pdf *.htm
 	@rm -vrf *.sym
