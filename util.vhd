@@ -17,9 +17,12 @@
 --| Cosine Transform, Pulse Width/Code/Position Modulation modules, so long as
 --| they are fairly generic and synthesizable.
 --|
---| An alternative to CORDIC, is this sin-cosine implementation written in
---| Verilog <https://github.com/jamesbowman/sincos>. It requires a multiplier
---| however.
+--| Potential improvements to the library:
+--| - Optional registers on either input or output, selectable by a generic
+--| - Better timing models
+--| - More assertions
+--| - Put a modules state in a record that represents that state, to make
+--| assignment and handling of that state easier.
 --|
 --| @author         Richard James Howe
 --| @copyright      Copyright 2017, 2019 Richard James Howe
@@ -524,6 +527,24 @@ package util is
 		generic (g: common_generics);
 	end component;
 
+	component sine is
+		generic (g: common_generics);
+		port (
+			x:  in  std_ulogic_vector(15 downto 0);
+			s:  out std_ulogic_vector(15 downto 0));
+	end component;
+
+	component cosine is
+		generic (g: common_generics);
+		port (
+			x:  in  std_ulogic_vector(15 downto 0);
+			s:  out std_ulogic_vector(15 downto 0));
+	end component;
+
+	component sine_tb is
+		generic (g: common_generics);
+	end component;
+
 	function max(a: natural; b: natural) return natural;
 	function min(a: natural; b: natural) return natural;
 	function reverse (a: in std_ulogic_vector) return std_ulogic_vector;
@@ -892,6 +913,7 @@ begin
 	uut_gray:     work.util.gray_tb                 generic map (g => g);
 	uut_ham:      work.util.hamming_7_4_tb          generic map (g => g); -- Oink!
 	uut_vga:      work.util.vga_tb                  generic map (g => g, simulation_us => 1 us);
+	uut_sine:     work.util.sine_tb                 generic map (g => g);
 	uut_7_seg:   work.util.led_7_segment_display_tb generic map (g => g);
 
 	stimulus_process: process
@@ -2292,7 +2314,7 @@ end architecture;
 -- state to fetch the operand and another register, or more states.
 --
 -- @todo Test in hardware, document, make assembler, and a project that
--- just contains an instantiation of this core, Select CPU behaviour with
+-- just contains an instantiation of this core, Select CPU behavior with
 -- generics (instructions, branch conditions...)
 --
 
@@ -2805,7 +2827,7 @@ entity reset_generator is
 		rst: out std_logic := '0'); -- reset out!
 end entity;
 
-architecture behaviour of reset_generator is
+architecture behavior of reset_generator is
 	constant cycles:  natural := (g.clock_frequency / 1000000) * reset_period_us;
 	subtype  counter is unsigned(max(1, n_bits(cycles) - 1) downto 0);
 	signal   c_c, c_n: counter := (others => '0');
@@ -2876,7 +2898,7 @@ entity bit_count is
 		count: out std_ulogic_vector(n_bits(N) downto 0));
 end entity;
 
-architecture behaviour of bit_count is
+architecture behavior of bit_count is
 begin
 	process (bits)
 		constant zero: unsigned(count'high - 1 downto count'low)  := (others => '0');
@@ -2946,7 +2968,7 @@ entity majority is
 		tie:  out std_ulogic);
 end entity;
 
-architecture behaviour of majority is
+architecture behavior of majority is
 	signal count: std_ulogic_vector(n_bits(N) downto 0) := (others => '0');
 	-- It might be worth handling up to five or so bits in combinatorial
 	-- logic, or it might not. 
@@ -3122,7 +3144,7 @@ entity delay_line is
 		do:  out std_ulogic_vector(width - 1 downto 0));
 end entity;
 
-architecture behaviour of delay_line is
+architecture behavior of delay_line is
 	type delay_line_t is array(integer range 0 to depth) of std_ulogic_vector(di'range);
 	signal sigs: delay_line_t := (others => (others => '0'));
 begin
@@ -3200,7 +3222,7 @@ entity gray_encoder is
 	     do: out std_ulogic_vector(N - 1 downto 0));
 end entity;
 
-architecture behaviour of gray_encoder is
+architecture behavior of gray_encoder is
 begin
 	gry: for i in N - 1 downto 0 generate
 		first: if i = (N - 1) generate
@@ -3223,7 +3245,7 @@ entity gray_decoder is
 	     do: out std_ulogic_vector(N - 1 downto 0));
 end entity;
 
-architecture behaviour of gray_decoder is
+architecture behavior of gray_decoder is
 begin
 	gry: for i in N - 1 downto 0 generate
 		first: if i = (N - 1) generate
@@ -3296,7 +3318,7 @@ entity parity_module is
 	port (di: in std_ulogic_vector(N - 1 downto 0); do: out std_ulogic);
 end entity;
 
-architecture behaviour of parity_module is
+architecture behavior of parity_module is
 begin
 	do <= parity(di, even) after g.delay;
 end architecture;
@@ -3327,7 +3349,7 @@ entity hamming_7_4_encoder is
 		parity: out std_ulogic);
 end entity;
 
-architecture behaviour of hamming_7_4_encoder is
+architecture behavior of hamming_7_4_encoder is
 	signal p1, p2, p3: std_ulogic := '0';
 begin
 	p1 <= di(0) xor di(1) xor di(3) after g.delay;
@@ -3357,7 +3379,7 @@ entity hamming_7_4_decoder is
 		single, double: out std_ulogic);
 end entity;
 
-architecture behaviour of hamming_7_4_decoder is
+architecture behavior of hamming_7_4_decoder is
 	signal s:  std_ulogic_vector(2 downto 0) := (others => '0');
 	signal co, ct, dip: std_ulogic_vector(di'high + 1 downto 0)   := (others => '0');
 	signal cp: std_ulogic := '0';
@@ -3685,7 +3707,7 @@ end architecture;
 --| Each of the display shares a common anode for all of its LEDs, this can be
 --| used to select an individual display
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util.all;
@@ -3891,7 +3913,7 @@ begin
 	end process;
 end architecture;
 
-library ieee,work;
+library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util.all;
@@ -3935,4 +3957,111 @@ begin
 end architecture;
 
 ------------------------- LED Controller ------------------------------------------------------
+------------------------- Sine / Cosine  ------------------------------------------------------
+-- Sine / Cosine calculation using multiplication
+-- Half-inched from <https://github.com/jamesbowman/sincos>
+-- Angles are input as signed Furmans (1 Furman = (1/pow(2, 16) of a circle))
+-- 1 Degree is ~182 Furmans. 1 rad is ~10430 Furmans.
+-- Result is signed scaled 16-bit integer; -1 = -32767, +1 = 32767
+library ieee, work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.all;
 
+entity sine is
+	generic (g: common_generics);
+	port (
+		x:  in  std_ulogic_vector(15 downto 0);
+		s:  out std_ulogic_vector(15 downto 0));
+end entity;
+
+architecture behavior of sine is
+	subtype val is signed(x'range);
+	subtype mul is signed((val'high * 2) + 1 downto 0);
+	function half_multiply_add(a, b, c: val) return val is
+		variable t: mul;
+		variable r: val;
+	begin
+		t := a * b;
+		r := t(t'high downto r'high + 1) + c;
+		return r;
+	end function;
+	signal n: signed(2 downto 0);
+	signal z, y, sums, sumc, sum1, cc,  t0, t1, sa, so: val;
+	signal cc32: mul;
+begin
+	y(1 downto 0)  <= (others => '0') after g.delay;
+	y(15 downto 2) <= signed(x(13 downto 0)) after g.delay;
+	n    <= signed(x(15 downto 13)) + "01" after g.delay;
+	z    <= half_multiply_add(y, y,        x"0000") after g.delay;
+	sumc <= half_multiply_add(z, x"0FBD", -x"4EE9") after g.delay;
+	sums <= half_multiply_add(z, x"04F8", -x"2953") after g.delay;
+	sum1 <= half_multiply_add(z, sums,     x"6487") after g.delay;
+	cc32 <= t0 * t1 after g.delay;
+	cc   <= cc32(cc32'high - 1 downto cc'high) after g.delay;
+	t0   <= z    when n(1) = '1' else y after g.delay;
+	t1   <= sumc when n(1) = '1' else sum1 after g.delay;
+	sa   <= cc + x"7FFF" when n(1) = '1' else cc after g.delay;
+	so   <= -sa when n(2) = '1' else sa after g.delay;
+	s    <= std_ulogic_vector(so) after g.delay;
+end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.all;
+
+entity cosine is
+	generic (g: common_generics);
+	port (
+		x:  in  std_ulogic_vector(15 downto 0);
+		c:  out std_ulogic_vector(15 downto 0));
+end entity;
+
+architecture behavior of cosine is
+	signal xn: std_ulogic_vector(c'range);
+begin
+	xn <= std_ulogic_vector(signed(x) + x"4000");
+	calc: entity work.sine 
+		generic map(g => g) port map(x => xn, s => c);
+end architecture;
+
+library ieee, work;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.util.all;
+
+entity sine_tb is
+	generic (g: common_generics);
+end entity;
+
+architecture testing of sine_tb is
+	constant clock_period:  time     := 1000 ms / g.clock_frequency;
+	signal clk, rst:      std_ulogic := '0';
+	signal stop:          std_ulogic := '0';
+
+	constant number_of_led_displays: positive := 4;
+	signal x: std_ulogic_vector(15 downto 0);
+	signal s, c: std_ulogic_vector(x'range);
+begin
+	cs: entity work.clock_source_tb
+		generic map (g => g, hold_rst => 2)
+		port map (stop => stop, clk => clk, rst => rst);
+
+	uut_c: entity work.sine   generic map (g => g) port map (x => x, s => s);
+	uut_s: entity work.cosine generic map (g => g) port map (x => x, c => c);
+
+	stimulus_process: process
+		variable cnt: integer := -32768;
+	begin
+		x <= std_ulogic_vector(to_signed(cnt, x'length));
+		wait for clock_period * 2;
+		while cnt < 32768 loop
+			x <= std_ulogic_vector(to_signed(cnt, x'length));
+			wait for clock_period;
+			cnt := cnt + 182;
+		end loop;
+		stop <= '1';
+		wait;
+	end process;
+end architecture;

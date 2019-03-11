@@ -332,6 +332,8 @@ $400     tconstant b/buf ( size of a block )
 0        tlocation _forth-wordlist ( set at the end near the end of the file )
 0        tlocation _system ( system specific vocabulary )
 $0       tvariable >in   ( Hold character pointer when parsing input )
+1        tlocation seed1 ( PRNG seed; never set to zero )
+1        tlocation seed2 ( PRNG seed; never set to zero )
 $0       tvariable state ( compiler state variable )
 $0       tvariable hld   ( Pointer into hold area for numeric output )
 $A       tvariable base  ( Current output radix )
@@ -806,9 +808,22 @@ h: parse-string [char] " word count+ cp! ; ( ccc" -- )
 h: ?abort swap if print cr abort exit then drop ;              ( u a -- )
 h: (abort) do$ ?abort ;                                        ( -- )
 : abort" compile (abort) parse-string ; immediate compile-only ( u -- )
-xchange _forth-wordlist _system
+
+\ See:
+\ <https://b2d-f9r.blogspot.com/2010/08/16-bit-xorshift-rng-now-with-more.html>
+\
+\ For a super tiny N-bit PRNG use; "x+=(x*x) | 5;", you can only use the
+\ highest bit however.
+\ See: <http://www.woodmann.com/forum/showthread.php?3100-super-tiny-PRNG>
+: random 
+  seed1 @ dup 5 lshift xor
+  seed2 @ seed1 !
+  dup 3 rshift xor
+  seed2 @ dup 1 rshift xor xor dup seed2 !  ;
 h: 40ns begin dup while 1- repeat drop ; ( n -- : wait for 'n'*40ns + 30us )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
+
+xchange _forth-wordlist _system
 : segments! $400E ! ; ( u -- : write to 4 7-segment hex displays )
 : led!      $4006 ! ; ( u -- : write to 8 LEDs )
 : switches  $4006 @ ; ( -- u : retrieve switch on/off for 8 switches )
@@ -824,8 +839,7 @@ h: (irq)
 : irq $0040 $4010 ! [-1] timer! 1 ien! ;
 h: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
   dup @ $0100 and if drop 0x0000 exit then dup $0400 swap ! @ $FF and [-1] ; 
-\ : rx?  $4000 uart? if [-1] exit then $4002 uart? ; ( -- c -1|0: rx uart/ps2 )
-: rx?  $4000 uart? ; ( -- c -1|0: rx uart/ps2 )
+: rx?  $4000 uart? if [-1] exit then $4002 uart? ; ( -- c -1|0: rx uart/ps2 )
 h: uart! ( c uart-register -- )
 	begin dup @ $1000 and 0= until swap $2000 or swap ! ;
 \ : tx! dup $4002 uart! ( VGA/VT-100 ) $4000 uart! ( UART )  ;
@@ -969,17 +983,17 @@ h: (order)                                      ( w wid*n n -- wid*n w n )
 : +order dup>r -order get-order r> swap 1+ set-order ; ( wid -- )
 : editor editor-voc +order ; ( -- : load editor vocabulary )
 
-h: updated? block-dirty @ ;            ( -- f )
+\ h: updated? block-dirty @ ;            ( -- f )
 : update [-1] block-dirty ! ;          ( -- )
 h: blk-@   blk @ ;
-: +block blk-@ + ;                     ( n -- k )
-h: clean-buffers 0 block-dirty ! ;
-h: empty-buffers clean-buffers 0 blk ! ;  ( -- )
-h: save-buffers                         ( -- )
-  blk-@ 0= updated? 0= or if exit then
+h: +block blk-@ + ;                    ( n -- k )
+\ h: clean-buffers 0 block-dirty ! ;
+\ h: empty-buffers clean-buffers 0 blk ! ;  ( -- )
+: flush 
+  blk-@ 0= block-dirty @ d0= if exit then
   block-buffer b/buf blk-@ <save> @execute throw
-  clean-buffers ;
-: flush save-buffers empty-buffers ;
+  0 block-buffer ! ( <- clean-buffer )
+  0 blk ! ;        ( <- empty-buffers )
 h: ?block if $23 -throw exit then ;
 : block ( k -- a )
   1depth
@@ -1116,26 +1130,26 @@ h: mblock ( a u k -- f )
 
 \ TODO Add to a VT100/ANSI Escape Sequence wordset
 
-h: CSI $1B emit [char] [ emit ;
+h: CSI $1B emit [char] [ emit ;                     ( -- )
 h: 10u. base@ >r decimal 0 <# #s #> type r> base! ; ( u -- )
-: ansi swap CSI 10u. emit ; ( n c -- )
+: ansi swap CSI 10u. emit ;                         ( n c -- )
 xchange _system _forth-wordlist
 : at-xy CSI 10u. $3B emit 10u. [char] H emit ; ( x y -- ) \ <at-xy> @execute
-: page 2 [char] J ansi 1 1 at-xy ; ( -- ) \ <page> @execute
+: page 2 [char] J ansi 1 1 at-xy ;             ( -- )     \ <page>  @execute
 xchange _forth-wordlist _system
-: sgr [char] m ansi ; ( -- )
-: up    [char] A ansi ;
-: down  [char] B ansi ;
-: right [char] C ansi ;
-: left  [char] D ansi ;
+: sgr [char] m ansi ;   ( -- : emit an SGR )
+: up    [char] A ansi ; ( u -- : move the cursor up )
+: down  [char] B ansi ; ( u -- : move the cursor down )
+: right [char] C ansi ; ( u -- : move the cursor right )
+: left  [char] D ansi ; ( u -- : move the cursor left )
 
-h: tableu
+h: tableu ( -- )
    $7 for
      $A right $7 r@ - $28 + dup sgr u. colon-space
      $7 for $7 r@ - $1E + dup sgr u. next cr
    next ;
  
-: table page 0 sgr $2 down  tableu 1 sgr $2 down tableu 0 sgr ;
+: table page 0 sgr $2 down  tableu 1 sgr $2 down tableu 0 sgr ; ( -- )
 \ : nuf? key? if drop [-1] exit then 0x0000 ; ( -- f )
 xchange _system _forth-wordlist
 
