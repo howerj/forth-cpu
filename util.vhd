@@ -3963,6 +3963,9 @@ end architecture;
 -- Angles are input as signed Furmans (1 Furman = (1/pow(2, 16) of a circle))
 -- 1 Degree is ~182 Furmans. 1 rad is ~10430 Furmans.
 -- Result is signed scaled 16-bit integer; -1 = -32767, +1 = 32767
+--
+-- TODO: Optionally insert registers at various locations throughout the module, specified
+-- with a generic.
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -4065,3 +4068,5 @@ begin
 		wait;
 	end process;
 end architecture;
+------------------------- Sine / Cosine  ------------------------------------------------------
+

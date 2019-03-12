@@ -66,8 +66,8 @@ entity top is
 		mem_wait:  out   std_ulogic := '0'; -- positive logic!
 		flash_cs:  out   std_ulogic := '0';
 		flash_rp:  out   std_ulogic := '1';
-		mem_addr:   out   std_ulogic_vector(26 downto 1) := (others => '0');
-		mem_data:    inout std_logic_vector(15 downto 0)  := (others => 'Z'));
+		mem_addr:  out   std_ulogic_vector(26 downto 1) := (others => '0');
+		mem_data:  inout std_logic_vector(15 downto 0)  := (others => 'Z'));
 end;
 
 architecture behav of top is
@@ -150,6 +150,13 @@ architecture behav of top is
 	signal mem_data_i_we:     std_ulogic := '0';
 	signal mem_data_o:        std_ulogic_vector(15 downto 0) := (others => '0');
 	signal mem_control_we:    std_ulogic := '0';
+
+--	signal sine_we: std_ulogic := '0';
+--	signal sine: std_ulogic_vector(15 downto 0) := (others => '0');
+
+	signal vt100_raw_addr_we: std_ulogic := '0';
+	signal vt100_raw_data_we: std_ulogic := '0';
+	signal vt100_raw_do:      std_ulogic_vector(15 downto 0) := (others => '0');
 begin
 -------------------------------------------------------------------------------
 -- The Main components
@@ -245,6 +252,11 @@ begin
 		uart_clock_tx_we  <= '1'         when is_write and selector = x"9" else '0';
 		uart_clock_rx_we  <= '1'         when is_write and selector = x"A" else '0';
 		uart_control_we   <= '1'         when is_write and selector = x"B" else '0';
+
+--		sine_we           <= '1'         when is_write and selector = x"C" else '0';
+
+		vt100_raw_addr_we <= '1'         when is_write and selector = x"C" else '0';
+		vt100_raw_data_we <= '1'         when is_write and selector = x"D" else '0';
 	end block;
 
 	io_read: process(
@@ -262,6 +274,8 @@ begin
 		timer_counter_o,
 
 		vga_data_busy,
+		vt100_raw_do,
+--		sine,
 
 		mem_data_o)
 	begin
@@ -289,9 +303,30 @@ begin
 			io_din <= "000" & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
 		when "100" =>
 			io_din             <= mem_data_o;
+		when "101" =>
+			io_din             <= vt100_raw_do;
+			-- io_din             <= sine;
 		when others => io_din <= (others => '0');
 		end case;
 	end process;
+
+	--- Sine ----------------------------------------------------------
+-- 	sine_block: block
+-- 		signal x, s: std_ulogic_vector(15 downto 0);
+-- 	begin
+-- 		reg_sin: work.util.reg 
+-- 			generic map(g => g, N => x'length) 
+-- 			port map(clk => clk, rst => rst, we => sine_we, di => io_dout, do => x);
+-- 
+-- 		sine_fifo_0: work.util.sine generic map(g => g) port map(x => x, s => s);
+-- 
+-- 		reg_sout: work.util.reg 
+-- 			generic map(g => g, N => x'length) 
+-- 			port map(clk => clk, rst => rst, we => '1', di => s, do => sine);
+-- 
+-- 	end block;
+	--- Sine ----------------------------------------------------------
+
 
 	--- UART ----------------------------------------------------------
 	uart_fifo_0: work.uart_pkg.uart_top
@@ -355,7 +390,12 @@ begin
 				we          =>  vga_data_we,
 				char        =>  vga_data,
 				busy        =>  vga_data_busy,
-				o_vga       =>  o_vga);
+				o_vga       =>  o_vga,
+			
+				raw_addr_we =>  vt100_raw_addr_we,
+				raw_data_we =>  vt100_raw_data_we,
+				raw_di      =>  io_dout,
+				raw_do      =>  vt100_raw_do);
 		end generate;
 	
 		-- Test code

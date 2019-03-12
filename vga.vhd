@@ -50,7 +50,7 @@ package vga_pkg is
 	type vga_control_registers_interface is record
 		crx:    std_ulogic_vector(6 downto 0); -- Cursor position X
 		cry:    std_ulogic_vector(5 downto 0); -- Cursor position Y
-		ctl:    std_ulogic_vector(4 downto 0); -- Control register
+		ctl:    std_ulogic_vector(5 downto 0); -- Control register
 	end record;
 
 	constant vga_control_registers_initialize: vga_control_registers_interface := (
@@ -75,6 +75,7 @@ package vga_pkg is
 		vga_din:     in  std_ulogic_vector(15 downto 0);
 		vga_addr:    in  std_ulogic_vector(12 downto 0);
 		base:        in  std_ulogic_vector(12 downto 0);
+		raw_do:      out  std_ulogic_vector(15 downto 0);
 
 		-- VGA control registers
 		i_font_sel:       in std_ulogic_vector(0 downto 0);
@@ -97,7 +98,7 @@ package vga_pkg is
 		 --
 		ocrx:      in  std_ulogic_vector(6 downto 0);
 		ocry:      in  std_ulogic_vector(5 downto 0);
-		octl:      in  std_ulogic_vector(4 downto 0);
+		octl:      in  std_ulogic_vector(5 downto 0);
 		--
 		o_vga: out vga_physical_interface);
 	end component;
@@ -134,7 +135,12 @@ package vga_pkg is
 		char:       in  std_ulogic_vector(7 downto 0);
 
 		busy:       out std_ulogic;
-		o_vga:      out vga_physical_interface);
+		o_vga:      out vga_physical_interface;
+	
+		raw_addr_we: in std_ulogic;
+		raw_data_we: in std_ulogic;
+		raw_di:      in std_ulogic_vector(15 downto 0);
+		raw_do:     out std_ulogic_vector(15 downto 0));
 	end component;
 
 	-- VGA test bench, not-synthesizeable
@@ -217,7 +223,12 @@ begin
 		we       => we,
 		char     => char,
 		busy     => busy,
-		o_vga    => physical);
+		o_vga    => physical,
+	
+		raw_addr_we => '0',
+		raw_data_we => '0',
+		raw_di      => x"0000",
+		raw_do      => open);
 
 	stimulus_process: process
 	begin
@@ -395,7 +406,12 @@ entity vt100 is
 		char:       in  std_ulogic_vector(7 downto 0);
 
 		busy:       out std_ulogic;
-		o_vga:      out vga_physical_interface);
+		o_vga:      out vga_physical_interface;
+		
+		raw_addr_we: in std_ulogic;
+		raw_data_we: in std_ulogic;
+		raw_di:      in std_ulogic_vector(15 downto 0);
+		raw_do:     out std_ulogic_vector(15 downto 0));
 end entity;
 
 -- A better way of structuring this would be to process numbers in parallel
@@ -424,7 +440,7 @@ architecture rtl of vt100 is
 	constant lsqb:         unsigned(char'range) := x"5b"; -- '['
 	constant ascii_c:      unsigned(char'range) := x"63"; -- 'c'
 	constant attr_default: unsigned(7 downto 0) := "00111000";
-	constant ctl_default:  unsigned(4 downto 0) := "01111";
+	constant ctl_default:  unsigned(5 downto 0) := "001111";
 
 	signal addr:           std_ulogic_vector(12 downto 0) := (others => '0');
 	signal data_we:        std_ulogic                     := '0';
@@ -479,7 +495,23 @@ architecture rtl of vt100 is
 
 	signal saved_base_n, saved_base_c: unsigned(base_c'range) := (others => '0');
 	signal is_base_saved_n, is_base_saved_c: boolean := false;
+
+	signal raw_addr: std_ulogic_vector(addr'range)   := (others => '0');
+	signal raw_data: std_ulogic_vector(raw_di'range) := (others => '0');
+	signal raw_data_we_delayed: std_ulogic := '0';
 begin
+	raw_data_reg: work.util.reg
+		generic map(g => g, N => raw_di'length)
+		port map(clk => clk, rst => rst, di => raw_di, we => raw_data_we, do => raw_data);
+	raw_addr_reg_we: work.util.reg
+		generic map(g => g, N => 1)
+		port map(clk => clk, rst => rst, di(0) => raw_addr_we, we => '1', do(0) => raw_data_we_delayed);
+
+	-- NB. Auto increment feature on addr might be useful
+	raw_addr_reg: work.util.reg
+		generic map(g => g, N => raw_addr'length)
+		port map(clk => clk, rst => rst, di => raw_di(raw_addr'range), we => raw_addr_we, do => raw_addr);
+
 	accumulator_0: work.vga_pkg.atoi
 		generic map(g => g, N => number)
 		port map(
@@ -496,11 +528,13 @@ begin
 	address: block
 		signal mul: unsigned(15 downto 0)     := (others => '0');
 		signal addr_int: unsigned(addr'range) := (others => '0');
+		signal addr_cooked: std_ulogic_vector(addr'range) := (others => '0');
 	begin
 		mul      <= to_unsigned(to_integer(y_c) * width, mul'length);
 		addr_int <= mul(addr_int'range) + ("000000" & x_c);
 		addr_sel <= addr_int when state_c /= ERASING else count_c;
-		addr     <= std_ulogic_vector(addr_sel + (base_c & "0000"));
+		addr_cooked <= std_ulogic_vector(addr_sel + (base_c & "0000"));
+		addr     <= addr_cooked when ctl_c(5) = '0' else raw_addr;
 	end block;
 
 	x_minus_one         <= x_c - 1;
@@ -531,16 +565,18 @@ begin
 		signal vga_ctr:    vga_control_registers_interface    := vga_control_registers_initialize;
 		signal attr:       unsigned(attr_c'range)             := attr_default;
 		signal ch:         std_ulogic_vector(c_c'range)       := (others => '0');
+		signal top_we:     std_ulogic                         := '0';
 	begin
 		ch             <= std_ulogic_vector(asterisk) when conceal_c else std_ulogic_vector(c_c);
 		attr           <= attr_c when state_c /= ERASING else attr_default;
-		vga_din        <= std_ulogic_vector(attr) & ch;
+		vga_din        <= std_ulogic_vector(attr) & ch when ctl_c(5) = '0' else raw_data;
 		vga_ctr.crx    <= std_ulogic_vector(x_plus_one); -- not limited, goes off screen edge
 		vga_ctr.cry    <= std_ulogic_vector(y_c);
 		vga_ctr.ctl    <= std_ulogic_vector(ctl_c);
 		vga_ctr_we.crx <= cursor_we;
 		vga_ctr_we.cry <= cursor_we;
 		vga_ctr_we.ctl <= cursor_we;
+		top_we         <= data_we when ctl_c(5) = '0' else raw_data_we_delayed;
 
 		vga_0: work.vga_pkg.vga_top
 		generic map(g => g)
@@ -548,11 +584,12 @@ begin
 			clk               =>  clk,
 			clk25MHz          =>  clk25MHz,
 			rst               =>  rst,
-			vga_we_ram        =>  data_we,
+			vga_we_ram        =>  top_we,
 			vga_din           =>  vga_din,
 			vga_addr          =>  addr,
 			base(base_c'range)=>  std_ulogic_vector(base_c),
 			base(3 downto 0)  =>  "0000",
+			raw_do            =>  raw_do,
 			i_font_sel        =>  font_sel_c,
 			i_vga_control_we  =>  vga_ctr_we,
 			i_vga_control     =>  vga_ctr,
@@ -762,6 +799,15 @@ begin
 					when x"6d" => -- CSI n 'm' : SGR
 						state_n <= ATTRIB;
 
+					when x"68" =>
+						if n1_c = X"02" then -- 80x40 (in MS-DOS it is 80x25)
+							ctl_n(5) <= '0';
+						elsif n1_c = X"05" then -- 320x200 monochrome
+							ctl_n(5) <= '1';
+						else
+							-- unsupported mode
+						end if;
+						state_n <= ACCEPT;
 					-- NB. Number parameter does nothing.
 					when x"53" => -- CSI n 'S' : scroll up
 						saved_base_n <= base_c;
@@ -903,6 +949,7 @@ begin
 					when x"2D"  => reverse_video("101", false); 
 					when x"2E"  => reverse_video("110", false); 
 					when x"2F"  => reverse_video("111", false); 
+
 					when others =>
 					end case;
 					state_n <= ACCEPT;
@@ -938,6 +985,7 @@ entity vga_top is
 		vga_din:          in  std_ulogic_vector(15 downto 0);
 		vga_addr:         in  std_ulogic_vector(12 downto 0);
 		base:             in  std_ulogic_vector(12 downto 0);
+		raw_do:          out  std_ulogic_vector(15 downto 0);
 
 		-- VGA control registers
 		i_font_sel:       in std_ulogic_vector(0 downto 0);
@@ -1039,7 +1087,7 @@ begin
 		a_dre   => '1',
 		a_addr  => vga_addr,
 		a_din   => vga_din,
-		a_dout  => open,
+		a_dout  => raw_do,
 		-- Internal interface
 		b_clk   => clk25MHz,
 		b_dwe   => '0',
@@ -1087,7 +1135,7 @@ entity vga_core is
 		--
 		ocrx:     in  std_ulogic_vector(6 downto 0);
 		ocry:     in  std_ulogic_vector(5 downto 0);
-		octl:     in  std_ulogic_vector(4 downto 0);
+		octl:     in  std_ulogic_vector(5 downto 0);
 		--
 		o_vga:    out vga_physical_interface);
 end entity;
@@ -1126,12 +1174,15 @@ architecture rtl of vga_core is
 
 	signal bell_c, bell_n: std_ulogic := '0';
 	signal bell_on_c, bell_on_n: std_ulogic := '0';
+
+	signal raw_mode: std_ulogic := '0';
 begin
 	-- Control register. Individual control signal
 	bell_n    <= octl(4);
 	bell      <= bell_c xor bell_n;
 	vga_en    <= octl(3);
-	cur_en    <= octl(2);
+	raw_mode  <= octl(5);
+	cur_en    <= octl(2) and not raw_mode;
 	cur_blink <= octl(1);
 	cur_mode  <= octl(0);
 
@@ -1205,7 +1256,7 @@ begin
 	-- Proboscide99 31/08/08
 	blank <= '0' when (hctr < 8) or (hctr > 647) or (vctr > 479) else '1';
 
-	-- flip-flips for sync of R, G y B signal, initialized with '0'
+	-- flip-flops for sync of R, G y B signal, initialized with '0'
 	process (rst, clk25MHz)
 	begin
 		if rst = '1' and g.asynchronous_reset then
