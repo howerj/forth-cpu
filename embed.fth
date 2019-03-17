@@ -14,12 +14,12 @@ system +order 0 <ok> !
 \ - Implement bit-banging version of UART, reliant only from an interrupt
 \ from a timer, and the UART Pins. Debouncing and the FIFO for both TX and
 \ RX should be done in software. 
-\ - Add a 'random' keyword based on a 16-bit xorshift, see
-\ https://b2d-f9r.blogspot.com/2010/08/16-bit-xorshift-rng-now-with-more.html
-\ The timer could also be added into this.
 
 .( FORTH META COMPILATION START ) cr
 
+\ ============================================================================
+\ # The Meta-Compiler
+\ 
 only forth definitions hex
 system +order 0 <ok> !
 variable meta          ( Metacompilation vocabulary )
@@ -35,12 +35,10 @@ variable tdoPrintString      ( Location of .string in target )
 variable tdoStringLit        ( Location of string-literal in target )
 variable fence               ( Do not peephole optimize before this point )
 5000 constant #target        ( Location where target image will be built )
-2000 constant #max           ( Max number of cells in generated image )
 2    constant =cell          ( Target cell size )
 $3A00 constant pad-area      ( area for pad storage )
-variable header -1 header !  ( if true target headers generated )
 ( 1   constant verbose ( verbosity level, higher is more verbose )
-#target #max 0 fill    ( Erase the target memory location )
+#target 2000 0 fill    ( Erase the target memory location )
 : ]asm assembler.1 +order ; immediate    ( -- )
 : a: current @ assembler.1 current ! : ; ( "name" -- wid link )
 : a; [compile] ; current ! ; immediate   ( wid link -- )
@@ -57,7 +55,7 @@ variable header -1 header !  ( if true target headers generated )
 : talign there 1 and tcp +! ;  ( -- : align target dictionary pointer value )
 : tc, there tc! 1 tcp +! ;     ( c -- : write byte into target dictionary )
 : t,  there t!  =cell tcp +! ; ( u -- : write cell into target dictionary )
-: tallot tcp +! ;              ( n -- : allocate memory in target dictionary )
+\ : tallot tcp +! ;            ( n -- : allocate memory in target dictionary )
 : update-fence there fence ! ; ( -- : update optimizer fence location )
 : $literal                     ( <string>, -- )
   [char] " word count dup tc, 1- for count tc, next drop talign update-fence ;
@@ -66,25 +64,12 @@ variable header -1 header !  ( if true target headers generated )
 : tcfa cfa ;                   ( PWD -- CFA )
 : tnfa nfa ;                   ( PWD -- NFA )
 : meta! ! ;                    ( u a --  )
-( : locations ( -- : list all words and locations in target dictionary )
-(  target.1 @ )
-(  begin )
-(    ?dup )
-(  while )
-(    dup )
-(    nfa count type space dup )
-(    cfa >body @ u. cr )
-(    $3FFF and @ )
-(  repeat ; )
-: display ( -- : display metacompilation and target information )
-  hex
-  ." COMPLETE" cr
-  ." HOST:   " here        . cr
-  ." TARGET: " there       . cr ;
-$14 constant (header-options)
 : checksum #target there crc ; ( -- u : calculate CRC of target image )
 : finished ( -- : save target image and display statistics )
-   display
+   hex
+  ." COMPLETE" cr
+  ." HOST:   " here  . cr
+  ." TARGET: " there . cr
    only forth definitions hex
    ." SAVING..."  #target #target there + (save) throw ." DONE" cr
    ." STACK>" .s cr ;
@@ -119,7 +104,7 @@ a: #ien?   $1100 a; ( T = interrupts set? )
 a: #rp@    $1200 a; ( T = r-depth )
 a: #t==0   $1300 a; ( T = t == 0? )
 a: #cpu-id $1400 a; ( T = CPU ID )
-a: #alu-lit $1500 a; ( T = instruction, hidden )
+\ a: #alu-lit $1500 a; ( T = instruction, hidden )
 
 a: d+1     $0001 or a; ( increment variable stack by one )
 a: d-1     $0003 or a; ( decrement variable stack by one )
@@ -163,7 +148,6 @@ a: return ( -- : Compile a return into the target )
 : immediate    tlast @ tnfa t@ $40 or tlast @ tnfa t! ; ( -- )
 : mcreate current @ >r target.1 current ! create r> current ! ;
 : thead ( b u -- : compile word header into target dictionary )
-  header @ 0= if 2drop exit then
   talign
   there [last] t, tlast !
   there #target + pack$ c@ 1+ aligned tcp +! talign ;
@@ -298,11 +282,14 @@ $3C00 constant block-buffer ( block buffer is stored here )
 
 $10   constant header-length ( location of length in header )
 $12   constant header-crc    ( location of CRC in header )
-(header-options) constant header-options ( location of options bits in header )
+$14   constant header-options ( location of options bits in header )
 target.1         +order ( Add target word dictionary to search order )
 meta -order meta +order ( Reorder so *meta* has a higher priority )
 system           -order ( Remove system vocabulary to previously accidents )
 forth-wordlist   -order ( Remove normal Forth words to prevent accidents )
+
+\ ============================================================================
+\ # Start of Image
 
 0        t, \  $0: IRQ-0; Reset Vector / maskable IRQ for Down D-PAD button
 0        t, \  $2: IRQ-1; UART RX FIFO NOT EMPTY
@@ -382,6 +369,10 @@ there constant inline-start
 : r@    r@    fallthrough; compile-only ( -- u )
 : rdrop rdrop fallthrough; compile-only ( --, R: u -- )
 there constant inline-end
+
+\ ============================================================================
+\ # Core Words
+
 ( 0        tvariable hidden  ( vocabulary for hidden words )
 h: [-1] -1 ;                 ( -- -1 : space saving measure, push -1 )
 h: 0x8000 $8000 ;            ( -- $8000 : space saving measure, push $8000 )
@@ -454,9 +445,9 @@ h: @execute @ ?dup if execute exit then ;  ( cfa -- )
 : here cp @ ;                         ( -- a )
 : align here fallthrough;             ( -- )
 h: cp! aligned cp ! ;                 ( n -- )
-: allot cp +! ;                        ( n -- )
-h: 2>r r> swap >r swap >r >r ;              ( u1 u2 --, R: -- u1 u2 )
-h: 2r> r> r> swap r> swap >r nop ;          ( -- u1 u2, R: u1 u2 -- )
+: allot cp +! ;                       ( n -- )
+h: 2>r r> swap >r swap >r >r ;        ( u1 u2 --, R: -- u1 u2 )
+h: 2r> r> r> swap r> swap >r nop ;    ( -- u1 u2, R: u1 u2 -- )
 h: doNext 2r> ?dup if 1- >r @ >r exit then cell+ >r ;
 [t] doNext tdoNext meta!
 : min 2dup < fallthrough;              ( n n -- n )
@@ -532,7 +523,6 @@ h: typist                              ( b u f -- : print a string )
     swap 1-
   repeat
   rdrop 2drop ;
-h: print count type ;                    ( b -- )
 h: $type [-1] typist ;                   ( b u --  )
 : cmove for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ; ( b b u -- )
 : fill  swap for swap aft 2dup c! 1+ then next 2drop ;     ( b u c -- )
@@ -656,7 +646,7 @@ xchange _forth-wordlist _system
 xchange _system _forth-wordlist
 h: .id nfa word.count type space ; ( pwd -- : print out a word )
 h: immediate? nfa $40 fallthrough; ( pwd -- t : is word immediate? )
-h: set? swap @ and 0<> ;           ( a u -- t : it any of 'u' set? )
+h: set? swap @ and 0<> ;           ( a u -- t : is any of 'u' set? )
 h: compile-only? nfa $20 set? ;    ( pwd -- t : is word compile only? )
 h: inline? inline-start inline-end within ; ( pwd -- t : is word inline? )
 h: (search-wordlist) ( a wid -- PWD PWD 1|PWD PWD -1|0 a 0: find word in WID )
@@ -793,11 +783,11 @@ xchange _system _forth-wordlist
   r> not-found ; \ not a word or number, it's an error!
 : compile  r> dup @ , cell+ >r ; compile-only ( --:Compile next compiled word )
 : immediate $40 last nfa fallthrough; ( -- : previous word immediate )
-h: toggle tuck @ xor swap! ;        ( u a -- : xor value at addr with u )
 h: count+ count + ;         ( b -- b : advance address over counted string )
 h: do$ 2r> dup count+ aligned >r swap >r ; ( -- a )
 h: string-literal do$ nop ; ( -- a : do string NB. nop to fool optimizer )
-h: .string do$ print ;      ( -- : print string  )
+h: .string do$ fallthrough; ( -- : print string  )
+h: print count type ;                    ( b -- )
 [t] .string        tdoPrintString meta!
 [t] string-literal tdoStringLit   meta!
 ( <string>, --, Run: -- b )
@@ -820,8 +810,13 @@ h: (abort) do$ ?abort ;                                        ( -- )
   seed2 @ seed1 !
   dup 3 rshift xor
   seed2 @ dup 1 rshift xor xor dup seed2 !  ;
+
 h: 40ns begin dup while 1- repeat drop ; ( n -- : wait for 'n'*40ns + 30us )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
+
+\ ============================================================================
+\ # I/O wordset
+
 
 xchange _forth-wordlist _system
 : segments! $400E ! ; ( u -- : write to 4 7-segment hex displays )
@@ -842,15 +837,14 @@ h: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
 : rx?  $4000 uart? if [-1] exit then $4002 uart? ; ( -- c -1|0: rx uart/ps2 )
 h: uart! ( c uart-register -- )
 	begin dup @ $1000 and 0= until swap $2000 or swap ! ;
-\ : tx! dup $4002 uart! ( VGA/VT-100 ) $4000 uart! ( UART )  ;
 : tx! dup $4002 uart! ( VGA/VT-100 ) $4000 uart! ( UART )  ;
 h: (ok) state@ if cr exit then ."  ok" cr ;  ( -- : default state aware prompt )
 h: preset tib-start #tib cell+ ! 0 in! id zero ;  ( -- : reset input )
 : io! preset 
   ( 115200 / 9600 )
-  $36    ( $28B ) $4012 ! ( set TX baud rate )
-  $35    ( $28A ) $4014 ! ( set RX baud rate )
-  $8484 $4016 ! ( set UART control register; 8 bits, 1 stop, no parity )
+  $35    ( $28B ) $4012 ! ( set TX baud rate - 54 )
+  $34    ( $28A ) $4014 ! ( set RX baud rate - 53, hack! )
+  $8080 $4016 ! ( set UART control register; 8 bits, 1 stop, no parity )
   0 timer! 0 led! cpu-id segments!
   0 ien! 0 $4010 ! ( set IRQ mask )
   fallthrough;  ( -- : initialize I/O )
@@ -860,6 +854,10 @@ h: hand
    ' emit ' ktap
    fallthrough;
 h: xio  ' accept <expect> ! <tap> ! <echo> ! <ok> ! ;
+
+\ ============================================================================
+\ # Evaluation, Control Structures and Vocabulary Words
+
 \ h: pace 11 emit ;
 \ : file ' pace ' drop ' ktap xio ;
 xchange _system _forth-wordlist
@@ -901,8 +899,8 @@ h: ?unique ( a -- a : print a message if a word definition is not unique )
 h: ?nul ( b -- : check for zero length strings )
    dup c@ ?exit $A -throw ;
 h: find-token token find fallthrough; ( -- pwd,  <string> )
-h: ?not-found ?exit not-found ; ( t -- )
-h: find-cfa find-token cfa ;                         ( -- xt, <string> )
+h: ?not-found ?exit not-found ;       ( t -- )
+h: find-cfa find-token cfa ;          ( -- xt, <string> )
 : ' find-cfa state@ if postpone literal exit then ; immediate
 : [compile] find-cfa compile, ; immediate compile-only  ( --, <string> )
 : [char] char postpone literal ; immediate compile-only ( --, <string> )
@@ -940,7 +938,8 @@ h: doDoes r> chars here chars last-cfa dup cell+ doLit h: !, ! , ;;
   doDoes ( <- meta-compiler version of does> ) 
   dup cell+ 2@ swap ! @ here - allot ;
 xchange _forth-wordlist _system
-: hide find-token nfa $80 swap toggle ; ( --, <string> : hide word by name )
+: hide find-token nfa $80 swap fallthrough; ( --, <string> : hide word by name )
+h: toggle tuck @ xor swap! ;        ( u a -- : xor value at addr with u )
 xchange _system _forth-wordlist
 : get-order ( -- widn ... wid1 n : get the current search order )
   context
@@ -957,12 +956,13 @@ xchange _forth-wordlist root-voc
   dup #vocs > if $31 -throw exit then
   context swap for aft tuck ! cell+ then next zero ;
 : forth root-voc forth-wordlist 2 set-order ; ( -- )
-h: not-hidden? nfa c@ $80 and 0= ; ( pwd -- )
+\ h: not-hidden? nfa c@ $80 and 0= ; ( pwd -- )
 h: .words
     begin
       ?dup
     while dup 
-      not-hidden? if dup .id then @ repeat cr ;
+      nfa c@ $80 and 0= ( <- not-hidden? )
+      if dup .id then @ repeat cr ;
 : words
   get-order begin ?dup while swap dup cr u. colon-space @ .words 1- repeat ;
 xchange root-voc _forth-wordlist
@@ -983,10 +983,13 @@ h: (order)                                      ( w wid*n n -- wid*n w n )
 : +order dup>r -order get-order r> swap 1+ set-order ; ( wid -- )
 : editor editor-voc +order ; ( -- : load editor vocabulary )
 
-\ h: updated? block-dirty @ ;            ( -- f )
+\ ============================================================================
+\ # Block Wordset
+
+\ h: updated? block-dirty @ ;          ( -- f )
 : update [-1] block-dirty ! ;          ( -- )
 h: blk-@   blk @ ;
-h: +block blk-@ + ;                    ( n -- k )
+\ h: +block blk-@ + ;                  ( n -- k )
 \ h: clean-buffers 0 block-dirty ! ;
 \ h: empty-buffers clean-buffers 0 blk ! ;  ( -- )
 : flush 
@@ -1004,15 +1007,16 @@ h: ?block if $23 -throw exit then ;
   blk !
   block-buffer ;
 
-xchange _forth-wordlist _system
+\ xchange _forth-wordlist _system
 \ : (block) ( a u k -- f )
 \	1- dup $C u> ?block
 \	$A lshift ( <- b/buf * )
 \	-rot cmove 0x0000 ;
 \ : (save) 2drop drop-0 ; ( a u k -- f )
-xchange _system _forth-wordlist
+\ xchange _system _forth-wordlist
 
-( ==================== Memory Interface ============================== )
+\ ============================================================================
+\ # Memory Interface
 
 \ The manual for the Nexys 3 board specifies that there is a PCM
 \ memory device called the NP8P128A13T1760E, this is a device behaves like
@@ -1128,6 +1132,9 @@ h: mblock ( a u k -- f )
 : (save)  ' c>m _blockop ! mblock ; 
 : (block) ' m>c _blockop ! mblock ; 
 
+\ ============================================================================
+\ # ANSI Escape Sequences
+
 \ TODO Add to a VT100/ANSI Escape Sequence wordset
 
 h: CSI $1B emit [char] [ emit ;                     ( -- )
@@ -1153,8 +1160,8 @@ h: tableu ( -- )
 \ : nuf? key? if drop [-1] exit then 0x0000 ; ( -- f )
 xchange _system _forth-wordlist
 
-
-( ==================== Memory Interface ============================== )
+\ ============================================================================
+\ # Higher Level Block Words
 
 h: c/l* ( c/l * ) 6 lshift ;            ( u -- u )
 h: line c/l* swap block + c/l ;         ( k u -- a u )
@@ -1184,6 +1191,9 @@ h: retrieve block drop ;                ( k -- )
     dup 5u.r space pipe space dup 0 .line cr 1+
   next drop ;
 ( : --> blk-@ 1+ load ; immediate )
+\ ============================================================================
+\ # Boot Sequence
+
 \ h: bist ( -- u : built in self test )
 \  header-options @ first-bit 0= if 0x0000 exit then ( is checking disabled? )
 \  header-length @ here xor if 2 exit then ( length check )
@@ -1204,6 +1214,9 @@ h: hi
   1 block c@ 32 127 within ( <- ASCII? ) if 
     (ok) ( 1 load ) else ." failed" cr 
   then quit ;
+\ ============================================================================
+\ # Decompiler / Tools
+
 h: validate over cfa <> if drop-0 exit then nfa ; ( pwd cfa -- nfa | 0 )
 h: search-for-cfa ( wid cfa -- nfa | 0 : search for CFA in a word list )
   cells $1FFF and >r
@@ -1269,6 +1282,9 @@ h: decompiler ( previous current -- : decompile starting at address )
       2 spaces $type
     then
   next drop ;
+\ ============================================================================
+\ # Block Editor
+
 [last]              [t] _forth-wordlist t!
 [t] _forth-wordlist [v] current         t!
 0 tlast meta!
@@ -1277,10 +1293,10 @@ h: [check] dup b/buf 6 rshift u< ?exit $18 -throw ;
 h: [line] [check] c/l* [block] + ; ( u -- a )
 : b retrieve ;                 ( k -- : Load a block )
 : l blk-@ list ;               ( -- : list current block )
-: n   1  h: +blv +block b l ;;   ( -- : load and list Next block )
-: p [-1]    +blv ;              ( -- : load and list Previous block )
-: d [block] b/buf fallthrough; ( -- : Zero/blank loaded block )
-: k [line] c/l =bl fill ;         ( u -- : delete/Kill line )
+: n   1  h: +blv blk-@ + b l ;;   ( -- : load and list Next block )
+: p [-1]    +blv ;             ( -- : load and list Previous block )
+: d [block] b/buf h: blank =bl fill ;;   ( -- : Zero/blank loaded block )
+: k [line] c/l blank ;         ( u -- : delete/Kill line )
 : s update flush ;             ( -- : Save changes to disk )
 : q editor-voc -order ;        ( -- : Quit editor )
 : x q blk-@ load editor ;      ( -- : eXecute/evaluate block )
@@ -1296,6 +1312,9 @@ h: [line] [check] c/l* [block] + ; ( u -- a )
 ( : xa [line] c/l evaluate ; )
 ( : sw 2dup y [line] swap [line] swap c/l cmove c ; )
 [last] [t] editor-voc t! 0 tlast meta!
+
+\ ============================================================================
+\ # Final Touches
 there [t] cp t!
 [t] (literal)      [v] <literal> t! ( set literal execution vector )
 [t] (block)        [v] <block>   t! ( set block execution vector )

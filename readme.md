@@ -258,7 +258,10 @@ interface with devices on the [Nexys3][] board:
 * [VGA][] output device, text mode only, 80 by 40 characters from
   <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>. This has
 been heavily modified from the original, which now implements most of a
-[VT100][] terminal emulator.
+[VT100][] terminal emulator. This has two fonts available to it:
+  - [Terminus][]/[KOI8-R][] (Default)
+  - Latin [ISO-8859-15][] (Secondary Font) from
+  <https://git.kernel.org/pub/scm/linux/kernel/git/legion/kbd.git>
 * [Timer][] in [timer.vhd][].
 * [UART][] (Rx/Tx) in [uart.vhd][].
 * [PS/2][] Keyboard
@@ -1213,6 +1216,9 @@ a text buffer to it would help in developing code for the platform.
 [embed]: https://github.com/howerj/embed
 [SDL]: https://www.libsdl.org/
 [Apache 2.0]: https://www.apache.org/licenses/LICENSE-2.0.html
+[KOI8-R]: https://en.wikipedia.org/wiki/KOI8-R
+[Terminus]: http://terminus-font.sourceforge.net/
+[ISO-8859-15]: https://en.wikipedia.org/wiki/ISO/IEC_8859-15
 
 <!--
 

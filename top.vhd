@@ -75,6 +75,7 @@ architecture behav of top is
 	constant number_of_interrupts:   positive := 8;
 	constant number_of_led_displays: positive := 4;
 	constant timer_period_us:        positive := 20000;
+	constant use_sine:               boolean  := false;
 
 	-- Signals
 	signal rst:      std_ulogic := '0';
@@ -151,12 +152,9 @@ architecture behav of top is
 	signal mem_data_o:        std_ulogic_vector(15 downto 0) := (others => '0');
 	signal mem_control_we:    std_ulogic := '0';
 
---	signal sine_we: std_ulogic := '0';
---	signal sine: std_ulogic_vector(15 downto 0) := (others => '0');
+	signal sine_we: std_ulogic := '0';
+	signal sine: std_ulogic_vector(15 downto 0) := (others => '0');
 
-	signal vt100_raw_addr_we: std_ulogic := '0';
-	signal vt100_raw_data_we: std_ulogic := '0';
-	signal vt100_raw_do:      std_ulogic_vector(15 downto 0) := (others => '0');
 begin
 -------------------------------------------------------------------------------
 -- The Main components
@@ -170,6 +168,8 @@ begin
 		clk        => clk,
 		rst        => rst);
 
+	-- TODO: Add interrupts on video blanking periods, which should
+	-- make writing graphics code easier.
 	cpu_irc(0) <= btnu_d; -- configurable CPU reset (can mask this)
 	cpu_irc(1) <= not rx_fifo_empty;
 	cpu_irc(2) <= rx_fifo_full;
@@ -253,10 +253,9 @@ begin
 		uart_clock_rx_we  <= '1'         when is_write and selector = x"A" else '0';
 		uart_control_we   <= '1'         when is_write and selector = x"B" else '0';
 
---		sine_we           <= '1'         when is_write and selector = x"C" else '0';
-
-		vt100_raw_addr_we <= '1'         when is_write and selector = x"C" else '0';
-		vt100_raw_data_we <= '1'         when is_write and selector = x"D" else '0';
+		sine_o: if use_sine generate
+		sine_we           <= '1'         when is_write and selector = x"C" else '0';
+		end generate;
 	end block;
 
 	io_read: process(
@@ -274,8 +273,7 @@ begin
 		timer_counter_o,
 
 		vga_data_busy,
-		vt100_raw_do,
---		sine,
+		sine,
 
 		mem_data_o)
 	begin
@@ -304,29 +302,20 @@ begin
 		when "100" =>
 			io_din             <= mem_data_o;
 		when "101" =>
-			io_din             <= vt100_raw_do;
-			-- io_din             <= sine;
+			if use_sine then
+				io_din <= sine;
+			end if;
 		when others => io_din <= (others => '0');
 		end case;
 	end process;
 
 	--- Sine ----------------------------------------------------------
--- 	sine_block: block
--- 		signal x, s: std_ulogic_vector(15 downto 0);
--- 	begin
--- 		reg_sin: work.util.reg 
--- 			generic map(g => g, N => x'length) 
--- 			port map(clk => clk, rst => rst, we => sine_we, di => io_dout, do => x);
--- 
--- 		sine_fifo_0: work.util.sine generic map(g => g) port map(x => x, s => s);
--- 
--- 		reg_sout: work.util.reg 
--- 			generic map(g => g, N => x'length) 
--- 			port map(clk => clk, rst => rst, we => '1', di => s, do => sine);
--- 
--- 	end block;
+	sine_gen_0: if use_sine generate
+		sine_0: work.util.sine 
+			generic map(g => g) 
+			port map(clk => clk, rst => rst, xwe => sine_we, x => io_dout, s => sine);
+	end generate;
 	--- Sine ----------------------------------------------------------
-
 
 	--- UART ----------------------------------------------------------
 	uart_fifo_0: work.uart_pkg.uart_top
@@ -390,12 +379,7 @@ begin
 				we          =>  vga_data_we,
 				char        =>  vga_data,
 				busy        =>  vga_data_busy,
-				o_vga       =>  o_vga,
-			
-				raw_addr_we =>  vt100_raw_addr_we,
-				raw_data_we =>  vt100_raw_data_we,
-				raw_di      =>  io_dout,
-				raw_do      =>  vt100_raw_do);
+				o_vga       =>  o_vga);
 		end generate;
 	
 		-- Test code

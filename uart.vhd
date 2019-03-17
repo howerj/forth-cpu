@@ -1,4 +1,4 @@
---
+-- FILE:      uart.vhd
 -- BRIEF:     UART TX/RX module
 -- LICENSE:   MIT
 -- COPYRIGHT: Richard James Howe (2019)
@@ -323,38 +323,44 @@ architecture structural of uart_core is
 	signal rx_fail: std_ulogic_vector(1 downto 0);
 	signal rx_ok_buf: std_ulogic;
 	signal do, do_c, do_n: std_ulogic_vector(rx_do'range);
+	signal fail_c, fail_n: std_ulogic_vector(1 downto 0);
 	signal nd_c, nd_n: std_ulogic; -- new data
 begin 
-	rx_ok_buf <= not (rx_fail(0) or rx_fail(1)) after g.delay;
-	rx_ok <= rx_ok_buf after g.delay;
+	rx_ok_buf <= not (fail_c(0) or fail_c(1)) after g.delay;
+	rx_ok <= rx_ok_buf;
 	rx_do <= do after g.delay;
 	rx_nd <= nd_c and rx_ok_buf after g.delay; -- no new data if there are errors
 
 	process (clk, rst) 
 	begin
 		if rst = '1' and g.asynchronous_reset then
-			do_c <= (others => '0') after g.delay;
-			nd_c <= '0' after g.delay;
+			do_c   <= (others => '0') after g.delay;
+			fail_c <= (others => '0') after g.delay;
+			nd_c   <= '0' after g.delay;
 		elsif rising_edge(clk) then
 			if rst = '1' and not g.asynchronous_reset then
-				do_c <= (others => '0') after g.delay;
-				nd_c <= '0' after g.delay;
+				do_c   <= (others => '0') after g.delay;
+				fail_c <= (others => '0') after g.delay;
+				nd_c   <= '0' after g.delay;
 			else
-				do_c <= do_n after g.delay;
-				nd_c <= nd_n after g.delay;
+				do_c <= do_n     after g.delay;
+				nd_c <= nd_n     after g.delay;
+				fail_c <= fail_n after g.delay;
 			end if;
 		end if;
 	end process;
 
-	process (do_c, do, nd_c, rx_we, rx_re) 
+	process (do_c, do, nd_c, rx_we, rx_re, fail_c, rx_fail) 
 	begin
-		do_n <= do_c after g.delay;
-		nd_n <= nd_c after g.delay;
+		do_n   <= do_c   after g.delay;
+		nd_n   <= nd_c   after g.delay;
+		fail_n <= fail_c after g.delay; 
 		if rx_we = '1' then
-			do_n <= do after g.delay;
-			nd_n <= '1' after g.delay;
+			nd_n   <= '1'     after g.delay;
+			do_n   <= do      after g.delay;
+			fail_n <= rx_fail after g.delay;
 		elsif rx_re = '1' then
-			nd_n <= '0' after g.delay;
+			nd_n   <= '0' after g.delay;
 		end if;
 	end process;
 
@@ -608,7 +614,7 @@ begin
 			state_n  <= idle after g.delay;
 		when idle =>
 			count_n <= 0 after g.delay;
-			if rx_sync = '0' and majority = '1' then
+			if rx_sync = '0' then -- and majority = '1' then
 				state_n <= start after g.delay;
 				cr      <= '1' after g.delay;
 				sr_n    <= (others => '0') after g.delay;
@@ -653,7 +659,6 @@ begin
 					state_n   <= done after g.delay; -- frame error
 					fail_n(0) <= '1' after g.delay;
 				elsif count_c = ctr_stop_bits(ctr_c) then
-					count_n <= 0 after g.delay;
 					state_n <= done after g.delay;
 				else
 					count_n <= count_c + 1 after g.delay;
@@ -662,6 +667,9 @@ begin
 		when done => -- The consuming module needs to store rx_c/fail_c immediately
 			we      <= '1' after g.delay;
 			state_n <= idle after g.delay;
+			--rx_n    <= (others => '0') after g.delay;
+			--sr_n    <= (others => '0') after g.delay;
+			--fail_n  <= (others => '0') after g.delay;
 		end case;
 
 		if ctr_we = '1' then
@@ -817,11 +825,17 @@ architecture testing of uart_tb is
 	constant clock_period: time     := 1000 ms / g.clock_frequency;
 	signal rst, clk:     std_ulogic := '1';
 	signal stop:         boolean    := false;
+	signal loopback:     boolean    := true;
 	signal tx, rx:       std_ulogic;
 	signal tx_ok, rx_ok: std_ulogic;
 	signal tx_we, rx_re: std_ulogic := '0';
 	signal rx_nd:        std_ulogic;
 	signal di, do:       std_ulogic_vector(7 downto 0);
+
+	signal reg:          std_ulogic_vector(15 downto 0);
+	signal clock_reg_tx_we: std_ulogic;
+	signal clock_reg_rx_we: std_ulogic;
+	signal control_reg_we:  std_ulogic;
 begin
 	-- duration: process begin wait for 20000 us; stop <= true; wait; end process;
 	clk_process: process
@@ -843,7 +857,7 @@ begin
 	stimulus: process 
 		procedure write(data: std_ulogic_vector(di'range)) is
 		begin
-			wait for clock_period;
+			wait for clock_period * 1;
 			while tx_ok = '0' loop
 				wait for clock_period;
 			end loop;
@@ -856,6 +870,19 @@ begin
 		di <= x"00";
 		wait until rst = '0';
 		wait for clock_period;
+		reg             <=  x"8080";
+		control_reg_we  <=  '1';
+		wait for clock_period;
+		control_reg_we  <=  '0';
+		reg             <=  x"0036";
+		clock_reg_tx_we <=  '1';
+		wait for clock_period;
+		clock_reg_tx_we <=  '0';
+		clock_reg_rx_we <=  '1';
+		reg             <=  x"0035";
+		wait for clock_period;
+		clock_reg_rx_we <=  '0';
+		wait for clock_period;
 
 		write(x"AA");
 		write(x"BB");
@@ -866,7 +893,8 @@ begin
 		while tx_ok = '0' loop
 			wait for clock_period;
 		end loop;
-
+		loopback <= false;
+		wait for clock_period * 50000;
 		stop <= true;
 		wait;
 	end process;
@@ -884,7 +912,7 @@ begin
 		wait;
 	end process;
 
-	rx <= tx; -- loop back test
+	rx <= tx when loopback else '0'; -- loop back test
 
 	uut: work.uart_pkg.uart_core
 		generic map(g => g)
@@ -900,10 +928,10 @@ begin
 			rx_nd           =>  rx_nd,
 			rx_re           =>  rx_re,
 			rx_do           =>  do,
-			reg             =>  (others => '0'),
-			clock_reg_tx_we =>  '0',
-			clock_reg_rx_we =>  '0',
-			control_reg_we  =>  '0'
+			reg             =>  reg,
+			clock_reg_tx_we =>  clock_reg_tx_we,
+			clock_reg_rx_we =>  clock_reg_rx_we,
+			control_reg_we  =>  control_reg_we 
 		);
 end architecture;
 
