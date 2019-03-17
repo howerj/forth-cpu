@@ -832,11 +832,17 @@ h: (irq)
   ien! ;
 [t] (irq) 2/ $C t!
 : irq $0040 $4010 ! [-1] timer! 1 ien! ;
+
+\ FIFO: Write Read Enable after Read
 h: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
-  dup @ $0100 and if drop 0x0000 exit then dup $0400 swap ! @ $FF and [-1] ; 
+ dup @ $0100 and if drop 0x0000 exit then dup @ $FF and swap $0400 swap! [-1] ; 
+\ FIFO: Write Read Enable before Read
+\ h: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
+\ dup @ $0100 and if drop 0x0000 exit then dup $0400 swap! @ $FF and [-1] ; 
+
 : rx?  $4000 uart? if [-1] exit then $4002 uart? ; ( -- c -1|0: rx uart/ps2 )
 h: uart! ( c uart-register -- )
-	begin dup @ $1000 and 0= until swap $2000 or swap ! ;
+	begin dup @ $1000 and 0= until swap $2000 or swap! ;
 : tx! dup $4002 uart! ( VGA/VT-100 ) $4000 uart! ( UART )  ;
 h: (ok) state@ if cr exit then ."  ok" cr ;  ( -- : default state aware prompt )
 h: preset tib-start #tib cell+ ! 0 in! id zero ;  ( -- : reset input )

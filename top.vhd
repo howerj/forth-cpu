@@ -319,7 +319,7 @@ begin
 
 	--- UART ----------------------------------------------------------
 	uart_fifo_0: work.uart_pkg.uart_top
-		generic map (g => g, baud => uart_baud, use_fifo => false)
+		generic map (g => g, baud => uart_baud, use_fifo => true)
 		port map (
 			clk => clk, 
 			rst => rst,

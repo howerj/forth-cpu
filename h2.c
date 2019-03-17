@@ -1551,7 +1551,9 @@ uint16_t h2_io_memory_read_operation(const h2_soc_state_t * const soc) {
 	return 0;
 }
 
-static uint16_t h2_io_get_default(const h2_soc_state_t * const soc, const uint16_t addr, bool *debug_on) {
+/* TODO: Fix Input so Read then Read Enable FIFO semantics work
+   (this requires peeking at the input stream). */
+static uint16_t h2_io_get_default(h2_soc_state_t * const soc, const uint16_t addr, bool *debug_on) {
 	assert(soc);
 	debug("IO read addr: %"PRIx16, addr);
 	(void)debug_on;

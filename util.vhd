@@ -1508,18 +1508,19 @@ architecture behavior of fifo is
 	type fifo_data_t is array (0 to fifo_depth - 1) of std_ulogic_vector(di'range);
 	signal data: fifo_data_t := (others => (others => '0'));
 
-	signal count:  integer range 0 to fifo_depth - 1 := 0;
+	signal count:  integer range 0 to fifo_depth := 0;
 	signal windex: integer range 0 to fifo_depth - 1 := 0;
 	signal rindex: integer range 0 to fifo_depth - 1 := 0;
 
 	signal is_full:  std_ulogic := '0';
 	signal is_empty: std_ulogic := '1';
 begin
+	-- TODO: Allow read to be configurable to next or current rindex
 	do       <= data(rindex) after g.delay;
 	full     <= is_full after g.delay;  -- buffer these bad boys
 	empty    <= is_empty after g.delay;
-	is_full  <= '1' when count = (fifo_depth - 1) else '0' after g.delay;
-	is_empty <= '1' when count = 0                else '0' after g.delay;
+	is_full  <= '1' when count = fifo_depth else '0' after g.delay;
+	is_empty <= '1' when count = 0          else '0' after g.delay;
 
 	process (rst, clk) is
 	begin
@@ -1553,12 +1554,11 @@ begin
 
 				if we = '1' and is_full = '0' then
 					if windex = (fifo_depth - 1) then
-						data(0) <= di after g.delay;
 						windex <= 0 after g.delay;
 					else
-						data(windex + 1) <= di after g.delay;
 						windex <= windex + 1 after g.delay;
 					end if;
+					data(windex) <= di after g.delay;
 				end if;
 			end if;
 		end if;
