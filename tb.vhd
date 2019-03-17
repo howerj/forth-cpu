@@ -39,14 +39,16 @@ architecture testing of tb is
 	);
 
 	constant number_of_interrupts:    positive := 8;
-	constant uart_baud:          positive := 115200;
+	constant uart_baud:               positive := 115200;
 	constant configuration_file_name: string   := "tb.cfg";
 	constant uart_tx_time:            time     := (10*1000 ms) / 115200;
 	constant uart_default_input:      std_ulogic_vector(7 downto 0) := x"AA";
 	constant reset_period_us:         natural  := 1;
 	constant jitter_on:               boolean  := false;
-
 	constant clock_period:            time     := 1000 ms / g.clock_frequency;
+	constant tb_vga_on:               boolean  := false;
+	constant tb_uart_on:              boolean  := false;
+	constant tb_util_on:              boolean  := false;
 
 	-- Test bench configurable options --
 
@@ -169,15 +171,11 @@ begin
 		mem_addr  =>  mem_addr,
 		mem_data  =>  mem_data);
 
-	uut_util: work.util.util_tb generic map(g => g);
-	uut_vga:  work.vga_pkg.vt100_tb generic map(g => g);
-
-	-- The "io_pins_tb" works correctly, however in GHDL 0.29, compiled under
-	-- Windows, fails to simulate this component correctly, resulting
-	-- in a crash. This does not affect the Linux build of GHDL. It has
-	-- something to do with 'Z' values for std_logic types.
-
-	uut_io_pins: work.util.io_pins_tb  generic map(g => g);
+	-- NB. It would be nice to configure these as off/on, as well as
+	-- controlling how long they run for from here.
+	util_g: if tb_util_on generate uut_util: work.util.util_tb     generic map(g => g); end generate;
+	vga_g:  if tb_vga_on  generate uut_vga:  work.vga_pkg.vt100_tb generic map(g => g); end generate;
+	uart_g: if tb_uart_on generate uut_uart: work.uart_pkg.uart_tb generic map(g => g); end generate;
 
 	uart_0_blk: block 
 		signal uart_clock_rx_we, uart_clock_tx_we, uart_control_we: std_ulogic := '0';

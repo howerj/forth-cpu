@@ -23,7 +23,14 @@
 --| supported by ANSI.SYS. A similar escape sequence could be used to put
 --| the VT100 system into that graphics mode. We have the memory (16kiB) to
 --| support 640x200 monochrome, 320x200 monochrome, and 320x200 4-bit color).
---| @todo Separate out VT100 code from VGA code?
+--| @todo Add in a raw 80x40 text mode, allowing the module user to bypass
+--| the VT100 entirely.
+--| @todo Memory map the video memory into the H2, this might require
+--| pausing the H2. Also allow the font set to modified.
+--| @todo This text mode display could be redesigned so it only uses a single
+--| block RAM for both the video memory and the font set. We should have enough
+--| between drawing pixels to do this.
+--| @todo The background is fuzzy, some of the signal timing might be off
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------
@@ -479,6 +486,7 @@ architecture rtl of vt100 is
 
 	signal saved_base_n, saved_base_c: unsigned(base_c'range) := (others => '0');
 	signal is_base_saved_n, is_base_saved_c: boolean := false;
+
 begin
 	accumulator_0: work.vga_pkg.atoi
 		generic map(g => g, N => number)
@@ -879,10 +887,6 @@ begin
 					when x"08"  => conceal_n <= true;
 					when x"1C"  => conceal_n <= false;
 
-					-- CSI ? NUMBER ('h' or 'l')
-					-- when x"6c" => if n2_c = x"19" then ctl_n(2) <= '0'; end if; -- l, hide cursor
-					-- when x"68" => if n2_c = x"19" then ctl_n(2) <= '1'; end if; -- h, show cursor
-
 					when x"0A"  => font_sel_n <= (others => '0');
 					when x"0B"  => font_sel_n <= "1";
 
@@ -903,6 +907,7 @@ begin
 					when x"2D"  => reverse_video("101", false); 
 					when x"2E"  => reverse_video("110", false); 
 					when x"2F"  => reverse_video("111", false); 
+
 					when others =>
 					end case;
 					state_n <= ACCEPT;
@@ -1102,9 +1107,9 @@ architecture rtl of vga_core is
 	signal vctr:  integer range 524 downto 0 := 0;
 
 	-- character/pixel position on the screen
-	signal scry:  integer range 39 downto 0 := 0; -- chr row   < 40 (6 bits)
-	signal scrx:  integer range 79 downto 0 := 0; -- chr col   < 80 (7 bits)
-	signal chry:  integer range 11 downto 0 := 0; -- chr high  < 12 (4 bits)
+	signal scry_text:  integer range 39 downto 0 := 0; -- chr row   < 40 (6 bits)
+	signal scrx_text:  integer range 79 downto 0 := 0; -- chr col   < 80 (7 bits)
+	signal chry:  integer range 11 downto 0 := 0; -- chr hight < 12 (4 bits)
 	signal chrx:  integer range 7  downto 0 := 0; -- chr width < 08 (3 bits)
 
 	signal losr_ce: std_ulogic := '0';
@@ -1205,7 +1210,7 @@ begin
 	-- Proboscide99 31/08/08
 	blank <= '0' when (hctr < 8) or (hctr > 647) or (vctr > 479) else '1';
 
-	-- flip-flips for sync of R, G y B signal, initialized with '0'
+	-- flip-flops for sync of R, G y B signal, initialized with '0'
 	process (rst, clk25MHz)
 	begin
 		if rst = '1' and g.asynchronous_reset then
@@ -1263,9 +1268,9 @@ begin
 		u_chry: work.vga_pkg.ctrm generic map (g => g, M => 12) 
 					port map (rst, clk25MHz, chry_ce, chry_rs, chry);
 		u_scrx: work.vga_pkg.ctrm generic map (g => g, M => 80) 
-					port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx);
+					port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx_text);
 		u_scry: work.vga_pkg.ctrm generic map (g => g, M => 40) 
-					port map (rst, clk25MHz, scry_ce, scry_rs, scry);
+					port map (rst, clk25MHz, scry_ce, scry_rs, scry_text);
 
 		hctr_639 <= '1' when hctr = 639 else '0';
 		vctr_479 <= '1' when vctr = 479 else '0';
@@ -1282,9 +1287,9 @@ begin
 		chry_ce <= hctr_639 and blank;
 		scry_ce <= chry_011 and hctr_639;
 
-		ram_tmp <=  (to_unsigned(scry, ram_tmp'length) sll 4) +
-				(to_unsigned(scry, ram_tmp'length) sll 6) +
-				to_unsigned(scrx, ram_tmp'length);
+		ram_tmp <=  (to_unsigned(scry_text, ram_tmp'length) sll 4) +
+				(to_unsigned(scry_text, ram_tmp'length) sll 6) +
+				to_unsigned(scrx_text, ram_tmp'length);
 
 		text_d_tmp <= text_d(7 downto 0);
 		text_a  <= std_ulogic_vector(ram_tmp);
@@ -1368,7 +1373,7 @@ begin
 		cry <= to_integer(unsigned(ocry(5 downto 0)));
 
 		--
-		curpos <= '1' when scry = cry and scrx = crx else '0';
+		curpos <= '1' when scry_text = cry and scrx_text = crx else '0';
 		small  <= '1' when (chry > 8)                else '0';
 		curen2 <= (cursorclk or (not cur_blink)) and cur_en;
 		yint   <= '1' when cur_mode = '0'            else small;
@@ -1417,6 +1422,7 @@ begin
 					if rs = '1' then
 						c <= 0 after g.delay;
 					else
+					-- elsif c /= (M - 1) then
 						c <= c + 1 after g.delay;
 					end if;
 				end if;

@@ -66,8 +66,8 @@ entity top is
 		mem_wait:  out   std_ulogic := '0'; -- positive logic!
 		flash_cs:  out   std_ulogic := '0';
 		flash_rp:  out   std_ulogic := '1';
-		mem_addr:   out   std_ulogic_vector(26 downto 1) := (others => '0');
-		mem_data:    inout std_logic_vector(15 downto 0)  := (others => 'Z'));
+		mem_addr:  out   std_ulogic_vector(26 downto 1) := (others => '0');
+		mem_data:  inout std_logic_vector(15 downto 0)  := (others => 'Z'));
 end;
 
 architecture behav of top is
@@ -75,6 +75,7 @@ architecture behav of top is
 	constant number_of_interrupts:   positive := 8;
 	constant number_of_led_displays: positive := 4;
 	constant timer_period_us:        positive := 20000;
+	constant use_sine:               boolean  := false;
 
 	-- Signals
 	signal rst:      std_ulogic := '0';
@@ -150,6 +151,10 @@ architecture behav of top is
 	signal mem_data_i_we:     std_ulogic := '0';
 	signal mem_data_o:        std_ulogic_vector(15 downto 0) := (others => '0');
 	signal mem_control_we:    std_ulogic := '0';
+
+	signal sine_we: std_ulogic := '0';
+	signal sine: std_ulogic_vector(15 downto 0) := (others => '0');
+
 begin
 -------------------------------------------------------------------------------
 -- The Main components
@@ -163,6 +168,8 @@ begin
 		clk        => clk,
 		rst        => rst);
 
+	-- TODO: Add interrupts on video blanking periods, which should
+	-- make writing graphics code easier.
 	cpu_irc(0) <= btnu_d; -- configurable CPU reset (can mask this)
 	cpu_irc(1) <= not rx_fifo_empty;
 	cpu_irc(2) <= rx_fifo_full;
@@ -245,6 +252,10 @@ begin
 		uart_clock_tx_we  <= '1'         when is_write and selector = x"9" else '0';
 		uart_clock_rx_we  <= '1'         when is_write and selector = x"A" else '0';
 		uart_control_we   <= '1'         when is_write and selector = x"B" else '0';
+
+		sine_o: if use_sine generate
+		sine_we           <= '1'         when is_write and selector = x"C" else '0';
+		end generate;
 	end block;
 
 	io_read: process(
@@ -262,6 +273,7 @@ begin
 		timer_counter_o,
 
 		vga_data_busy,
+		sine,
 
 		mem_data_o)
 	begin
@@ -289,9 +301,21 @@ begin
 			io_din <= "000" & btnu_d & btnd_d & btnl_d & btnr_d & btnc_d & sw_d;
 		when "100" =>
 			io_din             <= mem_data_o;
+		when "101" =>
+			if use_sine then
+				io_din <= sine;
+			end if;
 		when others => io_din <= (others => '0');
 		end case;
 	end process;
+
+	--- Sine ----------------------------------------------------------
+	sine_gen_0: if use_sine generate
+		sine_0: work.util.sine 
+			generic map(g => g) 
+			port map(clk => clk, rst => rst, xwe => sine_we, x => io_dout, s => sine);
+	end generate;
+	--- Sine ----------------------------------------------------------
 
 	--- UART ----------------------------------------------------------
 	uart_fifo_0: work.uart_pkg.uart_top

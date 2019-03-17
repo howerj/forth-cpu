@@ -528,15 +528,17 @@ package util is
 	end component;
 
 	component sine is
-		generic (g: common_generics);
+		generic (g: common_generics; pipeline: boolean := true);
 		port (
+			clk, rst, xwe: in std_ulogic;
 			x:  in  std_ulogic_vector(15 downto 0);
 			s:  out std_ulogic_vector(15 downto 0));
 	end component;
 
 	component cosine is
-		generic (g: common_generics);
+		generic (g: common_generics; pipeline: boolean := true);
 		port (
+			clk, rst, xwe: in std_ulogic;
 			x:  in  std_ulogic_vector(15 downto 0);
 			s:  out std_ulogic_vector(15 downto 0));
 	end component;
@@ -896,6 +898,11 @@ end entity;
 
 architecture behav of util_tb is
 begin
+	-- The "io_pins_tb" works correctly, however in GHDL 0.29, compiled under
+	-- Windows, fails to simulate this component correctly, resulting
+	-- in a crash. This does not affect the Linux build of GHDL. It has
+	-- something to do with 'Z' values for std_logic types.
+	uut_io_pins:  work.util.io_pins_tb              generic map (g => g);
 	uut_timer_us: work.util.timer_us_tb             generic map (g => g);
 	uut_full_add: work.util.full_adder_tb           generic map (g => g);
 	uut_fifo:     work.util.fifo_tb                 generic map (g => g);
@@ -3329,14 +3336,6 @@ end architecture;
 --
 -- See <https://en.wikipedia.org/wiki/Hamming_code> for more information.
 --
--- NOTE:
---   * Perhaps we could separate out the data and parity bits. There is no reason
---   for the interface to present the encoded data as it is. We really only need to
---   output the parity bits, the user already knows what the data bits are, so long
---   as the interface is consistent between the encoder and decoder it should not matter.
---   * This module could be made to be far more generic, extending it to N-parity bit
---   Hamming codes. Realistically we would be limited to a (31,26) Hamming code.
---   * The extra parity bit should optionally be used in decoding.
 library ieee, work;
 use ieee.std_logic_1164.all;
 use work.util.all;
@@ -3963,14 +3962,18 @@ end architecture;
 -- Angles are input as signed Furmans (1 Furman = (1/pow(2, 16) of a circle))
 -- 1 Degree is ~182 Furmans. 1 rad is ~10430 Furmans.
 -- Result is signed scaled 16-bit integer; -1 = -32767, +1 = 32767
+--
+-- TODO: Optionally insert registers at various locations throughout the module, 
+-- specified with a generic. Also, create a resource shared version.
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.util.all;
 
 entity sine is
-	generic (g: common_generics);
+	generic (g: common_generics; pipeline: boolean := true);
 	port (
+		clk, rst, xwe: in std_ulogic;
 		x:  in  std_ulogic_vector(15 downto 0);
 		s:  out std_ulogic_vector(15 downto 0));
 end entity;
@@ -3987,23 +3990,41 @@ architecture behavior of sine is
 		return r;
 	end function;
 	signal n: signed(2 downto 0);
-	signal z, y, sums, sumc, sum1, cc,  t0, t1, sa, so: val;
+	signal xn, z, y, sums, sumc, sum1, cc,  t0, t1, t0n, t1n, sa, so: val;
 	signal cc32: mul;
+	signal xnslv, t0nslv, t1nslv: std_ulogic_vector(x'range);
 begin
+	pipe_0: if pipeline generate
+		reg_in: work.util.reg 
+			generic map (g => g, N => x'length) 
+			port map (clk => clk, rst => rst, we => xwe, di => x, do => xnslv);
+		reg_out: work.util.reg
+			generic map (g => g, N => x'length) 
+			port map (clk => clk, rst => rst, we => '1', di => std_ulogic_vector(so), do => s);
+		xn  <= signed(xnslv);
+		t0n <= signed(t0); -- also need to delay n
+		t1n <= signed(t1); -- also need to delay n
+	end generate;
+	no_pipe_0: if not pipeline generate 
+		xn <= signed(x); 
+		s  <= std_ulogic_vector(so) after g.delay;
+		t0n <= t0;
+		t1n <= t1;
+	end generate;
+
 	y(1 downto 0)  <= (others => '0') after g.delay;
-	y(15 downto 2) <= signed(x(13 downto 0)) after g.delay;
-	n    <= signed(x(15 downto 13)) + "01" after g.delay;
+	y(15 downto 2) <= signed(xn(13 downto 0)) after g.delay;
+	n    <= signed(xn(15 downto 13)) + "01" after g.delay;
 	z    <= half_multiply_add(y, y,        x"0000") after g.delay;
 	sumc <= half_multiply_add(z, x"0FBD", -x"4EE9") after g.delay;
 	sums <= half_multiply_add(z, x"04F8", -x"2953") after g.delay;
 	sum1 <= half_multiply_add(z, sums,     x"6487") after g.delay;
-	cc32 <= t0 * t1 after g.delay;
-	cc   <= cc32(cc32'high - 1 downto cc'high) after g.delay;
 	t0   <= z    when n(1) = '1' else y after g.delay;
 	t1   <= sumc when n(1) = '1' else sum1 after g.delay;
+	cc32 <= t0n * t1n after g.delay;
+	cc   <= cc32(cc32'high - 1 downto cc'high) after g.delay;
 	sa   <= cc + x"7FFF" when n(1) = '1' else cc after g.delay;
 	so   <= -sa when n(2) = '1' else sa after g.delay;
-	s    <= std_ulogic_vector(so) after g.delay;
 end architecture;
 
 library ieee, work;
@@ -4012,8 +4033,9 @@ use ieee.numeric_std.all;
 use work.util.all;
 
 entity cosine is
-	generic (g: common_generics);
+	generic (g: common_generics; pipeline: boolean := true);
 	port (
+		clk, rst, xwe: in std_ulogic;
 		x:  in  std_ulogic_vector(15 downto 0);
 		c:  out std_ulogic_vector(15 downto 0));
 end entity;
@@ -4023,7 +4045,7 @@ architecture behavior of cosine is
 begin
 	xn <= std_ulogic_vector(signed(x) + x"4000");
 	calc: entity work.sine 
-		generic map(g => g) port map(x => xn, s => c);
+		generic map(g => g, pipeline => pipeline) port map(clk => clk, rst => rst, xwe => xwe, x => xn, s => c);
 end architecture;
 
 library ieee, work;
@@ -4048,8 +4070,8 @@ begin
 		generic map (g => g, hold_rst => 2)
 		port map (stop => stop, clk => clk, rst => rst);
 
-	uut_c: entity work.sine   generic map (g => g) port map (x => x, s => s);
-	uut_s: entity work.cosine generic map (g => g) port map (x => x, c => c);
+	uut_c: entity work.sine   generic map (g => g) port map (clk => clk, rst => rst, xwe => '1', x => x, s => s);
+	uut_s: entity work.cosine generic map (g => g) port map (clk => clk, rst => rst, xwe => '1', x => x, c => c);
 
 	stimulus_process: process
 		variable cnt: integer := -32768;
@@ -4058,10 +4080,12 @@ begin
 		wait for clock_period * 2;
 		while cnt < 32768 loop
 			x <= std_ulogic_vector(to_signed(cnt, x'length));
-			wait for clock_period;
+			wait for clock_period * 10;
 			cnt := cnt + 182;
 		end loop;
 		stop <= '1';
 		wait;
 	end process;
 end architecture;
+------------------------- Sine / Cosine  ------------------------------------------------------
+

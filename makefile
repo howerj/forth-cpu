@@ -95,7 +95,8 @@ EFORTH=h2.hex
 h2${EXE}: h2.c h2.h
 	${CC} ${CFLAGS} -std=c99 $< -o $@
 
-embed${EXE}: embed.o
+embed${EXE}: embed.c
+	${CC} ${CFLAGS} -std=c99 $< -o $@
 
 ${EFORTH}: embed${EXE} embed.blk embed.fth
 	${DF}embed${EXE} embed.blk $@ embed.fth
