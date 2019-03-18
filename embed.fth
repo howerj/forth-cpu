@@ -1,19 +1,21 @@
 system +order 0 <ok> !
 \ TODO
 \ - Get basic eForth image working (Done)
-\ - Add documentation back in
-\ - Add drivers for all peripherals (Partial; missing ANSI/VT100)
+\ - Add references back in, along with documentation.
+\ - Add drivers for all peripherals (Done)
 \ - Make the <https://github.com/howerj/embed> virtual machine the same
 \ as the H2 physical machine, or as much as is possible.
 \ - Run the meta-compiler on H2 instead of the 'embed' Virtual Machine,
 \ making the system self hosting. This will require extensions to the H2,
 \ mainly extra memory, so it will not be quite a self-hosting system, but
 \ close.
-\ - Add references back in, along with documentation.
 \ - Multi-tasking would be nice, www.ultratechnology.com/p21fchp7.html.
 \ - Implement bit-banging version of UART, reliant only from an interrupt
 \ from a timer, and the UART Pins. Debouncing and the FIFO for both TX and
-\ RX should be done in software. 
+\ RX should be done in software.
+\ - Multi-tasking would require implementing USER variables
+\ - Combine return stack effecting words with the previous instruction if
+\ possible: "1- dup >r" can be combined for example.
 
 .( FORTH META COMPILATION START ) cr
 
@@ -235,14 +237,19 @@ a: return ( -- : Compile a return into the target )
 : rp@      ]asm #rp@    t->n               d+1 alu asm[ ;
 : 0=       ]asm #t==0                          alu asm[ ;
 : rdrop    ]asm #t                     r-1     alu asm[ ;
-: dup>r    ]asm #t             t->r        r+1 alu asm[ ;
+\ : 2rdrop ]asm #t                     r-2     alu asm[ ;
+: dup>r    ]asm #t             t->r    r+1     alu asm[ ;
 : over-and ]asm #t&n                           alu asm[ ;
 : over+    ]asm #t+n                           alu asm[ ;
 : over-xor ]asm #t^n                           alu asm[ ;
+: 2dup=    ]asm #t==n  t->n                d+1 alu asm[ ;
+: 2dup<    ]asm #n<t   t->n                d+1 alu asm[ ;
+: 2dup-xor ]asm #t^n   t->n                d+1 alu asm[ ;
 : store    ]asm #n     n->[t]              d-1 alu asm[ ;
 : cpu-id   ]asm #cpu-id                    d+1 alu asm[ ;
 : ien!     ]asm #ien!                      d-1 alu asm[ ;
 : ien?     ]asm #ien?  t->n                d+1 alu asm[ ;
+: dup@     ]asm #[t]   t->n                d+1 alu asm[ ;
 : for >r begin ;
 : meta: : ;
 ( : :noname h: ; )
@@ -437,7 +444,7 @@ h: d0= or 0= ;                        ( d -- t )
 ( : opposite? xor 0< ;                ( n n -- f : true if opposite signs )
 : execute >r ;                   ( cfa -- : execute a function )
 h: @execute @ ?dup if execute exit then ;  ( cfa -- )
-: c@ dup @ swap first-bit 3 lshift rshift h: lsb $FF and ;; ( b--c: char load )
+: c@ dup@ swap first-bit 3 lshift rshift h: lsb $FF and ;; ( b--c: char load )
 : c! ( c b -- : store character at address )
   tuck first-bit 3 lshift dup>r swap lsb swap
   lshift over @
@@ -450,7 +457,7 @@ h: 2>r r> swap >r swap >r >r ;        ( u1 u2 --, R: -- u1 u2 )
 h: 2r> r> r> swap r> swap >r nop ;    ( -- u1 u2, R: u1 u2 -- )
 h: doNext 2r> ?dup if 1- >r @ >r exit then cell+ >r ;
 [t] doNext tdoNext meta!
-: min 2dup < fallthrough;              ( n n -- n )
+: min 2dup< fallthrough;              ( n n -- n )
 h: mux if drop exit then nip ;        ( n1 n2 b -- n : multiplex operation )
 : max 2dup > mux ;                    ( n n -- n )
 ( : 2over 2>r 2dup 2r> 2swap ; )
@@ -625,13 +632,12 @@ h: ktap                                  ( bot eot cur c -- bot eot cur )
  dup =cr xor
  if delete? \ =bs xor
    if =bl tap exit then ^h exit
- then fallthrough;
-h: drop-nip-dup drop nip dup ;
+ then drop nip dup ;
 h: ktap? dup =bl - $5F u< swap =del <> and ; ( c -- t : possible ktap? )
 : accept ( b u -- b u )
   over+ over
   begin
-    2dup xor
+    2dup-xor
   while
     key dup =bl - $5F u< if tap else <tap> @execute then
   repeat drop over- ;
@@ -659,16 +665,16 @@ h: (search-wordlist) ( a wid -- PWD PWD 1|PWD PWD -1|0 a 0: find word in WID )
       rdrop
       dup immediate? 1 or negate exit
     then
-    nip dup @
+    nip dup@
   repeat
   rdrop 2drop-0 ;
 h: (find) ( a -- pwd pwd 1 | pwd pwd -1 | 0 a 0 : find a word dictionary )
   >r
   context
   begin
-    dup @
+    dup@
   while
-    dup @ @ r@ swap (search-wordlist) ?dup
+    dup@ @ r@ swap (search-wordlist) ?dup
     if
       >r rot-drop r> rdrop exit
     then
@@ -780,8 +786,8 @@ xchange _system _forth-wordlist
     then
     <literal> @execute exit
   then
-  r> not-found ; \ not a word or number, it's an error!
-: compile  r> dup @ , cell+ >r ; compile-only ( --:Compile next compiled word )
+  r> not-found ; \ not a word/number, it's an error! NB. We could vector this
+: compile  r> dup@ , cell+ >r ; compile-only ( --:Compile next compiled word )
 : immediate $40 last nfa fallthrough; ( -- : previous word immediate )
 h: count+ count + ;         ( b -- b : advance address over counted string )
 h: do$ 2r> dup count+ aligned >r swap >r ; ( -- a )
@@ -824,6 +830,7 @@ xchange _forth-wordlist _system
 : switches  $4006 @ ; ( -- u : retrieve switch on/off for 8 switches )
 : timer!    $4004 ! ; ( u -- : set timer and timer control )
 : timer     $4004 @ ; ( -- u : get timer and timer control )
+\ NB. Perhaps this could be vectored?
 h: (irq) 
   ien? 0 ien!
   switches led! 
@@ -835,14 +842,14 @@ h: (irq)
 
 \ FIFO: Write Read Enable after Read
 h: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
- dup @ $0100 and if drop 0x0000 exit then dup @ $FF and swap $0400 swap! [-1] ; 
+ dup@ $0100 and if drop 0x0000 exit then dup@ $FF and swap $0400 swap! [-1] ; 
 \ FIFO: Write Read Enable before Read
 \ h: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
-\ dup @ $0100 and if drop 0x0000 exit then dup $0400 swap! @ $FF and [-1] ; 
+\ dup@ $0100 and if drop 0x0000 exit then dup $0400 swap! @ $FF and [-1] ; 
 
 : rx?  $4000 uart? if [-1] exit then $4002 uart? ; ( -- c -1|0: rx uart/ps2 )
 h: uart! ( c uart-register -- )
-	begin dup @ $1000 and 0= until swap $2000 or swap! ;
+	begin dup@ $1000 and 0= until swap $2000 or swap! ;
 : tx! dup $4002 uart! ( VGA/VT-100 ) $4000 uart! ( UART )  ;
 h: (ok) state@ if cr exit then ."  ok" cr ;  ( -- : default state aware prompt )
 h: preset tib-start #tib cell+ ! 0 in! id zero ;  ( -- : reset input )
@@ -914,7 +921,7 @@ h: find-cfa find-token cfa ;          ( -- xt, <string> )
 h: get-current! ?dup if get-current ! exit then ; ( -- wid )
 : : align here dup last-def ! ( "name", -- colon-sys )
   last , token ?nul ?unique count+ cp! magic postpone ] ;
-: begin here  ; immediate compile-only   ( -- a )
+: begin here    ; immediate compile-only ( -- a )
 : again chars , ; immediate compile-only ( a -- )
 : until $4000 or postpone again ; immediate compile-only ( a --, NB. again !? )
 h: here-0 here 0x0000 ;
@@ -939,10 +946,38 @@ h: doDoes r> chars here chars last-cfa dup cell+ doLit h: !, ! , ;;
 : next compile doNext , ; immediate compile-only
 : aft drop >mark postpone begin swap ; immediate compile-only
 : marker ( "name", -- : create an eraser )
-  here >r current @ dup @ r> 
+  here >r current @ dup@ r> 
   create , 2,
   doDoes ( <- meta-compiler version of does> ) 
-  dup cell+ 2@ swap ! @ here - allot ;
+  dup cell+ 2@ swap! @ here - allot ;
+
+\ h: (do) r@ swap rot >r >r cell+ >r ; ( hi lo -- index )
+\ : do compile (do) 0 , here ; compile-only immediate ( hi lo -- )
+\ h: (leave) rdrop rdrop rdrop ; compile-only
+\ : leave compile (leave) nop ; compile-only immediate
+\ h: (loop)
+\    r> r> 1+ r> 2dup-xor if
+\     >r >r @ >r exit
+\    then >r 1- >r cell+ >r ; compile-only
+\ h: (unloop) r> rdrop rdrop rdrop >r ; compile-only
+\ : unloop compile (unloop) nop ; compile-only immediate
+\ h: (?do)
+\   2dup-xor if r@ swap rot >r >r cell+ >r exit then 2drop ; compile-only
+\ : ?do compile (?do) 0 , here ; compile-only immediate ( hi lo -- )
+\ : loop  compile (loop) dup , compile (unloop) cell- here chars ( -- )
+\     swap! ; compile-only immediate
+\ h: (+loop)
+\    r> swap r> r> 2dup - >r
+\    2 pick r@ + r@ xor 0< 0=
+\    3 pick r> xor 0< 0= or if
+\     >r + >r @ >r exit
+\    then >r >r drop cell+ >r ; compile-only
+\ : +loop ( n -- ) compile (+loop) dup , compile
+\   (unloop) cell- here chars swap! ; compile-only immediate
+\ h: (i)  2r> tuck 2>r nop ; compile-only ( -- index )
+\ : i  compile (i) nop ; compile-only immediate ( -- index )
+
+
 xchange _forth-wordlist _system
 : hide find-token nfa $80 swap fallthrough; ( --, <string> : hide word by name )
 h: toggle tuck @ xor swap! ;        ( u a -- : xor value at addr with u )
@@ -950,10 +985,10 @@ xchange _system _forth-wordlist
 : get-order ( -- widn ... wid1 n : get the current search order )
   context
   0
-  ( : find-cell ) >r begin dup @ r@ <> while cell+ repeat rdrop ( ; u a -- a )
+  ( : find-cell ) >r begin dup@ r@ <> while cell+ repeat rdrop ( ; u a -- a )
   dup cell- swap
   context - chars dup>r 1- s>d if $32 -throw exit then
-  for aft dup @ swap cell- then next @ r> ;
+  for aft dup@ swap cell- then next @ r> ;
 xchange _forth-wordlist root-voc
 : forth-wordlist _forth-wordlist ; ( -- wid : push forth vocabulary )
 : system _system ;                 ( -- wid : push system vocabulary )
@@ -962,15 +997,16 @@ xchange _forth-wordlist root-voc
   dup #vocs > if $31 -throw exit then
   context swap for aft tuck ! cell+ then next zero ;
 : forth root-voc forth-wordlist 2 set-order ; ( -- )
-\ h: not-hidden? nfa c@ $80 and 0= ; ( pwd -- )
-h: .words
+: words
+  get-order begin ?dup while 
+  swap dup cr u. colon-space @ 
     begin
       ?dup
     while dup 
       nfa c@ $80 and 0= ( <- not-hidden? )
-      if dup .id then @ repeat cr ;
-: words
-  get-order begin ?dup while swap dup cr u. colon-space @ .words 1- repeat ;
+      if dup .id then @ 
+    repeat cr 
+  1- repeat ;
 xchange root-voc _forth-wordlist
 ( : previous get-order swap drop 1- set-order ; ( -- )
 ( : also get-order over swap 1+ set-order ;     ( wid -- )
@@ -1123,7 +1159,7 @@ h: flash->sram ( a a : transfer flash memory cell to SRAM )
 \ .set flash-voc $pwd
 
 h: c>m swap @ swap m! ; ( a a --  )
-h: m>c m@ swap ! ;      ( a a -- )
+h: m>c m@ swap! ;      ( a a -- )
 
 h: mblock ( a u k -- f )
   1- b/buf um* memory-upper ! >r
@@ -1150,11 +1186,19 @@ xchange _system _forth-wordlist
 : at-xy CSI 10u. $3B emit 10u. [char] H emit ; ( x y -- ) \ <at-xy> @execute
 : page 2 [char] J ansi 1 1 at-xy ;             ( -- )     \ <page>  @execute
 xchange _forth-wordlist _system
-: sgr [char] m ansi ;   ( -- : emit an SGR )
+: sgr   [char] m ansi ; ( -- : emit an SGR )
 : up    [char] A ansi ; ( u -- : move the cursor up )
 : down  [char] B ansi ; ( u -- : move the cursor down )
 : right [char] C ansi ; ( u -- : move the cursor right )
 : left  [char] D ansi ; ( u -- : move the cursor left )
+
+\ 0 constant black 1 constant red 2 constant green 4 constant blue
+\ red green        + constant yellow
+\     green blue   + constant cyan
+\ red       blue   + constant magenta
+\ red green blue + + constant white
+\ : background $A + ;
+\ : color $1E + sgr ;
 
 h: tableu ( -- )
    $7 for
@@ -1169,17 +1213,17 @@ xchange _system _forth-wordlist
 \ ============================================================================
 \ # Higher Level Block Words
 
-h: c/l* ( c/l * ) 6 lshift ;            ( u -- u )
-h: line c/l* swap block + c/l ;         ( k u -- a u )
-\ h: loadline line evaluate ;             ( k u -- )
+h: c/l* ( c/l * ) 6 lshift ;             ( u -- u )
+h: line c/l* swap block + c/l ;          ( k u -- a u )
+\ h: loadline line evaluate ;            ( k u -- )
 : load 0 $F for 2dup 2>r line evaluate 2r> 1+ next 2drop ; ( k -- )
-h: pipe [char] | emit ;                 ( -- )
-h: .line line -trailing $type ;       ( k u -- )
+h: pipe [char] | emit ;                  ( -- )
+\ h: .line line -trailing $type ;        ( k u -- )
 h: .border 3 spaces c/l [char] - nchars cr ; ( -- )
 : thru over- for dup load 1+ next drop ; ( k1 k2 -- )
-( : message l/b extract .line cr ;      ( u -- )
-h: retrieve block drop ;                ( k -- )
-: list                                  ( k -- )
+( : message l/b extract .line cr ;       ( u -- )
+h: retrieve block drop ;                 ( k -- )
+: list                                   ( k -- )
   dup retrieve
   cr
   .border
@@ -1194,7 +1238,7 @@ h: retrieve block drop ;                ( k -- )
 : index ( k1 k2 -- : show titles for block k1 to k2 )
   over- cr
   for
-    dup 5u.r space pipe space dup 0 .line cr 1+
+    dup 5u.r space pipe space dup 0 line $type cr 1+
   next drop ;
 ( : --> blk-@ 1+ load ; immediate )
 \ ============================================================================
@@ -1229,8 +1273,8 @@ h: search-for-cfa ( wid cfa -- nfa | 0 : search for CFA in a word list )
   begin
     dup
   while
-    dup @ over r@ -rot  within
-    if dup @ r@ validate ?dup if rdrop nip exit then then
+    dup@ over r@ -rot  within
+    if dup@ r@ validate ?dup if rdrop nip exit then then
     @
   repeat rdrop ;
 h: name ( cwf -- a | 0 )
@@ -1264,12 +1308,12 @@ h: decompiler ( previous current -- : decompile starting at address )
   >r
   begin dup r@ u< while
     d5u.r colon-space
-    dup @
+    dup@
     d5u.r space decompile cr cell+
   repeat rdrop drop ;
 : see ( --, <string> : decompile a word )
   token (find) ?not-found
-  swap      2dup = if drop here then >r
+  swap      2dup= if drop here then >r
   cr colon-space dup .id dup cr
   cfa r> decompiler space [char] ; emit
   dup compile-only? if ."  compile-only" then
@@ -1283,7 +1327,7 @@ h: decompiler ( previous current -- : decompile starting at address )
     aft
       cr $10 2dup
       over 5u.r colon-space
-      chars for aft dup @ 5u.r cell+ then next ( <- dm+; [ a u -- ] )
+      chars for aft dup@ 5u.r cell+ then next ( <- dm+; [ a u -- ] )
       -rot
       2 spaces $type
     then
