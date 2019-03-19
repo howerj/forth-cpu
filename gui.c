@@ -851,17 +851,6 @@ static fifo_t *ps2_rx_fifo = NULL;
 
 /* ====================================== H2 I/O Handling ====================================== */
 
-static void fifo_peek(fifo_t *f, fifo_data_t *data) {
-	assert(f);
-	assert(data);
-	assert(sizeof(*data) == sizeof(uint8_t));
-	*data = 0;
-	if (fifo_is_empty(f))
-		return;
-	fifo_pop(f,   data);
-	fifo_push(f, *data);
-}
-
 static uint16_t h2_io_get_gui(h2_soc_state_t * const soc, const uint16_t addr, bool *debug_on) {
 	assert(soc);
 	assert(ps2_rx_fifo);
@@ -871,16 +860,13 @@ static uint16_t h2_io_get_gui(h2_soc_state_t * const soc, const uint16_t addr, b
 	if (debug_on)
 		*debug_on = false;
 	switch (addr) {
-	case iUart: {
-		fifo_peek(uart_rx_fifo, &soc->uart_getchar_register);
+	case iUart:
 		return (fifo_is_empty(uart_tx_fifo) << UART_TX_FIFO_EMPTY_BIT)
 			| (fifo_is_full(uart_tx_fifo)  << UART_TX_FIFO_FULL_BIT)
 			| (fifo_is_empty(uart_rx_fifo) << UART_RX_FIFO_EMPTY_BIT)
 			| (fifo_is_full(uart_rx_fifo)  << UART_RX_FIFO_FULL_BIT)
 			| soc->uart_getchar_register;
-	}
 	case iVT100:
-		fifo_peek(ps2_rx_fifo, &soc->ps2_getchar_register);
 		return (1u << UART_TX_FIFO_EMPTY_BIT)
 			| (0u << UART_TX_FIFO_FULL_BIT)
 			| (fifo_is_empty(ps2_rx_fifo) << UART_RX_FIFO_EMPTY_BIT)

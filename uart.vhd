@@ -272,7 +272,8 @@ begin
 		uart_fifo_rx_0: work.util.fifo
 			generic map(g => g,
 				   data_width => rx_fifo_data'length,
-				   fifo_depth => fifo_depth)
+				   fifo_depth => fifo_depth,
+			   	   read_first => false)
 			port map (clk  => clk, rst => rst, 
 				  di   => rx_pushed,
 				  we   => rx_push,

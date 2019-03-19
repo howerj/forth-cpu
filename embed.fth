@@ -110,7 +110,7 @@ a: #cpu-id $1400 a; ( T = CPU ID )
 
 a: d+1     $0001 or a; ( increment variable stack by one )
 a: d-1     $0003 or a; ( decrement variable stack by one )
-( a: d-2   $0002 or a; ( decrement variable stack by two, not used )
+a: d-2     $0002 or a; ( decrement variable stack by two, not used )
 a: r+1     $0004 or a; ( increment variable stack by one )
 a: r-1     $000C or a; ( decrement variable stack by one )
 a: r-2     $0008 or a; ( decrement variable stack by two, not used )
@@ -238,6 +238,7 @@ a: return ( -- : Compile a return into the target )
 : 0=       ]asm #t==0                          alu asm[ ;
 : rdrop    ]asm #t                     r-1     alu asm[ ;
 \ : 2rdrop ]asm #t                     r-2     alu asm[ ;
+\ : rdrop>r ]asm #n            t->r        d-1 alu asm[ ;
 : dup>r    ]asm #t             t->r    r+1     alu asm[ ;
 : over-and ]asm #t&n                           alu asm[ ;
 : over+    ]asm #t+n                           alu asm[ ;
@@ -252,6 +253,7 @@ a: return ( -- : Compile a return into the target )
 : dup@     ]asm #[t]   t->n                d+1 alu asm[ ;
 : r>rdrop  ]asm #r     t->n            r-2 d+1 alu asm[ ;
 : rxchg    ]asm #r             t->r            alu asm[ ;
+: nip-nip  ]asm #t                         d-2 alu asm[ ;
 : for >r begin ;
 : meta: : ;
 ( : :noname h: ; )
@@ -434,7 +436,7 @@ h: d0= or 0= ;                        ( d -- t )
 ( : 2swap >r -rot r> -rot ; ( n1 n2 n3 n4 -- n3 n4 n1 n2 )
 ( : d< rot   )
 (     2dup   )
-(     > if = nip nip if 0 exit then [-1] exit then 2drop u< ; ( d -- f )
+(     > if = nip-nip if 0 exit then [-1] exit then 2drop u< ; ( d -- f )
 ( : d>  2swap d< ;                    ( d -- t )
 ( : du> 2swap du< ;                   ( d -- t )
 ( : d=  rot = -rot = and ;            ( d d -- t )
@@ -620,7 +622,7 @@ xchange _system _forth-wordlist
   for ( a1 a2 )
     aft
       count rot count rot - ?dup
-      if rdrop nip nip exit then
+      if rdrop nip-nip exit then
     then
   next 2drop-0 ;
 h: ^h ( bot eot cur -- bot eot cur )
@@ -843,11 +845,11 @@ h: (irq)
 : irq $0040 $4010 ! [-1] timer! 1 ien! ;
 
 \ FIFO: Write Read Enable after Read
-h: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
- dup@ $0100 and if drop 0x0000 exit then dup@ $FF and swap $0400 swap! [-1] ; 
-\ FIFO: Write Read Enable before Read
 \ h: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
-\ dup@ $0100 and if drop 0x0000 exit then dup $0400 swap! @ $FF and [-1] ; 
+\ dup@ $0100 and if drop 0x0000 exit then dup@ $FF and swap $0400 swap! [-1] ; 
+\ FIFO: Write Read Enable before Read
+h: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
+ dup@ $0100 and if drop 0x0000 exit then dup $0400 swap! @ $FF and [-1] ; 
 
 : rx?  $4000 uart? if [-1] exit then $4002 uart? ; ( -- c -1|0: rx uart/ps2 )
 h: uart! ( c uart-register -- )
@@ -1205,10 +1207,10 @@ xchange _forth-wordlist _system
 h: tableu ( -- )
    $7 for
      $A right $7 r@ - $28 + dup sgr u. colon-space
-     $7 for $7 r@ - $1E + dup sgr u. next cr
+     $7   for $7 r@ - $1E + dup sgr u. next cr
    next ;
  
-: table page 0 sgr $2 down  tableu 1 sgr $2 down tableu 0 sgr ; ( -- )
+: table page $2 down tableu 1 sgr $2 down tableu 0 sgr ; ( -- )
 \ : nuf? key? if drop [-1] exit then 0x0000 ; ( -- f )
 xchange _system _forth-wordlist
 

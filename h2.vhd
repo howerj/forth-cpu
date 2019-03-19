@@ -160,7 +160,7 @@ architecture rtl of h2 is
 	signal instruction:  word := (others => '0'); -- processed 'insn'
 begin
 	assert stack_size > 4 report "stack size too small: " & integer'image(stack_size) severity failure;
-	assert dd /= "10" severity warning; -- valid, but odd
+	-- assert dd /= "10" severity warning; -- valid, but odd (now used)
 
 	is_instr.branch  <= '1' when instruction(15 downto 13) = "000" else '0' after delay;
 	is_instr.branch0 <= '1' when instruction(15 downto 13) = "001" else '0' after delay;
