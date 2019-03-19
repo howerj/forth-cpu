@@ -161,7 +161,6 @@ architecture rtl of h2 is
 begin
 	assert stack_size > 4 report "stack size too small: " & integer'image(stack_size) severity failure;
 	assert dd /= "10" severity warning; -- valid, but odd
-	assert rd /= "10" severity warning; -- valid, but rare
 
 	is_instr.branch  <= '1' when instruction(15 downto 13) = "000" else '0' after delay;
 	is_instr.branch0 <= '1' when instruction(15 downto 13) = "001" else '0' after delay;

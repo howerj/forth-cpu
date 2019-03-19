@@ -113,7 +113,7 @@ a: d-1     $0003 or a; ( decrement variable stack by one )
 ( a: d-2   $0002 or a; ( decrement variable stack by two, not used )
 a: r+1     $0004 or a; ( increment variable stack by one )
 a: r-1     $000C or a; ( decrement variable stack by one )
-( a: r-2   $0008 or a; ( decrement variable stack by two, not used )
+a: r-2     $0008 or a; ( decrement variable stack by two, not used )
 a: r->pc   $0010 or a; ( Set Program Counter to Top of Return Stack )
 a: n->[t]  $0020 or a; ( Set Next on Variable Stack to Top on Variable Stack )
 a: t->r    $0040 or a; ( Set Top of Return Stack to Top on Variable Stack )
@@ -250,6 +250,8 @@ a: return ( -- : Compile a return into the target )
 : ien!     ]asm #ien!                      d-1 alu asm[ ;
 : ien?     ]asm #ien?  t->n                d+1 alu asm[ ;
 : dup@     ]asm #[t]   t->n                d+1 alu asm[ ;
+: r>rdrop  ]asm #r     t->n            r-2 d+1 alu asm[ ;
+: rxchg    ]asm #r             t->r            alu asm[ ;
 : for >r begin ;
 : meta: : ;
 ( : :noname h: ; )
@@ -453,8 +455,8 @@ h: @execute @ ?dup if execute exit then ;  ( cfa -- )
 : align here fallthrough;             ( -- )
 h: cp! aligned cp ! ;                 ( n -- )
 : allot cp +! ;                       ( n -- )
-h: 2>r r> swap >r swap >r >r ;        ( u1 u2 --, R: -- u1 u2 )
-h: 2r> r> r> swap r> swap >r nop ;    ( -- u1 u2, R: u1 u2 -- )
+h: 2>r rxchg swap >r >r ;        ( u1 u2 --, R: -- u1 u2 )
+h: 2r> r> r> swap rxchg nop ;    ( -- u1 u2, R: u1 u2 -- )
 h: doNext 2r> ?dup if 1- >r @ >r exit then cell+ >r ;
 [t] doNext tdoNext meta!
 : min 2dup< fallthrough;              ( n n -- n )
@@ -547,7 +549,7 @@ h: $type [-1] typist ;                   ( b u --  )
   ?dup if ( exc# \ 0 throw is no-op )
     handler @ rp! ( exc# : restore prev return stack )
     r> handler !  ( exc# : restore prev handler )
-    r> swap >r    ( saved-sp : exc# on return stack )
+    rxchg         ( saved-sp : exc# on return stack )
     sp@ swap - ndrop r>   ( exc# : restore stack )
     ( return to the caller of catch because return )
     ( stack is restored to the state that existed )
@@ -585,7 +587,7 @@ h: base!  base ! ;          ( u -- : set base )
 h: radix base@ dup 2 - $23 u< ?exit decimal $28 -throw ; ( -- u )
 : hold   hld @ 1- dup hld ! c! fallthrough;     ( c -- )
 h: ?hold hld @ pad $80 - u> ?exit $11 -throw ; ( -- )
-h: extract dup>r um/mod r> swap >r um/mod r> rot ;  ( ud ud -- ud u )
+h: extract dup>r um/mod rxchg um/mod r> rot ;  ( ud ud -- ud u )
 h: digit 9 over < 7 and + [char] 0 + ;         ( u -- c )
 : #> 2drop hld @ pad over- ;                ( w -- b u )
 : #  2 ?depth 0 base@ extract digit hold ;  ( d -- d )
@@ -676,7 +678,7 @@ h: (find) ( a -- pwd pwd 1 | pwd pwd -1 | 0 a 0 : find a word dictionary )
   while
     dup@ @ r@ swap (search-wordlist) ?dup
     if
-      >r rot-drop r> rdrop exit
+      >r rot-drop r>rdrop exit
     then
     cell+
   repeat drop-0 r> 0x0000 ;
@@ -959,7 +961,7 @@ h: doDoes r> chars here chars last-cfa dup cell+ doLit h: !, ! , ;;
 \    r> r> 1+ r> 2dup-xor if
 \     >r >r @ >r exit
 \    then >r 1- >r cell+ >r ; compile-only
-\ h: (unloop) r> rdrop rdrop rdrop >r ; compile-only
+\ h: (unloop) r>rdrop rdrop rdrop >r ; compile-only
 \ : unloop compile (unloop) nop ; compile-only immediate
 \ h: (?do)
 \   2dup-xor if r@ swap rot >r >r cell+ >r exit then 2drop ; compile-only
@@ -1283,7 +1285,7 @@ h: name ( cwf -- a | 0 )
    begin
      dup
    while
-     swap r@ search-for-cfa ?dup if >r 1- ndrop r> rdrop exit then
+     swap r@ search-for-cfa ?dup if >r 1- ndrop r>rdrop exit then
    1- repeat rdrop ;
 ( h: neg? dup 2 and if $FFFE or then ;  )
 ( h: .alu  ( u -- )
