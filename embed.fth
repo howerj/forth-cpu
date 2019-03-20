@@ -343,7 +343,6 @@ xchange _forth-wordlist _system
 0        tvariable <save>    ( holds execution vector for saving blocks )
 0        tvariable <block>   ( holds execution vector for block )
 0        tvariable <literal> ( holds execution vector for literal )
-0        tvariable <boot>    ( execute program at startup )
 0        tvariable <ok>      ( prompt execution vector )
 0        tvariable <key>       ( -- c : new character, blocking input )
 0        tvariable <emit>      ( c -- : emit character )
@@ -857,7 +856,7 @@ h: uart! ( c uart-register -- )
 : tx! dup $4002 uart! ( VGA/VT-100 ) $4000 uart! ( UART )  ;
 h: (ok) state@ if cr exit then ."  ok" cr ;  ( -- : default state aware prompt )
 h: preset tib-start #tib cell+ ! 0 in! id zero ;  ( -- : reset input )
-: io! preset 
+: io! \ preset 
   ( 115200 / 9600 )
   $35    ( $28B ) $4012 ! ( set TX baud rate - 54 )
   $34    ( $28A ) $4014 ! ( set RX baud rate - 53, hack! )
@@ -871,6 +870,8 @@ h: hand
    ' emit ' ktap
    fallthrough;
 h: xio  ' accept <expect> ! <tap> ! <echo> ! <ok> ! ;
+h: pace [char] . emit ;
+: file ' pace ' drop ' ktap xio ;
 
 \ ============================================================================
 \ # Evaluation, Control Structures and Vocabulary Words
@@ -1012,7 +1013,7 @@ xchange _forth-wordlist root-voc
     repeat cr 
   1- repeat ;
 xchange root-voc _forth-wordlist
-( : previous get-order swap drop 1- set-order ; ( -- )
+( : previous get-order nip 1- set-order ; ( -- )
 ( : also get-order over swap 1+ set-order ;     ( wid -- )
 : only [-1] set-order ;                         ( -- )
 ( : order get-order for aft . then next cr ;    ( -- )
@@ -1039,10 +1040,10 @@ h: blk-@   blk @ ;
 \ h: clean-buffers 0 block-dirty ! ;
 \ h: empty-buffers clean-buffers 0 blk ! ;  ( -- )
 : flush 
-  blk-@ 0= block-dirty @ d0= if exit then
+  blk-@ 0= block-dirty @ d0= ?exit
   block-buffer b/buf blk-@ <save> @execute throw
   0 block-buffer ! ( <- clean-buffer )
-  0 blk ! ;        ( <- empty-buffers )
+  0 h: blk! blk ! ;;        ( <- empty-buffers )
 h: ?block if $23 -throw exit then ;
 : block ( k -- a )
   1depth
@@ -1050,7 +1051,7 @@ h: ?block if $23 -throw exit then ;
   dup blk-@ = if drop block-buffer exit then ( block already loaded )
   flush
   dup>r block-buffer b/buf r> <block> @execute throw 
-  blk !
+  blk!
   block-buffer ;
 
 \ xchange _forth-wordlist _system
@@ -1248,26 +1249,29 @@ h: retrieve block drop ;                 ( k -- )
 \ ============================================================================
 \ # Boot Sequence
 
-\ h: bist ( -- u : built in self test )
-\  header-options @ first-bit 0= if 0x0000 exit then ( is checking disabled? )
-\  header-length @ here xor if 2 exit then ( length check )
-\  header-crc @ header-crc zero            ( retrieve and zero CRC )
-\  0 here crc xor if 3 exit then           ( check CRC )
-\  1 header-options toggle 0x0000 ;        ( disable check, success )
-: bye fallthrough;
-h: cold ( -- : performs a cold boot  )
-   \ bist ?dup if negate dup bye exit then
-   cpu-id segments!
-   io! forth
-   empty 0 rp!
-   <boot> @execute ;
+\ We could select different behaviors depending on what switches were set at
+\ at start up, some for debugging, others for functionality.
+
+h: bist ( -- u : built in self test )
+  header-options @ first-bit 0= if 0x0000 exit then ( is checking disabled? )
+  header-length @ here xor if 2 exit then ( length check )
+  header-crc @ header-crc zero            ( retrieve and zero CRC )
+  0 here crc xor if 3 exit then           ( check CRC )
+  1 header-options toggle 0x0000 ;        ( disable check, success )
 h: hi 
   hex cr ." eFORTH v" cpu-id 0 u.r cr here .  $4000 here - u. cr 
-  \ ." loading..."
+  ." loading..."
   0 0 0x8000 transfer (ok)
   1 block c@ 32 127 within ( <- ASCII? ) if 
     (ok) ( 1 load ) else ." failed" cr 
   then quit ;
+: bye fallthrough;
+h: cold ( -- : performs a cold boot  )
+   bist ?dup if negate dup bye exit then
+   io! forth
+   empty 0 rp!
+   hi ;
+
 \ ============================================================================
 \ # Decompiler / Tools
 
@@ -1317,7 +1321,7 @@ h: decompiler ( previous current -- : decompile starting at address )
   repeat rdrop drop ;
 : see ( --, <string> : decompile a word )
   token (find) ?not-found
-  swap      2dup= if drop here then >r
+  swap 2dup= if drop here then >r
   cr colon-space dup .id dup cr
   cfa r> decompiler space [char] ; emit
   dup compile-only? if ."  compile-only" then
@@ -1374,7 +1378,6 @@ there [t] cp t!
 [t] (block)        [v] <block>   t! ( set block execution vector )
 [t] (save)         [v] <save>    t! ( set block execution vector )
 [t] cold 2/            0         t! ( set starting word in boot-loader )
-[t] hi             [v] <boot>    t! ( set user visible boot vector )
 there    [t] header-length t! \ Set Length First!
 checksum [t] header-crc t!    \ Calculate image CRC
 finished

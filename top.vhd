@@ -23,7 +23,7 @@ use work.uart_pkg.all;
 entity top is
 	generic(
 		g: common_generics         := default_settings;
-		reset_period_us:  natural  := 1;
+		reset_period_us:  natural  := 100;
 		uart_baud:        positive := 115200;
 		uart_fifo_depth:  positive := 8);
 	port
