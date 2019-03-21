@@ -104,7 +104,6 @@ architecture rtl of keyboard  is
 	signal kbd_new_edge: std_ulogic := '0';
 	signal kbd_new:      std_ulogic := '0'; -- new ASCII char available
 	signal kbd_char:     std_ulogic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
-	signal kbd_char_o:   std_ulogic_vector(kbd_char_buf'range) := (others => '0'); -- ASCII char
 begin
 	kbd_char_buf_new <= kbd_new_c after g.delay;
 
@@ -128,15 +127,6 @@ begin
 		rst => rst,
 		di  => kbd_char,
 		we  => kbd_new_edge,
-		do  => kbd_char_o);
-
-	char_buf: entity work.reg
-	generic map(g => g, N => kbd_char'length)
-	port map(
-		clk => clk,
-		rst => rst,
-		di  => kbd_char_o,
-		we  => kbd_char_re,
 		do  => kbd_char_buf);
 
 	ps2_proc: process(kbd_new_edge, kbd_new_c, kbd_char_re)

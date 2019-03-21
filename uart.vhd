@@ -272,7 +272,8 @@ begin
 		uart_fifo_rx_0: work.util.fifo
 			generic map(g => g,
 				   data_width => rx_fifo_data'length,
-				   fifo_depth => fifo_depth)
+				   fifo_depth => fifo_depth,
+			   	   read_first => false)
 			port map (clk  => clk, rst => rst, 
 				  di   => rx_pushed,
 				  we   => rx_push,
@@ -823,19 +824,23 @@ end entity;
 
 architecture testing of uart_tb is
 	constant clock_period: time     := 1000 ms / g.clock_frequency;
+	constant use_fifo:     boolean  := true;
 	signal rst, clk:     std_ulogic := '1';
 	signal stop:         boolean    := false;
 	signal loopback:     boolean    := true;
 	signal tx, rx:       std_ulogic;
-	signal tx_ok, rx_ok: std_ulogic;
-	signal tx_we, rx_re: std_ulogic := '0';
-	signal rx_nd:        std_ulogic;
 	signal di, do:       std_ulogic_vector(7 downto 0);
-
 	signal reg:          std_ulogic_vector(15 downto 0);
 	signal clock_reg_tx_we: std_ulogic;
 	signal clock_reg_rx_we: std_ulogic;
 	signal control_reg_we:  std_ulogic;
+
+	signal tx_fifo_full:  std_ulogic;
+	signal tx_fifo_empty: std_ulogic;
+	signal tx_fifo_we:    std_ulogic := '0';
+	signal rx_fifo_full:  std_ulogic;
+	signal rx_fifo_empty: std_ulogic;
+	signal rx_fifo_re:    std_ulogic := '0';
 begin
 	-- duration: process begin wait for 20000 us; stop <= true; wait; end process;
 	clk_process: process
@@ -858,13 +863,13 @@ begin
 		procedure write(data: std_ulogic_vector(di'range)) is
 		begin
 			wait for clock_period * 1;
-			while tx_ok = '0' loop
+			while tx_fifo_full = '1' loop
 				wait for clock_period;
 			end loop;
 			di <= data;
-			tx_we <= '1';
+			tx_fifo_we <= '1';
 			wait for clock_period;
-			tx_we <= '0';
+			tx_fifo_we <= '0';
 		end procedure;
 	begin
 		di <= x"00";
@@ -886,11 +891,12 @@ begin
 
 		write(x"AA");
 		write(x"BB");
-		write(x"B2");
-		write(x"00");
-		write(x"10");
+		write(x"CC");
+		write(x"DD");
+		write(x"EE");
+		write(x"FF");
 		wait for clock_period;
-		while tx_ok = '0' loop
+		while tx_fifo_empty = '0' loop
 			wait for clock_period;
 		end loop;
 		loopback <= false;
@@ -902,36 +908,38 @@ begin
 	ack: process
 	begin
 		while not stop loop
-			if rx_nd = '1' then
-				rx_re <= '1';
+			if rx_fifo_empty = '0' then
+				rx_fifo_re <= '1';
 			else
-				rx_re <= '0';
+				rx_fifo_re <= '0';
 			end if;
 			wait for clock_period;
 		end loop;
 		wait;
 	end process;
-
 	rx <= tx when loopback else '0'; -- loop back test
+	uut: work.uart_pkg.uart_top
+		generic map (g => g, baud => 115200, format => uart_8N1, use_fifo => use_fifo)
+		port map (
+			clk => clk,
+			rst => rst,
 
-	uut: work.uart_pkg.uart_core
-		generic map(g => g)
-		port map(
-			clk             =>  clk,
-			rst             =>  rst,
-			tx              =>  tx,
-			tx_ok           =>  tx_ok,
-			tx_we           =>  tx_we,
-			tx_di           =>  di,
-			rx              =>  rx,
-			rx_ok           =>  rx_ok,
-			rx_nd           =>  rx_nd,
-			rx_re           =>  rx_re,
-			rx_do           =>  do,
-			reg             =>  reg,
-			clock_reg_tx_we =>  clock_reg_tx_we,
-			clock_reg_rx_we =>  clock_reg_rx_we,
-			control_reg_we  =>  control_reg_we 
-		);
+			tx             =>  tx,
+			tx_fifo_full   =>  tx_fifo_full,
+			tx_fifo_empty  =>  tx_fifo_empty,
+			tx_fifo_we     =>  tx_fifo_we,
+			tx_fifo_data   =>  di,
+
+			rx             =>  rx,
+			rx_fifo_full   =>  rx_fifo_full,
+			rx_fifo_empty  =>  rx_fifo_empty,
+			rx_fifo_re     =>  rx_fifo_re,
+			rx_fifo_data   =>  do,
+
+			reg             => reg,
+			clock_reg_tx_we => clock_reg_tx_we,
+			clock_reg_rx_we => clock_reg_rx_we,
+			control_reg_we  => control_reg_we);
+
 end architecture;
 

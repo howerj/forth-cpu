@@ -35,8 +35,7 @@ architecture testing of tb is
 	constant g: common_generics := (
 		clock_frequency    => 100_000_000,
 		asynchronous_reset => true,
-		delay              => 0 ns
-	);
+		delay              => 0 ns);
 
 	constant number_of_interrupts:    positive := 8;
 	constant uart_baud:               positive := 115200;

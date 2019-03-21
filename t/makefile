@@ -9,6 +9,9 @@ all: ${OBJFILES}
 	cat eforth.fth > $@
 	gforth ansi.fth $< >> $@
 
+upload: ${OBJFILES}
+	cat $^ > /dev/ttyUSB0
+
 clean:
 	rm -fv *.ansi
 

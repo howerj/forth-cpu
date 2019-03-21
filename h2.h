@@ -235,7 +235,7 @@ typedef struct {
 	uint16_t uart_tx_baud, uart_rx_baud, uart_control;
 } h2_soc_state_t;
 
-typedef uint16_t (*h2_io_get)(const h2_soc_state_t *soc, uint16_t addr, bool *debug_on);
+typedef uint16_t (*h2_io_get)(h2_soc_state_t *soc, uint16_t addr, bool *debug_on);
 typedef void     (*h2_io_set)(h2_soc_state_t *soc, uint16_t addr, uint16_t value, bool *debug_on);
 typedef void     (*h2_io_update)(h2_soc_state_t *soc);
 

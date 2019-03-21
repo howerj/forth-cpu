@@ -851,7 +851,7 @@ static fifo_t *ps2_rx_fifo = NULL;
 
 /* ====================================== H2 I/O Handling ====================================== */
 
-static uint16_t h2_io_get_gui(const h2_soc_state_t * const soc, const uint16_t addr, bool *debug_on) {
+static uint16_t h2_io_get_gui(h2_soc_state_t * const soc, const uint16_t addr, bool *debug_on) {
 	assert(soc);
 	assert(ps2_rx_fifo);
 	assert(uart_tx_fifo);
@@ -883,7 +883,6 @@ static uint16_t h2_io_get_gui(const h2_soc_state_t * const soc, const uint16_t a
 	return 0;
 }
 
-/**@warning uses variables of static storage duration! */
 static void h2_io_set_gui(h2_soc_state_t *soc, const uint16_t addr, const uint16_t value, bool *debug_on) {
 	assert(soc);
 	assert(uart_tx_fifo);
@@ -931,9 +930,9 @@ static void h2_io_set_gui(h2_soc_state_t *soc, const uint16_t addr, const uint16
 	case oMemControl:
 		{
 			soc->mem_control    = value;
-			const bool sram_cs   = soc->mem_control & SRAM_CHIP_SELECT;
-			const bool oe        = soc->mem_control & FLASH_MEMORY_OE;
-			const bool we        = soc->mem_control & FLASH_MEMORY_WE;
+			const bool sram_cs  = soc->mem_control & SRAM_CHIP_SELECT;
+			const bool oe       = soc->mem_control & FLASH_MEMORY_OE;
+			const bool we       = soc->mem_control & FLASH_MEMORY_WE;
 			if (sram_cs && !oe && we)
 				soc->vram[(((uint32_t)(soc->mem_control & FLASH_MASK_ADDR_UPPER_MASK) << 16) | soc->mem_addr_low) >> 1] = soc->mem_dout;
 			break;
