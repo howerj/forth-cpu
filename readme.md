@@ -1136,6 +1136,11 @@ which looks like an early 90s test application for OpenGL.
 * Prepare more documentation
 * An IDE for resetting/uploading the image to the target board and then sending
 a text buffer to it would help in developing code for the platform.
+* A [Super Optimizer][] could be made for the H2.
+* More instructions can be combined 
+* It might be possible to add a conditional exit instruction. Other
+instructions which would be useful are: Add with Carry, Bit Count, Leading
+Zeroes Count, Sign Extend, Arithmetic Right Shift, Rotate Left/Right, ...
 * Add notes about picocom, and setting up the hardware:
 
 <!-- -->
@@ -1219,7 +1224,7 @@ a text buffer to it would help in developing code for the platform.
 [KOI8-R]: https://en.wikipedia.org/wiki/KOI8-R
 [Terminus]: http://terminus-font.sourceforge.net/
 [ISO-8859-15]: https://en.wikipedia.org/wiki/ISO/IEC_8859-15
-
+[Super Optimizer]: https://en.wikipedia.org/wiki/Superoptimization
 <!--
 
 https://www.w3schools.com/css/css_table.asp
