@@ -2,15 +2,6 @@
  * @brief     GUI Simulator for the H2 SoC
  * @copyright Richard James Howe (2017-2019)
  * @license   MIT
- *
- * @todo Implement reset/reload, and save/load state, a very good
- * serialization technique for C is shown here:
- * <https://stackoverflow.com/questions/6002528/c-serialization-techniques>
- * @todo Implement drawing of characters outside of the printable range,
- * and non-ASCII characters, all 256 characters have an associated glyph
- * in the hardware. The font can be read in from the same font file used by
- * the hardware, once converted to a texture it could be displayed on the
- * screen.
  * @note It would have been better to make this in SDL, se
  * <https://www.libsdl.org/>.  */
 

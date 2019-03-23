@@ -101,8 +101,8 @@ a: #[t]    $0C00 a; ( T = memory[t] )
 a: #n<<t   $0D00 a; ( T = n << t )
 a: #sp@    $0E00 a; ( T = depth )
 a: #nu<t   $0F00 a; ( T = n < t, unsigned )
-a: #ien!   $1000 a; ( T = set interrupts )
-a: #ien?   $1100 a; ( T = interrupts set? )
+a: #cpu!   $1000 a; ( T = set interrupts )
+a: #cpu?   $1100 a; ( T = interrupts set? )
 a: #rp@    $1200 a; ( T = r-depth )
 a: #t==0   $1300 a; ( T = t == 0? )
 a: #cpu-id $1400 a; ( T = CPU ID )
@@ -220,7 +220,7 @@ a: return ( -- : Compile a return into the target )
 : swap     ]asm #n      t->n                   alu asm[ ;
 : nip      ]asm #t                         d-1 alu asm[ ;
 : drop     ]asm #n                         d-1 alu asm[ ;
-: >r       ]asm #n           t->r      r+1 d-1 alu asm[ ;
+: >r       ]asm #n             t->r    r+1 d-1 alu asm[ ;
 : r>       ]asm #r      t->n           r-1 d+1 alu asm[ ;
 : r@       ]asm #r      t->n               d+1 alu asm[ ;
 : @        ]asm #[t]                           alu asm[ ;
@@ -242,15 +242,17 @@ a: return ( -- : Compile a return into the target )
 : dup>r    ]asm #t             t->r    r+1     alu asm[ ;
 : over-and ]asm #t&n                           alu asm[ ;
 : over+    ]asm #t+n                           alu asm[ ;
-: over-xor ]asm #t^n                           alu asm[ ;
+\ : over-xor ]asm #t^n                         alu asm[ ;
+: >r-dup   ]asm #n             t->r    r+1     alu asm[ ;
 : 2dup=    ]asm #t==n  t->n                d+1 alu asm[ ;
 : 2dup<    ]asm #n<t   t->n                d+1 alu asm[ ;
 : 2dupu<   ]asm #nu<t  t->n                d+1 alu asm[ ;
 : 2dup-xor ]asm #t^n   t->n                d+1 alu asm[ ;
 : store    ]asm #n     n->[t]              d-1 alu asm[ ;
+: tuck!    ]asm #t     n->[t]              d-1 alu asm[ ;
 : cpu-id   ]asm #cpu-id                    d+1 alu asm[ ;
-: ien!     ]asm #ien!                      d-1 alu asm[ ;
-: ien?     ]asm #ien?  t->n                d+1 alu asm[ ;
+: cpu!     ]asm #cpu!                      d-1 alu asm[ ;
+: cpu?     ]asm #cpu?  t->n                d+1 alu asm[ ;
 : dup@     ]asm #[t]   t->n                d+1 alu asm[ ;
 : r>rdrop  ]asm #r     t->n            r-2 d+1 alu asm[ ;
 : rxchg    ]asm #r             t->r            alu asm[ ;
@@ -349,8 +351,8 @@ xchange _forth-wordlist _system
 0        tvariable <emit>      ( c -- : emit character )
 ( : nop    nop      ; ( -- : do nothing )
 : cpu-id  cpu-id    ; ( -- u : returns CPU ID )
-: ien?    ien?      ; ( -- u : returns CPU status )
-: ien!    ien!      ; ( u -- : sets CPU status )
+: cpu?    cpu?      ; ( -- u : returns CPU status )
+: cpu!    cpu!      ; ( u -- : sets CPU status )
 xchange _system _forth-wordlist
 : dup      dup      ; ( n -- n n : duplicate value on top of stack )
 : over     over     ; ( n1 n2 -- n1 n2 n1 : duplicate second value on stack )
@@ -394,6 +396,9 @@ h: state@ state @ ;          ( -- u )
 h: first-bit 1 and ;         ( u -- u )
 h: in@ >in @ ;               ( -- u )
 h: base@ base @ ;            ( -- u )
+h: hld@ hld @ ;              ( -- u )
+h: blk-@ blk @ ;
+
 h: ?exit if rdrop exit then ; ( u --, R: xt -- xt| : conditional return )
 : 2drop drop drop ;         ( n n -- )
 : 1+ 1 + ;                  ( n -- n : increment a value  )
@@ -419,7 +424,7 @@ h: swap! swap ! ;           ( a u -- )
 h: zero 0 swap! ;           ( a -- : zero value at address )
 : 1+!   1  h: s+! swap +! ;; ( a -- : increment value at address by 1 )
 : 1-! [-1] s+! ;            ( a -- : decrement value at address by 1 )
-: 2! ( d a -- ) tuck ! cell+ ! ;      ( n n a -- )
+: 2! ( d a -- ) tuck! cell+ ! ;      ( n n a -- )
 : 2@ ( a -- d ) dup cell+ @ swap @ ;  ( a -- n n )
 h: get-current current @ ;            ( -- wid )
 : bl =bl ;                            ( -- c )
@@ -483,7 +488,7 @@ h: dnegate invert >r invert 1 um+ r> + ; ( d -- d )
 h: d+ >r swap >r um+ r> + r> + ;         ( d d -- d )
 : um* ( u u -- ud )
 	0 swap ( u1 0 u2 ) $F
-	for dup um+ >r >r dup um+ r> + r>
+	for dup um+ >r >r-dup um+ r> + r>
 		if >r over um+ r> + then
 	next rot drop ;
 : *    um* drop ;            ( n n -- n )
@@ -496,6 +501,8 @@ h: +string 1 /string ;                 ( b u -- b u : )
 : count dup 1+ swap c@ ;               ( b -- b u )
 h: string@ over c@ ;                   ( b u -- b u c )
 xchange _forth-wordlist _system
+h: lshift-xor lshift xor ;
+h: rshift-xor rshift xor ;
 : crc ( b u -- u : calculate ccitt-ffff CRC )
   [-1] ( -1 = 0xffff ) >r
   begin
@@ -503,11 +510,11 @@ xchange _forth-wordlist _system
   while
    string@ r> swap 
      ( CCITT polynomial $1021, or "x16 + x12 + x5 + 1" )
-     over $8 rshift xor ( crc x )
-     dup  $4 rshift xor ( crc x )
-     dup  $5 lshift xor ( crc x )
-     dup  $C lshift xor ( crc x )
-     swap $8 lshift xor ( crc )
+     over $8 rshift-xor ( crc x )
+     dup  $4 rshift-xor ( crc x )
+     dup  $5 lshift-xor ( crc x )
+     dup  $C lshift-xor ( crc x )
+     swap $8 lshift-xor ( crc )
    >r +string
   repeat r> nip ;
 xchange _system _forth-wordlist
@@ -539,7 +546,7 @@ h: typist                              ( b u f -- : print a string )
   repeat
   rdrop 2drop ;
 h: $type [-1] typist ;                   ( b u --  )
-: cmove for aft >r dup c@ r@ c! 1+ r> 1+ then next 2drop ; ( b b u -- )
+: cmove for aft >r-dup c@ r@ c! 1+ r> 1+ then next 2drop ; ( b b u -- )
 : fill  swap for swap aft 2dup c! 1+ then next 2drop ;     ( b u c -- )
 
 : catch  ( xt -- exception# | 0 : return addr on stack )
@@ -569,7 +576,7 @@ h: -throw negate throw ;  ( u -- : negate and throw )
   ?dup 0= if $A -throw exit then
   2dupu<
   if negate $F
-    for >r dup um+ >r >r dup um+ r> + dup
+    for >r-dup um+ >r >r-dup um+ r> + dup
       r> r@ swap >r um+ r> or
       if >r drop 1 + r> else drop then r>
     next
@@ -580,8 +587,9 @@ h: -throw negate throw ;  ( u -- : negate and throw )
   if
     negate >r dnegate r>
   then
-  >r dup 0< if r@ + then r> um/mod r>
+  >r-dup 0< if r@ + then r> um/mod r>
   if swap negate swap exit then ;
+\ : */ >r um* r> m/mod nip ; ( n n n -- )
 : /mod  over 0< swap m/mod ; ( n n -- r q )
 : mod  /mod drop ;           ( n n -- r )
 : /    /mod nip ;            ( n n -- q )
@@ -590,12 +598,11 @@ h: ?depth dup 0= if drop exit then sp@ 1- u> if 4 -throw exit then ; ( u -- )
 : decimal  $A fallthrough;  ( -- : set base to decimal )
 h: base!  base ! ;          ( u -- : set base )
 : hex     $10 base! ;                      ( -- )
-h: radix base@ dup 2 - $23 u< ?exit decimal $28 -throw ; ( -- u )
-: hold   hld @ 1- dup hld ! c! fallthrough;     ( c -- )
-h: ?hold hld @ pad $80 - u> ?exit $11 -throw ; ( -- )
+\ h: radix base@ dup 2 - $23 u< ?exit decimal $28 -throw ; ( -- u )
+: hold hld@ 1- dup hld ! c! hld@ pad $80 - u> ?exit $11 -throw ; ( c -- )
 h: extract dup>r um/mod rxchg um/mod r> rot ;  ( ud ud -- ud u )
 h: digit 9 over < 7 and + [char] 0 + ;         ( u -- c )
-: #> 2drop hld @ pad over- ;                ( w -- b u )
+: #> 2drop hld@ pad over- ;                ( w -- b u )
 : #  2 ?depth 0 base@ extract digit hold ;  ( d -- d )
 : #s begin # 2dup d0= until ;               ( d -- 0 )
 : <# pad hld ! ;                            ( -- )
@@ -606,7 +613,7 @@ h: (u.) 0 <# #s #> ;             ( u -- b u : turn *u* into number string )
 : u.r >r (u.) r> fallthrough;    ( u +n -- : print u right justified by +n)
 h: adjust over- spaces type ;    ( b n n -- )
 h: d5u.r dup fallthrough;        ( u -- u )
-h: 5u.r space 5 u.r ;            ( u -- )
+h: 5u.r space 5 u.r space ;      ( u -- )
 ( :  .r >r (.)( r> adjust ;      ( n n -- : print n, right justified by +n )
 : u.  (u.) h: blt space type ;;  ( u -- : print unsigned number )
 :  .  (.) blt ;                  ( n -- print number )
@@ -641,7 +648,7 @@ h: ktap                                  ( bot eot cur c -- bot eot cur )
  if delete? \ =bs xor
    if =bl tap exit then ^h exit
  then drop nip dup ;
-h: ktap? dup =bl - $5F u< swap =del xor and ; ( c -- t : possible ktap? )
+\ h: ktap? dup =bl - $5F u< swap =del xor and ; ( c -- t : possible ktap? )
 : accept ( b u -- b u )
   over+ over
   begin
@@ -664,7 +671,7 @@ h: set? swap @ and 0<> ;           ( a u -- t : is any of 'u' set? )
 h: compile-only? nfa $20 set? ;    ( pwd -- t : is word compile only? )
 h: inline? inline-start inline-end within ; ( pwd -- t : is word inline? )
 h: (search-wordlist) ( a wid -- PWD PWD 1|PWD PWD -1|0 a 0: find word in WID )
-  swap >r dup
+  swap >r-dup
   begin
     dup
   while
@@ -820,10 +827,10 @@ h: (abort) do$ ?abort ;                                        ( -- )
 \ highest bit however.
 \ See: <http://www.woodmann.com/forum/showthread.php?3100-super-tiny-PRNG>
 : random 
-  seed1 @ dup 5 lshift xor
+  seed1 @ dup 5 lshift-xor
   seed2 @ seed1 !
-  dup 3 rshift xor
-  seed2 @ dup 1 rshift xor xor dup seed2 !  ;
+  dup 3 rshift-xor
+  seed2 @ dup 1 rshift-xor xor dup seed2 !  ;
 
 h: 40ns begin dup while 1- repeat drop ; ( n -- : wait for 'n'*40ns + 30us )
 : ms for 25000 40ns next ; ( n -- : wait for 'n' milliseconds )
@@ -840,13 +847,12 @@ xchange _forth-wordlist _system
 : timer     $4004 @ ; ( -- u : get timer and timer control )
 \ NB. Perhaps this could be vectored?
 h: (irq) 
-  ( ien? 0 ien! )
+  ( cpu? 0 cpu! )
   switches led! 
-   #irq 1+!
-   #irq @ segments!
-  ( ien! ) ;
+   #irq dup@ segments! 1+!
+  ( cpu! ) ;
 [t] (irq) 2/ $C t!
-: irq $0040 $4010 ! [-1] timer! 1 ien! ;
+: irq $0040 $4010 ! [-1] timer! 1 cpu! ;
 
 \ FIFO: Write Read Enable after Read
 \ h: uart? ( uart-register -- c -1 | 0 : generic UART input functions )
@@ -867,7 +873,7 @@ h: preset tib-start #tib cell+ ! 0 in! id zero ;  ( -- : reset input )
   $34    ( $28A ) $4014 ! ( set RX baud rate - 53, hack! )
   $8080 $4016 ! ( set UART control register; 8 bits, 1 stop, no parity )
   0 timer! 0 led! cpu-id segments!
-  0 ien! 0 $4010 ! ( set IRQ mask )
+  0 cpu! 0 $4010 ! ( set IRQ mask )
   fallthrough;  ( -- : initialize I/O )
 h: console ' rx? <key> ! ' tx! <emit> ! fallthrough;
 h: hand
@@ -927,8 +933,8 @@ h: find-cfa find-token cfa ;          ( -- xt, <string> )
 : ' find-cfa state@ if postpone literal exit then ; immediate
 : [compile] find-cfa compile, ; immediate compile-only  ( --, <string> )
 : [char] char postpone literal ; immediate compile-only ( --, <string> )
-: ; ?check =exit , postpone [ fallthrough; immediate compile-only
-h: get-current! ?dup if get-current ! exit then ; ( -- wid )
+: ; ?check =exit , postpone [ ( -- wid )
+( h: get-current! ) ?dup if get-current ! exit then ;  immediate compile-only
 : : align here dup last-def ! ( "name", -- colon-sys )
   last , token ?nul ?unique count+ cp! magic postpone ] ;
 : begin here    ; immediate compile-only ( -- a )
@@ -1004,7 +1010,7 @@ xchange _forth-wordlist root-voc
 : set-order ( widn ... wid1 n -- : set the current search order )
   dup [-1] = if drop root-voc 1 set-order exit then ( NB. Recursion! )
   dup #vocs > if $31 -throw exit then
-  context swap for aft tuck ! cell+ then next zero ;
+  context swap for aft tuck! cell+ then next zero ;
 : forth root-voc forth-wordlist 2 set-order ; ( -- )
 : words
   get-order begin ?dup while 
@@ -1039,7 +1045,6 @@ h: (order)                                      ( w wid*n n -- wid*n w n )
 
 \ h: updated? block-dirty @ ;          ( -- f )
 : update [-1] block-dirty ! ;          ( -- )
-h: blk-@   blk @ ;
 \ h: +block blk-@ + ;                  ( n -- k )
 \ h: clean-buffers 0 block-dirty ! ;
 \ h: empty-buffers clean-buffers 0 blk ! ;  ( -- )
@@ -1247,7 +1252,7 @@ h: retrieve block drop ;                 ( k -- )
 : index ( k1 k2 -- : show titles for block k1 to k2 )
   over- cr
   for
-    dup 5u.r space pipe space dup 0 line $type cr 1+
+    dup 5u.r pipe space dup 0 line $type cr 1+
   next drop ;
 ( : --> blk-@ 1+ load ; immediate )
 \ ============================================================================
@@ -1297,7 +1302,7 @@ h: name ( cwf -- a | 0 )
    1- repeat rdrop ;
 ( h: neg? dup 2 and if $FFFE or then ;  )
 ( h: .alu  ( u -- )
-(   dup 8 rshift $1F and 5u.r space )
+(   dup 8 rshift $1F and 5u.r )
 (   dup $80 and if ." t->n  " then   )
 (   dup $40 and if ." t->r  " then  )
 (   dup $10 and if ." r->pc " then  )
@@ -1306,7 +1311,7 @@ h: name ( cwf -- a | 0 )
 h: ?instruction ( i m e -- i t )
    >r over-and r> = ;
 ( a -- : find word by address, and print )
-h: .name dup $1FFF and cells 5u.r space  ( a -- )
+h: .name dup $1FFF and cells 5u.r ( a -- )
          name ?dup if word.count type then ;
 h: decompile ( u -- : decompile a single instruction )
    0x8000 0x8000 ?instruction if [char] L emit $7FFF and 5u.r exit then
@@ -1319,7 +1324,7 @@ h: decompiler ( previous current -- : decompile starting at address )
   begin dup r@ u< while
     d5u.r colon-space
     dup@
-    d5u.r space decompile cr cell+
+    d5u.r decompile cr cell+
   repeat rdrop drop ;
 : see ( --, <string> : decompile a word )
   token (find) ?not-found

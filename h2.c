@@ -797,8 +797,9 @@ int h2_disassemble(const disassemble_color_method_e dcm, FILE *input, FILE *outp
 	assert(output);
 	assert(dcm < DCM_MAX_DCM);
 	while (!feof(input)) {
-		char line[80] = {0};
-		fscanf(input, "%79s", line);
+		char line[80] = { 0 };
+		if (fscanf(input, "%79s", line) != 1)
+			return -1;
 		if (line[0]) {
 			uint16_t instruction = 0;
 			if (string_to_cell(16, &instruction, line)) {
@@ -1368,13 +1369,16 @@ static bool address_protected(const flash_t *const f, const uint32_t addr) {
 	return block_locked(f, addr_to_block(addr));
 }
 
-/**@todo implement the full standard for the Common Flash Memory Interface, and
- * make the timing based on a simulated calculated time instead multiples of
- * 10us see:
+/* We could implement the full standard for the Common Flash Memory 
+ * Interface, and make the timing based on a simulated calculated time 
+ * instead multiples of 10us see:
  * <https://en.wikipedia.org/wiki/Common_Flash_Memory_Interface> with the
  * devices PC28F128P33BF60 and NP8P128A13T1760E. The lock status of a register
  * should be read as well as checking f->arg1_address == f->arg2_address for
- * commands which require this.*/
+ * commands which require this.
+ *
+ * We *could* do that, however this simulator is 'good enough' for our
+ * purposes. */
 static void h2_io_flash_update(flash_t * const f, const uint32_t addr, const uint16_t data, const bool oe, const bool we, const bool rst, const bool cs) {
 	assert(f);
 	if (oe && we)
@@ -1551,8 +1555,6 @@ uint16_t h2_io_memory_read_operation(const h2_soc_state_t * const soc) {
 	return 0;
 }
 
-/* TODO: Fix Input so Read then Read Enable FIFO semantics work
-   (this requires peeking at the input stream). */
 static uint16_t h2_io_get_default(h2_soc_state_t * const soc, const uint16_t addr, bool *debug_on) {
 	assert(soc);
 	debug("IO read addr: %"PRIx16, addr);
