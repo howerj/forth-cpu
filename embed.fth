@@ -568,10 +568,8 @@ h: $type [-1] typist ;                   ( b u --  )
     ( stack is restored to the state that existed )
     ( when catch began execution )
   then ;
-
 h: -throw negate throw ;  ( u -- : negate and throw )
 [t] -throw 2/ 4 tcells t!
-
 : um/mod ( ud u -- ur uq )
   ?dup 0= if $A -throw exit then
   2dupu<
