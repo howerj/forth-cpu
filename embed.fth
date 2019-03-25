@@ -1,14 +1,9 @@
 system +order 0 <ok> !
 \ TODO
-\ - Get basic eForth image working (Done)
+\ - Add documentation for this file
+\   - Include how to integrate this project into another one
 \ - Add references back in, along with documentation.
-\ - Add drivers for all peripherals (Done)
-\ - Make the <https://github.com/howerj/embed> virtual machine the same
-\ as the H2 physical machine, or as much as is possible.
-\ - Run the meta-compiler on H2 instead of the 'embed' Virtual Machine,
-\ making the system self hosting. This will require extensions to the H2,
-\ mainly extra memory, so it will not be quite a self-hosting system, but
-\ close.
+\   - J1, eForth documents, Novix Chip
 \ - Multi-tasking would be nice, www.ultratechnology.com/p21fchp7.html.
 \ - Implement bit-banging version of UART, reliant only from an interrupt
 \ from a timer, and the UART Pins. Debouncing and the FIFO for both TX and
