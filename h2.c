@@ -2435,11 +2435,12 @@ static int run_command(const command_args_t * const cmd, FILE *input, FILE *outp
 	int r = 0;
 
 	h2_t *h = h2_new(START_ADDR);
-	if (h2_load(h, input) < 0)
-		return -1;
-
 	if (!h)
 		return -1;
+	if (h2_load(h, input) < 0) {
+		h2_free(h);
+		return -1;
+	}
 
 	h2_io_t * const io = h2_io_new();
 	assert(VGA_BUFFER_LENGTH <= VT100_MAX_SIZE);
