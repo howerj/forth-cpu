@@ -342,8 +342,8 @@ xchange _forth-wordlist _system
 0        tvariable <block>   ( holds execution vector for block )
 0        tvariable <literal> ( holds execution vector for literal )
 0        tvariable <ok>      ( prompt execution vector )
-0        tvariable <key>       ( -- c : new character, blocking input )
-0        tvariable <emit>      ( c -- : emit character )
+0        tvariable <key>     ( -- c : new character, blocking input )
+0        tvariable <emit>    ( c -- : emit character )
 ( : nop    nop      ; ( -- : do nothing )
 : cpu-id  cpu-id    ; ( -- u : returns CPU ID )
 : cpu?    cpu?      ; ( -- u : returns CPU status )
@@ -797,6 +797,7 @@ xchange _system _forth-wordlist
   r> not-found ; \ not a word/number, it's an error! NB. We could vector this
 : compile  r> dup@ , cell+ >r ; compile-only ( --:Compile next compiled word )
 : immediate $40 last nfa fallthrough; ( -- : previous word immediate )
+h: toggle tuck @ xor swap! ;        ( u a -- : xor value at addr with u )
 h: count+ count + ;         ( b -- b : advance address over counted string )
 h: do$ 2r> dup count+ aligned >r swap >r ; ( -- a )
 h: string-literal do$ nop ; ( -- a : do string NB. nop to fool optimizer )
@@ -987,8 +988,7 @@ h: doDoes r> chars here chars last-cfa dup cell+ doLit h: !, ! , ;;
 \ : i  compile (i) nop ; compile-only immediate ( -- index )
 
 xchange _forth-wordlist _system
-: hide find-token nfa $80 swap fallthrough; ( --, <string> : hide word by name )
-h: toggle tuck @ xor swap! ;        ( u a -- : xor value at addr with u )
+: hide find-token nfa $80 swap toggle ; ( --, <string> : hide word by name )
 xchange _system _forth-wordlist
 : get-order ( -- widn ... wid1 n : get the current search order )
   context
