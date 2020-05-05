@@ -207,7 +207,7 @@ variable d  0  d ! variable k  0  k !
 : sin cordic drop ;
 : cos cordic nip ;
 \ ==== Login Code 1/2 ==========================================
-\ Login and user management system: @todo clear up with vocabs
+\ Login and user management system
 : generate count dup >r crc r> ccitt ; ( b -- u )
 : .user     ." user>" space ; ( -- )
 : .password ." password>" space ; ( -- )

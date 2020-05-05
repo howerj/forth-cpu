@@ -1,17 +1,11 @@
-# vim: syntax=tcl
 # Richard Howe
 # TCL Script for GTKWave on tb.ghw 
 #
 
 set nfacs [ gtkwave::getNumFacs ]
-#set dumpname [ gtkwave::getDumpFileName ]
-#set dmt [ gtkwave::getDumpType ]
-
-# puts "number of signals in dumpfile '$dumpname' of type $dmt: $nfacs"
 
 gtkwave::/Edit/Set_Trace_Max_Hier 0
 gtkwave::/Time/Zoom/Zoom_Amount -31.5
-
 
 set instruction "top.tb.dbgi.insn"
 
@@ -34,7 +28,6 @@ puts "num signals added: $num_added"
 set highlight_insn [list]
 lappend highlight_insn $instruction
 
-#set num_added [ gtkwave::highlightSignalsFromList $instruction ]
 set num_added [ gtkwave::highlightSignalsFromList "top.tb.dbgi.insn\[15:0\]"]
 puts "num highlighted: $num_added"
 gtkwave::/Edit/Highlight_Regexp "insn"
@@ -44,17 +37,7 @@ if { $OS == "Windows" } {
 	set procFile "h2.exe"
 } 
 
-#set which_f [ gtkwave::setCurrentTranslateTransProc $procFile ]
 set which_f [ gtkwave::setCurrentTranslateProc $procFile ]
 puts "which_f: $which_f"
 gtkwave::/Edit/Data_Format/Translate_Filter_Process/Enable_and_Select
-#set num_update [ gtkwave::installProcFilter $which_f ]
-#set num_update [ gtkwave::installTransFilter $which_f ]
-## Causes seg fault, is this the right command?
-#puts "num updated with proc filter: $num_update"
 
-#gtkwave::setMarker 128
-#gtkwave::setNamedMarker A 400 "Example Named Marker"
-
-#gtkwave::/File/Print_To_File PS {Letter (8.5" x 11")} Full $dumpname.ps
-#gtkwave::/File/Quit

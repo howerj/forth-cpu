@@ -3,8 +3,8 @@
  *  @copyright Richard James Howe (2017)
  *  @license   MIT
  *
- * This file contains the toolchain for the H2, it is an assembler/compiler,
- * a simulator, a disassembler and a debugger. The H2 is written in VHDL and
+ * This file contains the simulator and debugger for the H2, 
+ * The H2 is written in VHDL and
  * is based on the J1 processor (see http://excamera.com/sphinx/fpga-j1.html).
  *
  * The processor has been tested on an FPGA and is working.
@@ -1369,8 +1369,8 @@ static bool address_protected(const flash_t *const f, const uint32_t addr) {
 	return block_locked(f, addr_to_block(addr));
 }
 
-/* We could implement the full standard for the Common Flash Memory 
- * Interface, and make the timing based on a simulated calculated time 
+/* We could implement the full standard for the Common Flash Memory
+ * Interface, and make the timing based on a simulated calculated time
  * instead multiples of 10us see:
  * <https://en.wikipedia.org/wiki/Common_Flash_Memory_Interface> with the
  * devices PC28F128P33BF60 and NP8P128A13T1760E. The lock status of a register

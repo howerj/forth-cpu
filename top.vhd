@@ -168,8 +168,9 @@ begin
 		clk        => clk,
 		rst        => rst);
 
-	-- TODO: Add interrupts on video blanking periods, which should
-	-- make writing graphics code easier.
+	-- NB. Video blanking interrupts would be useful for writing
+	-- graphics code (if the VGA module had a graphics mode, which it
+	-- currently does not).
 	cpu_irc(0) <= btnu_d; -- configurable CPU reset (can mask this)
 	cpu_irc(1) <= not rx_fifo_empty;
 	cpu_irc(2) <= rx_fifo_full;
@@ -223,7 +224,6 @@ begin
 
 	vga_data <= io_dout(vga_data'range);
 
-	-- TODO: Raise trap (interrupt with bus error) on invalid memory access.
 	io_write: block
 		signal selector: std_ulogic_vector(3 downto 0) := (others => '0');
 		signal is_write: boolean := false;
@@ -311,8 +311,8 @@ begin
 
 	--- Sine ----------------------------------------------------------
 	sine_gen_0: if use_sine generate
-		sine_0: work.util.sine 
-			generic map(g => g) 
+		sine_0: work.util.sine
+			generic map(g => g)
 			port map(clk => clk, rst => rst, xwe => sine_we, x => io_dout, s => sine);
 	end generate;
 	--- Sine ----------------------------------------------------------
@@ -321,7 +321,7 @@ begin
 	uart_fifo_0: work.uart_pkg.uart_top
 		generic map (g => g, baud => uart_baud, use_fifo => true)
 		port map (
-			clk => clk, 
+			clk => clk,
 			rst => rst,
 
 			tx            => tx,
@@ -381,12 +381,12 @@ begin
 				busy        =>  vga_data_busy,
 				o_vga       =>  o_vga);
 		end generate;
-	
+
 		-- Test code
 		-- NOTE: Timing is not the best, VGA monitor loses synchronization
 		-- every so often with this module.
 		vga_gen_c1: if not use_vt100 generate
-		vga_c1: block 
+		vga_c1: block
 			signal row, column: integer := 0;
 			signal h_blank, v_blank, draw: std_ulogic := '0';
 		begin

@@ -7,8 +7,6 @@
 --| @license    MIT
 --| @email      howe.r.j.89@gmail.com
 --|
---| @todo Make a test bench for the H2 core for executing small sections of
---| code, in succession, and testing the response.
 --------------------------------------------------------------------------------
 
 library ieee, work;
@@ -141,7 +139,7 @@ begin
 		rst   => rst,
 		di    => cpu_irc,
 		do    => irc_edges);
-		
+	
 	irq_edges <= or_reduce(irc_edges);
 
 	irqh_0: work.core_pkg.interrupt_request_handler
@@ -223,7 +221,7 @@ end architecture;
 --|
 --| This is a simple interrupt handler, interrupts are decoded in priority
 --| order which can be set by a generic. If an interrupt occurs and then
---| another interrupt of occurs before it has been processed the second 
+--| another interrupt of occurs before it has been processed the second
 --| interrupt will be lost.
 --|
 --------------------------------------------------------------------------------

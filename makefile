@@ -2,7 +2,7 @@
 # Makefile to simulate and synthesize VHDL designs
 #
 # @Author      Marc Eberhard/Richard Howe
-# @Copyright   Copyright 2013 Marc Eberhard, 2016 Richard Howe
+# @Copyright   Copyright 2013 Marc Eberhard, 2016,2020 Richard Howe
 # @License     LGPL
 #
 # This makefile can build the toolchain, simulators, and the bit
@@ -154,15 +154,12 @@ simulation: tb.ghw h2${EXE}
 
 ## Simulation ==============================================================
 
-
-# gtkwave -S signals -f tb.ghw &> /dev/null&
-
 ifeq ($(OS),Windows_NT)
-viewer: simulation
-	gtkwave -S signals -f tb.ghw 
+viewer: simulation signals.tcl
+	gtkwave -S signals.tcl -f tb.ghw 
 else
-viewer: simulation
-	gtkwave -S signals -f tb.ghw &> /dev/null&
+viewer: simulation signals.tcl
+	gtkwave -S signals.tcl -f tb.ghw &> /dev/null&
 endif
 
 USB?=/dev/ttyUSB0
@@ -280,18 +277,5 @@ postsyn:
 	@netgen  -pcf ${NETLIST}.pcf -w -ofmt vhdl -sim ${NETLIST}.ncd post_map.vhd
 
 clean:
-	@echo "Deleting temporary files and cleaning up directory..."
-	@rm -vf *~ *.o trace.dat tb tb.ghw work-obj93.cf top.ngc top.ngd top_map.ngm \
-	      top.pcf top_map.ncd top.ncd top_xsim.vhd top_tsim.vhd top_tsim.sdf \
-	      top_tsim.nlf top_xst.xrpt top_ngdbuild.xrpt top_usage.xml top_summary.xml \
-	      top_map.map top_map.xrpt par_usage_statistics.html top.ptwx top.pad top_pad.csv \
-	      top.unroutes top.xpi top_par.xrpt top.twx top.nlf design.bit top_map.mrp 
-	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf _xmsgs reports tmp xlnx_auto_0_xdb
-	@rm -vrf h2${EXE} gui${EXE} block${EXE} text${EXE} embed${EXE}
-	@rm -vrf text.bin ${EFORTH} text.hex
-	@rm -vrf *.pdf *.htm
-	@rm -vrf *.sym
-	@rm -vrf xst/
-	@rm -vf usage_statistics_webtalk.html
+	git clean -dffx
 

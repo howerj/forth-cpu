@@ -1,16 +1,4 @@
 system +order 0 <ok> !
-\ TODO
-\ - Add documentation for this file
-\   - Include how to integrate this project into another one
-\ - Add references back in, along with documentation.
-\   - J1, eForth documents, Novix Chip
-\ - Multi-tasking would be nice, www.ultratechnology.com/p21fchp7.html.
-\ - Implement bit-banging version of UART, reliant only from an interrupt
-\ from a timer, and the UART Pins. Debouncing and the FIFO for both TX and
-\ RX should be done in software.
-\ - Multi-tasking would require implementing USER variables
-\ - Combine return stack effecting words with the previous instruction if
-\ possible: "1- dup >r" can be combined for example.
 
 .( FORTH META COMPILATION START ) cr
 
@@ -1183,8 +1171,6 @@ h: mblock ( a u k -- f )
 
 \ ============================================================================
 \ # ANSI Escape Sequences
-
-\ TODO Add to a VT100/ANSI Escape Sequence wordset
 
 h: CSI $1B emit [char] [ emit ;                     ( -- )
 h: 10u. base@ >r decimal 0 <# #s #> type r> base! ; ( u -- )

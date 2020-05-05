@@ -171,9 +171,9 @@ static void _draw_regular_polygon(
 }
 
 static void _draw_rectangle(
-		const double x, const double y, 
-		const double width, const double height, 
-		const bool lines, const double thickness, 
+		const double x, const double y,
+		const double width, const double height,
+		const bool lines, const double thickness,
 		const color_t color) {
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
@@ -259,9 +259,9 @@ static scale_t font_attributes(void) {
 }
 
 static void draw_vt100_char(
-		const double x, const double y, 
-		const double scale_x, const double scale_y, 
-		const double orientation, const uint8_t c, 
+		const double x, const double y,
+		const double scale_x, const double scale_y,
+		const double orientation, const uint8_t c,
 		const vt100_attribute_t *attr, const bool blink) {
 	assert(attr);
 	/*scale_t scale = font_attributes();
@@ -286,9 +286,9 @@ static void draw_vt100_char(
 }
 
 static int draw_vt100_block(
-		const double x, const double y, 
-		const double scale_x, const double scale_y, 
-		const double orientation, const uint8_t *msg, 
+		const double x, const double y,
+		const double scale_x, const double scale_y,
+		const double orientation, const uint8_t *msg,
 		const size_t len, const vt100_attribute_t * const attr, const bool blink) {
 	assert(attr);
 	const scale_t scale = font_attributes();
@@ -299,8 +299,8 @@ static int draw_vt100_block(
 }
 
 static int draw_block_scaled(
-		const double x, const double y, 
-		const double scale_x, const double scale_y, 
+		const double x, const double y,
+		const double scale_x, const double scale_y,
 		const double orientation, const uint8_t *msg, const size_t len, const color_t color) {
 	assert(msg);
 	glMatrixMode(GL_MODELVIEW);
@@ -321,7 +321,7 @@ static int draw_block_scaled(
 }
 
 static int draw_string_scaled(
-		const double x, const double y, 
+		const double x, const double y,
 		const double scale_x, const double scale_y,
 		const double orientation, const char *msg, const color_t color) {
 	assert(msg);
@@ -1150,7 +1150,7 @@ static coordinate_t pixels_to_coordinates(const world_t *world, const int x, con
 	const double yd = abs_diff(Y_MAX, Y_MIN);
 	const double xs = world->window_width  / world->window_scale_x;
 	const double ys = world->window_height / world->window_scale_y;
-	const coordinate_t c = { 
+	const coordinate_t c = {
 		.x = Y_MIN + (xd * ((x - (world->window_width  - xs)/2.) / xs)),
 		.y = Y_MAX - (yd * ((y - (world->window_height - ys)/2.) / ys))
 	};

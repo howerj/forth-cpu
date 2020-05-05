@@ -15,8 +15,6 @@
 --|
 --| It also tests multiple modules.
 --|
---| @todo Optionally, read in from standard input and send the character
---| over the UART, then print out any received characters to standard out.
 -------------------------------------------------------------------------------
 
 library ieee,work;
@@ -176,9 +174,9 @@ begin
 	vga_g:  if tb_vga_on  generate uut_vga:  work.vga_pkg.vt100_tb generic map(g => g); end generate;
 	uart_g: if tb_uart_on generate uut_uart: work.uart_pkg.uart_tb generic map(g => g); end generate;
 
-	uart_0_blk: block 
+	uart_0_blk: block
 		signal uart_clock_rx_we, uart_clock_tx_we, uart_control_we: std_ulogic := '0';
-		signal uart_reg: std_ulogic_vector(15 downto 0);	
+		signal uart_reg: std_ulogic_vector(15 downto 0);
 	begin
 		uart_0: work.uart_pkg.uart_core
 			generic map (g => g, baud => uart_baud)
@@ -189,13 +187,13 @@ begin
 				tx_we => din_stb,
 				tx_ok => din_ack,
 				tx    => rx,
-			
+		
 				rx    => tx,
 				rx_ok => open,
 				rx_nd => dout_stb,
 				rx_do => dout,
 				rx_re => dout_ack,
-			
+		
 				reg             => uart_reg,
 				clock_reg_tx_we => uart_clock_tx_we,
 				clock_reg_rx_we => uart_clock_rx_we,
@@ -385,6 +383,12 @@ begin
 			wait for clock_period * 1;
 		end loop;
 
+		-- These HSYNC and VSYNC asserts are included under the assumption
+		-- that the image running on the H2 CPU will initiate the VGA, if
+		-- it does not (perhaps because it is running it's own initialization
+		-- routines), then the HSYNC or VSYNC will never go high - so this is
+		-- not necessarily an error.
+		--
 		-- It would be nice to test the other peripherals as
 		-- well, the CPU-ID should be written to the LED 7 Segment
 		-- displays, however we only get the cathode and anode

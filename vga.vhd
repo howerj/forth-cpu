@@ -11,26 +11,11 @@
 --|
 --| This is a modified version of the text terminal available at
 --| <https://opencores.org/project,interface_vga80x40>. Additions include per
---| character attribute information (color, bold, reverse video, blink text) 
+--| character attribute information (color, bold, reverse video, blink text)
 --| and a VT100 terminal interface.
 --|
 --| See also <http://www.javiervalcarce.eu/html/vhdl-vga80x40-en.html>.
 --|
---| @todo ANSI.SYS supports some more codes which might be useful, such
---| as 'ESC[+' (turn output on) and 'ESC[-' (turn output off).
---| @todo Allow for a raw mode, allowing the module to display monochrome
---| images in 320x240 resolution. This is similar to graphics mode 5 as
---| supported by ANSI.SYS. A similar escape sequence could be used to put
---| the VT100 system into that graphics mode. We have the memory (16kiB) to
---| support 640x200 monochrome, 320x200 monochrome, and 320x200 4-bit color).
---| @todo Add in a raw 80x40 text mode, allowing the module user to bypass
---| the VT100 entirely.
---| @todo Memory map the video memory into the H2, this might require
---| pausing the H2. Also allow the font set to modified.
---| @todo This text mode display could be redesigned so it only uses a single
---| block RAM for both the video memory and the font set. We should have enough
---| between drawing pixels to do this.
---| @todo The background is fuzzy, some of the signal timing might be off
 -------------------------------------------------------------------------------
 
 ----- VGA Package -------------------------------------------------------------
@@ -525,8 +510,8 @@ begin
 	y_minus_one_limited <= (others => '0') when y_underflow else y_minus_one;
 	y_plus_one_limited  <= to_unsigned(height - 1, y_c'length) when y_overflow else y_plus_one;
 
-	busy <= '1' when state_c = ERASING 
-			or state_c = WRITE 
+	busy <= '1' when state_c = ERASING
+			or state_c = WRITE
 			or state_c = RESET
 			or state_c = WRAP
 			or state_c = ATTRIB
@@ -583,13 +568,13 @@ begin
 			if foreground then
 				if reverse_video_c then
 					attr_n(2 downto 0) <= a;
-				else 
+				else
 					attr_n(5 downto 3) <= a;
 				end if;
 			else
 				if reverse_video_c then
 					attr_n(5 downto 3) <= a;
-				else 
+				else
 					attr_n(2 downto 0) <= a;
 				end if;
 			end if;
@@ -650,7 +635,7 @@ begin
 						state_n <= NORMAL;
 					end if;
 					-- This behavior does not really mix well
-					-- with the eForth interpreter. 
+					-- with the eForth interpreter.
 					--
 					-- if is_base_saved_c then
 					--	is_base_saved_n <= false;
@@ -874,7 +859,7 @@ begin
 					when x"16"  => attr_n(6) <= '0'; -- normal brightness
 					when x"05"  => attr_n(7) <= '1'; -- slow blink
 					when x"19"  => attr_n(7) <= '0'; -- blink off
-					when x"07"  => 
+					when x"07"  =>
 						if not reverse_video_c then
 							attr_n    <= attr_c(7 downto 6) & attr_c(2 downto 0) & attr_c(5 downto 3);
 						end if;
@@ -891,22 +876,22 @@ begin
 					when x"0B"  => font_sel_n <= "1";
 
 					when x"1E"  => reverse_video("000", true); -- 30
-					when x"1F"  => reverse_video("001", true); 
-					when x"20"  => reverse_video("010", true); 
-					when x"21"  => reverse_video("011", true); 
-					when x"22"  => reverse_video("100", true); 
-					when x"23"  => reverse_video("101", true); 
-					when x"24"  => reverse_video("110", true); 
-					when x"25"  => reverse_video("111", true); 
+					when x"1F"  => reverse_video("001", true);
+					when x"20"  => reverse_video("010", true);
+					when x"21"  => reverse_video("011", true);
+					when x"22"  => reverse_video("100", true);
+					when x"23"  => reverse_video("101", true);
+					when x"24"  => reverse_video("110", true);
+					when x"25"  => reverse_video("111", true);
 
 					when x"28"  => reverse_video("000", false); -- 40
-					when x"29"  => reverse_video("001", false); 
-					when x"2A"  => reverse_video("010", false); 
-					when x"2B"  => reverse_video("011", false); 
-					when x"2C"  => reverse_video("100", false); 
-					when x"2D"  => reverse_video("101", false); 
-					when x"2E"  => reverse_video("110", false); 
-					when x"2F"  => reverse_video("111", false); 
+					when x"29"  => reverse_video("001", false);
+					when x"2A"  => reverse_video("010", false);
+					when x"2B"  => reverse_video("011", false);
+					when x"2C"  => reverse_video("100", false);
+					when x"2D"  => reverse_video("101", false);
+					when x"2E"  => reverse_video("110", false);
+					when x"2F"  => reverse_video("111", false);
 
 					when others =>
 					end case;
@@ -1009,7 +994,7 @@ begin
 		if i_vga_control_we.ctl = '1' then control_n.ctl <= i_vga_control.ctl; end if;
 	end process;
 
-	u_vga: work.vga_pkg.vga_core 
+	u_vga: work.vga_pkg.vga_core
 		generic map(g => g)
 		port map (
 		rst       => rst,
@@ -1253,9 +1238,9 @@ begin
 
 		signal text_d_tmp: std_ulogic_vector(7 downto 0) := (others => '0');
 	begin
-		u_hctr: work.vga_pkg.ctrm generic map (g => g, M => 794) 
+		u_hctr: work.vga_pkg.ctrm generic map (g => g, M => 794)
 					port map (rst, clk25MHz, hctr_ce, hctr_rs, hctr);
-		u_vctr: work.vga_pkg.ctrm generic map (g => g, M => 525) 
+		u_vctr: work.vga_pkg.ctrm generic map (g => g, M => 525)
 					port map (rst, clk25MHz, vctr_ce, vctr_rs, vctr);
 
 		hctr_ce <= '1';
@@ -1263,13 +1248,13 @@ begin
 		vctr_ce <= '1' when hctr = 663 else '0';
 		vctr_rs <= '1' when vctr = 524 else '0';
 
-		u_chrx: work.vga_pkg.ctrm generic map (g => g, M => 8)  
+		u_chrx: work.vga_pkg.ctrm generic map (g => g, M => 8) 
 					port map (rst, clk25MHz, chrx_ce, chrx_rs, chrx);
-		u_chry: work.vga_pkg.ctrm generic map (g => g, M => 12) 
+		u_chry: work.vga_pkg.ctrm generic map (g => g, M => 12)
 					port map (rst, clk25MHz, chry_ce, chry_rs, chry);
-		u_scrx: work.vga_pkg.ctrm generic map (g => g, M => 80) 
+		u_scrx: work.vga_pkg.ctrm generic map (g => g, M => 80)
 					port map (rst, clk25MHz, scrx_ce, scrx_rs, scrx_text);
-		u_scry: work.vga_pkg.ctrm generic map (g => g, M => 40) 
+		u_scry: work.vga_pkg.ctrm generic map (g => g, M => 40)
 					port map (rst, clk25MHz, scry_ce, scry_rs, scry_text);
 
 		hctr_639 <= '1' when hctr = 639 else '0';
@@ -1347,8 +1332,6 @@ begin
 		signal curen2:  std_ulogic := '0';
 		signal curpos:  std_ulogic := '0';
 		signal yint:    std_ulogic := '0';
-		-- signal crx:     integer range 79 downto 0;
-		-- signal cry:     integer range 39 downto 0;
 		signal crx:     integer range 127 downto 0;
 		signal cry:     integer range 64 downto 0;
 		signal counter: unsigned(24 downto 0) := (others => '0');
@@ -1440,6 +1423,7 @@ end;
 --| @license        LGPL version 3
 --| @email          javier.valcarce@gmail.com
 -------------------------------------------------------------------------------
+
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

@@ -1133,7 +1133,9 @@ simplified as well. The UART could be handed in the H2 Core
 * The GUI simulator could be written to be built against [SDL][], and include
 proper textures for the buttons and displays, instead of the current simulator
 which looks like an early 90s test application for OpenGL.
-* Prepare more documentation
+* Prepare more documentation. Specifically about the eForth interpreter that
+runs on the target and the online help stored within the non-volatile storage
+on the board.
 * An IDE for resetting/uploading the image to the target board and then sending
 a text buffer to it would help in developing code for the platform.
 * A [Super Optimizer][] could be made for the H2.
@@ -1169,6 +1171,7 @@ Zeroes Count, Sign Extend, Arithmetic Right Shift, Rotate Left/Right, ...
 [embed.blk]: embed.blk
 [tb.vhd]: tb.vhd
 [uart.vhd]: uart.vhd
+[timer.vhd]: timer.vhd
 [top.ucf]: top.ucf
 [font.bin]: font.bin
 [text.bin]: text.bin

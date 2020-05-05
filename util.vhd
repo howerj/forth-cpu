@@ -4,16 +4,13 @@
 --| should be synthesizable, and the functions can be used within synthesizable
 --| components, unless marked with a "_tb" suffix (or if the function n_bits).
 --|
---| @todo Add communication modules for SPI and UART, also a VGA controller,
---| CORDIC, and if this were to be its own project - a H2 Core with an 
---| eForth image ready to go. 
---|
 --| Other modules to implement; CRC core (reuse LFSR), Count
 --| Leading Zeros, Count Trailing Zeros, Manchester CODEC, Wishbone interface
---| types and Wishbone Bus Arbitrator.
+--| types and Wishbone Bus Arbitrator. Also SPI, a H2 core with an eForth image
+--| read to go, and UART.
 --|
 --| More exotic modules would include; encryption, compression, sorting networks,
---| switching networks, Reed-Solomon CODEC, Discrete Fourier Transform/Discrete 
+--| switching networks, Reed-Solomon CODEC, Discrete Fourier Transform/Discrete
 --| Cosine Transform, Pulse Width/Code/Position Modulation modules, so long as
 --| they are fairly generic and synthesizable.
 --|
@@ -21,7 +18,7 @@
 --| - Optional registers on either input or output, selectable by a generic
 --| - Better timing models
 --| - More assertions
---| - See 'A Structured VHDL design' by Jiri Gaisler, 
+--| - See 'A Structured VHDL design' by Jiri Gaisler,
 --|   <http://gaisler.com/doc/vhdl2proc.pdf> and apply methodology.
 --|
 --| @author         Richard James Howe
@@ -491,7 +488,7 @@ package util is
 	generic (
 		g: common_generics;
 		pixel_clock_frequency:  positive := 25_000_000;
-		constant cfg: vga_configuration  := vga_640x480); 
+		constant cfg: vga_configuration  := vga_640x480);
 	port (
 		clk, rst:          in std_ulogic;  -- pixel clock, must run at configured frequency
 		h_sync, v_sync:   out std_ulogic;  -- sync pulses
@@ -673,7 +670,7 @@ package body util is
 		end loop;
 		return z;
 	end;
-	
+
 	function select_bit(indexed, selector: std_ulogic_vector) return std_ulogic is
 		variable z: std_ulogic := 'X';
 	begin
@@ -784,8 +781,8 @@ package body util is
 		variable count: natural := 0;
 	begin
 		for i in s'range loop
-			if s(i) = '1' then 
-				count := count + 1; 
+			if s(i) = '1' then
+				count := count + 1;
 			end if;
 		end loop;
 		return count;
@@ -968,8 +965,6 @@ begin
 		assert decode("01")              =  "0010" severity failure;
 		assert decode("10")              =  "0100" severity failure;
 		assert decode("11")              =  "1000" severity failure;
-		-- n_bits(x: std_ulogic_vector) return natural;
-		-- mux(a, b : std_ulogic_vector) return std_ulogic;
 		wait;
 	end process;
 end architecture;
@@ -1168,8 +1163,8 @@ begin
 
 	stimulus_process: process
 	begin
-		-- put a bit into the shift register and wait
-		-- for it to come out the other size
+		-- Put a bit into the shift register and wait
+		-- for it to come out the other size.
 		wait until rst = '0';
 		di <= '1';
 		we <= '1';
@@ -1456,7 +1451,7 @@ begin
 		generic map (g => g, hold_rst => 2)
 		port map (stop => stop, clk => clk, rst => rst);
 
-	uut: entity work.full_adder 
+	uut: entity work.full_adder
 		generic map (g => g)
 		port map (x => x, y => y, z => z, sum => sum, carry => carry);
 
@@ -1491,8 +1486,8 @@ use ieee.numeric_std.all;
 use work.util.common_generics;
 
 entity fifo is
-	generic (g: common_generics; 
-		data_width: positive; 
+	generic (g: common_generics;
+		data_width: positive;
 		fifo_depth: positive;
 		read_first: boolean := true);
 	port (
@@ -1526,7 +1521,6 @@ architecture behavior of fifo is
 	signal is_full:  std_ulogic := '0';
 	signal is_empty: std_ulogic := '1';
 begin
-	-- TODO: Allow read to be configurable to next or current rindex
 	do       <= data(rindex) after g.delay;
 	full     <= is_full after g.delay;  -- buffer these bad boys
 	empty    <= is_empty after g.delay;
@@ -1826,8 +1820,8 @@ end architecture;
 --      16          1,2,4,15   65535
 --      32          1,5,6,31   4294967295
 --
--- This component could also be used to calculate CRCs, which are basically 
--- the same computation. 
+-- This component could also be used to calculate CRCs, which are basically
+-- the same computation.
 --
 
 library ieee, work;
@@ -1870,7 +1864,6 @@ begin
 			r_n <= di after g.delay;
 		elsif ce = '1' then
 			r_n(r_n'high) <= r_c(r_c'low);
-
 			for i in tap'high downto tap'low loop
 				if tap(i) = '1' then
 					r_n(i) <= r_c(r_c'low) xor r_c(i+1) after g.delay;
@@ -1928,7 +1921,6 @@ end architecture;
 ------------------------- Linear Feedback Shift Register ----------------------------
 
 ------------------------- I/O Pin Controller ----------------------------------------
--- @todo Test this in hardware
 --
 -- This is a simple I/O pin control module, there is a control register which
 -- sets whether the pins are to be read in (control = '0') or set to the value written to
@@ -1957,7 +1949,7 @@ architecture rtl of io_pins is
 	signal din_o:     std_ulogic_vector(din'range)     := (others => '0');
 begin
 
-	control_r: entity work.reg generic map (g => g, N => N) 
+	control_r: entity work.reg generic map (g => g, N => N)
 				port map (clk => clk, rst => rst, di => control, we => control_we, do => control_o);
 	din_r:     entity work.reg generic map (g => g, N => N)
 				port map (clk => clk, rst => rst, di => din,     we => din_we,     do => din_o);
@@ -2031,7 +2023,6 @@ end architecture;
 ------------------------- I/O Pin Controller ----------------------------------------
 
 ------------------------- Single and Dual Port Block RAM ----------------------------
---|
 --| @warning The function initialize_ram has to be present in each architecture
 --| block ram that uses it (as far as I am aware) which means they could fall
 --| out of sync. This could be remedied with VHDL-2008.
@@ -2242,13 +2233,7 @@ end architecture;
 
 ------------------------- Data Source -----------------------------------------------
 --|
---| This module spits out a bunch of data
---|
---| @todo Create a single module that can be used to capture and replay data at
---| a configurable rate. This could be used as a logger or as a waveform
---| generator. Depending on the generics used this should synthesize to either
---| logger, or a data source, or both. A pre-divider could also be supplied as
---| generic options, to lower the clock rate.
+--| This module spits out a bunch of data.
 --|
 
 library ieee, work;
@@ -2331,9 +2316,10 @@ end architecture;
 -- be possible, but difficult. A single port version would require another
 -- state to fetch the operand and another register, or more states.
 --
--- @todo Test in hardware, document, make assembler, and a project that
--- just contains an instantiation of this core, Select CPU behavior with
--- generics (instructions, branch conditions...)
+-- I have another small, bit serial CPU, available at:
+--   <https://github.com/howerj/bit-serial>
+-- Which is also tiny, but potentially much more useful. It is currently in
+-- a state of flux though.
 --
 
 library ieee, work;
@@ -2488,14 +2474,12 @@ end architecture;
 ------------------------- uCPU ------------------------------------------------------
 
 ------------------------- Restoring Division ----------------------------------------
--- @todo Add remainder to output, rename signals, make a
--- better test bench, add non-restoring division, and describe module
 --
 -- Computes a/b in N cycles
 --
 -- https://en.wikipedia.org/wiki/Division_algorithm#Restoring_division
 --
---
+
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -2832,7 +2816,6 @@ end architecture;
 ------------------------- Change State Block --------------------------------------------------
 
 ------------------------- Reset Signal Generator ----------------------------------------------
--- @todo Allow retriggering of the reset, perhaps even add watchdog functionality to it.
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -2902,7 +2885,9 @@ begin
 end architecture;
 
 ------------------------- Reset Signal Generator ----------------------------------------------
+
 ------------------------- Bit Count -----------------------------------------------------------
+
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -2969,10 +2954,15 @@ begin
 	end process;
 
 end architecture;
+
 ------------------------- Bit Count -----------------------------------------------------------
+
 ------------------------- Majority Voter ------------------------------------------------------
+--
 -- NB. This could be constructed from a more generic 'assert output if bit
--- count greater than N' module. 
+-- count greater than N' module.
+--
+
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -2989,7 +2979,7 @@ end entity;
 architecture behavior of majority is
 	signal count: std_ulogic_vector(n_bits(N) downto 0) := (others => '0');
 	-- It might be worth handling up to five or so bits in combinatorial
-	-- logic, or it might not. 
+	-- logic, or it might not.
 begin
 	majority_1: if N = 1 generate
 		vote <= bits(0) after g.delay;
@@ -3143,11 +3133,12 @@ end architecture;
 ------------------------- Delay Line ----------------------------------------------------------
 -- 'DEPTH' * clock period delay line. Minimum delay of 0.
 --
--- NB. It would be possible to create a delay line that would allow you to delay samples by 
+-- NB. It would be possible to create a delay line that would allow you to delay samples by
 -- varying amounts with a FIFO and a counter, which is sort of line a Run
 -- Length Compression Decoder. A sample and a counter would be pushed to the
 -- FIFO, the delay line mechanism would pull a sample/counter and hold the value
 -- for that amount of time.
+
 library ieee, work;
 use ieee.std_logic_1164.all;
 use work.util.all;
@@ -3229,7 +3220,9 @@ begin
 end architecture;
 
 ------------------------- Delay Line ----------------------------------------------------------
+
 ------------------------- Gray CODEC ----------------------------------------------------------
+
 library ieee, work;
 use ieee.std_logic_1164.all;
 use work.util.all;
@@ -3325,8 +3318,11 @@ begin
 		wait;
 	end process;
 end architecture;
+
 ------------------------- Gray CODEC ----------------------------------------------------------
+
 ------------------------- Parity Module -------------------------------------------------------
+
 library ieee, work;
 use ieee.std_logic_1164.all;
 use work.util.all;
@@ -3340,13 +3336,16 @@ architecture behavior of parity_module is
 begin
 	do <= parity(di, even) after g.delay;
 end architecture;
+
 ------------------------- Parity Module -------------------------------------------------------
+
 ------------------------- Hamming CODEC  ------------------------------------------------------
 -- This is a Hamming encoder/decoder, with an extra parity bit. This can be used for error
 -- correction and detection across a noisy line.
 --
 -- See <https://en.wikipedia.org/wiki/Hamming_code> for more information.
 --
+
 library ieee, work;
 use ieee.std_logic_1164.all;
 use work.util.all;
@@ -3398,7 +3397,7 @@ begin
 	s(2) <= di(3) xor di(4) xor di(5) xor di(6) after g.delay;
 	s(1) <= di(1) xor di(2) xor di(5) xor di(6) after g.delay;
 	s(0) <= di(0) xor di(2) xor di(4) xor di(6) after g.delay;
-	
+
 	do(0) <= co(2) after g.delay;
 	do(1) <= co(4) after g.delay;
 	do(2) <= co(5) after g.delay;
@@ -3535,11 +3534,13 @@ begin
 	end process;
 
 end architecture;
+
 ------------------------- Hamming CODEC  ------------------------------------------------------
+
 ------------------------- VGA Controller ------------------------------------------------------
 -- VGA Controller
 --
--- See: 
+-- See:
 --  * <https://en.wikipedia.org/wiki/Video_Graphics_Array>
 --  * <http://www.ece.ualberta.ca/~elliott/ee552/studentAppNotes/1998_w/Altera_UP1_Board_Map/vga.html>
 --  * <https://www.digikey.com/eewiki/pages/viewpage.action?pageId=15925278>
@@ -3555,7 +3556,7 @@ end architecture;
 --  |-----800 pixels / 31.778 us---------|
 --  |-----640 Pixels--------|-160 Pixels-|
 --  |-----25.422 us---------|--5.75 us---|
---   
+--  
 --  +-----------------------+------------+   VSYNC
 --  |                       |         ^  |     |
 --  |                       |         |  |     |
@@ -3565,14 +3566,14 @@ end architecture;
 --  |                       |         |  |     |
 --  |                       |         |  |     |
 --  |                       |         v  |     |
---  +-----------------------+        --- |     | 
+--  +-----------------------+        --- |     |
 --  |                                 ^  |    _| <- Front porch 0.318 ms (10 rows)
---  |                                 |  |   | 
+--  |                                 |  |   |
 --  |      Blanking Period       45 Rows |   | <--- VSYNC pulse 0.064 ms (2 rows)
 --  |                                 |  |   |_
 --  |                                 v  |     | <- Back porch 1.048 ms (33 rows)
 --  +------------------------------------+     |
---                                  
+--                                 
 --                              ___
 --  ___________________________|   |_____ HSYNC
 --                            ^  ^  ^
@@ -3589,12 +3590,12 @@ entity vga_controller is
 	generic (
 		g: common_generics;
 		pixel_clock_frequency:  positive := 25_000_000;
-		constant cfg: vga_configuration  := vga_640x480); 
+		constant cfg: vga_configuration  := vga_640x480);
 	port (
 		clk, rst:          in std_ulogic;
 		h_sync, v_sync:   out std_ulogic;
 		h_blank, v_blank: out std_ulogic;
-		column, row:      out integer); -- TODO: Use unsigned value of minimum necessary width
+		column, row:      out integer);
 end entity;
 
 architecture behavior of vga_controller is
@@ -3603,9 +3604,9 @@ architecture behavior of vga_controller is
 	signal h_sync_internal, v_sync_internal: std_ulogic := '0';
 begin
 	-- The clock does not need to be exactly the correct value
-	assert pixel_clock_frequency <= (cfg.clock_frequency + 250_000) 
+	assert pixel_clock_frequency <= (cfg.clock_frequency + 250_000)
 		and pixel_clock_frequency >= (cfg.clock_frequency - 250_000) severity warning;
-	
+
 	h_sync <= h_sync_internal xor cfg.h_polarity;
 	v_sync <= v_sync_internal xor cfg.v_polarity;
 
@@ -3691,18 +3692,20 @@ begin
 	uut: work.util.vga_controller
 		generic map (g => g, pixel_clock_frequency => pixel_clock_frequency)
 		port map (
-			rst     => rst, 
+			rst     => rst,
 			clk     => clk,
-			h_sync  => h_sync, 
+			h_sync  => h_sync,
 			v_sync  => v_sync,
 			h_blank => h_blank,
 			v_blank => v_blank,
-			column  => column, 
+			column  => column,
 			row     => row);
 end architecture;
+
 ------------------------- VGA Controller ------------------------------------------------------
+
 ------------------------- LED Controller ------------------------------------------------------
---| This module implements a 7 segment display (plus decimal point) driver, 
+--| This module implements a 7 segment display (plus decimal point) driver,
 --|  with 4 displays in total:
 --|
 --|    _____________________ an (selects segment)
@@ -3967,6 +3970,7 @@ begin
 end architecture;
 
 ------------------------- LED Controller ------------------------------------------------------
+
 ------------------------- Sine / Cosine  ------------------------------------------------------
 -- Sine / Cosine calculation using multiplication
 -- Half-inched from <https://github.com/jamesbowman/sincos>
@@ -3974,8 +3978,6 @@ end architecture;
 -- 1 Degree is ~182 Furmans. 1 rad is ~10430 Furmans.
 -- Result is signed scaled 16-bit integer; -1 = -32767, +1 = 32767
 --
--- TODO: Optionally insert registers at various locations throughout the module, 
--- specified with a generic. Also, create a resource shared version.
 library ieee, work;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -4006,18 +4008,18 @@ architecture behavior of sine is
 	signal xnslv, t0nslv, t1nslv: std_ulogic_vector(x'range);
 begin
 	pipe_0: if pipeline generate
-		reg_in: work.util.reg 
-			generic map (g => g, N => x'length) 
+		reg_in: work.util.reg
+			generic map (g => g, N => x'length)
 			port map (clk => clk, rst => rst, we => xwe, di => x, do => xnslv);
 		reg_out: work.util.reg
-			generic map (g => g, N => x'length) 
+			generic map (g => g, N => x'length)
 			port map (clk => clk, rst => rst, we => '1', di => std_ulogic_vector(so), do => s);
 		xn  <= signed(xnslv);
 		t0n <= signed(t0); -- also need to delay n
 		t1n <= signed(t1); -- also need to delay n
 	end generate;
-	no_pipe_0: if not pipeline generate 
-		xn <= signed(x); 
+	no_pipe_0: if not pipeline generate
+		xn <= signed(x);
 		s  <= std_ulogic_vector(so) after g.delay;
 		t0n <= t0;
 		t1n <= t1;
@@ -4055,7 +4057,7 @@ architecture behavior of cosine is
 	signal xn: std_ulogic_vector(c'range);
 begin
 	xn <= std_ulogic_vector(signed(x) + x"4000");
-	calc: entity work.sine 
+	calc: entity work.sine
 		generic map(g => g, pipeline => pipeline) port map(clk => clk, rst => rst, xwe => xwe, x => xn, s => c);
 end architecture;
 

@@ -15,11 +15,11 @@ typedef uint16_t m_t;
 typedef  int16_t s_t;
 typedef uint32_t d_t;
 typedef struct forth_t { m_t m[32768], vs[STK], rs[STK], pc, t, rp, sp, cpu; } forth_t;
-typedef int (*cb)(forth_t *h, void *param); 
+typedef int (*cb)(forth_t *h, void *param);
 
-static inline size_t cells(forth_t const * const h) { 
-	assert(h); 
-	return sizeof(h->m)/sizeof(h->m[0]); 
+static inline size_t cells(forth_t const * const h) {
+	assert(h);
+	return sizeof(h->m)/sizeof(h->m[0]);
 }
 
 static void die(const char *fmt, ...) {

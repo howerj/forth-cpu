@@ -33,7 +33,7 @@ package h2_pkg is
 			start_address:            natural  := 0;               -- Initial program counter value
 			stack_size_log2:          positive := 6;               -- Log_2 of the Size of the stack
 			use_interrupts:           boolean  := true             -- Enable Interrupts in the H2 Core
-		);           
+		);          
 		port(
 			clk:      in  std_ulogic;
 			rst:      in  std_ulogic; -- active high reset, configurable async/sync
