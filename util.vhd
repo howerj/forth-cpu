@@ -2311,15 +2311,14 @@ end architecture;
 --  JCC              1    11 ADDRESS IF(CARRY) { PC = ADDRESS, CLEAR CARRY }
 --
 -- It would be interesting to make a customizable CPU in which the
--- instructions could be customized based upon what. Another interesting
+-- instructions could be customized based upon generics. Another interesting
 -- possibility is making a simple assembler purely in VHDL, which should
 -- be possible, but difficult. A single port version would require another
 -- state to fetch the operand and another register, or more states.
 --
 -- I have another small, bit serial CPU, available at:
 --   <https://github.com/howerj/bit-serial>
--- Which is also tiny, but potentially much more useful. It is currently in
--- a state of flux though.
+-- Which is also tiny, but potentially much more useful. 
 --
 
 library ieee, work;
