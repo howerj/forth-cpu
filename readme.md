@@ -35,7 +35,8 @@ fairly portable, although the interfaces to the [Nexys3][] board components are
 specific to the peripherals on that board.
 
 A video of the project in action, on the hardware, can be viewed here:
-![Nexys-3 Board](https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/107.mp4)
+
+https://raw.githubusercontent.com/howerj/howerj.github.io/master/h2/107.mp4
 
 And a lower quality version of the same video that should play automatically:
 
